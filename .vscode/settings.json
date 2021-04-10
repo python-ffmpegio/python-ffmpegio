@@ -1,4 +1,4 @@
 {
-    "python.pythonPath": ".venv\\Scripts\\python.exe",
+    "python.pythonPath": "C:\\Users\\tikum\\miniconda3\\envs\\dev\\python.exe",
     "python.formatting.provider": "black"
 }
