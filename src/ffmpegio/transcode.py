@@ -175,6 +175,4 @@ def transcode_sync(
         outputs=[(output_url, outopts)],
     )
 
-    ret = ffmpeg.run_sync(args, stdout=None, stderr=None,)
-
-    return ret.returncode
+    ffmpeg.run_sync(args, stdout=None, stderr=None,)

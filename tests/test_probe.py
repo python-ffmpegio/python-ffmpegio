@@ -1,5 +1,4 @@
-# import ffmpegio.ffmpeg as ffmpeg
-import src.probe as probe
+import ffmpegio.probe as probe
 
 # print(
 #     probe.inquire(

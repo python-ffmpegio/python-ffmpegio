@@ -1,5 +1,4 @@
-# import ffmpegio.ffmpeg as ffmpeg
-import src.caps as caps
+import ffmpegio.caps as caps
 
 print("filters")
 filters = caps.filters()

@@ -213,11 +213,9 @@ def video_streams_basic(url, index=None, entries=None):
         if not entries or "duration" in entries:
             res["duration"] = duration
 
-        frame_rate = fractions.Fraction(
-            res.pop("avg_frame_rate", "") or res.pop("r_frame_rate", "0")
-            if not entries or "frame_rate" in entries or "nb_frames"
-            else 0
-        )
+        fsa = res.pop("avg_frame_rate", "")
+        fsr = res.pop("r_frame_rate", "0")
+        frame_rate = fractions.Fraction(fsa if fsa and fsa != "0/0" else fsr)
         if not entries or "frame_rate" in entries:
             res["frame_rate"] = frame_rate
 
@@ -229,7 +227,7 @@ def video_streams_basic(url, index=None, entries=None):
             res["display_aspect_ratio"] = fractions.Fraction(
                 res["display_aspect_ratio"].replace(":", "/")
             )
-        if "nb_frames" not in res:
+        if "nb_frames" not in res and entries and "nb_frames" in entries:
             res["nb_frames"] = int(round(duration * frame_rate))
 
         return res
@@ -330,4 +328,3 @@ def audio_streams_basic(url, index=None, entries=None):
 # -show_versions
 # -show_pixel_formats
 # -bitexact
-

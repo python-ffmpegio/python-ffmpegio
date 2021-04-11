@@ -1,8 +1,6 @@
 import sys, json, subprocess as sp
 import numpy as np
-import ffmpeg
-
-from . import utils
+from .. import ffmpeg, probe, utils
 
 
 def _process_args(inputFileName, **kwargs):

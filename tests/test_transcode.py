@@ -1,5 +1,4 @@
-# import ffmpegio.ffmpeg as ffmpeg
-from src import transcode, probe
+from ffmpegio import transcode, probe
 import tempfile, re
 from os import path
 

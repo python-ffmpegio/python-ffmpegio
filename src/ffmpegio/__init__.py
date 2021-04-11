@@ -15,6 +15,10 @@ underlying
 from .transcode import transcode_sync
 from . import caps
 from . import probe
+from . import audio
+from . import image
 from . import ffmpeg as _ffmpeg
 
-__all__ = ["transcode_sync", "caps", "probe"]
+set_path = _ffmpeg.find
+
+__all__ = ["transcode_sync", "caps", "probe", "set_path", "audio", "image"]

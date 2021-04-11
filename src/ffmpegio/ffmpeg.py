@@ -1,4 +1,4 @@
-import shlex, re, os, shutil
+import shlex, re, os, shutil, logging
 import subprocess as sp
 
 # list of global options (gathered on 4/9/21)
@@ -57,9 +57,9 @@ def parse_options(args):
 
 def parse(cmdline):
     """Parse ffmpeg command line arguments:
-    
+
     `[global_options] {[input_file_options] -i input_url} ... {[output_file_options] output_url} ...`
-    
+
     Argument
     cmdline : str
         ffmpeg command line string or partial argument thereof
@@ -71,7 +71,7 @@ def parse(cmdline):
         dict["inputs"] : a list of tuples for inputs: (input_url, input_file_options)
         dict["outputs"] : a list of tuples for outputs : (output_url, output_file_options)
 
-        Any xxx_options item is a dict with the option argument (minus the leading dash, possibly with stream id) as the key and 
+        Any xxx_options item is a dict with the option argument (minus the leading dash, possibly with stream id) as the key and
         its option value as the dict element value. If option is a flag, its value is None.
 
     Caution: multiple output_url's are detected based on the assumption that the last output file option of each output_url
@@ -223,7 +223,10 @@ def find(dir=None):
                     ],
                     *[
                         os.path.join(os.environ[var], "Programs")
-                        for var in ("APPDATA", "LOCALAPPDATA",)
+                        for var in (
+                            "APPDATA",
+                            "LOCALAPPDATA",
+                        )
                         if var in os.environ
                     ],
                 ]
@@ -232,7 +235,8 @@ def find(dir=None):
 
     def search(cmd):
         return next(
-            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))), None,
+            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))),
+            None,
         )
 
     p = search("ffmpeg")
@@ -245,7 +249,7 @@ def find(dir=None):
     p = search("ffprobe")
     if not p:
         raise Exception(
-            "only ffmpeg binary found and ffprobe not found. Make sure both ffmpeg and ffprobe are available on the system."
+            "only ffmpeg binary found and ffprobe missing. Make sure both ffmpeg and ffprobe are available on the system."
         )
     FFPROBE_BIN = p
 
@@ -253,33 +257,55 @@ def find(dir=None):
 # initialize the paths
 try:
     find()
-except:
-    pass
+except Exception as e:
+    logging.warn(str(e))
 
 
-def run_sync(args, *sp_arg, hide_banner=True, **sp_kwargs):
+def _get_ffmpeg(probe=False):
+
+    path = FFPROBE_BIN if probe else FFMPEG_BIN
+
+    if not path:
+        raise Exception(
+            "FFmpeg executables not found. Run `ffmpegio.set_path()` first or place FFmpeg executables in auto-detectable path locations."
+        )
+
+    return path
+
+
+def run_sync(
+    args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kwargs
+):
 
     if isinstance(args, dict):
-        args = compose(**args, command=FFMPEG_BIN)
+        args = compose(**args, command=_get_ffmpeg())
     else:
-        args = [FFMPEG_BIN, *(shlex.split(args) if isinstance(args, str) else args)]
+        args = [_get_ffmpeg(), *(shlex.split(args) if isinstance(args, str) else args)]
 
     if hide_banner:
         args.insert(1, "-hide_banner")
 
-    return sp.run(args, *sp_arg, **sp_kwargs)
+    ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
+    if ret.returncode != 0:
+        print(ret.stderr)
+        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
+    return ret.stdout
 
 
-def run(args, *sp_arg, hide_banner=True, **sp_kwargs):
+def run(args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kwargs):
     if isinstance(args, dict):
-        args = compose(**args, command=FFMPEG_BIN)
+        args = compose(**args, command=_get_ffmpeg())
     else:
-        args = [FFMPEG_BIN, *(shlex.split(args) if isinstance(args, str) else args)]
+        args = [_get_ffmpeg(), *(shlex.split(args) if isinstance(args, str) else args)]
 
     if hide_banner:
         args.insert(1, "-hide_banner")
 
-    return sp.run(args, *sp_arg, **sp_kwargs)
+    ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
+    if ret.returncode != 0:
+        print(ret.stderr)
+        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
+    return ret.stdout
 
 
 def ffprobe(
@@ -294,10 +320,11 @@ def ffprobe(
 ):
 
     args = [
-        FFPROBE_BIN,
+        _get_ffmpeg(probe=True),
         *(["-hide_banner"] if hide_banner else []),
         *(shlex.split(args) if isinstance(args, str) else args),
     ]
+
     ret = sp.run(
         args,
         *sp_arg,
@@ -309,5 +336,5 @@ def ffprobe(
     )
 
     if ret.returncode != 0:
-        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr}")
+        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
     return ret.stdout

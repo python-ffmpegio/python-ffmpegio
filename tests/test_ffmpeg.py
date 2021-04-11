@@ -1,5 +1,4 @@
-# import ffmpegio.ffmpeg as ffmpeg
-import src.probe as probe
+import ffmpegio.probe as probe
 
 
 # out = ffmpeg.parse("ffmpeg -i input.avi -b:v 64k -bufsize 64k output.avi")
