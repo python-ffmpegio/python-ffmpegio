@@ -89,8 +89,9 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
         query = user_query
 
     for dent, dee in default_dep_entries.items():
-        query.discard(dent)
-        query |= set(dee)
+        if dent in query:
+            query.discard(dent)
+            query |= set(dee)
 
     return query
 

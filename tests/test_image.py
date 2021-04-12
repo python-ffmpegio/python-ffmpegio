@@ -20,16 +20,16 @@ print(info)
 
 A = image.read(url)
 print(A.dtype == np.uint8)
-B = image.read(url,'ya8')
+B = image.read(url,pix_fmt='ya8')
 print(B.shape)
-C = image.read(url,'rgb24')
-D = image.read(url,'gray')
+C = image.read(url,pix_fmt='rgb24')
+D = image.read(url,pix_fmt='gray')
 with tempfile.TemporaryDirectory() as tmpdirname:
     out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
     print(out_url)
     image.write(out_url, C)
     print(probe.video_streams_basic(out_url))
-    C = image.read(out_url)
+    C = image.read(out_url,pix_fmt='rgba')
 
 #     with open(path.join(tmpdirname, "progress.txt")) as f:
 #         print(f.read())

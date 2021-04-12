@@ -336,5 +336,5 @@ def ffprobe(
     )
 
     if ret.returncode != 0:
-        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
+        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr}")
     return ret.stdout
