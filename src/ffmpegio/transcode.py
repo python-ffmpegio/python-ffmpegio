@@ -1,8 +1,10 @@
+from os import path
+
 from . import ffmpeg
 from . import probe
 
 
-def transcode_sync(
+def transcode(
     input_url,
     output_url,
     start=None,
@@ -18,6 +20,7 @@ def transcode_sync(
     video_crf=None,
     video_pix_fmt=None,
     video_filter=None,
+    force=None,
     input_options=None,
     output_options=None,
     global_options=None,
@@ -26,7 +29,7 @@ def transcode_sync(
 
     https://ffmpeg.org/ffmpeg.html
 
-    :param input_url: url/path of the input media file 
+    :param input_url: url/path of the input media file
     :type input_url: str
     :param output_url: url/path of the output media file
     :type output_url: str
@@ -57,6 +60,8 @@ def transcode_sync(
     :param video_filter: filtergraph definition for filtering video streams, defaults to None
     :type video_filter: str, optional
     :param input_options: dict of user-defined input options, defaults to None. each key is FFmpeg option argument without leading '-' with trailing stream specifier if needed. For flag options, set their values to None.
+    :param force: True to overwrite if file exists or False to skip. If None or
+                  unspecified, FFmpeg will ask for resolution.
     :type input_options: dict, optional
     :param output_options: dict of user-defined output options, defaults to None. each key is FFmpeg option argument without leading '-' with trailing stream specifier if needed. For flag options, set their values to None.
     :type output_options: dict, optional
@@ -66,7 +71,7 @@ def transcode_sync(
     :rtype: int
 
     notes:
-    
+
     `start` vs `end` vs `duration` - Only 2 out of 3 are honored.
 
         =======  =====  ==========  ======================================================================
@@ -74,7 +79,7 @@ def transcode_sync(
         =======  =====  ==========  ======================================================================
            X                        start time specified, transcode till the end of input
                    X                transcode from the beginning of the input till `end` time is hit
-                            X       transcode from the beginning of the input till encoded `duration` long 
+                            X       transcode from the beginning of the input till encoded `duration` long
            X       X                start and end time specified
            X                X       start and duration specified
                    X        X       end and duration nspecified (start = end - duration)
@@ -166,13 +171,36 @@ def transcode_sync(
             ),
         }
 
-    if global_options and isinstance(global_options, str):
-        global_options = ffmpeg.parse_options(global_options)
+    gopts = {}
+    if force is not None:
+        if force:
+            gopts["y"] = None
+        else:
+            gopts["n"] = None
+
+    if global_options:
+        gopts = {
+            **gopts,
+            **(
+                ffmpeg.parse_options(global_options)
+                if isinstance(global_options, str)
+                else global_options
+            ),
+        }
 
     args = dict(
-        global_options=global_options,
+        global_options=gopts,
         inputs=[(input_url, inopts)],
         outputs=[(output_url, outopts)],
     )
 
-    ffmpeg.run_sync(args, stdout=None, stderr=None,)
+    #TODO run async and monitor stderr for better error handling
+    try:
+        ffmpeg.run_sync(
+            args,
+            stdout=None,
+            stderr=None,
+        )
+    except Exception as e:
+        if not (gopts.get("n", True) and path.isfile(output_url)):
+            raise e

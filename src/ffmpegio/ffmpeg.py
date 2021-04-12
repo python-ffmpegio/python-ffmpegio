@@ -286,8 +286,7 @@ def run_sync(
         args.insert(1, "-hide_banner")
 
     ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
-    if ret.returncode != 0:
-        print(ret.stderr)
+    if ret.returncode != 0 and ret.stderr is not None:
         raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
     return ret.stdout
 
@@ -302,8 +301,7 @@ def run(args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kw
         args.insert(1, "-hide_banner")
 
     ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
-    if ret.returncode != 0:
-        print(ret.stderr)
+    if ret.returncode != 0 and ret.stderr is not None:
         raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
     return ret.stdout
 

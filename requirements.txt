@@ -2,3 +2,4 @@ numpy
 matplotlib
 pytest
 PyQt5
+wheel
