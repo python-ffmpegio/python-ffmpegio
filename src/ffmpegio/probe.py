@@ -104,8 +104,8 @@ def format_basic(url, entries=None):
     :param entries: specify to narrow which information entries to retrieve. Default to None,
                     to return all entries
     :type seq of str
-    :return: List of media format information.
-    :rtype: list of dict
+    :return: set of media format information.
+    :rtype: dict
 
     Media Format Information Entries
 
@@ -134,6 +134,39 @@ def format_basic(url, entries=None):
         show_format=_resolve_entries("basic format", entries, default_entries),
         show_streams=False,
     )["format"]
+    return results
+
+
+def streams_basic(url, entries=None):
+    """Retrieve basic info of media streams
+
+    :param url: URL of the media file/stream
+    :type url: str
+    :param entries: specify to narrow which information entries to retrieve. Default to None,
+                    to return all entries
+    :type seq of str
+    :return: List of media stream information.
+    :rtype: list of dict
+
+    Media Format Information Entries
+
+        ==========   ====
+        name         type
+        ==========   ====
+        index        int
+        codec_name   str
+        codec_type   str
+        ==========   ====
+
+    """
+
+    default_entries = ("index", "codec_name", "codec_type")
+
+    results = inquire(
+        url,
+        show_format=False,
+        show_streams=_resolve_entries("basic streams", entries, default_entries),
+    )["streams"]
     return results
 
 
