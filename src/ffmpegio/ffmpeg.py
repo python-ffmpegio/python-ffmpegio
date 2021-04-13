@@ -1,5 +1,6 @@
 import shlex, re, os, shutil, logging
 import subprocess as sp
+from collections import abc
 
 # list of global options (gathered on 4/9/21)
 global_options = (
@@ -40,7 +41,6 @@ def parse_options(args):
     """
     if isinstance(args, str):
         args = shlex.split(args)
-
     res = {}
     n = len(args)
     i = 0
@@ -48,7 +48,12 @@ def parse_options(args):
         key = args[i][1:]
         i += 1
         if i < n and args[i][0] != "-":
-            res[key] = args[i]
+            if key not in res:
+                res[key] = args[i]
+            elif isinstance(res[key], str):
+                res[key] = [res[key], args[i]]
+            else:
+                res[key].push(args[i])
             i += 1
         else:
             res[key] = None
@@ -148,9 +153,14 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
     def opts2args(opts):
         args = []
         for key, val in opts.items():
-            args.append(f"-{key}")
-            if val is not None:
-                args.append(str(val))
+            karg = f"-{key}"
+            if not isinstance(val, str) and isinstance(val, abc.Sequence):
+                for v in val:
+                    args.extend([karg, str(v)])
+            else:
+                args.append(karg)
+                if val is not None:
+                    args.append(str(val))
         return args
 
     def inputs2args(inputs):
@@ -287,7 +297,9 @@ def run_sync(
 
     ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
     if ret.returncode != 0 and ret.stderr is not None:
-        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
+        raise Exception(
+            f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}"
+        )
     return ret.stdout
 
 
@@ -302,7 +314,9 @@ def run(args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kw
 
     ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
     if ret.returncode != 0 and ret.stderr is not None:
-        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}")
+        raise Exception(
+            f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}"
+        )
     return ret.stdout
 
 

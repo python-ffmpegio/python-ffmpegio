@@ -1,4 +1,4 @@
-import ffmpegio.probe as probe
+from ffmpegio import ffmpeg
 
 
 # out = ffmpeg.parse("ffmpeg -i input.avi -b:v 64k -bufsize 64k output.avi")
@@ -7,7 +7,7 @@ import ffmpegio.probe as probe
 
 s = r"ffmpeg -i input.ts -filter_complex \
   '[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay' \
-  -sn -map '#0x2dc' output.mkv"
+  -sn -map '#0x2dc' -map a output.mkv"
 # p = ffmpeg.parse(s)
 # print(p["global_options"])
 # print(p["inputs"])
