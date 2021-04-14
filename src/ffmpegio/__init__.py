@@ -43,6 +43,10 @@ def open(url=None, mode="", **kwds):
     write = "w" in mode
     filter = "f" in mode
     backwards = "b" in mode
+    if unk := set(mode) - set("avrwfb"):
+        raise Exception(
+            f"Invalid FFmpeg streaming mode: {mode}. Unknown mode {unk} specified."
+        )
 
     if read + write + filter > 1:
         raise Exception(
