@@ -1,38 +1,8 @@
 import sys
 import numpy as np
-from . import ffmpeg, probe
+from . import ffmpeg, probe, utils
 
 
-def _get_format(fmt):
-    """get audio format
-
-    :param fmt: ffmpeg sample_fmt or numpy dtype class
-    :type fmt: str or numpy dtype class
-    :return: tuple of pcm codec name and (dtype if sample_fmt given or sample_fmt if dtype given)
-    :rtype: tuple
-    """
-    formats = dict(
-        u8p=("pcm_u8", np.uint8),
-        s16p=("pcm_s16le", np.int16),
-        s32p=("pcm_s32le", np.int32),
-        s64p=("pcm_s64le", np.int64),
-        fltp=("pcm_f32le", np.float32),
-        dblp=("pcm_f64le", np.float64),
-        u8=("pcm_u8", np.uint8),
-        s16=("pcm_s16le", np.int16),
-        s32=("pcm_s32le", np.int32),
-        s64=("pcm_s64le", np.int64),
-        flt=("pcm_f32le", np.float32),
-        dbl=("pcm_f64le", np.float64),
-    )
-
-    # byteorder = "be" if sys.byteorder == "big" else "le"
-
-    return (
-        formats.get(fmt, formats["s16"])
-        if isinstance(fmt, str)
-        else next(((v[0], k) for k, v in formats.items() if v[1] == fmt))
-    )
 
 
 def read(filename, **inopts):
@@ -48,7 +18,7 @@ def read(filename, **inopts):
         filename, index=0, entries=("sample_rate", "sample_fmt", "channels")
     )[0]
 
-    acodec, dtype = _get_format(info["sample_fmt"])
+    acodec, dtype = utils.get_audio_format(info["sample_fmt"])
 
     args = dict(
         inputs=[(filename, None,)],
@@ -73,7 +43,7 @@ def write(filename, rate, data, **outopts):
     :type data: numpy.ndarray
     :raises Exception: FFmpeg error
     """
-    acodec, _ = _get_format(data.dtype)
+    acodec, _ = utils.get_audio_format(data.dtype)
     args = dict(
         inputs=[
             (

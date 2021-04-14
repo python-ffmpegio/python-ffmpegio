@@ -2,6 +2,8 @@ import shlex, re, os, shutil, logging
 import subprocess as sp
 from collections import abc
 
+PIPE = sp.PIPE
+
 # list of global options (gathered on 4/9/21)
 global_options = (
     ("-y", 0),

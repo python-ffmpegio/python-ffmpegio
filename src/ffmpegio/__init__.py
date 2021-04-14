@@ -7,8 +7,8 @@ Transcode media file to another format/codecs
 ---------------------------------------------
 ffmpegio.transcode()
 
-Simple Read/Write Functions
----------------------------
+Simple Read/Write Streams
+-------------------------
 ffmpegio.open()
 
 Simple Read/Write Functions
@@ -42,6 +42,7 @@ def open(url=None, mode="", **kwds):
     read = "r" in mode
     write = "w" in mode
     filter = "f" in mode
+    backwards = "b" in mode
 
     if read + write + filter > 1:
         raise Exception(
@@ -66,17 +67,20 @@ def open(url=None, mode="", **kwds):
                     audio = True
         if video == audio:
             raise Exception("Current version does not support multimedia IO")
-        elif audio:
-            raise Exception("Current version does not support audio IO")
         else:
-            if write:
-                raise Exception("Current version does not support video write")
-            StreamClass = _streams.SimpleVideoReader
+            StreamClass = (
+                (_streams.SimpleAudioWriter if write else _streams.SimpleAudioReader)
+                if audio
+                else (
+                    _streams.SimpleVideoWriter if write else _streams.SimpleVideoReader
+                )
+            )
 
-    # Code to acquire resource, e.g.:
+    # instantiate the streaming object
+    # TODO wrap in try-catch if AV stream fails to try a multi-stream version
     stream = StreamClass(url=url, **kwds)
     try:
         yield stream
     finally:
-        # Code to release resource, e.g.:
+        # terminate FFmpeg
         stream.close()
