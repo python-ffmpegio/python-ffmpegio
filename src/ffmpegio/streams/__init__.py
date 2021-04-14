@@ -1,1 +1,6 @@
-from .SimpleVideoReader import SimpleVideoReader
+from .SimpleStreams import (
+    SimpleVideoReader,
+    SimpleVideoWriter,
+    SimpleAudioReader,
+    SimpleAudioWriter,
+)
