@@ -36,7 +36,7 @@ __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", 
 
 
 @contextmanager
-def open(url=None, mode="", **kwds):
+def open(url=None, mode="", stream_ids=None, stream_options=None, rate=None, **kwds):
     audio = "a" in mode
     video = "v" in mode
     read = "r" in mode
@@ -53,11 +53,19 @@ def open(url=None, mode="", **kwds):
             f"Invalid FFmpeg streaming mode: {mode}. Only 1 of 'rwf' may be specified."
         )
 
+    if backwards + (write or filter) > 1:
+        raise Exception(
+            f"Invalid FFmpeg streaming mode: {mode}. Backward streaming only supported for read stream."
+        )
+
     if not (read or write or filter):
         if url:
             read = True  # default to read if url given
         else:
             filter = True  # default to write if no url given
+
+    if backwards:
+        raise Exception("Current version does not support backward streaming.")
 
     if filter:
         raise Exception("Current version does not support filtering")
@@ -69,8 +77,10 @@ def open(url=None, mode="", **kwds):
                     video = True
                 elif st["codec_type"] == "audio":
                     audio = True
-        if video == audio:
-            raise Exception("Current version does not support multimedia IO")
+        if video == audio or (stream_ids and len(stream_ids) > 1):
+            raise Exception(
+                "Current version does not support multimedia or multi-stream IO"
+            )
         else:
             StreamClass = (
                 (_streams.SimpleAudioWriter if write else _streams.SimpleAudioReader)
@@ -79,6 +89,10 @@ def open(url=None, mode="", **kwds):
                     _streams.SimpleVideoWriter if write else _streams.SimpleVideoReader
                 )
             )
+            if read:
+                kwds["stream_id"] = (stream_ids and stream_ids[0]) or 0
+            if write:
+                kwds["rate"] = rate
 
     # instantiate the streaming object
     # TODO wrap in try-catch if AV stream fails to try a multi-stream version
