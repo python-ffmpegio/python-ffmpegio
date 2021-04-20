@@ -36,7 +36,69 @@ __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", 
 
 
 @contextmanager
-def open(url=None, mode="", stream_ids=None, stream_options=None, rate=None, **kwds):
+def open(
+    url,
+    mode="",
+    stream_ids=None,
+    stream_options=None,
+    rate=None,
+    dtype=None,
+    shape=None,
+    channels=None,
+    **kwds,
+):
+    """open multimedia file
+
+    :param url: URL of the media source/destination
+    :type url: str
+    :param mode: specifies the mode in which the FFmpeg is used, defaults to None
+    :type mode: str, optional
+    :param stream_id: (read specific) media stream, defaults to None
+    :type stream_id: int or str, optional
+    :param stream_options: stream-wise options, defaults to None
+    :type stream_options: dict of dict, optional
+    :param rate: (write specific) frame rate (video write) or sample rate (audio
+                 write), defaults to None
+    :type rate: Fraction, float, int, or dict, optional
+    :param dtype: (write specific) input data numpy dtype, defaults to None
+    :type dtype: numpy.dtype, optional
+    :param shape: (write specific) video frame size (height x width [x ncomponents]),
+                  defaults to None
+    :type shape: seq of int, optional
+    :param channels: (write specific) audio number of channels, defaults to None
+    :type channels: int, optional
+
+    Start FFmpeg and open I/O link to it to perform read/write operation and return
+    a corresponding stream object. If the file cannot be opened, an error is raised.
+    See Reading and Writing Files for more examples of how to use this function.
+
+    `url` is a string specifying the pathname (absolute or relative to the current working
+    directory) of the media target (file or streaming media) to be opened. This argument
+    is ignored if FFmpeg is opened in filtering mode
+
+    `mode` is an optional string that specifies the mode in which the FFmpeg is opened.
+
+    ====  ============================================
+    Mode  Description
+    ====  ============================================
+    'r'   read from url
+    'w'   write to url
+    'v'   operate on video stream
+    'a'   operate on audio stream
+    ====  ============================================
+
+    The default mode is dictated by other arguments. 'w' mode is selected if 
+    rate, dtype, shape, or channels are given (that is, not None). Otherwise, it
+    sets to 'r'. If no media type ('v' or 'a') is specified, it selects the first
+    stream of the media.
+
+    `stream_id` specifies which stream to target. It may be a stream index (int) or
+    specific to each media type, e.g., 'v:0' for the first video stream or 'a:2' for
+    the 3rd audio stream. 
+
+
+
+    """
     audio = "a" in mode
     video = "v" in mode
     read = "r" in mode
