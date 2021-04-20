@@ -1,29 +1,15 @@
 from os import path
 
-from . import ffmpeg
-from . import probe
+from . import ffmpeg, configure
 
 
 def transcode(
     input_url,
     output_url,
-    start=None,
-    end=None,
-    duration=None,
-    units="seconds",
-    input_frame_rate=None,
-    audio_codec=None,
-    audio_channels=None,
-    audio_sample_fmt=None,
-    audio_filter=None,
-    video_codec=None,
-    video_crf=None,
-    video_pix_fmt=None,
-    video_filter=None,
-    force=None,
     input_options=None,
     output_options=None,
     global_options=None,
+    **options
 ):
     """Transcode a media file/stream to another format
 
@@ -88,119 +74,46 @@ def transcode(
 
 
     """
-    inopts = {}
 
-    # if start/end/duration are specified
-    need_units = start or end or duration
-    fs = (
-        1.0
-        if need_units or units == "seconds"
-        else float(
-            probe.video_streams_basic(input_url, index=0, entries=("frame_rate",))[0][
-                "frame_rate"
-            ]
-        )
-        if units == "frames"
-        else probe.audio_streams_basic(input_url, index=0, entries=("sample_rate",))[0][
-            "sample_rate"
-        ]
+    args = configure.input_timing(input_url, **options)
+
+    configure.video_codec(output_url, args, prefix="video_", **options)
+    configure.audio_codec(output_url, args, prefix="audio_", **options)
+    configure.filters(output_url, args, **options)
+
+    configure.video_io(
+        input_url,
+        0,
+        output_url=output_url,
+        format=None,
+        ffmpeg_args=args,
+        prefix="video_",
+        **options,
     )
 
-    if start:
-        inopts["ss"] = float(start / fs)
-    elif end and duration:
-        inopts["ss"] = float((end - duration) / fs)
-    if end:
-        inopts["to"] = float(end / fs)
-    if duration:
-        inopts["t"] = float(duration / fs)
+    configure.audio_io(
+        input_url,
+        0,
+        output_url=output_url,
+        ffmpeg_args=args,
+        prefix="audio_",
+        **options,
+    )
 
-    if input_frame_rate is not None:
-        inopts["r"] = input_frame_rate
+    configure.global_options(ffmpeg_args=args, **options)
 
     if input_options:
-        inopts = {
-            **inopts,
-            **(
-                ffmpeg.parse_options(input_options)
-                if isinstance(input_options, str)
-                else input_options
-            ),
-        }
-
-    ################################
-
-    outopts = {}
-
-    if video_codec is not None:
-        if video_codec == "none":
-            outopts["vn"] = None
-        else:
-            outopts["vcodec"] = video_codec
-    if video_crf is not None:
-        outopts["crf"] = video_crf
-
-    if video_pix_fmt is not None:
-        outopts["pix_fmt"] = video_pix_fmt
-
-    if audio_codec is not None:
-        if audio_codec == "none":
-            outopts["an"] = None
-        else:
-            outopts["acodec"] = audio_codec
-
-    if audio_channels is not None:
-        outopts["ac"] = audio_channels
-
-    if audio_sample_fmt is not None:
-        outopts["sample_fmt"] = audio_sample_fmt
-
-    if audio_filter is not None:
-        outopts["af"] = audio_filter
-
-    if video_filter is not None:
-        outopts["vf"] = video_filter
+        configure.merge_user_options(args, "input", input_options)
 
     if output_options:
-        outopts = {
-            **outopts,
-            **(
-                ffmpeg.parse_options(output_options)
-                if isinstance(output_options, str)
-                else output_options
-            ),
-        }
-
-    gopts = {}
-    if force is not None:
-        if force:
-            gopts["y"] = None
-        else:
-            gopts["n"] = None
+        configure.merge_user_options(args, "output", input_options)
 
     if global_options:
-        gopts = {
-            **gopts,
-            **(
-                ffmpeg.parse_options(global_options)
-                if isinstance(global_options, str)
-                else global_options
-            ),
-        }
+        configure.merge_user_options(args, "global", input_options)
 
-    args = dict(
-        global_options=gopts,
-        inputs=[(input_url, inopts)],
-        outputs=[(output_url, outopts)],
-    )
-
-    #TODO run async and monitor stderr for better error handling
+    # TODO run async and monitor stderr for better error handling
     try:
-        ffmpeg.run_sync(
-            args,
-            stdout=None,
-            stderr=None,
-        )
+        ffmpeg.run_sync(args, stdout=None, stderr=None)
     except Exception as e:
-        if not (gopts.get("n", True) and path.isfile(output_url)):
+        if configure.is_forced(args) and path.isfile(output_url):
             raise e

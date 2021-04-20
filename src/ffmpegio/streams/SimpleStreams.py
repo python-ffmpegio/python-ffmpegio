@@ -1,22 +1,24 @@
 import numpy as np
-from .. import ffmpeg, probe, utils
+from .. import ffmpeg, probe, utils, configure
 
 
 class SimpleVideoReader:
-    def __init__(self, url, start_time=None, **kwargs) -> None:
-        (
-            inputs,
-            outputs,
-            global_options,
-            self.dtype,
-            self.shape,
-        ) = utils.config_image_reader(url, **kwargs)
-        if start_time is not None:
-            inputs[0][1]["ss"] = start_time
-        self.frame_rate = probe.video_streams_basic(url, 0, ("frame_rate",))[0][
-            "frame_rate"
-        ]
-        args = dict(global_options=global_options, inputs=inputs, outputs=outputs)
+    def __init__(self, url, stream_id=0, **options) -> None:
+
+        args = configure.input_timing(url, vstream_id=stream_id, **options)
+
+        args, reader_cfg = configure.video_io(
+            url,
+            stream_id,
+            output_url="-",
+            format="rawvideo",
+            ffmpeg_args=args,
+            excludes=["frame_rate"],
+            **options,
+        )
+
+        self.dtype, self.shape, self.frame_rate = reader_cfg[0]
+
         self.proc = ffmpeg.run(args)
         self.stdout = self.proc.stdout
         self.size = self.shape[0] * self.shape[1] * self.shape[2]
@@ -80,14 +82,20 @@ class SimpleVideoWriter:
                 raise Exception("mismatched frame size.")
 
         else:
-            if data.ndim != 3 and data.ndim != 4:
-                raise Exception("audio data must be 3d or 4d numpy.ndarray")
-
-            inputs, outputs = utils.config_image_writer(
-                self.url, data.dtype, data.shape[-3:], **self.options
+            args = configure.input_timing(
+                "-",
+                vstream_id=0,
+                excludes=("start", "end", "duration"),
+                **{"input_frame_rate": self.frame_rate, **self.options},
             )
-            inputs[0][1]["r"] = self.frame_rate
-            args = dict(inputs=inputs, outputs=outputs)
+
+            configure.video_io(
+                utils.array_to_video_input(data, format="rawvideo"),
+                output_url=self.url,
+                ffmpeg_args=args,
+                **self.options,
+            )
+
             self.proc = ffmpeg.run(args, stdout=None, stdin=ffmpeg.PIPE)
             self.dtype = data.dtype
             self.shape = data.shape[-3:]
@@ -102,21 +110,20 @@ class SimpleVideoWriter:
 
 
 class SimpleAudioReader:
-    def __init__(self, url, start_time=None, **kwargs) -> None:
-        info = probe.audio_streams_basic(
-            url, index=0, entries=("sample_rate", "sample_fmt", "channels")
-        )[0]
+    def __init__(self, url, stream_id=0, **options) -> None:
+        args = configure.input_timing(url, astream_id=stream_id, **options)
 
-        acodec, self.dtype = utils.get_audio_format(info["sample_fmt"])
-        self.channels = info["channels"]
-        self.sample_rate = info["sample_rate"]
-
-        args = dict(
-            inputs=[(url, {})],
-            outputs=[("-", dict(vn=None, acodec=acodec, f="rawvideo", map="a:0"))],
+        args, reader_cfg = configure.audio_io(
+            url,
+            int(stream_id),
+            output_url="-",
+            format="rawvideo",
+            ffmpeg_args=args,
+            **options,
         )
-        if start_time is not None:
-            args["input"][0]["ss"] = start_time
+
+        self.dtype, self.channels, self.sample_rate = reader_cfg[0]
+
         self.proc = ffmpeg.run(args)
         self.stdout = self.proc.stdout
         self.eof = False
@@ -180,20 +187,18 @@ class SimpleAudioWriter:
                 raise Exception("audio data must be 1d or 2d numpy.ndarray")
             self.dtype = data.dtype
             self.channels = data.shape[1] if data.ndim > 1 else 1
-            acodec, _ = utils.get_audio_format(data.dtype)
-            args = dict(
-                inputs=[
-                    (
-                        "-",
-                        dict(
-                            vn=None,
-                            f=acodec[4:],
-                            ar=self.sample_rate,
-                            channels=self.channels,
-                        ),
-                    )
-                ],
-                outputs=[(self.url, None)],
+            args = configure.input_timing(
+                "-",
+                astream_id=0,
+                excludes=("start", "end", "duration"),
+                **{"input_sample_rate": self.sample_rate, **self.options},
+            )
+
+            configure.audio_io(
+                utils.array_to_audio_input(data, format=True),
+                output_url=self.url,
+                ffmpeg_args=args,
+                **self.options,
             )
             self.proc = ffmpeg.run(args, stdout=None, stdin=ffmpeg.PIPE)
 

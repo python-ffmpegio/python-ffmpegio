@@ -1,8 +1,8 @@
 import numpy as np
-from . import ffmpeg, utils
+from . import ffmpeg, utils, configure
 
 
-def read(filename, time=None, **options):
+def read(input_url, stream_id=0, **options):
     """read image/video frame snapshot
 
     :param filename: image/video file
@@ -18,20 +18,45 @@ def read(filename, time=None, **options):
     :rtype: numpy.ndarray
     """
 
-    inputs, outputs, global_options, dtype, shape = utils.config_image_reader(
-        filename, 0, **options
+    args = configure.input_timing(
+        input_url,
+        vstream_id=stream_id,
+        aliases={"time": "start"},
+        excludes=("start", "end", "duration"),
+        **options
     )
-    outputs[0][1]["vframes"] = 1
-    if time is not None:
-        inputs[0][1]["ss"] = time
-    args = dict(global_options=global_options, inputs=inputs, outputs=outputs)
+
+    configure.audio_codec("-", args, codec="none")
+
+    args, reader_cfg = configure.video_io(
+        input_url,
+        stream_id,
+        output_url="-",
+        format="rawvideo",
+        ffmpeg_args=args,
+        excludes=["frame_rate"],
+        **options
+    )
+    dtype, shape, _ = reader_cfg[0]
+
+    configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
     stdout = ffmpeg.run_sync(args)
     return np.frombuffer(stdout, dtype=dtype).reshape(shape)
 
 
-def write(filename, data, **options):
-    inputs, outputs = utils.config_image_writer(
-        filename, data.dtype, data.shape, **options
+def write(url, data, **options):
+
+    args = configure.input_timing(
+        "-", vstream_id=0, excludes=("start", "end", "duration"), **options
     )
-    args = dict(inputs=inputs, outputs=outputs)
+
+    configure.video_io(
+        utils.array_to_video_input(data, format="rawvideo"),
+        output_url=url,
+        ffmpeg_args=args,
+        excludes=["frame_rate"],
+        **options
+    )
+    configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
+
     ffmpeg.run_sync(args, input=data.tobytes())

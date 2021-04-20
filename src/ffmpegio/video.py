@@ -1,8 +1,8 @@
 import numpy as np
-from . import ffmpeg, utils, probe
+from . import ffmpeg, utils, configure
 
 
-def read(filename, vframes, start_time=None, **kwargs):
+def read(url, vframes, stream_id=0, **options):
     """read video frames
 
     :param filename: audio/video filename
@@ -14,23 +14,38 @@ def read(filename, vframes, start_time=None, **kwargs):
     :rtype: (fractions.Fraction, numpy.ndarray)
     """
 
-    inputs, outputs, global_options, dtype, shape = utils.config_image_reader(
-        filename, **kwargs
+    args = configure.input_timing(url, vstream_id=stream_id, **options)
+
+    args, reader_cfg = configure.video_io(
+        url,
+        stream_id,
+        output_url="-",
+        format="rawvideo",
+        ffmpeg_args=args,
+        excludes=["frame_rate"],
+        **options
     )
-    if vframes > 0:
-        outputs[0][1]["vframes"] = vframes
-    if start_time is not None:
-        inputs[0][1]["ss"] = start_time
-    fs = probe.video_streams_basic(filename, 0, ("frame_rate",))[0]["frame_rate"]
-    args = dict(global_options=global_options, inputs=inputs, outputs=outputs)
+    dtype, shape, rate = reader_cfg[0]
+
+    configure.merge_user_options(args, "output", {"frames:v": vframes})
     stdout = ffmpeg.run_sync(args)
-    return fs, np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
+    return rate, np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
 
 
-def write(filename, rate, data, **options):
-    inputs, outputs = utils.config_image_writer(
-        filename, data.dtype, data.shape[1:], **options
+def write(url, rate, data, **options):
+
+    args = configure.input_timing(
+        "-",
+        vstream_id=0,
+        excludes=("start", "end", "duration"),
+        **{"input_frame_rate": rate, **options}
     )
-    inputs[0][1]["r"] = rate
-    args = dict(inputs=inputs, outputs=outputs)
+
+    configure.video_io(
+        utils.array_to_video_input(data, format="rawvideo"),
+        output_url=url,
+        ffmpeg_args=args,
+        **options
+    )
+
     ffmpeg.run_sync(args, input=data.tobytes())

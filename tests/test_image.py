@@ -26,7 +26,7 @@ C = image.read(url,pix_fmt='rgb24')
 D = image.read(url,pix_fmt='gray')
 with tempfile.TemporaryDirectory() as tmpdirname:
     out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-    print(out_url)
+    print(out_url, C.shape)
     image.write(out_url, C)
     print(probe.video_streams_basic(out_url))
     C = image.read(out_url,pix_fmt='rgba')

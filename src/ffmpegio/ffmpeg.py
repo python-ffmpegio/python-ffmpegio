@@ -1,6 +1,7 @@
 import shlex, re, os, shutil, logging
 import subprocess as sp
 from collections import abc
+from . import filter_utils
 
 PIPE = sp.PIPE
 
@@ -98,7 +99,7 @@ def parse(cmdline):
         args = args[1:]
 
     # identify -i options
-    ipos = [i for i in range(len(args)) if args[i] == "-i"]
+    ipos = [i for i, v in enumerate(args) if v == "-i"]
     ninputs = len(ipos)
     inputs = [None] * ninputs
     if ninputs:
@@ -155,6 +156,17 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
     def opts2args(opts):
         args = []
         for key, val in opts.items():
+            if (
+                (key == "vf" or key == "af" or key == "filter_complex")
+                and val is not None
+                and not isinstance(val, str)
+            ):
+                val = (
+                    filter_utils.compose_graph(*val[:-1], **val[-1])
+                    if isinstance(val[-1], dict)
+                    else filter_utils.compose_graph(*val)
+                )
+
             karg = f"-{key}"
             if not isinstance(val, str) and isinstance(val, abc.Sequence):
                 for v in val:
@@ -187,7 +199,6 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
         *inputs2args(inputs),
         *outputs2args(outputs),
     ]
-
     return shlex.join(args) if shell_command else args
 
 
