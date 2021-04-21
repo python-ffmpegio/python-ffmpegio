@@ -39,15 +39,14 @@ __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", 
 def open(
     url,
     mode="",
-    stream_ids=None,
-    stream_options=None,
+    stream_id=None,
     rate=None,
     dtype=None,
     shape=None,
     channels=None,
     **kwds,
 ):
-    """open multimedia file
+    """open a multimedia file/stream
 
     :param url: URL of the media source/destination
     :type url: str
@@ -55,8 +54,6 @@ def open(
     :type mode: str, optional
     :param stream_id: (read specific) media stream, defaults to None
     :type stream_id: int or str, optional
-    :param stream_options: stream-wise options, defaults to None
-    :type stream_options: dict of dict, optional
     :param rate: (write specific) frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate: Fraction, float, int, or dict, optional
