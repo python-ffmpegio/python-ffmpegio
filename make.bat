@@ -8,7 +8,8 @@ if "%SPHINXBUILD%" == "" (
 	set SPHINXBUILD=sphinx-build
 )
 set SOURCEDIR=docsrc
-set BUILDDIR=docs
+set BUILDDIR=build
+set DOCSDIR=docs
 
 if "%1" == "" goto help
 
@@ -26,7 +27,7 @@ if errorlevel 9009 (
 )
 
 %SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
-for %F in (%%BUILDDIR%\html\*.*) do move /Y %F %BUILDDIR%
+xcopy /Y /S "%BUILDDIR%\html" "%DOCSDIR%"
 goto end
 
 :help
