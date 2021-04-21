@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath("../src/ffmpegio"))
 project = "python-ffmpegio"
 copyright = "2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
 author = "Takeshi (Kesh) Ikuma"
-release = "0.0.5"
+release = "0.0.6"
 
 # -- General configuration ---------------------------------------------------
 
