@@ -39,8 +39,8 @@ __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", 
 def open(
     url,
     mode="",
-    stream_id=None,
     rate=None,
+    stream_id=None,
     dtype=None,
     shape=None,
     channels=None,
@@ -52,11 +52,11 @@ def open(
     :type url: str
     :param mode: specifies the mode in which the FFmpeg is used, defaults to None
     :type mode: str, optional
-    :param stream_id: (read specific) media stream, defaults to None
-    :type stream_id: int or str, optional
     :param rate: (write specific) frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate: Fraction, float, int, or dict, optional
+    :param stream_id: (read specific) media stream, defaults to None
+    :type stream_id: int or str, optional
     :param dtype: (write specific) input data numpy dtype, defaults to None
     :type dtype: numpy.dtype, optional
     :param shape: (write specific) video frame size (height x width [x ncomponents]),
@@ -64,6 +64,7 @@ def open(
     :type shape: seq of int, optional
     :param channels: (write specific) audio number of channels, defaults to None
     :type channels: int, optional
+    :yields: ffmpegio stream object
 
     Start FFmpeg and open I/O link to it to perform read/write operation and return
     a corresponding stream object. If the file cannot be opened, an error is raised.
@@ -78,80 +79,159 @@ def open(
     ====  ============================================
     Mode  Description
     ====  ============================================
-    'r'   read from url
+    'r'   read from url (default)
     'w'   write to url
-    'v'   operate on video stream
+    'v'   operate on video stream (default)
     'a'   operate on audio stream
     ====  ============================================
 
-    The default mode is dictated by other arguments. 'w' mode is selected if 
+    The default mode is dictated by other arguments. 'w' mode is selected if
     rate, dtype, shape, or channels are given (that is, not None). Otherwise, it
     sets to 'r'. If no media type ('v' or 'a') is specified, it selects the first
-    stream of the media.
+    stream of the media in read mode. For write mode, media type designation
+    is required unless `shape` or `channels` are specified.
 
     `stream_id` specifies which stream to target. It may be a stream index (int) or
     specific to each media type, e.g., 'v:0' for the first video stream or 'a:2' for
-    the 3rd audio stream. 
+    the 3rd audio stream.
 
+    `rate` is required to write a media stream and specifies the video frame rate
+    or audio sample rate. Video frame rate is in frames/second and may be given
+    as a number, string, or `fractions.Fraction`. Audio sample rate in
+    samples/second (per channel) and shall be given as an integer or string.
 
+    `dtype`, `shape`, and `channels` are specific to the write mode.
+
+    'dtype' is requried and specifies the expected numpy array data type
+    (e.g., `numpy.uint8`).
+
+    Optional `shape` defines the video frame size and number of components
+    with a 2 or 3 element sequence: `(width, height[, ncomp])`. The number of
+    components and `dtype` implicitly define the pixel format:
+
+    =====  ============  =========  ===================================
+    ncomp  dtype         pix_fmt    Description
+    =====  ============  =========  ===================================
+      1    numpy.uint8   gray       grayscale
+      1    numpy.uint16  gray16le   16-bit grayscale
+      1    numpy.single  grayf32le  floating-point grayscale
+      2    numpy.uint8   ya8        grayscale with alpha channel
+      2    numpy.uint16  ya16le     16-bit grayscale with alpha channel
+      3    numpy.uint8   rgb24      RGB
+      3    numpy.uint16  rgb48le    16-bit RGB
+      4    numpy.uint8   rgba       RGB with alpha transparency channel
+      4    numpy.uint16  rgba64le   16-bit RGB with alpha channel
+    =====  ============  =========  ===================================
+
+    For audio output stream, optional `channels` specifies the number of
+    channels.
+
+    If `dtype`, `shape`, and `channels` are not specified at the time of
+    opening, they are set during the first write operation.
+
+    In addition, `open()` accepts the standard option keyword arguments.
+
+    `open()` yields a ffmpegio's stream object and automatically closes it
+    when goes out of the context
+
+    :Example:
+
+    ```
+    with ffmpegio.open('video_source.mp4') as f:
+        while (frame:=f.read())
+            # process the captured frame data
+    ```
+
+    ```
+    with ffmpegio.open('video_source.mp4','ra') as rd:
+        fs = rd.sample_rate
+        with ffmpegio.open('video_dst.flac','wa',rate=fs) as wr:
+            for frame:=rd.read()
+                wr.write(frame)
+    ```
 
     """
+
     audio = "a" in mode
     video = "v" in mode
     read = "r" in mode
     write = "w" in mode
-    filter = "f" in mode
-    backwards = "b" in mode
-    if unk := set(mode) - set("avrwfb"):
+    # filter = "f" in mode
+    # backwards = "b" in mode
+    if unk := set(mode) - set("avrw"):
         raise Exception(
             f"Invalid FFmpeg streaming mode: {mode}. Unknown mode {unk} specified."
         )
 
-    if read + write + filter > 1:
+    if read + write > 1:  # + filter
         raise Exception(
             f"Invalid FFmpeg streaming mode: {mode}. Only 1 of 'rwf' may be specified."
         )
 
-    if backwards + (write or filter) > 1:
-        raise Exception(
-            f"Invalid FFmpeg streaming mode: {mode}. Backward streaming only supported for read stream."
-        )
+    # if backwards + (write or filter) > 1:
+    #     raise Exception(
+    #         f"Invalid FFmpeg streaming mode: {mode}. Backward streaming only supported for read stream."
+    #     )
 
     if not (read or write or filter):
         if url:
             read = True  # default to read if url given
-        else:
-            filter = True  # default to write if no url given
+        # else:
+        #     filter = True  # default to write if no url given
 
-    if backwards:
-        raise Exception("Current version does not support backward streaming.")
+    # if backwards:
+    #     raise Exception("Current version does not support backward streaming.")
 
-    if filter:
-        raise Exception("Current version does not support filtering")
+    # if filter:
+    #     raise Exception("Current version does not support filtering")
+
+    if not isinstance(url, str):
+        raise Exception("url must be a string")
+
+    # auto-detect
+    if not (audio or video):
+        if read:
+            info = probe.streams_basic(url, entries=("codec_type",))
+            if stream_id is None:
+                for i, st in enumerate(info):
+                    if st["codec_type"] == "video":
+                        stream_id = i
+                        video = True
+                        break
+                    elif st["codec_type"] == "audio":
+                        stream_id = i
+                        audio = True
+                        break
+            elif stream_id < len(info):
+                video = info[stream_id]["codec_type"] == "video"
+                audio = info[stream_id]["codec_type"] == "audio"
+            else:
+                raise Exception(f"invalid stream_id ({stream_id})")
+
+        else:  # write
+            # TODO identify based on file extension
+            audio = shape is None and channels is not None
+            video = not audio
+
+    if video == audio:
+        raise Exception(
+            "Current version does not support multimedia or multi-stream IO"
+        )
     else:
-        if not (audio or video) and url is not None:
-            info = probe.streams_basic(url)
-            for st in info:
-                if st["codec_type"] == "video":
-                    video = True
-                elif st["codec_type"] == "audio":
-                    audio = True
-        if video == audio or (stream_ids and len(stream_ids) > 1):
-            raise Exception(
-                "Current version does not support multimedia or multi-stream IO"
-            )
-        else:
-            StreamClass = (
-                (_streams.SimpleAudioWriter if write else _streams.SimpleAudioReader)
-                if audio
-                else (
-                    _streams.SimpleVideoWriter if write else _streams.SimpleVideoReader
-                )
-            )
-            if read:
-                kwds["stream_id"] = (stream_ids and stream_ids[0]) or 0
-            if write:
-                kwds["rate"] = rate
+        StreamClass = (
+            (_streams.SimpleAudioWriter if write else _streams.SimpleAudioReader)
+            if audio
+            else (_streams.SimpleVideoWriter if write else _streams.SimpleVideoReader)
+        )
+        if read:
+            kwds["stream_id"] = stream_id
+        if write:
+            kwds["rate"] = rate
+            kwds["dtype"] = dtype
+            if video:
+                kwds["shape"] = shape
+            elif audio:
+                kwds["channels"] = channels
 
     # instantiate the streaming object
     # TODO wrap in try-catch if AV stream fails to try a multi-stream version

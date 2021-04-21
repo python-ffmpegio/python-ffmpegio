@@ -1,3 +1,5 @@
+#TODO add function to guess media type given extension
+
 from . import ffmpeg
 import re
 

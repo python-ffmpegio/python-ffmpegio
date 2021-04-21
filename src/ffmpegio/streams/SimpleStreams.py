@@ -52,10 +52,12 @@ class SimpleVideoReader:
 
 
 class SimpleVideoWriter:
-    def __init__(self, url, rate, **kwargs) -> None:
+    def __init__(self, url, rate, dtype=None, shape=None, **kwargs) -> None:
         self.proc = self.shape = None
         self.url = url
         self.frame_rate = rate
+        self.dtype = dtype
+        self.shape = shape
         self.options = kwargs
         self.frames_written = 0
 
@@ -153,11 +155,43 @@ class SimpleAudioReader:
 
 
 class SimpleAudioWriter:
-    def __init__(self, url, rate, **kwargs) -> None:
-        self.proc = self.shape = None
+    def __init__(self, url, rate, dtype=None, channels=None, **kwargs) -> None:
+        self.proc = None
         self.url = url
+        self.samples_written = 0
+        if dtype is None or channels is None:
+            self.sample_rate = rate
+            self.dtype = dtype
+            self.channels = channels
+            self.options = kwargs
+        else:
+            self.open(rate,dtype=dtype,channels=channels,**options)
+
+
+    def open(self, rate, data=None, dtype=None, channels=None, **options):
+        if self.proc:
+            raise Exception('stream is already open')
+
+        if data is None:
+            data = np.empty((1, channels), dtype=dtype)
+
         self.sample_rate = rate
-        self.options = kwargs
+        self.dtype = data.dtype
+        self.channels = data.shape[1] if data.ndim > 1 else 1
+        args = configure.input_timing(
+            "-",
+            astream_id=0,
+            excludes=("start", "end", "duration"),
+            **{"input_sample_rate": self.sample_rate, **self.options},
+        )
+
+        configure.audio_io(
+            utils.array_to_audio_input(data, format=True),
+            output_url=self.url,
+            ffmpeg_args=args,
+            **self.options,
+        )
+        self.proc = ffmpeg.run(args, stdout=None, stdin=ffmpeg.PIPE)
         self.samples_written = 0
 
     def write(self, data):
@@ -185,22 +219,7 @@ class SimpleAudioWriter:
         else:
             if data.ndim != 2 and data.ndim != 1:
                 raise Exception("audio data must be 1d or 2d numpy.ndarray")
-            self.dtype = data.dtype
-            self.channels = data.shape[1] if data.ndim > 1 else 1
-            args = configure.input_timing(
-                "-",
-                astream_id=0,
-                excludes=("start", "end", "duration"),
-                **{"input_sample_rate": self.sample_rate, **self.options},
-            )
-
-            configure.audio_io(
-                utils.array_to_audio_input(data, format=True),
-                output_url=self.url,
-                ffmpeg_args=args,
-                **self.options,
-            )
-            self.proc = ffmpeg.run(args, stdout=None, stdin=ffmpeg.PIPE)
+            self.open(self.rate, data.dtype, data.channels)
 
         self.proc.stdin.write(data.tobytes())
         self.samples_written += data.shape[0]

@@ -101,6 +101,20 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
     :return: output pix_fmt, number of components, compatible numpy dtype, and whether
              alpha component must be removed
     :rtype: tuple(str,int,numpy.dtype,bool)
+
+    =====  ============  =========  ===================================
+    ncomp  dtype         pix_fmt    Description
+    =====  ============  =========  ===================================
+      1    numpy.uint8   gray       grayscale
+      1    numpy.uint16  gray16le   16-bit grayscale
+      1    numpy.single  grayf32le  floating-point grayscale
+      2    numpy.uint8   ya8        grayscale with alpha channel
+      2    numpy.uint16  ya16le     16-bit grayscale with alpha channel
+      3    numpy.uint8   rgb24      RGB
+      3    numpy.uint16  rgb48le    16-bit RGB
+      4    numpy.uint8   rgba       RGB with alpha transparency channel
+      4    numpy.uint16  rgba64le   16-bit RGB with alpha channel
+    =====  ============  =========  ===================================
     """
     fmt_info = caps.pixfmts()[input_pix_fmt]
     n_in = fmt_info["nb_components"]
