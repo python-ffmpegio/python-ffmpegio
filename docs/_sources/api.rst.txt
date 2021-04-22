@@ -14,6 +14,7 @@ Basic Functions
    :nosignatures:
    :recursive:
 
+   ffmpegio.ffmpeg_info
    ffmpegio.set_path
    ffmpegio.get_path
    ffmpegio.is_ready
@@ -26,6 +27,7 @@ Basic Functions
    ffmpegio.open
    ffmpegio.transcode
 
+.. autofunction:: ffmpegio.ffmpeg_info
 .. autofunction:: ffmpegio.get_path
 .. autofunction:: ffmpegio.set_path   
 .. autofunction:: ffmpegio.is_ready

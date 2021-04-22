@@ -29,12 +29,13 @@ from . import caps, probe, audio, image, video
 from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
+__all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open"]
+__version__ = '0.0.7'
+
+ffmpeg_info = _ffmpeg.versions
 set_path = _ffmpeg.find
 get_path = _ffmpeg.where
 is_ready = _ffmpeg.found
-
-__all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open"]
-
 
 @contextmanager
 def open(

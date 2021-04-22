@@ -14,7 +14,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../src/ffmpegio"))
-
+import ffmpegio
 
 # -- Project information -----------------------------------------------------
 
@@ -23,7 +23,7 @@ copyright = (
     "2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
 )
 author = "Takeshi (Kesh) Ikuma"
-release = "0.0.6"
+release = ffmpegio.__version__
 
 # -- General configuration ---------------------------------------------------
 

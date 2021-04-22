@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>API References &mdash; python-ffmpegio 0.0.6 documentation</title>
+  <title>API References &mdash; python-ffmpegio 0.0.7 documentation</title>
   
 
   
@@ -85,6 +85,7 @@
             
             
               <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">Python Package: ffmpegio — Media File I/O with FFmpeg</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API References</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#package-contents">Package Contents</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#basic-functions">Basic Functions</a></li>
@@ -176,41 +177,58 @@
 <col style="width: 90%" />
 </colgroup>
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.set_path" title="ffmpegio.set_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.set_path</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.ffmpeg_info" title="ffmpegio.ffmpeg_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.ffmpeg_info</span></code></a></p></td>
+<td><p>Get FFmpeg version and configuration information</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.set_path" title="ffmpegio.set_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.set_path</span></code></a></p></td>
 <td><p>Set path to FFmpeg bin directory</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.get_path" title="ffmpegio.get_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.get_path</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.get_path" title="ffmpegio.get_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.get_path</span></code></a></p></td>
 <td><p>Get current path to FFmpeg bin directory</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.is_ready" title="ffmpegio.is_ready"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.is_ready</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.is_ready" title="ffmpegio.is_ready"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.is_ready</span></code></a></p></td>
 <td><p><cite>True</cite> if ffmpeg and ffprobe binaries are located</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.video.read" title="ffmpegio.video.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.read</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.video.read" title="ffmpegio.video.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.read</span></code></a></p></td>
 <td><p>Read video frames</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.video.write" title="ffmpegio.video.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.write</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.video.write" title="ffmpegio.video.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.write</span></code></a></p></td>
 <td><p>Write Numpy array to a video file</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.image.read" title="ffmpegio.image.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.read</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.image.read" title="ffmpegio.image.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.read</span></code></a></p></td>
 <td><p>Read an image file or a snapshot of a video frame</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.image.write" title="ffmpegio.image.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.write</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.image.write" title="ffmpegio.image.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.write</span></code></a></p></td>
 <td><p>Write a NumPy array to an image file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.audio.read" title="ffmpegio.audio.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.read</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.read" title="ffmpegio.audio.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.read</span></code></a></p></td>
 <td><p>Read audio samples.</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.write" title="ffmpegio.audio.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.write</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.audio.write" title="ffmpegio.audio.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.write</span></code></a></p></td>
 <td><p>Write a NumPy array to an audio file.</p></td>
 </tr>
-<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.open</span></code></a></p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.open</span></code></a></p></td>
 <td><p>Open a multimedia file/stream for read/write</p></td>
 </tr>
-<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.transcode" title="ffmpegio.transcode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.transcode</span></code></a></p></td>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.transcode" title="ffmpegio.transcode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.transcode</span></code></a></p></td>
 <td><p>Transcode a media file to another format/encoding</p></td>
 </tr>
 </tbody>
 </table>
+<dl class="py function">
+<dt id="ffmpegio.ffmpeg_info">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">ffmpeg_info</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.ffmpeg_info" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get FFmpeg version and configuration information</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>versions of ffmpeg and its av libraries as well as build configuration</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py function">
 <dt id="ffmpegio.get_path">
 <code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">get_path</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.get_path" title="Permalink to this definition">¶</a></dt>

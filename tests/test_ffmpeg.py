@@ -28,3 +28,5 @@ print(ffmpeg.compose(**p,shell_command=True))
 ffmpeg.find()
 print(ffmpeg.FFMPEG_BIN)
 print(ffmpeg.FFPROBE_BIN)
+
+print(ffmpeg.versions())

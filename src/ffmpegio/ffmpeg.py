@@ -284,10 +284,7 @@ def find(dir=None):
                     ],
                     *[
                         os.path.join(os.environ[var], "Programs")
-                        for var in (
-                            "APPDATA",
-                            "LOCALAPPDATA",
-                        )
+                        for var in ("APPDATA", "LOCALAPPDATA",)
                         if var in os.environ
                     ],
                 ]
@@ -296,8 +293,7 @@ def find(dir=None):
 
     def search(cmd):
         return next(
-            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))),
-            None,
+            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))), None,
         )
 
     p = search("ffmpeg")
@@ -348,10 +344,13 @@ def run_sync(
 
     ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
     if ret.returncode != 0 and ret.stderr is not None:
-        raise Exception(
-            f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr.decode('utf-8')}"
-        )
-    return ret.stdout
+        msg = ret.stderr
+        try:
+            msg = msg.decode("utf-8")
+        finally:
+            raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr}")
+
+    return ret.stderr if ret.stdout is None else ret.stdout
 
 
 def run(args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kwargs):
@@ -396,3 +395,28 @@ def ffprobe(
     if ret.returncode != 0:
         raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr}")
     return ret.stdout
+
+
+def versions():
+    """Get FFmpeg version and configuration information
+
+    :return: versions of ffmpeg and its av libraries as well as build configuration
+    :rtype: dict
+    """
+    s = run_sync(
+        ["-version"],
+        hide_banner=False,
+        stdout=sp.PIPE,
+        universal_newlines=True,
+        encoding="utf-8",
+    ).splitlines()
+    v = dict(ffmpeg=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    i = 2 if s[1].startswith("built with") else 1
+    if s[i].startswith("configuration:"):
+        v["configuration"] = [m[1] for m in re.finditer(r"\s--(\S+)", s[i])]
+        i += 1
+    for l in s[i:]:
+        m = re.match(r"(\S+)\s+(.+?) /", l)
+        if m:
+            v[m[1]] = m[2].replace(" ", "")
+    return v
