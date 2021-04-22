@@ -1,5 +1,5 @@
-Python Package: ffmpegio --- Media File I/O with FFmpeg
-=======================================================
+ffmpegio Python Package: Media File I/O with FFmpeg
+===================================================
 
 .. toctree::
    :maxdepth: 2
@@ -14,14 +14,30 @@ Python Package: ffmpegio --- Media File I/O with FFmpeg
 Introduction
 ------------
 
-Python :py:mod:`ffmpegio` package is an (yet another) FFmpeg wrapper to enable 
-reading and writing media data (with a future roadmap to include filtering and
-other convenience features). `FFmpeg <https://ffmpeg.org>`__ is an open-source 
-cross-platform multimedia framework to "decode, encode, transcode, mux, demux, 
-stream, filter and play pretty much anything that humans and machines have created." 
+`FFmpeg <https://ffmpeg.org>`__ is an open-source cross-platform multimedia 
+framework, and Python :py:mod:`ffmpegio` package utilizes it to read, write, and
+manipulate multimedia data.
+
+Main Features
+^^^^^^^^^^^^^
+
+* Pure-Python light-weight package interacting with FFmpeg executable found in 
+  the system
+* A set of simple read and write functions for audio, image, and video data
+* Context-managing :py:func:`ffmpegio.open` to perform frame-wise read/write
+  operations
+* Auto-conversion of video pixel formats to RGB/grayscale formats with/without 
+  transparency alpha channel
+* Out-of-box support for fast resizing, re-orienting, cropping, and 
+  deinterlacing of video frames (all done by FFmpeg)
+* (planned) Audio and video filtering
+* (planned) Multi-stream read/write
+
+Getting Started
+---------------
 
 Installation
-------------
+^^^^^^^^^^^^
 
 To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
 having the FFmpeg binary files in a location :py:mod:`ffmpegio` can find.
@@ -52,10 +68,11 @@ on the system path. For Windows, it is a bit more complicated.
 2. Unzip the content and place the files on one of the following directories:
 
    ==================================  ===============================================
-   Folder locations                    Example path
+   Auto-detectable FFmpeg folder path  Example
    ==================================  ===============================================
    ``%PROGRAMFILES%\ffmpeg``           ``C:\Program Files\ffmpeg``
    ``%PROGRAMFILES(X86)%\ffmpeg``      ``C:\Program Files (x86)\ffmpeg``
+   ``%USERPROFILE%\ffmpeg``            ``C:\Users\john\ffmpeg``
    ``%APPDATA%\ffmpeg``                ``C:\Users\john\AppData\Roaming\ffmpeg``
    ``%APPDATA%\programs\ffmpeg``       ``C:\Users\john\AppData\Roaming\programs\ffmpeg``
    ``%LOCALAPPDATA%\ffmpeg``           ``C:\Users\john\AppData\Local\ffmpeg``
@@ -67,6 +84,55 @@ on the system path. For Windows, it is a bit more complicated.
 
    Alternately, the FFmpeg may be placed elsewhere and use :py:func:`ffmpegio.set_path` to
    specify the location.
+
+Setting up your Python code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   import ffmpegio
+
+
+
+Reading/writing audio files
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   # read the entire file
+   fs, x = ffmpegio.audio.read('my_audio.mp3')
+
+   # read only the first 3 seconds
+   fs, x = ffmpegio.audio.read('my_audio.mp3', duration=3.0)
+
+   # read data between 1 and 5 second marks
+   fs, x = ffmpegio.audio.read('my_audio.mp3', start=1.0, end=5.0)
+
+.. code-block:: python
+
+   import numpy as np
+
+   fs = 44100
+   T = 1.0
+   t = np.arange(int(T * fs))
+
+   dtype = np.int16  # 16-bit audio data
+   vol = 0.8 * np.iinfo(dtype).max  # 80% of full-volume
+
+   # write 1-second FLAC file with middle-A tone
+   f0 = 440
+   x = vol * np.cos(2 * np.pi * f0 * t)
+
+   ffmpegio.audio.write("my_audio.flac", fs, x.astype(dtype))
+
+   # add second channel with high-E tone
+   f1 = f0 * np.log(7) / np.log(12)
+   y = vol * np.cos(2 * np.pi * f0 * t)
+
+   xy = np.stack((x, y), axis=1)
+   ffmpegio.audio.write("my_audio.wav", fs, xy.astype(dtype))
+
+
 
 Examples
 --------
