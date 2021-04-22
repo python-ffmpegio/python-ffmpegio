@@ -53,7 +53,7 @@ def write(url, rate, data, **options):
     )
 
     configure.audio_io(
-        utils.array_to_audio_input(data, format=True),
+        utils.array_to_audio_input(data, format=False),
         output_url=url,
         ffmpeg_args=args,
         **options,

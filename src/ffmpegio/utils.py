@@ -166,27 +166,30 @@ def get_audio_format(fmt):
     :rtype: tuple
     """
     formats = dict(
-        u8p=("pcm_u8", np.uint8),
-        s16p=("pcm_s16le", np.int16),
-        s32p=("pcm_s32le", np.int32),
-        s64p=("pcm_s64le", np.int64),
-        fltp=("pcm_f32le", np.float32),
-        dblp=("pcm_f64le", np.float64),
         u8=("pcm_u8", np.uint8),
         s16=("pcm_s16le", np.int16),
         s32=("pcm_s32le", np.int32),
         s64=("pcm_s64le", np.int64),
         flt=("pcm_f32le", np.float32),
         dbl=("pcm_f64le", np.float64),
+        u8p=("pcm_u8", np.uint8),
+        s16p=("pcm_s16le", np.int16),
+        s32p=("pcm_s32le", np.int32),
+        s64p=("pcm_s64le", np.int64),
+        fltp=("pcm_f32le", np.float32),
+        dblp=("pcm_f64le", np.float64),
     )
 
     # byteorder = "be" if sys.byteorder == "big" else "le"
+    if isinstance(fmt, str):
+        return formats.get(fmt, formats["s16"])
+    else:
+        try:
+            return next(((v[0], k) for k, v in formats.items() if v[1] == fmt))
+        except:
+            raise Exception(f"incompatible numpy dtype used: {fmt}")
 
-    return (
-        formats.get(fmt, formats["s16"])
-        if isinstance(fmt, str)
-        else next(((v[0], k) for k, v in formats.items() if v[1] == fmt))
-    )
+        
 
 
 def array_to_video_input(data, rate=None, stream_id=0, format=None):
@@ -313,7 +316,7 @@ def array_to_audio_input(data, rate=None, stream_id=0, format=None):
         ),
     )
 
-    if format is not None:
+    if format:
         opts["f"] = acodec[4:] if format is True else format
 
     if rate is not None:
