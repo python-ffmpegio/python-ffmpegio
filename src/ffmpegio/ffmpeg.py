@@ -242,6 +242,7 @@ def find(dir=None):
 
     * ``%PROGRAMFILES%\\ffmpeg\\bin``
     * ``%PROGRAMFILES(X86)%\\ffmpeg\\bin``
+    * ``%USERPROFILE%\\ffmpeg\\bin``
     * ``%APPDATA%\\ffmpeg\\bin``
     * ``%APPDATA%\\programs\\ffmpeg\\bin``
     * ``%LOCALAPPDATA%\\ffmpeg\\bin``
@@ -254,6 +255,7 @@ def find(dir=None):
     ===============================  =====================================
     ``%PROGRAMFILES%``               ``C:\\Program Files``
     ``%PROGRAMFILES(X86)%``          ``C:\\Program Files (x86)``
+    ``%USERPROFILE%``                ``C:\\Users\\john``
     ``%APPDATA%``                    ``C:\\Users\\john\\AppData\\Roaming``
     ``%LOCALAPPDATA%``               ``C:\\Users\\john\\AppData\\Local``
     ===============================  =====================================
@@ -348,7 +350,7 @@ def run_sync(
         try:
             msg = msg.decode("utf-8")
         finally:
-            raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr}")
+            raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{msg}")
 
     return ret.stderr if ret.stdout is None else ret.stdout
 
