@@ -1,21 +1,26 @@
+"""Audio Read/Write Module
+"""
 import numpy as np
 from . import ffmpeg, utils, configure
 
 
-def read(input_url, stream_id=0, **options):
-    """Open an audio file.
+def read(url, stream_id=0, **options):
+    """Read audio samples.
 
-    :param filename: Input media file.
-    :type filename: str
-    :raises Exception: if FFmpeg fails
-    :return: sample rate and audio data matrix (column=time,row=channel)
-    :rtype: (float, numpy.ndarray)
+    :param url: URL of the audio file to read.
+    :type url: str
+    :param stream_id: audio stream id (the numeric part of ``a:#`` specifier), defaults to 0.
+    :type stream_id: int, optional
+    :param \\**options: other keyword options (see :doc:`options`)
+    :type \\**options: dict, optional
+    :return: sample rate in samples/second and audio data matrix (timexchannel)
+    :rtype: tuple(`float`, `numpy.ndarray`)
     """
 
-    args = configure.input_timing(input_url, astream_id=stream_id, **options)
+    args = configure.input_timing(url, astream_id=stream_id, **options)
 
     args, reader_cfg = configure.audio_io(
-        input_url,
+        url,
         stream_id,
         output_url="-",
         format="rawvideo",
@@ -29,15 +34,16 @@ def read(input_url, stream_id=0, **options):
 
 
 def write(url, rate, data, **options):
-    """Write a NumPy array as an audio file.
+    """Write a NumPy array to an audio file.
 
-    :param url: Output media file.
+    :param url: URL of the audio file to write.
     :type url: str
-    :param rate: The sample rate (in samples/sec).
+    :param rate: The sample rate in samples/second.
     :type rate: int
+    :param \\**options: other keyword options (see :doc:`options`)
+    :type \\**options: dict, optional
     :param data: A 1-D or 2-D NumPy array of either integer or float data-type.
-    :type data: numpy.ndarray
-    :raises Exception: FFmpeg error
+    :type data: `numpy.ndarray`
     """
     args = configure.input_timing(
         "-",

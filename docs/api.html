@@ -1,0 +1,649 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>API References &mdash; python-ffmpegio 0.0.6 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="References: Standard Keyword Options" href="options.html" />
+    <link rel="prev" title="Python Package: ffmpegio — Media File I/O with FFmpeg" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> python-ffmpegio
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">API References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#package-contents">Package Contents</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-functions">Basic Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">References: Standard Keyword Options</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>API References</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/api.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="api-references">
+<h1>API References<a class="headerlink" href="#api-references" title="Permalink to this headline">¶</a></h1>
+<div class="line-block">
+<div class="line">PyPi: <a class="reference external" href="https://pypi.org/project/ffmpegio/">https://pypi.org/project/ffmpegio/</a></div>
+<div class="line">GitHub: <a class="reference external" href="https://github.com/tikuma-lsuhsc/python-ffmpegio">https://github.com/tikuma-lsuhsc/python-ffmpegio</a></div>
+</div>
+<div class="section" id="package-contents">
+<h2>Package Contents<a class="headerlink" href="#package-contents" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="basic-functions">
+<h3>Basic Functions<a class="headerlink" href="#basic-functions" title="Permalink to this headline">¶</a></h3>
+<table class="longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.set_path" title="ffmpegio.set_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.set_path</span></code></a></p></td>
+<td><p>Set path to FFmpeg bin directory</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.get_path" title="ffmpegio.get_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.get_path</span></code></a></p></td>
+<td><p>Get current path to FFmpeg bin directory</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.is_ready" title="ffmpegio.is_ready"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.is_ready</span></code></a></p></td>
+<td><p><cite>True</cite> if ffmpeg and ffprobe binaries are located</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.video.read" title="ffmpegio.video.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.read</span></code></a></p></td>
+<td><p>Read video frames</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.video.write" title="ffmpegio.video.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.write</span></code></a></p></td>
+<td><p>Write Numpy array to a video file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.image.read" title="ffmpegio.image.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.read</span></code></a></p></td>
+<td><p>Read an image file or a snapshot of a video frame</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.image.write" title="ffmpegio.image.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.write</span></code></a></p></td>
+<td><p>Write a NumPy array to an image file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.audio.read" title="ffmpegio.audio.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.read</span></code></a></p></td>
+<td><p>Read audio samples.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.write" title="ffmpegio.audio.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.write</span></code></a></p></td>
+<td><p>Write a NumPy array to an audio file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.open</span></code></a></p></td>
+<td><p>Open a multimedia file/stream for read/write</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.transcode" title="ffmpegio.transcode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.transcode</span></code></a></p></td>
+<td><p>Transcode a media file to another format/encoding</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt id="ffmpegio.get_path">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">get_path</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.get_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get current path to FFmpeg bin directory</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>path to FFmpeg bin directory or <cite>None</cite> if ffmpeg and ffprobe paths have not been set.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>str or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.set_path">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">set_path</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.set_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set path to FFmpeg bin directory</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dir</strong> (<em>str</em><em>, </em><em>optional</em>) – full path of the FFmpeg bin directory, defaults to None, which
+only look in the default locations</p>
+</dd>
+<dt class="field-even">Raises</dt>
+<dd class="field-even"><p><strong>Exception</strong> – if failed to find ffmpeg or ffprobe binary</p>
+</dd>
+</dl>
+<p>When <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> is first imported in Python, it automatically run
+this function once, searching in the system path and Windows default
+locations (see below). If both not found, a warning message is displayed.</p>
+<p>In Linux and Mac, only the specified directory or the system path are
+checked. In Windows, the following additional paths are tested:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES%\ffmpeg\bin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES(X86)%\ffmpeg\bin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%\ffmpeg\bin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%\programs\ffmpeg\bin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\ffmpeg\bin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\programs\ffmpeg\bin</span></code></p></li>
+</ul>
+<p>Here, <code class="docutils literal notranslate"><span class="pre">%xxx%</span></code> indicates the standard Windows environmental variables:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 46%" />
+<col style="width: 54%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Windows Environmental Variables</p></th>
+<th class="head"><p>Example path</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES%</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES(X86)%</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files</span> <span class="pre">(x86)</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Roaming</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Local</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.is_ready">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">is_ready</span></code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.is_ready" title="Permalink to this definition">¶</a></dt>
+<dd><p><cite>True</cite> if ffmpeg and ffprobe binaries are located</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>True if both ffmpeg and ffprobe are found</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.video.read">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></code><code class="sig-name descname"><span class="pre">read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vframes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read video frames</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the video file to read.</p></li>
+<li><p><strong>vframes</strong> (<em>int</em><em>, </em><em>optional</em>) – number of frames to read, default to None. If not set,
+uses the timing options to determine the number of frames.</p></li>
+<li><p><strong>stream_id</strong> (<em>int</em><em>, </em><em>optional</em>) – video stream id (numeric part of <code class="docutils literal notranslate"><span class="pre">v:#</span></code> specifier), defaults to 0.</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>frame rate and video frame data (dims: time x rows x cols x pix_comps)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<cite>fractions.Fraction</cite>, <cite>numpy.ndarray</cite>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.video.write">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></code><code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write Numpy array to a video file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the video file to write.</p></li>
+<li><p><strong>rate</strong> (<cite>float</cite>, <cite>int</cite>, or <cite>fractions.Fraction</cite>) – frame rate in frames/second</p></li>
+<li><p><strong>data</strong> (<cite>numpy.ndarray</cite>) – video frame data 4-D array (framexrowsxcolsxcomponents)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.image.read">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></code><code class="sig-name descname"><span class="pre">read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read an image file or a snapshot of a video frame</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the image or video file to read.</p></li>
+<li><p><strong>stream_id</strong> (<em>int</em><em>, </em><em>optional</em>) – video stream id (numeric part of <code class="docutils literal notranslate"><span class="pre">v:#</span></code> specifier), defaults to 0.</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>image data</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.20)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<p>Note on **options: To specify the video frame capture time, use <cite>time</cite>
+option which is an alias of <cite>start</cite> standard option.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.image.write">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></code><code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a NumPy array to an image file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the image file to write.</p></li>
+<li><p><strong>data</strong> (<cite>numpy.ndarray</cite>) – image data 3-D array (rowsxcolsxcomponents)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.audio.read">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></code><code class="sig-name descname"><span class="pre">read</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Read audio samples.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the audio file to read.</p></li>
+<li><p><strong>stream_id</strong> (<em>int</em><em>, </em><em>optional</em>) – audio stream id (the numeric part of <code class="docutils literal notranslate"><span class="pre">a:#</span></code> specifier), defaults to 0.</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>sample rate in samples/second and audio data matrix (timexchannel)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple(<cite>float</cite>, <cite>numpy.ndarray</cite>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.audio.write">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></code><code class="sig-name descname"><span class="pre">write</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write a NumPy array to an audio file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the audio file to write.</p></li>
+<li><p><strong>rate</strong> (<em>int</em>) – The sample rate in samples/second.</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+<li><p><strong>data</strong> (<cite>numpy.ndarray</cite>) – A 1-D or 2-D NumPy array of either integer or float data-type.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.open">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">open</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream_id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channels</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.open" title="Permalink to this definition">¶</a></dt>
+<dd><p>Open a multimedia file/stream for read/write</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the media source/destination</p></li>
+<li><p><strong>mode</strong> (<em>str</em><em>, </em><em>optional</em>) – specifies the mode in which the FFmpeg is used, defaults to None</p></li>
+<li><p><strong>rate</strong> (<em>Fraction</em><em>, </em><em>float</em><em>, </em><em>int</em><em>, or </em><em>dict</em><em>, </em><em>optional</em>) – (write specific) frame rate (video write) or sample rate (audio
+write), defaults to None</p></li>
+<li><p><strong>stream_id</strong> (<em>int</em><em> or </em><em>str</em><em>, </em><em>optional</em>) – (read specific) media stream, defaults to None</p></li>
+<li><p><strong>dtype</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.dtype.html#numpy.dtype" title="(in NumPy v1.20)"><em>numpy.dtype</em></a><em>, </em><em>optional</em>) – (write specific) input data numpy dtype, defaults to None</p></li>
+<li><p><strong>shape</strong> (<em>seq of int</em><em>, </em><em>optional</em>) – (write specific) video frame size (height x width [x ncomponents]),
+defaults to None</p></li>
+<li><p><strong>channels</strong> (<em>int</em><em>, </em><em>optional</em>) – (write specific) audio number of channels, defaults to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Yields</dt>
+<dd class="field-even"><p>ffmpegio stream object</p>
+</dd>
+</dl>
+<p>Start FFmpeg and open I/O link to it to perform read/write operation and return
+a corresponding stream object. If the file cannot be opened, an error is raised.
+See Reading and Writing Files for more examples of how to use this function.</p>
+<p><cite>url</cite> is a string specifying the pathname (absolute or relative to the current working
+directory) of the media target (file or streaming media) to be opened. This argument
+is ignored if FFmpeg is opened in filtering mode</p>
+<p><cite>mode</cite> is an optional string that specifies the mode in which the FFmpeg is opened.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 92%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Mode</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>‘r’</p></td>
+<td><p>read from url (default)</p></td>
+</tr>
+<tr class="row-odd"><td><p>‘w’</p></td>
+<td><p>write to url</p></td>
+</tr>
+<tr class="row-even"><td><p>‘v’</p></td>
+<td><p>operate on video stream (default)</p></td>
+</tr>
+<tr class="row-odd"><td><p>‘a’</p></td>
+<td><p>operate on audio stream</p></td>
+</tr>
+</tbody>
+</table>
+<p>The default mode is dictated by other arguments. ‘w’ mode is selected if
+rate, dtype, shape, or channels are given (that is, not None). Otherwise, it
+sets to ‘r’. If no media type (‘v’ or ‘a’) is specified, it selects the first
+stream of the media in read mode. For write mode, media type designation
+is required unless <cite>shape</cite> or <cite>channels</cite> are specified.</p>
+<p><cite>stream_id</cite> specifies which stream to target. It may be a stream index (int) or
+specific to each media type, e.g., ‘v:0’ for the first video stream or ‘a:2’ for
+the 3rd audio stream.</p>
+<p><cite>rate</cite> is required to write a media stream and specifies the video frame rate
+or audio sample rate. Video frame rate is in frames/second and may be given
+as a number, string, or <cite>fractions.Fraction</cite>. Audio sample rate in
+samples/second (per channel) and shall be given as an integer or string.</p>
+<p><cite>dtype</cite>, <cite>shape</cite>, and <cite>channels</cite> are specific to the write mode.</p>
+<p>‘dtype’ is requried and specifies the expected numpy array data type
+(e.g., <cite>numpy.uint8</cite>).</p>
+<p>Optional <cite>shape</cite> defines the video frame size and number of components
+with a 2 or 3 element sequence: <cite>(width, height[, ncomp])</cite>. The number of
+components and <cite>dtype</cite> implicitly define the pixel format:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 20%" />
+<col style="width: 15%" />
+<col style="width: 57%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>ncomp</p></th>
+<th class="head"><p>dtype</p></th>
+<th class="head"><p>pix_fmt</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>numpy.uint8</p></td>
+<td><p>gray</p></td>
+<td><p>grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>numpy.uint16</p></td>
+<td><p>gray16le</p></td>
+<td><p>16-bit grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>numpy.single</p></td>
+<td><p>grayf32le</p></td>
+<td><p>floating-point grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>numpy.uint8</p></td>
+<td><p>ya8</p></td>
+<td><p>grayscale with alpha channel</p></td>
+</tr>
+<tr class="row-even"><td><p>2</p></td>
+<td><p>numpy.uint16</p></td>
+<td><p>ya16le</p></td>
+<td><p>16-bit grayscale with alpha channel</p></td>
+</tr>
+<tr class="row-odd"><td><p>3</p></td>
+<td><p>numpy.uint8</p></td>
+<td><p>rgb24</p></td>
+<td><p>RGB</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>numpy.uint16</p></td>
+<td><p>rgb48le</p></td>
+<td><p>16-bit RGB</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>numpy.uint8</p></td>
+<td><p>rgba</p></td>
+<td><p>RGB with alpha transparency channel</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
+<td><p>numpy.uint16</p></td>
+<td><p>rgba64le</p></td>
+<td><p>16-bit RGB with alpha channel</p></td>
+</tr>
+</tbody>
+</table>
+<p>For audio output stream, optional <cite>channels</cite> specifies the number of
+channels.</p>
+<p>If <cite>dtype</cite>, <cite>shape</cite>, and <cite>channels</cite> are not specified at the time of
+opening, they are set during the first write operation.</p>
+<p>In addition, <cite>open()</cite> accepts the standard option keyword arguments.</p>
+<p><cite>open()</cite> yields a ffmpegio’s stream object and automatically closes it
+when goes out of the context</p>
+<dl class="field-list simple">
+<dt class="field-odd">Example</dt>
+<dd class="field-odd"><p></p></dd>
+</dl>
+<p>Open an MP4 file and process all the frames:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;video_source.mp4&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="k">while</span> <span class="p">(</span><span class="n">frame</span><span class="o">:=</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+        <span class="c1"># process the captured frame data</span>
+</pre></div>
+</div>
+<p>Read an audio stream of MP4 file and write it to a FLAC file as samples
+are decoded:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;video_source.mp4&#39;</span><span class="p">,</span><span class="s1">&#39;ra&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rd</span><span class="p">:</span>
+    <span class="n">fs</span> <span class="o">=</span> <span class="n">rd</span><span class="o">.</span><span class="n">sample_rate</span>
+    <span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;video_dst.flac&#39;</span><span class="p">,</span><span class="s1">&#39;wa&#39;</span><span class="p">,</span><span class="n">rate</span><span class="o">=</span><span class="n">fs</span><span class="p">)</span> <span class="k">as</span> <span class="n">wr</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">frame</span><span class="o">:=</span><span class="n">rd</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">wr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt id="ffmpegio.transcode">
+<code class="sig-prename descclassname"><span class="pre">ffmpegio.</span></code><code class="sig-name descname"><span class="pre">transcode</span></code><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">global_options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.transcode" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transcode a media file to another format/encoding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_url</strong> (<em>str</em>) – url/path of the input media file</p></li>
+<li><p><strong>output_url</strong> (<em>str</em>) – url/path of the output media file</p></li>
+<li><p><strong>input_options</strong> (<em>dict</em><em>, </em><em>optional</em>) – user_defined input options, defaults to None. each key is FFmpeg option argument without leading ‘-‘ with trailing stream specifier if needed. For flag options, set their values to None</p></li>
+<li><p><strong>output_options</strong> (<em>dict</em><em>, </em><em>optional</em>) – dict of user-defined output options, defaults to None. each key is FFmpeg option argument without leading ‘-‘ with trailing stream specifier if needed. For flag options, set their values to None.</p></li>
+<li><p><strong>global_options</strong> (<em>dict</em><em>, </em><em>optional</em>) – dict of user-defined global options, defaults to None. each key is FFmpeg option argument without leading ‘-‘ with trailing stream specifier if needed. For flag options, set their values to None.</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – other keyword options (see <a class="reference internal" href="options.html"><span class="doc">References: Standard Keyword Options</span></a>).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>returncode of FFmpeg subprocess</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="options.html" class="btn btn-neutral float-right" title="References: Standard Keyword Options" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Python Package: ffmpegio — Media File I/O with FFmpeg" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

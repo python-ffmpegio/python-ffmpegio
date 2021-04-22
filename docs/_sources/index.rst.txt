@@ -4,6 +4,10 @@ Python Package: ffmpegio --- Media File I/O with FFmpeg
 .. toctree::
    :maxdepth: 2
 
+   self
+   api
+   options
+
 | PyPi: `<https://pypi.org/project/ffmpegio/>`__
 | GitHub: `<https://github.com/tikuma-lsuhsc/python-ffmpegio>`__
 
@@ -72,19 +76,3 @@ Read entire audio file
 Read 10 video frames
 
 Read an image
-
-
-
-Package Contents
-----------------
-.. autofunction:: ffmpegio.open
-.. autofunction:: ffmpegio.transcode
-
-.. autofunction:: ffmpegio.video.read
-.. autofunction:: ffmpegio.video.write
-.. autofunction:: ffmpegio.audio.read
-.. autofunction:: ffmpegio.audio.write
-.. autofunction:: ffmpegio.image.read
-.. autofunction:: ffmpegio.image.write
-
-.. autofunction:: ffmpegio.set_path

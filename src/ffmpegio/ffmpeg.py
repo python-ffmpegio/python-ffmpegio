@@ -207,24 +207,62 @@ FFMPEG_BIN = "ffmpeg"
 FFPROBE_BIN = "ffprobe"
 
 
+def found():
+    """`True` if ffmpeg and ffprobe binaries are located
+
+    :return: True if both ffmpeg and ffprobe are found
+    :rtype: bool
+    """
+    return bool(FFMPEG_BIN and FFPROBE_BIN)
+
+
+def where():
+    """Get current path to FFmpeg bin directory
+
+    :return: path to FFmpeg bin directory or `None` if ffmpeg and ffprobe paths have not been set.
+    :rtype: str or None
+    """
+    return os.path.dirname(FFMPEG_BIN) if bool(FFMPEG_BIN and FFPROBE_BIN) else None
+
+
 def find(dir=None):
-    """find ffmpeg and ffprobe in the system and sets FFMPEG_BIN and FFPROBE_BIN variables
+    """Set path to FFmpeg bin directory
 
-    Linux/Mac - if not found in provided dir or in the system path, returns an error
-    Windows - before returning the error, it searches additional locations:
+    :param dir: full path of the FFmpeg bin directory, defaults to None, which
+                only look in the default locations
+    :type dir: str, optional
+    :raises Exception: if failed to find ffmpeg or ffprobe binary
 
-    %PROGRAMFILES%\\ffmpeg\\bin\\ffmpeg.exe
-    %PROGRAMFILES(X86)%\\ffmpeg\\bin\\ffmpeg.exe
-    %APPDATA%\\ffmpeg\\bin\\ffmpeg.exe
-    %LOCALAPPDATA%\\ffmpeg\\bin\\ffmpeg.exe
-    %APPDATA%\\programs\\ffmpeg\\bin\\ffmpeg.exe
-    %LOCALAPPDATA%\\programs\\ffmpeg\\bin\\ffmpeg.exe
+    When :py:mod:`ffmpegio` is first imported in Python, it automatically run
+    this function once, searching in the system path and Windows default
+    locations (see below). If both not found, a warning message is displayed.
+
+    In Linux and Mac, only the specified directory or the system path are
+    checked. In Windows, the following additional paths are tested:
+
+    * ``%PROGRAMFILES%\\ffmpeg\\bin``
+    * ``%PROGRAMFILES(X86)%\\ffmpeg\\bin``
+    * ``%APPDATA%\\ffmpeg\\bin``
+    * ``%APPDATA%\\programs\\ffmpeg\\bin``
+    * ``%LOCALAPPDATA%\\ffmpeg\\bin``
+    * ``%LOCALAPPDATA%\\programs\\ffmpeg\\bin``
+
+    Here, ``%xxx%`` indicates the standard Windows environmental variables:
+
+    ===============================  =====================================
+    Windows Environmental Variables  Example path
+    ===============================  =====================================
+    ``%PROGRAMFILES%``               ``C:\\Program Files``
+    ``%PROGRAMFILES(X86)%``          ``C:\\Program Files (x86)``
+    ``%APPDATA%``                    ``C:\\Users\\john\\AppData\\Roaming``
+    ``%LOCALAPPDATA%``               ``C:\\Users\\john\\AppData\\Local``
+    ===============================  =====================================
 
     """
 
     global FFMPEG_BIN, FFPROBE_BIN
 
-    dirs = ["", dir] if dir else [""]
+    dirs = [dir, ""] if dir else [""]
 
     ext = ".exe" if os.name == "nt" else ""
 

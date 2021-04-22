@@ -19,7 +19,9 @@ sys.path.insert(0, os.path.abspath("../src/ffmpegio"))
 # -- Project information -----------------------------------------------------
 
 project = "python-ffmpegio"
-copyright = "2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
+copyright = (
+    "2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
+)
 author = "Takeshi (Kesh) Ikuma"
 release = "0.0.6"
 
@@ -28,7 +30,12 @@ release = "0.0.6"
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ["sphinx.ext.autodoc", "sphinx.ext.napoleon", "sphinx.ext.intersphinx"]
+extensions = [
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.autosummary",
+]
 # Looks for objects in external projects
 
 intersphinx_mapping = {
@@ -56,3 +63,6 @@ html_theme = "sphinx_rtd_theme"
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
+# html_sidebars = {
+#     "**": ["globaltoc.html", "relations.html", "sourcelink.html", "searchbox.html"]
+# }

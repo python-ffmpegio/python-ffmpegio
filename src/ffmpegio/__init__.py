@@ -1,11 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""
-FFmpeg I/O package
+"""FFmpeg I/O interface
 
 Transcode media file to another format/codecs
 ---------------------------------------------
-ffmpegio.transcode()
+:py:func:`ffmpegio.transcode()`
 
 Simple Read/Write Streams
 -------------------------
@@ -13,14 +12,14 @@ ffmpegio.open()
 
 Simple Read/Write Functions
 ---------------------------
-ffmpegio.video.read()
-ffmpegio.video.write()
-ffmpegio.image.read()
-ffmpegio.image.write()
-ffmpegio.audio.read()
-ffmpegio.audio.write()
-ffmpegio.media.read()
-ffmpegio.media.write()
+`ffmpegio.video.read()`
+`ffmpegio.video.write()`
+`ffmpegio.image.read()`
+`ffmpegio.image.write()`
+`ffmpegio.audio.read()`
+`ffmpegio.audio.write()`
+`ffmpegio.media.read()`
+`ffmpegio.media.write()`
 """
 
 from contextlib import contextmanager
@@ -31,6 +30,8 @@ from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
 set_path = _ffmpeg.find
+get_path = _ffmpeg.where
+is_ready = _ffmpeg.found
 
 __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open"]
 
@@ -46,7 +47,7 @@ def open(
     channels=None,
     **kwds,
 ):
-    """open a multimedia file/stream
+    """Open a multimedia file/stream for read/write
 
     :param url: URL of the media source/destination
     :type url: str
@@ -64,6 +65,8 @@ def open(
     :type shape: seq of int, optional
     :param channels: (write specific) audio number of channels, defaults to None
     :type channels: int, optional
+    :param \\**options: other keyword options (see :doc:`options`)
+    :type \\**options: dict, optional
     :yields: ffmpegio stream object
 
     Start FFmpeg and open I/O link to it to perform read/write operation and return
@@ -136,19 +139,20 @@ def open(
 
     :Example:
 
-    ```
-    with ffmpegio.open('video_source.mp4') as f:
-        while (frame:=f.read())
-            # process the captured frame data
-    ```
+    Open an MP4 file and process all the frames::
 
-    ```
-    with ffmpegio.open('video_source.mp4','ra') as rd:
-        fs = rd.sample_rate
-        with ffmpegio.open('video_dst.flac','wa',rate=fs) as wr:
-            for frame:=rd.read()
-                wr.write(frame)
-    ```
+        with ffmpegio.open('video_source.mp4') as f:
+            while (frame:=f.read())
+                # process the captured frame data
+
+    Read an audio stream of MP4 file and write it to a FLAC file as samples
+    are decoded::
+
+        with ffmpegio.open('video_source.mp4','ra') as rd:
+            fs = rd.sample_rate
+            with ffmpegio.open('video_dst.flac','wa',rate=fs) as wr:
+                for frame:=rd.read()
+                    wr.write(frame)
 
     """
 
