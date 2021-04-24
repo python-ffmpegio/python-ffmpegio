@@ -92,7 +92,7 @@ class SimpleVideoWriter:
             )
 
             configure.video_io(
-                utils.array_to_video_input(data, format="rawvideo"),
+                utils.array_to_video_input(self.frame_rate, data, format="rawvideo"),
                 output_url=self.url,
                 ffmpeg_args=args,
                 **self.options,
@@ -155,7 +155,7 @@ class SimpleAudioReader:
 
 
 class SimpleAudioWriter:
-    def __init__(self, url, rate, dtype=None, channels=None, **kwargs) -> None:
+    def __init__(self, url, rate, dtype=None, channels=None, **options) -> None:
         self.proc = None
         self.url = url
         self.samples_written = 0
@@ -163,14 +163,13 @@ class SimpleAudioWriter:
             self.sample_rate = rate
             self.dtype = dtype
             self.channels = channels
-            self.options = kwargs
+            self.options = options
         else:
-            self.open(rate,dtype=dtype,channels=channels,**options)
-
+            self.open(rate, dtype=dtype, channels=channels, **options)
 
     def open(self, rate, data=None, dtype=None, channels=None, **options):
         if self.proc:
-            raise Exception('stream is already open')
+            raise Exception("stream is already open")
 
         if data is None:
             data = np.empty((1, channels), dtype=dtype)
@@ -186,7 +185,7 @@ class SimpleAudioWriter:
         )
 
         configure.audio_io(
-            utils.array_to_audio_input(data, format=True),
+            utils.array_to_audio_input(rate, data, format=True),
             output_url=self.url,
             ffmpeg_args=args,
             **self.options,

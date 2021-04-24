@@ -39,7 +39,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="References: Standard Keyword Options" href="options.html" />
-    <link rel="prev" title="Python Package: ffmpegio — Media File I/O with FFmpeg" href="index.html" /> 
+    <link rel="prev" title="ffmpegio Python Package: Media File I/O with FFmpeg" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav">
@@ -85,12 +85,8 @@
             
             
               <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">Python Package: ffmpegio — Media File I/O with FFmpeg</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">API References</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#package-contents">Package Contents</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#basic-functions">Basic Functions</a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="#basic-functions">Basic Functions</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="options.html">References: Standard Keyword Options</a></li>
@@ -167,10 +163,12 @@
 <div class="line">PyPi: <a class="reference external" href="https://pypi.org/project/ffmpegio/">https://pypi.org/project/ffmpegio/</a></div>
 <div class="line">GitHub: <a class="reference external" href="https://github.com/tikuma-lsuhsc/python-ffmpegio">https://github.com/tikuma-lsuhsc/python-ffmpegio</a></div>
 </div>
-<div class="section" id="package-contents">
-<h2>Package Contents<a class="headerlink" href="#package-contents" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>This package is still in an early alpha stage and under heavy consturction.</p>
+</div>
 <div class="section" id="basic-functions">
-<h3>Basic Functions<a class="headerlink" href="#basic-functions" title="Permalink to this headline">¶</a></h3>
+<h2>Basic Functions<a class="headerlink" href="#basic-functions" title="Permalink to this headline">¶</a></h2>
 <table class="longtable docutils align-default">
 <colgroup>
 <col style="width: 10%" />
@@ -227,6 +225,33 @@
 <dd class="field-even"><p>dict</p>
 </dd>
 </dl>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 6%" />
+<col style="width: 65%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>‘version’</p></td>
+<td><p>str</p></td>
+<td><p>FFmpeg version</p></td>
+</tr>
+<tr class="row-odd"><td><p>‘configuration’</p></td>
+<td><p>list</p></td>
+<td><p>list of build configuration options</p></td>
+</tr>
+<tr class="row-even"><td><p>‘library_versions’</p></td>
+<td><p>dict</p></td>
+<td><p>version numbers of dependent av libraries</p></td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="py function">
@@ -256,20 +281,18 @@ only look in the default locations</p>
 <dd class="field-even"><p><strong>Exception</strong> – if failed to find ffmpeg or ffprobe binary</p>
 </dd>
 </dl>
-<p>When <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> is first imported in Python, it automatically run
-this function once, searching in the system path and Windows default
-locations (see below). If both not found, a warning message is displayed.</p>
 <p>In Linux and Mac, only the specified directory or the system path are
-checked. In Windows, the following additional paths are tested:</p>
+checked. In Windows, the following additional paths are tested in this order:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES%\ffmpeg\bin</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES(X86)%\ffmpeg\bin</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">%USERPROFILE%\ffmpeg\bin</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%\ffmpeg\bin</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%\programs\ffmpeg\bin</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\ffmpeg\bin</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\programs\ffmpeg\bin</span></code></p></li>
 </ul>
-<p>Here, <code class="docutils literal notranslate"><span class="pre">%xxx%</span></code> indicates the standard Windows environmental variables:</p>
+<p>Here, <code class="docutils literal notranslate"><span class="pre">%xxx%</span></code> are the standard Windows environmental variables:</p>
 <table class="docutils align-default">
 <colgroup>
 <col style="width: 46%" />
@@ -287,14 +310,20 @@ checked. In Windows, the following additional paths are tested:</p>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES(X86)%</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files</span> <span class="pre">(x86)</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%USERPROFILE%</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Roaming</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%</span></code></p></td>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%</span></code></p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Local</span></code></p></td>
 </tr>
 </tbody>
 </table>
+<p>When <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> is first imported in Python, it automatically run
+this function once, searching in the system path and Windows default
+locations (see below). If both not found, a warning message is displayed.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -614,7 +643,6 @@ are decoded:</p>
 
 </div>
 </div>
-</div>
 
 
            </div>
@@ -623,7 +651,7 @@ are decoded:</p>
           <footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
         <a href="options.html" class="btn btn-neutral float-right" title="References: Standard Keyword Options" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-        <a href="index.html" class="btn btn-neutral float-left" title="Python Package: ffmpegio — Media File I/O with FFmpeg" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="index.html" class="btn btn-neutral float-left" title="ffmpegio Python Package: Media File I/O with FFmpeg" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
     </div>
 
   <hr/>

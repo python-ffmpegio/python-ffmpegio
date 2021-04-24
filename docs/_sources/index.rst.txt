@@ -1,78 +1,38 @@
-Python Package: ffmpegio --- Media File I/O with FFmpeg
-=======================================================
+ffmpegio Python Package: Media File I/O with FFmpeg
+===================================================
 
 .. toctree::
    :maxdepth: 2
 
-   self
+   get_started
    api
    options
 
 | PyPi: `<https://pypi.org/project/ffmpegio/>`__
 | GitHub: `<https://github.com/tikuma-lsuhsc/python-ffmpegio>`__
 
+.. warning::
+   This package is still in an early alpha stage and under heavy consturction.
+
 Introduction
-------------
+============
 
-Python :py:mod:`ffmpegio` package is an (yet another) FFmpeg wrapper to enable 
-reading and writing media data (with a future roadmap to include filtering and
-other convenience features). `FFmpeg <https://ffmpeg.org>`__ is an open-source 
-cross-platform multimedia framework to "decode, encode, transcode, mux, demux, 
-stream, filter and play pretty much anything that humans and machines have created." 
+`FFmpeg <https://ffmpeg.org>`__ is an open-source cross-platform multimedia 
+framework, and Python :py:mod:`ffmpegio` package utilizes it to read, write, and
+manipulate multimedia data.
 
-Installation
-------------
+Main Features
+-------------
 
-To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
-having the FFmpeg binary files in a location :py:mod:`ffmpegio` can find.
+* Pure-Python light-weight package interacting with FFmpeg executable found in 
+  the system
+* A set of simple read and write functions for audio, image, and video data
+* Context-managing :py:func:`ffmpegio.open` to perform frame-wise read/write
+  operations
+* Auto-conversion of video pixel formats to RGB/grayscale formats with/without 
+  transparency alpha channel
+* Out-of-box support for fast resizing, re-orienting, cropping, and 
+  deinterlacing of video frames (all done by FFmpeg)
+* (planned) Audio and video filtering
+* (planned) Multi-stream read/write
 
-Install the :py:mod:`ffmpegio` package via ``pip``:
-
-.. code-block:: bash
-
-   pip install ffmpegio
-
-The installation of FFmpeg is platform dependent. For Ubuntu,
-
-.. code-block:: bash
-
-   sudo apt install ffmpeg
-
-and Mac,
-
-.. code-block:: bash
-
-   brew install ffmpeg
-
-no other actions are needed as these commands will place the FFmpeg executables 
-on the system path. For Windows, it is a bit more complicated.
-
-1. Download pre-built packages from the links available on the `FFmpeg's Download page
-   <https://ffmpeg.org/download.html#build-windows>`__.
-2. Unzip the content and place the files on one of the following directories:
-
-   ==================================  ===============================================
-   Folder locations                    Example path
-   ==================================  ===============================================
-   ``%PROGRAMFILES%\ffmpeg``           ``C:\Program Files\ffmpeg``
-   ``%PROGRAMFILES(X86)%\ffmpeg``      ``C:\Program Files (x86)\ffmpeg``
-   ``%APPDATA%\ffmpeg``                ``C:\Users\john\AppData\Roaming\ffmpeg``
-   ``%APPDATA%\programs\ffmpeg``       ``C:\Users\john\AppData\Roaming\programs\ffmpeg``
-   ``%LOCALAPPDATA%\ffmpeg``           ``C:\Users\john\AppData\Local\ffmpeg``
-   ``%LOCALAPPDATA%\programs\ffmpeg``  ``C:\Users\john\AppData\Local\programs\ffmpeg``
-   ==================================  ===============================================
-
-   Keep the internal structure intact, i.e., the executables must be found at 
-   ``ffmpeg\bin\ffmpeg.exe`` and ``ffmpeg\bin\ffprobe.exe``.
-
-   Alternately, the FFmpeg may be placed elsewhere and use :py:func:`ffmpegio.set_path` to
-   specify the location.
-
-Examples
---------
-
-Read entire audio file
-
-Read 10 video frames
-
-Read an image

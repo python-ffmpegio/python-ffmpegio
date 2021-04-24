@@ -116,7 +116,12 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
       4    numpy.uint16  rgba64le   16-bit RGB with alpha channel
     =====  ============  =========  ===================================
     """
-    fmt_info = caps.pixfmts()[input_pix_fmt]
+    try:
+        fmt_info = caps.pixfmts()[input_pix_fmt]
+    except:
+        raise Exception(
+            f"unknown pixel format '{input_pix_fmt}' specified. Run ffmpegio.caps.pixfmts() for supported formats."
+        )
     n_in = fmt_info["nb_components"]
     bpp = fmt_info["bits_per_pixel"]
 
@@ -189,181 +194,315 @@ def get_audio_format(fmt):
         except:
             raise Exception(f"incompatible numpy dtype used: {fmt}")
 
-        
 
+def array_to_video_input(
+    rate, data=None, stream_id=None, format=None, codec=None, pix_fmt=None, size=None
+):
+    """create an stdin input with video stream
 
-def array_to_video_input(data, rate=None, stream_id=0, format=None):
+    :param rate: input frame rate in frames/second
+    :type rate: int, float, or `fractions.Fraction`
+    :param data: input data (whole or frame), defaults to None (manual config)
+    :type data: `numpy.ndarray`
+    :param stream_id: video stream id ('v:#'), defaults None to set the options to be file-wide ('v')
+    :type stream_id: int, optional
+    :param format: input format, defaults to None (not set). If True, sets to ``rawvideo`` format.
+                   Use str to specify a specific container
+    :type format: str or bool, optional
+    :param codec: video codec, defaults to None to use `rawvideo`. 
+                   If given, `data` is assumed to be a byte array, containing encoded data. Also,
+                   `size` and `pix_fmt` must also be set explicitly
+    :type codec: str, optional
+    :param pix_fmt: video pixel format, defaults to None. This input is only relevant (and required) 
+                       if custom `codec` is set.
+    :type pix_fmt: str, optional
+    :param size: frame size in (width, height), defaults to None. This input is only relevant (and required) 
+                     if custom `codec` is set.
+    :type size: tuple(int,int), optional
+    :return: tuple of input url and option dict
+    :rtype: tuple(str, dict)
+    """
 
     spec = spec_stream(stream_id, "v")
 
-    dtype = data.dtype
-    shape = data.shape
-    ndim = data.ndim
+    if codec is None:
+        # determine `pix_fmt` and `size` from data
+        codec = "rawvideo"
+        dtype = data.dtype
+        shape = data.shape
+        ndim = data.ndim
+        if ndim < 2 or ndim > 4:
+            raise Exception(f"unknown video data dimension: {shape}")
+        nocomp = ndim == 2 or (ndim == 3 and shape[-1] > 4)
+        n = 1 if nocomp else shape[-1]
+        if dtype == np.uint8:
+            pix_fmt = (
+                "gray" if n == 1 else "ya8" if n == 2 else "rgb24" if n == 3 else "rgba"
+            )
+        elif dtype == np.uint16:
+            pix_fmt = (
+                "gray16le"
+                if n == 1
+                else "ya16le"
+                if n == 2
+                else "rgb48le"
+                if n == 3
+                else "rgba64le"
+            )
+        elif dtype == np.float32:
+            pix_fmt = "grayf32le"
+        else:
+            raise Exception("Invalid data format")
+        if ndim < 2 or ndim > 4:
+            raise Exception("video data array must be 2d or 3d or 4d")
+        size = (
+            shape[2:0:-1]  # frames x rows x columns x ncomponents
+            if ndim > 3
+            else (
+                shape[:0:-1]  # frames x rows x columns
+                if nocomp
+                else shape[-2::-1]  # rows x columns x ncomponents
+            )
+            if ndim > 2
+            else shape[::-1]  # rows x columns
+        )
+        print(shape, ndim, nocomp, n, size)
 
-    if ndim < 2 or ndim > 4:
-        raise Exception(f"unknown video data dimension: {shape}")
+    elif pix_fmt is None or size is None:
+        raise Exception(
+            "configuring audio input with a custom codec requires `sample_fmt` and `channels` to be also specified."
+        )
 
-    nocomp = ndim == 2 or (ndim == 3 and shape[-1] > 4)
-
-    n = 1 if nocomp else shape[-1]
     input = (
         "-",
         (
             opts := {
-                f"c:{spec}": "rawvideo",
-                f"s:{spec}": f"{shape[-2 + nocomp]}x{shape[-3 + nocomp]}",
+                f"c:{spec}": codec,
+                f"s:{spec}": f"{size[0]}x{size[1]}",
+                f"r:{spec}": rate,
+                f"pix_fmt:{spec}": pix_fmt,
             }
         ),
     )
 
     if format is not None:
-        opts["f"] = format
-
-    if rate is not None:
-        opts[f"r:{spec}"] = rate
-
-    if dtype == np.uint8:
-        opts[f"pix_fmt:{spec}"] = (
-            "gray" if n == 1 else "ya8" if n == 2 else "rgb24" if n == 3 else "rgba"
-        )
-    elif dtype == np.uint16:
-        opts[f"pix_fmt:{spec}"] = (
-            "gray16le"
-            if n == 1
-            else "ya16le"
-            if n == 2
-            else "rgb48le"
-            if n == 3
-            else "rgba64le"
-        )
-    elif dtype == np.float32:
-        opts[f"pix_fmt:{spec}"] = "grayf32le"
-    else:
-        raise Exception("Invalid data format")
+        if isinstance(format, str):
+            opts["f"] = format
+        elif format is True:
+            opts["f"] = "rawvideo"
 
     return input
 
 
-def analyze_video_input(input, entries=None):
+def array_to_audio_input(
+    rate,
+    data=None,
+    stream_id=None,
+    codec=None,
+    format=None,
+    sample_fmt=None,
+    channels=None,
+):
+    """create an stdin input with audio stream
 
-    if entries is None:
-        entries = ("codec_name", "width", "height", "pix_fmt", "frame_rate")
-
-    cfgs = (
-        {
-            i: v
-            for i, v in enumerate(probe.video_streams_basic(input[0], entries=entries))
-        }
-        if input[0] != "-"
-        else {}
-    )
-
-    if (opts := input[1]) is not None:
-        for k, v in opts.items():
-            m = re.match(r"(c|s|pix_fmt|r):v:(\d+)", k)
-            if not m:
-                continue
-            name = m[1]
-            st = int(m[2])
-            if st not in cfgs:
-                cfgs[st] = {}
-            cfg = cfgs[st]
-            if name == "s":
-                mval = re.match(r"(\d+)x(\d+)", v)
-                if not mval:
-                    raise Exception(f"invalid -s input option found: {v}")
-                if "width" in entries:
-                    cfg["width"] = int(mval[1])
-                if "height" in entries:
-                    cfg["height"] = int(mval[2])
-            elif name == "pix_fmt":
-                if "pix_fmt" in entries:
-                    cfg["pix_fmt"] = v
-            elif name == "r":
-                if "frame_rate" in entries:
-                    cfg["frame_rate"] = fractions.Fraction(v)
-            elif name == "c":
-                if "codec_name" in entries:
-                    cfg["codec_name"] = v
-
-    # make sure entries are contiguous
-    try:
-        return [cfgs[i] for i in range(len(cfgs))]
-    except:
-        raise Exception("input options are either incomplete or invalid")
-
-
-def array_to_audio_input(data, rate=None, stream_id=0, format=None):
+    :param rate: input sample rate in samples/second
+    :type rate: int
+    :param data: input data (whole or frame), defaults to None (manual config)
+    :type data: `numpy.ndarray`
+    :param stream_id: audio stream id ('a:#'), defaults to None to set the options to be file-wide ('a')
+    :type stream_id: int, optional
+    :param format: input format, defaults to None (not set). If True, sets to appropriate raw audio format.
+                   Use str to specify a specific container
+    :type format: str or bool, optional
+    :param codec: audio codec, defaults to None to pick appropriate PCM codec for the data. 
+                   If set, `data` is assumed to be a byte array, containing encoded data. Also,
+                   `channels` and `sample_fmt` must also be set explicitly
+    :type codec: str, optional
+    :param sample_fmt: audio sample format, defaults to None. This input is only relevant (and required) 
+                       if custom `codec` is set.
+    :type sample_fmt: str, optional
+    :param channels: number of channels, defaults to None. This input is only relevant (and required) 
+                     if custom `codec` is set.
+    :type channels: int, optional
+    :return: tuple of input url and option dict
+    :rtype: tuple(str, dict)
+    """
 
     spec = spec_stream(stream_id, "a")
 
-    acodec, fmt = get_audio_format(data.dtype)
+    if codec is None:
+        codec, sample_fmt = get_audio_format(data.dtype)
 
-    shape = data.shape
-    ndim = data.ndim
-    if ndim < 1 or ndim > 2:
-        raise Exception("audio data array must be 1d or 2d")
-    channels = shape[-1] if ndim > 1 else 1
+        shape = data.shape
+        ndim = data.ndim
+        if ndim < 1 or ndim > 2:
+            raise Exception("audio data array must be 1d or 2d")
+        channels = shape[-1] if ndim > 1 else shape[0] if ndim > 0 else 1
+    elif sample_fmt is None or channels is None:
+        raise Exception(
+            "configuring audio input with a custom codec requires `sample_fmt` and `channels` to be also specified."
+        )
 
     input = (
         "-",
         (
             opts := {
-                f"c:{spec}": acodec,
-                f"sample_fmt:{spec}": fmt,
+                f"c:{spec}": codec,
                 f"ac:{spec}": channels,
+                f"ar:{spec}": rate,
+                f"sample_fmt:{spec}": sample_fmt,
             }
         ),
     )
 
-    if format:
-        opts["f"] = acodec[4:] if format is True else format
-
-    if rate is not None:
-        opts[f"ar:{spec}"] = rate
+    if format is not None:
+        if isinstance(format, str):
+            opts["f"] = format
+        elif format is True:
+            opts["f"] = codec[4:]
 
     return input
 
 
-def analyze_audio_input(input, entries=None):
+def analyze_video_input(input, entries=None):
+    """analyze video input option entry
 
+    :param input: tuple of url & options (or None)
+    :type input: tuple(str,dict or None)
+    :param entries: a list of basic video stream info names, defaults to None to select all. See `ffmpegio.probe.video_streams_basic()`
+    :type entries: seq of str, optional
+    :return: list of stream configuration entries
+    :rtype: list of dict
+
+    input options, `input[1]`, is expected to be configured with stream specifiers and not with their aliases.
+    For example, codec must be specified with 'c:v' rather than 'vcodec'.
+    """
     if entries is None:
-        entries = ("codec_name", "sample_rate", "sample_fmt", "channels")
+        entries = ("codec_name", "width", "height", "pix_fmt", "frame_rate")
 
-    cfgs = (
-        {
-            i: v
-            for i, v in enumerate(probe.audio_streams_basic(input[0], entries=entries))
-        }
-        if input[0] != "-"
-        else {}
-    )
+    option_regex = re.compile(r"(c|s|pix_fmt|r):v(?::(\d+))?")
 
-    if (opts := input[1]) is not None:
-        for k, v in opts.items():
-            m = re.match(r"(c|ac|sample_fmt|ar):a:(\d+)", k)
-            if not m:
-                continue
-            name = m[1]
-            st = int(m[2])
+    def set_cfg(cfgs, file, st, name, v):
+        if st is None:
+            cfg = file
+        else:
             if st not in cfgs:
                 cfgs[st] = {}
             cfg = cfgs[st]
-            if name == "ac":
-                if "channels" in entries:
-                    cfg["channels"] = v
-            elif name == "sample_fmt":
-                if "sample_fmt" in entries:
-                    cfg["sample_fmt"] = v
-            elif name == "ar":
-                if "sample_rate" in entries:
-                    cfg["sample_rate"] = v
-            elif name == "c":
-                if "codec_name" in entries:
-                    cfg["codec_name"] = v
+        if name == "s":
+            mval = re.match(r"(\d+)x(\d+)", v)
+            if not mval:
+                raise Exception(f"invalid -s input option found: {v}")
+            if "width" in entries:
+                cfg["width"] = int(mval[1])
+            if "height" in entries:
+                cfg["height"] = int(mval[2])
+        elif name == "pix_fmt":
+            if "pix_fmt" in entries:
+                cfg["pix_fmt"] = v
+        elif name == "r":
+            if "frame_rate" in entries:
+                cfg["frame_rate"] = v
+        elif name == "c":
+            if "codec_name" in entries:
+                cfg["codec_name"] = v
+
+    return analyze_input(
+        probe.video_streams_basic, set_cfg, option_regex, input, entries
+    )
+
+
+def analyze_audio_input(input, entries=None):
+    """analyze video input option entry
+
+    :param input: tuple of url & options (or None)
+    :type input: tuple(str,dict or None)
+    :param entries: a list of basic video stream info names, defaults to None to select all. See `ffmpegio.probe.video_streams_basic()`
+    :type entries: seq of str, optional
+    :return: list of stream configuration entries
+    :rtype: list of dict
+
+    input options, `input[1]`, is expected to be configured with stream specifiers
+    and not with their aliases. For example, codec must be specified with 'c:v' rather 
+    than 'vcodec'. Also, all options must have stream specifiers even if they are video 
+    specific ('pix_fmt:v' instead of 'pix_fmt')
+    """
+    if entries is None:
+        entries = ("codec_name", "sample_rate", "sample_fmt", "channels")
+
+    option_regex = re.compile(r"(c|ac|sample_fmt|ar):a(?::(\d+))?")
+
+    def set_cfg(cfgs, file, st, name, v):
+        if st is None:
+            cfg = file
+        else:
+            if st not in cfgs:
+                cfgs[st] = {}
+            cfg = cfgs[st]
+        if name == "ac":
+            if "channels" in entries:
+                cfg["channels"] = int(v)
+        elif name == "sample_fmt":
+            if "sample_fmt" in entries:
+                cfg["sample_fmt"] = v
+        elif name == "ar":
+            if "sample_rate" in entries:
+                cfg["sample_rate"] = int(v)
+        elif name == "c":
+            if "codec_name" in entries:
+                cfg["codec_name"] = v
+
+    return analyze_input(
+        probe.audio_streams_basic, set_cfg, option_regex, input, entries
+    )
+
+
+def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
+    """analyze input option entry
+
+    :param streams_basic: probe.audio_streams_basic or probe.video_streams_basic
+    :type streams_basic: function
+    :param set_cfg: func(cfgs, file, st, name, v) to set new config to output dicts
+    :type set_cfg: function
+    :param option_regex: compiled regular expression to analyze option key
+    :type option_regex: re.Pattern
+    :param input: tuple of url & options (or None)
+    :type input: tuple(str,dict or None)
+    :param entries: a list of basic audio stream info names, defaults to None to select all. See `ffmpegio.probe.audio_streams_basic()`
+    :type entries: seq of str, optional
+    :return: list of stream configuration entries
+    :rtype: list of dict
+
+    input options, `input[1]`, is expected to be configured with stream specifiers and not with their aliases.
+    For example, codec must be specified with 'c:a' rather than 'acodec'.
+    """
+
+    is_stdin = input[0] != "-"
+    
+    cfgs = (
+        {i: v for i, v in enumerate(streams_basic(input[0], entries=entries))}
+        if is_stdin
+        else {0: {}}
+    )
+
+    if (opts := input[1]) is not None:
+        file = {}
+
+        for k, v in opts.items():
+            m = option_regex.match(k)
+            if not m:
+                continue
+            name = m[1]
+            set_cfg(cfgs, file, int(m[2]) if m[2] else None, name, v)
+
+        for k, v in file.items():
+            for cfg in cfgs.values():
+                if k not in cfg:
+                    cfg[k] = v
 
     # make sure entries are contiguous
     try:
-        return [cfgs[i] for i in range(len(cfgs))]
+        return [(cfgs[i] if i in cfgs else None) for i in range(max(sorted(cfgs)) + 1)]
     except:
         raise Exception("input options are either incomplete or invalid")
+

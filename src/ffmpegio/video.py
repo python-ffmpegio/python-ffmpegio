@@ -57,7 +57,7 @@ def write(url, rate, data, **options):
     )
 
     configure.video_io(
-        utils.array_to_video_input(data, format="rawvideo"),
+        utils.array_to_video_input(rate, data=data, format="rawvideo"),
         output_url=url,
         ffmpeg_args=args,
         **options

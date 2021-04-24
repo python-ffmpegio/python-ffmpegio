@@ -20,12 +20,7 @@ def read(url, stream_id=0, **options):
     args = configure.input_timing(url, astream_id=stream_id, **options)
 
     args, reader_cfg = configure.audio_io(
-        url,
-        stream_id,
-        output_url="-",
-        format="rawvideo",
-        ffmpeg_args=args,
-        **options,
+        url, stream_id, output_url="-", format="rawvideo", ffmpeg_args=args, **options,
     )
 
     dtype, nch, rate = reader_cfg[0]
@@ -53,10 +48,13 @@ def write(url, rate, data, **options):
     )
 
     configure.audio_io(
-        utils.array_to_audio_input(data, format=False),
+        utils.array_to_audio_input(rate, data=data, format=True),
         output_url=url,
         ffmpeg_args=args,
         **options,
     )
+
+
+    print(args)
 
     ffmpeg.run_sync(args, input=data.tobytes())

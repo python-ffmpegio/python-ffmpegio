@@ -26,7 +26,7 @@ def read(url, stream_id=0, **options):
         **options
     )
 
-    configure.audio_codec("-", args, codec="none")
+    configure.codec("-", "a", ffmpeg_args=args, codec="none")
 
     args, reader_cfg = configure.video_io(
         url,

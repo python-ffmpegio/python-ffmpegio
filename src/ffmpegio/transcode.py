@@ -33,8 +33,8 @@ def transcode(
 
     args = configure.input_timing(input_url, **options)
 
-    configure.video_codec(output_url, args, prefix="video_", **options)
-    configure.audio_codec(output_url, args, prefix="audio_", **options)
+    configure.codec(output_url, "v", args, prefix="video_", **options)
+    configure.codec(output_url, "a", args, prefix="audio_", **options)
     configure.filters(output_url, args, **options)
 
     configure.video_io(

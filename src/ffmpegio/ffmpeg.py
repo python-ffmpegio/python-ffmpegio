@@ -6,7 +6,7 @@ from . import filter_utils
 PIPE = sp.PIPE
 
 # list of global options (gathered on 4/9/21)
-global_options = (
+_global_options = (
     ("-y", 0),
     ("-n", 0),
     ("-cpuflags", 1),
@@ -31,7 +31,7 @@ global_options = (
     ("-auto_conversion_filters", 0),
 )
 
-output_flags = ("-dn", "-an", "-vn", "-copyinkf", "-sn", "-bitexact", "-shortest")
+_output_flags = ("-dn", "-an", "-vn", "-copyinkf", "-sn", "-bitexact", "-shortest")
 
 
 def parse_options(args):
@@ -56,7 +56,7 @@ def parse_options(args):
             elif isinstance(res[key], str):
                 res[key] = [res[key], args[i]]
             else:
-                res[key].push(args[i])
+                res[key].append(args[i])
             i += 1
         else:
             res[key] = None
@@ -66,7 +66,7 @@ def parse_options(args):
 def parse(cmdline):
     """Parse ffmpeg command line arguments:
 
-    `[global_options] {[input_file_options] -i input_url} ... {[output_file_options] output_url} ...`
+    `[_global_options] {[input_file_options] -i input_url} ... {[output_file_options] output_url} ...`
 
     Argument
     cmdline : str
@@ -75,7 +75,7 @@ def parse(cmdline):
     Returns
         dict : parsed command fields
 
-        dict["global_options"] : dict
+        dict["_global_options"] : dict
         dict["inputs"] : a list of tuples for inputs: (input_url, input_file_options)
         dict["outputs"] : a list of tuples for outputs : (output_url, output_file_options)
 
@@ -83,7 +83,7 @@ def parse(cmdline):
         its option value as the dict element value. If option is a flag, its value is None.
 
     Caution: multiple output_url's are detected based on the assumption that the last output file option of each output_url
-    requires a value unless the option is one of the flag option listed in `output_flags`. If an unlisted flag option is used
+    requires a value unless the option is one of the flag option listed in `_output_flags`. If an unlisted flag option is used
     add it to appear as an earlier output options.
 
     """
@@ -95,7 +95,7 @@ def parse(cmdline):
     args = shlex.split(cmdline)
 
     # exclude 'ffmpeg' command if present
-    if args[0].lower() == "ffmpeg":
+    if re.search(r'(?:^|[/\\])?ffmpeg(?:.exe)?"?$', args[0], re.IGNORECASE):
         args = args[1:]
 
     # identify -i options
@@ -117,7 +117,7 @@ def parse(cmdline):
             i
             for i in range(1, nargs)
             if args[i][0] != "-"
-            and (args[i - 1][0] != "-" or args[i - 1].split(":")[0] in output_flags)
+            and (args[i - 1][0] != "-" or args[i - 1].split(":")[0] in _output_flags)
         ]
         if nargs > 1
         else [0]
@@ -137,7 +137,7 @@ def parse(cmdline):
 
     # identify and transfer global options
     gopts = {}
-    gnames = [o[0][1:] for o in global_options]
+    gnames = [o[0][1:] for o in _global_options]
 
     def extract_gopts(configs):
         for cfg in configs:
@@ -149,10 +149,27 @@ def parse(cmdline):
     extract_gopts(inputs)
     extract_gopts(outputs)
 
-    return dict(global_options=gopts, inputs=inputs, outputs=outputs)
+    return dict(_global_options=gopts, inputs=inputs, outputs=outputs)
 
 
 def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=False):
+    """compose ffmpeg subprocess arguments from argument dict values
+
+    :param _global_options: global options, defaults to {}
+    :type _global_options: dict, optional
+    :param inputs: list of input files and their options, defaults to []
+    :type inputs: seq of seq(str, dict or None), optional
+    :param outputs: list of output files and thier options, defaults to []
+    :type outputs: seq of seq(str, dict or None), optional
+    :param command: ffmpeg command, defaults to ""
+    :type command: str, optional
+    :param shell_command: True to output shell command ready string, defaults to False
+    :type shell_command: bool, optional
+    :returns: list of arguments (possibly missing the leading 'ffmpeg' command if `command` 
+              is not given) or shell command string if `shell_command` is True
+    :rtype: list of str or str
+    """
+
     def opts2args(opts):
         args = []
         for key, val in opts.items():
@@ -222,7 +239,7 @@ def where():
     :return: path to FFmpeg bin directory or `None` if ffmpeg and ffprobe paths have not been set.
     :rtype: str or None
     """
-    return os.path.dirname(FFMPEG_BIN) if bool(FFMPEG_BIN and FFPROBE_BIN) else None
+    return os.path.dirname(FFMPEG_BIN) if found() else None
 
 
 def find(dir=None):
@@ -233,12 +250,8 @@ def find(dir=None):
     :type dir: str, optional
     :raises Exception: if failed to find ffmpeg or ffprobe binary
 
-    When :py:mod:`ffmpegio` is first imported in Python, it automatically run
-    this function once, searching in the system path and Windows default
-    locations (see below). If both not found, a warning message is displayed.
-
     In Linux and Mac, only the specified directory or the system path are
-    checked. In Windows, the following additional paths are tested:
+    checked. In Windows, the following additional paths are tested in this order:
 
     * ``%PROGRAMFILES%\\ffmpeg\\bin``
     * ``%PROGRAMFILES(X86)%\\ffmpeg\\bin``
@@ -248,7 +261,7 @@ def find(dir=None):
     * ``%LOCALAPPDATA%\\ffmpeg\\bin``
     * ``%LOCALAPPDATA%\\programs\\ffmpeg\\bin``
 
-    Here, ``%xxx%`` indicates the standard Windows environmental variables:
+    Here, ``%xxx%`` are the standard Windows environmental variables:
 
     ===============================  =====================================
     Windows Environmental Variables  Example path
@@ -260,15 +273,19 @@ def find(dir=None):
     ``%LOCALAPPDATA%``               ``C:\\Users\\john\\AppData\\Local``
     ===============================  =====================================
 
+    When :py:mod:`ffmpegio` is first imported in Python, it automatically run
+    this function once, searching in the system path and Windows default
+    locations (see below). If both not found, a warning message is displayed.
+
     """
 
     global FFMPEG_BIN, FFPROBE_BIN
 
-    dirs = [dir, ""] if dir else [""]
-
     ext = ".exe" if os.name == "nt" else ""
 
-    if os.name == "nt":
+    dirs = [dir] if dir else [""]
+
+    if not dir and os.name == "nt":
         dirs.extend(
             [
                 os.path.join(d, "ffmpeg", "bin")
@@ -303,14 +320,15 @@ def find(dir=None):
         raise Exception(
             "ffmpeg binary not found. Install ffmpeg & ffprobe and add their directory to the path first."
         )
-    FFMPEG_BIN = p
 
-    p = search("ffprobe")
-    if not p:
+    pp = search("ffprobe")
+    if not pp:
         raise Exception(
-            "only ffmpeg binary found and ffprobe missing. Make sure both ffmpeg and ffprobe are available on the system."
+            "only ffmpeg binary found and ffprobe missing. Make sure both ffmpeg and ffprobe are available on the same directory."
         )
-    FFPROBE_BIN = p
+
+    FFMPEG_BIN = p
+    FFPROBE_BIN = pp
 
 
 # initialize the paths
@@ -333,9 +351,22 @@ def _get_ffmpeg(probe=False):
 
 
 def run_sync(
-    args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kwargs
+    args, *sp_arg, hide_banner=True, stdout=PIPE, stderr=PIPE, **sp_kwargs,
 ):
+    """run ffmpeg synchronously as a subprocess (block until completion)
 
+    :param args: command-less FFmpeg arguments
+    :type args: seq or dict
+    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+    :type hide_banner: bool, optional
+    :param stdout: subprocess stdout mode, defaults to ffmpegio.PIPE
+    :type stdout: [type], optional
+    :param stderr: subprocess stderr mode, defaults to ffmpegio.PIPE
+    :type stderr: [type], optional
+    :raises Exception: [description]
+    :return: [description]
+    :rtype: [type]
+    """
     if isinstance(args, dict):
         args = compose(**args, command=_get_ffmpeg())
     else:
@@ -355,7 +386,9 @@ def run_sync(
     return ret.stderr if ret.stdout is None else ret.stdout
 
 
-def run(args, *sp_arg, hide_banner=True, stdout=sp.PIPE, stderr=sp.PIPE, **sp_kwargs):
+def run(
+    args, *sp_arg, hide_banner=True, stdout=PIPE, stderr=PIPE, **sp_kwargs,
+):
     if isinstance(args, dict):
         args = compose(**args, command=_get_ffmpeg())
     else:
@@ -404,6 +437,15 @@ def versions():
 
     :return: versions of ffmpeg and its av libraries as well as build configuration
     :rtype: dict
+
+    ==================  ====  =========================================
+    key                 type  description
+    ==================  ====  =========================================
+    'version'           str   FFmpeg version
+    'configuration'     list  list of build configuration options
+    'library_versions'  dict  version numbers of dependent av libraries
+    ==================  ====  =========================================
+
     """
     s = run_sync(
         ["-version"],
@@ -412,13 +454,16 @@ def versions():
         universal_newlines=True,
         encoding="utf-8",
     ).splitlines()
-    v = dict(ffmpeg=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
     i = 2 if s[1].startswith("built with") else 1
     if s[i].startswith("configuration:"):
         v["configuration"] = [m[1] for m in re.finditer(r"\s--(\S+)", s[i])]
         i += 1
+    lv = None
     for l in s[i:]:
         m = re.match(r"(\S+)\s+(.+?) /", l)
         if m:
-            v[m[1]] = m[2].replace(" ", "")
+            if lv is None:
+                lv = v["library_versions"] = {}
+            lv[m[1]] = m[2].replace(" ", "")
     return v

@@ -4,11 +4,12 @@ API References
 | PyPi: `<https://pypi.org/project/ffmpegio/>`__
 | GitHub: `<https://github.com/tikuma-lsuhsc/python-ffmpegio>`__
 
-Package Contents
-----------------
+
+.. warning::
+   This package is still in an early alpha stage and under heavy consturction.
 
 Basic Functions
-^^^^^^^^^^^^^^^
+---------------
 
 .. autosummary::
    :nosignatures:

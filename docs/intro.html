@@ -1,0 +1,390 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>ffmpegio Python Package: Media File I/O with FFmpeg &mdash; python-ffmpegio 0.0.7 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="API References" href="api.html" />
+    <link rel="prev" title="ffmpegio Python Package: Media File I/O with FFmpeg" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> python-ffmpegio
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">ffmpegio Python Package: Media File I/O with FFmpeg</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html">API References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options.html">References: Standard Keyword Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#main-features">Main Features</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#setting-up-your-python-code">Setting up your Python code</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reading-writing-audio-files">Reading/writing audio files</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">References: Standard Keyword Options</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>ffmpegio Python Package: Media File I/O with FFmpeg</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/intro.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="ffmpegio-python-package-media-file-i-o-with-ffmpeg">
+<h1>ffmpegio Python Package: Media File I/O with FFmpeg<a class="headerlink" href="#ffmpegio-python-package-media-file-i-o-with-ffmpeg" title="Permalink to this headline">¶</a></h1>
+<div class="toctree-wrapper compound">
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">ffmpegio Python Package: Media File I/O with FFmpeg</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html">API References</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options.html">References: Standard Keyword Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#getting-started">Getting Started</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">API References</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="api.html#basic-functions">Basic Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">References: Standard Keyword Options</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="options.html#keyword-options">Keyword Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="options.html#resolution-start-vs-end-vs-duration">Resolution <cite>start</cite> vs. <cite>end</cite> vs. <cite>duration</cite></a></li>
+<li class="toctree-l2"><a class="reference internal" href="options.html#video-formats">Video formats</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="line-block">
+<div class="line">PyPi: <a class="reference external" href="https://pypi.org/project/ffmpegio/">https://pypi.org/project/ffmpegio/</a></div>
+<div class="line">GitHub: <a class="reference external" href="https://github.com/tikuma-lsuhsc/python-ffmpegio">https://github.com/tikuma-lsuhsc/python-ffmpegio</a></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Please use with a caution. This package is still in an early alpha stage and under heavy consturction.</p>
+</div>
+<div class="section" id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="https://ffmpeg.org">FFmpeg</a> is an open-source cross-platform multimedia
+framework, and Python <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> package utilizes it to read, write, and
+manipulate multimedia data.</p>
+<div class="section" id="main-features">
+<h3>Main Features<a class="headerlink" href="#main-features" title="Permalink to this headline">¶</a></h3>
+<ul class="simple">
+<li><p>Pure-Python light-weight package interacting with FFmpeg executable found in
+the system</p></li>
+<li><p>A set of simple read and write functions for audio, image, and video data</p></li>
+<li><p>Context-managing <a class="reference internal" href="api.html#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.open()</span></code></a> to perform frame-wise read/write
+operations</p></li>
+<li><p>Auto-conversion of video pixel formats to RGB/grayscale formats with/without
+transparency alpha channel</p></li>
+<li><p>Out-of-box support for fast resizing, re-orienting, cropping, and
+deinterlacing of video frames (all done by FFmpeg)</p></li>
+<li><p>(planned) Audio and video filtering</p></li>
+<li><p>(planned) Multi-stream read/write</p></li>
+</ul>
+</div>
+</div>
+<div class="section" id="getting-started">
+<h2>Getting Started<a class="headerlink" href="#getting-started" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="installation">
+<h3>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
+<p>To use <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code>, the package must be installed on Python as well as
+having the FFmpeg binary files in a location <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> can find.</p>
+<p>Install the <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> package via <code class="docutils literal notranslate"><span class="pre">pip</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install ffmpegio
+</pre></div>
+</div>
+<p>The installation of FFmpeg is platform dependent. For Ubuntu,</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo apt install ffmpeg
+</pre></div>
+</div>
+<p>and Mac,</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>brew install ffmpeg
+</pre></div>
+</div>
+<p>no other actions are needed as these commands will place the FFmpeg executables
+on the system path. For Windows, it is a bit more complicated.</p>
+<ol class="arabic">
+<li><p>Download pre-built packages from the links available on the <a class="reference external" href="https://ffmpeg.org/download.html#build-windows">FFmpeg’s Download page</a>.</p></li>
+<li><p>Unzip the content and place the files on one of the following directories:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 41%" />
+<col style="width: 59%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Auto-detectable FFmpeg folder path</p></th>
+<th class="head"><p>Example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES%\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files\ffmpeg</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%PROGRAMFILES(X86)%\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files</span> <span class="pre">(x86)\ffmpeg</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%USERPROFILE%\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\ffmpeg</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Roaming\ffmpeg</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%APPDATA%\programs\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Roaming\programs\ffmpeg</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Local\ffmpeg</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%LOCALAPPDATA%\programs\ffmpeg</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">C:\Users\john\AppData\Local\programs\ffmpeg</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>Keep the internal structure intact, i.e., the executables must be found at
+<code class="docutils literal notranslate"><span class="pre">ffmpeg\bin\ffmpeg.exe</span></code> and <code class="docutils literal notranslate"><span class="pre">ffmpeg\bin\ffprobe.exe</span></code>.</p>
+<p>Alternately, the FFmpeg may be placed elsewhere and use <a class="reference internal" href="api.html#ffmpegio.set_path" title="ffmpegio.set_path"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.set_path()</span></code></a> to
+specify the location.</p>
+</li>
+</ol>
+</div>
+<div class="section" id="setting-up-your-python-code">
+<h3>Setting up your Python code<a class="headerlink" href="#setting-up-your-python-code" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ffmpegio</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="reading-writing-audio-files">
+<h3>Reading/writing audio files<a class="headerlink" href="#reading-writing-audio-files" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># read the entire file</span>
+<span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;my_audio.mp3&#39;</span><span class="p">)</span>
+
+<span class="c1"># read only the first 3 seconds</span>
+<span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;my_audio.mp3&#39;</span><span class="p">,</span> <span class="n">duration</span><span class="o">=</span><span class="mf">3.0</span><span class="p">)</span>
+
+<span class="c1"># read data between 1 and 5 second marks</span>
+<span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;my_audio.mp3&#39;</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="mi">44100</span>
+<span class="n">T</span> <span class="o">=</span> <span class="mf">1.0</span>
+<span class="n">t</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">T</span> <span class="o">*</span> <span class="n">fs</span><span class="p">))</span>
+
+<span class="n">dtype</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">int16</span>  <span class="c1"># 16-bit audio data</span>
+<span class="n">vol</span> <span class="o">=</span> <span class="mf">0.8</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">iinfo</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">max</span>  <span class="c1"># 80% of full-volume</span>
+
+<span class="c1"># write 1-second FLAC file with middle-A tone</span>
+<span class="n">f0</span> <span class="o">=</span> <span class="mi">440</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">vol</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">f0</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+
+<span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;my_audio.flac&quot;</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
+
+<span class="c1"># add second channel with high-E tone</span>
+<span class="n">f1</span> <span class="o">=</span> <span class="n">f0</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">12</span><span class="p">)</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">vol</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">f0</span> <span class="o">*</span> <span class="n">t</span><span class="p">)</span>
+
+<span class="n">xy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;my_audio.wav&quot;</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">xy</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">dtype</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h2>
+<p>Read entire audio file</p>
+<p>Read 10 video frames</p>
+<p>Read an image</p>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="api.html" class="btn btn-neutral float-right" title="API References" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="ffmpegio Python Package: Media File I/O with FFmpeg" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
