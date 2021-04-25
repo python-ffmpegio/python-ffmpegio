@@ -1,7 +1,7 @@
-#TODO add function to guess media type given extension
+# TODO add function to guess media type given extension
 
 from . import ffmpeg
-import re
+import re, fractions
 
 _ffCodecRegexp = re.compile(
     r"([D.])([E.])([VAS])([I.])([L.])([S.])\s+([^=\s][\S]*)\s+(.*)"
@@ -113,7 +113,7 @@ def codecs(type=None, stream_type=None):
     if data:
         return data
 
-    must_decode = type is not None and type == "decoder" 
+    must_decode = type is not None and type == "decoder"
     must_encode = type is not None and type == "encoder"
 
     data = {}
@@ -563,6 +563,72 @@ def _getFilterPortInfo(str):
     return [{"name": m[1], "type": m[2]} for m in matches]
 
 
+video_size_presets = {
+    "ntsc": (720, 480),
+    "pal": (720, 576),
+    "qntsc": (352, 240),
+    "qpal": (352, 288),
+    "sntsc": (640, 480),
+    "spal": (768, 576),
+    "film": (352, 240),
+    "ntsc-film": (352, 240),
+    "sqcif": (128, 96),
+    "qcif": (176, 144),
+    "cif": (352, 288),
+    "4cif": (704, 576),
+    "16cif": (1408, 1152),
+    "qqvga": (160, 120),
+    "qvga": (320, 240),
+    "vga": (640, 480),
+    "svga": (800, 600),
+    "xga": (1024, 768),
+    "uxga": (1600, 1200),
+    "qxga": (2048, 1536),
+    "sxga": (1280, 1024),
+    "qsxga": (2560, 2048),
+    "hsxga": (5120, 4096),
+    "wvga": (852, 480),
+    "wxga": (1366, 768),
+    "wsxga": (1600, 1024),
+    "wuxga": (1920, 1200),
+    "woxga": (2560, 1600),
+    "wqsxga": (3200, 2048),
+    "wquxga": (3840, 2400),
+    "whsxga": (6400, 4096),
+    "whuxga": (7680, 4800),
+    "cga": (320, 200),
+    "ega": (640, 350),
+    "hd480": (852, 480),
+    "hd720": (1280, 720),
+    "hd1080": (1920, 1080),
+    "2k": (2048, 1080),
+    "2kflat": (1998, 1080),
+    "2kscope": (2048, 858),
+    "4k": (4096, 2160),
+    "4kflat": (3996, 2160),
+    "4kscope": (4096, 1716),
+    "nhd": (640, 360),
+    "hqvga": (240, 160),
+    "wqvga": (400, 240),
+    "fwqvga": (432, 240),
+    "hvga": (480, 320),
+    "qhd": (960, 540),
+    "2kdci": (2048, 1080),
+    "4kdci": (4096, 2160),
+    "uhd2160": (3840, 2160),
+    "uhd4320": (7680, 4320),
+}
+
+frame_rate_presets = {
+    "ntsc": fractions.Fraction(30000, 1001),
+    "pal": fractions.Fraction(25, 1),
+    "qntsc": fractions.Fraction(30000, 1001),
+    "qpal": fractions.Fraction(25, 1),
+    "sntsc": fractions.Fraction(30000, 1001),
+    "spal": fractions.Fraction(25, 1),
+    "film": fractions.Fraction(24, 1),
+    "ntsc-film": fractions.Fraction(24000, 1001),
+}
 __all__ = [
     "filters",
     "codecs",
@@ -583,5 +649,6 @@ __all__ = [
     "decoder_info",
     "filter_info",
     "bsfilter_info",
+    "frame_rate_presets",
+    "video_size_presets",
 ]
-

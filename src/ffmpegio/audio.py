@@ -17,10 +17,15 @@ def read(url, stream_id=0, **options):
     :rtype: tuple(`float`, `numpy.ndarray`)
     """
 
-    args = configure.input_timing(url, astream_id=stream_id, **options)
+    args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
     args, reader_cfg = configure.audio_io(
-        url, stream_id, output_url="-", format="rawvideo", ffmpeg_args=args, **options,
+        args,
+        url,
+        stream_id,
+        output_url="-",
+        format="rawvideo",
+        **options,
     )
 
     dtype, nch, rate = reader_cfg[0]
@@ -41,6 +46,7 @@ def write(url, rate, data, **options):
     :type data: `numpy.ndarray`
     """
     args = configure.input_timing(
+        {},
         "-",
         astream_id=0,
         excludes=("start", "end", "duration"),
@@ -48,12 +54,11 @@ def write(url, rate, data, **options):
     )
 
     configure.audio_io(
+        args,
         utils.array_to_audio_input(rate, data=data, format=True),
         output_url=url,
-        ffmpeg_args=args,
         **options,
     )
-
 
     print(args)
 

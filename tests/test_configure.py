@@ -71,55 +71,42 @@ def test_get_option():
 
 
 def test_input_timing():
-    args = configure.input_timing(vid_url)
-    args_expected = {
-        "inputs": [("tests/assets/testvideo-5m.mpg", {})],
-        "outputs": [],
-        "global_options": None,
-    }
+    args = configure.input_timing({}, vid_url)
+    args_expected = {"inputs": [("tests/assets/testvideo-5m.mpg", {})]}
     assert args == args_expected
 
     opts = args_expected["inputs"][0][1]
 
-    args = configure.input_timing(vid_url, input_frame_rate=2000)
+    args = configure.input_timing({}, vid_url, input_frame_rate=2000)
     opts["r:v"] = 2000
     assert args == args_expected
 
-    args = configure.input_timing(
-        vid_url, vstream_id=0, input_frame_rate=1000, ffmpeg_args=args
-    )
+    args = configure.input_timing(args, vid_url, vstream_id=0, input_frame_rate=1000)
     opts["r:v:0"] = 1000
     assert args == args_expected
 
-    args = configure.input_timing(vid_url, start=0.1, ffmpeg_args=args)
+    args = configure.input_timing(args, vid_url, start=0.1)
     opts["ss"] = 0.1
     assert args == args_expected
 
-    args = configure.input_timing(vid_url, end=0.5, ffmpeg_args=args)
+    args = configure.input_timing(args, vid_url, end=0.5)
     opts["to"] = 0.5
     assert args == args_expected
 
-    args = configure.input_timing(vid_url, duration=1.0, ffmpeg_args=args)
+    args = configure.input_timing(args, vid_url, duration=1.0)
     opts["t"] = 1.0
     assert args == args_expected
 
-    args = configure.input_timing(vid_url, start=1, units="frames", ffmpeg_args=args)
+    args = configure.input_timing(args, vid_url, start=1, units="frames")
     opts["ss"] = 1 / 2000
     assert args == args_expected
 
-    args = configure.input_timing(
-        vid_url, start=1, units="frames", vstream_id=0, ffmpeg_args=args
-    )
+    args = configure.input_timing(args, vid_url, start=1, units="frames", vstream_id=0)
     opts["ss"] = 1 / 1000
     assert args == args_expected
 
     args = configure.input_timing(
-        vid_url,
-        start=1,
-        units="samples",
-        astream_id=0,
-        input_sample_rate=8000,
-        ffmpeg_args=args,
+        args, vid_url, start=1, units="samples", astream_id=0, input_sample_rate=8000
     )
     opts["ar:a:0"] = 8000
     opts["ss"] = 1 / 8000
@@ -127,20 +114,16 @@ def test_input_timing():
 
 
 def test_codec():
-    args = configure.codec(vid_url, "v")
-    args_expected = {
-        "inputs": [],
-        "outputs": [("tests/assets/testvideo-5m.mpg", {})],
-        "global_options": None,
-    }
+    args = configure.codec({}, vid_url, "v")
+    args_expected = {"outputs": [("tests/assets/testvideo-5m.mpg", {})]}
     opts = args_expected["outputs"][0][1]
     assert args == args_expected
 
-    args = configure.codec(vid_url, "v", codec="h264")
+    args = configure.codec({}, vid_url, "v", codec="h264")
     opts["c:v"] = "h264"
     assert args == args_expected
 
-    args = configure.codec(vid_url, "a", codec="none", ffmpeg_args=args)
+    args = configure.codec(args, vid_url, "a", codec="none")
     opts["an"] = None
     assert args == args_expected
 
@@ -157,4 +140,3 @@ def test_audio_stream():
         {"ar": 48000, "sample_fmt": "s32", "ac": 1},
         None,
     )
-

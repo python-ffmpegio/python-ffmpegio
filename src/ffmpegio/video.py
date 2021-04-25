@@ -19,14 +19,14 @@ def read(url, vframes=None, stream_id=0, **options):
     :rtype: (`fractions.Fraction`, `numpy.ndarray`)
     """
 
-    args = configure.input_timing(url, vstream_id=stream_id, **options)
+    args = configure.input_timing({}, url, vstream_id=stream_id, **options)
 
     args, reader_cfg = configure.video_io(
+        args,
         url,
         stream_id,
         output_url="-",
         format="rawvideo",
-        ffmpeg_args=args,
         excludes=["frame_rate"],
         **options
     )
@@ -50,6 +50,7 @@ def write(url, rate, data, **options):
     :type \\**options: dict, optional
     """
     args = configure.input_timing(
+        {},
         "-",
         vstream_id=0,
         excludes=("start", "end", "duration"),
@@ -57,9 +58,9 @@ def write(url, rate, data, **options):
     )
 
     configure.video_io(
+        args,
         utils.array_to_video_input(rate, data=data, format="rawvideo"),
         output_url=url,
-        ffmpeg_args=args,
         **options
     )
 

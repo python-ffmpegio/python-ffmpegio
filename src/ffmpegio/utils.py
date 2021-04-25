@@ -1,6 +1,20 @@
 import re, fractions
+from collections.abc import Sequence
 import numpy as np
-from . import caps, probe
+from . import caps, probe, filter_utils
+
+# fmt:off
+_filter_video_srcs = ("allrgb", "allyuv", "buffer", "cellauto", "color",
+    "coreimagesrc", "frei0r_src", "gradients", "haldclutsrc", "life", 
+    "mandelbrot", "mptestsrc", "nullsrc", "openclsrc", "pal100bars", 
+    "pal75bars",  "rgbtestsrc", "sierpinski", "smptebars", "smptehdbars",
+    "testsrc", "testsrc2", "yuvtestsrc",
+)
+_filter_video_snks = ("buffersink", "nullsink")
+_filter_audio_srcs = ("abuffer", "aevalsrc", "afirsrc", "anullsrc", 
+    "flite", "anoisesrc", "hilbert", "sinc", "sine")
+_filter_audio_snks = ("abuffersink", "anullsink")
+# fmt:on
 
 
 def spec_stream(
@@ -209,14 +223,14 @@ def array_to_video_input(
     :param format: input format, defaults to None (not set). If True, sets to ``rawvideo`` format.
                    Use str to specify a specific container
     :type format: str or bool, optional
-    :param codec: video codec, defaults to None to use `rawvideo`. 
+    :param codec: video codec, defaults to None to use `rawvideo`.
                    If given, `data` is assumed to be a byte array, containing encoded data. Also,
                    `size` and `pix_fmt` must also be set explicitly
     :type codec: str, optional
-    :param pix_fmt: video pixel format, defaults to None. This input is only relevant (and required) 
+    :param pix_fmt: video pixel format, defaults to None. This input is only relevant (and required)
                        if custom `codec` is set.
     :type pix_fmt: str, optional
-    :param size: frame size in (width, height), defaults to None. This input is only relevant (and required) 
+    :param size: frame size in (width, height), defaults to None. This input is only relevant (and required)
                      if custom `codec` is set.
     :type size: tuple(int,int), optional
     :return: tuple of input url and option dict
@@ -266,7 +280,6 @@ def array_to_video_input(
             if ndim > 2
             else shape[::-1]  # rows x columns
         )
-        print(shape, ndim, nocomp, n, size)
 
     elif pix_fmt is None or size is None:
         raise Exception(
@@ -314,14 +327,14 @@ def array_to_audio_input(
     :param format: input format, defaults to None (not set). If True, sets to appropriate raw audio format.
                    Use str to specify a specific container
     :type format: str or bool, optional
-    :param codec: audio codec, defaults to None to pick appropriate PCM codec for the data. 
+    :param codec: audio codec, defaults to None to pick appropriate PCM codec for the data.
                    If set, `data` is assumed to be a byte array, containing encoded data. Also,
                    `channels` and `sample_fmt` must also be set explicitly
     :type codec: str, optional
-    :param sample_fmt: audio sample format, defaults to None. This input is only relevant (and required) 
+    :param sample_fmt: audio sample format, defaults to None. This input is only relevant (and required)
                        if custom `codec` is set.
     :type sample_fmt: str, optional
-    :param channels: number of channels, defaults to None. This input is only relevant (and required) 
+    :param channels: number of channels, defaults to None. This input is only relevant (and required)
                      if custom `codec` is set.
     :type channels: int, optional
     :return: tuple of input url and option dict
@@ -371,8 +384,8 @@ def analyze_video_input(input, entries=None):
     :type input: tuple(str,dict or None)
     :param entries: a list of basic video stream info names, defaults to None to select all. See `ffmpegio.probe.video_streams_basic()`
     :type entries: seq of str, optional
-    :return: list of stream configuration entries
-    :rtype: list of dict
+    :return: list of stream configuration entries and True if source filter
+    :rtype: tuple(list of dict, bool)
 
     input options, `input[1]`, is expected to be configured with stream specifiers and not with their aliases.
     For example, codec must be specified with 'c:v' rather than 'vcodec'.
@@ -408,7 +421,12 @@ def analyze_video_input(input, entries=None):
                 cfg["codec_name"] = v
 
     return analyze_input(
-        probe.video_streams_basic, set_cfg, option_regex, input, entries
+        _filter_video_srcs,
+        probe.video_streams_basic,
+        set_cfg,
+        option_regex,
+        input,
+        entries,
     )
 
 
@@ -419,12 +437,12 @@ def analyze_audio_input(input, entries=None):
     :type input: tuple(str,dict or None)
     :param entries: a list of basic video stream info names, defaults to None to select all. See `ffmpegio.probe.video_streams_basic()`
     :type entries: seq of str, optional
-    :return: list of stream configuration entries
-    :rtype: list of dict
+    :return: list of stream configuration entries and True if source filter
+    :rtype: tuple(list of dict, bool)
 
     input options, `input[1]`, is expected to be configured with stream specifiers
-    and not with their aliases. For example, codec must be specified with 'c:v' rather 
-    than 'vcodec'. Also, all options must have stream specifiers even if they are video 
+    and not with their aliases. For example, codec must be specified with 'c:v' rather
+    than 'vcodec'. Also, all options must have stream specifiers even if they are video
     specific ('pix_fmt:v' instead of 'pix_fmt')
     """
     if entries is None:
@@ -453,11 +471,16 @@ def analyze_audio_input(input, entries=None):
                 cfg["codec_name"] = v
 
     return analyze_input(
-        probe.audio_streams_basic, set_cfg, option_regex, input, entries
+        _filter_audio_srcs,
+        probe.audio_streams_basic,
+        set_cfg,
+        option_regex,
+        input,
+        entries,
     )
 
 
-def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
+def analyze_input(filter_srcs, streams_basic, set_cfg, option_regex, input, entries):
     """analyze input option entry
 
     :param streams_basic: probe.audio_streams_basic or probe.video_streams_basic
@@ -470,19 +493,22 @@ def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
     :type input: tuple(str,dict or None)
     :param entries: a list of basic audio stream info names, defaults to None to select all. See `ffmpegio.probe.audio_streams_basic()`
     :type entries: seq of str, optional
-    :return: list of stream configuration entries
-    :rtype: list of dict
+    :return: list of stream configuration entries and True if source filter
+    :rtype: tuple(list of dict, bool)
 
     input options, `input[1]`, is expected to be configured with stream specifiers and not with their aliases.
     For example, codec must be specified with 'c:a' rather than 'acodec'.
     """
 
-    is_stdin = input[0] != "-"
-    
+    is_stdin = input[0] == "-"
+    is_fsrc = is_filter(input[0], "input")
+
     cfgs = (
-        {i: v for i, v in enumerate(streams_basic(input[0], entries=entries))}
+        {0: {}}
         if is_stdin
-        else {0: {}}
+        else {0: filter_utils.analyze_filter(input[0], entries)}
+        if is_fsrc
+        else {i: v for i, v in enumerate(streams_basic(input[0], entries=entries))}
     )
 
     if (opts := input[1]) is not None:
@@ -502,7 +528,101 @@ def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
 
     # make sure entries are contiguous
     try:
-        return [(cfgs[i] if i in cfgs else None) for i in range(max(sorted(cfgs)) + 1)]
+        return [
+            (cfgs[i] if i in cfgs else None) for i in range(max(sorted(cfgs)) + 1)
+        ], is_fsrc
     except:
         raise Exception("input options are either incomplete or invalid")
 
+
+def is_filter(url, io_type, stream_type=None):
+
+    if not isinstance(url, str):
+        url = url[0]
+    elif re.match(r"[^=]+=", url):
+        return True
+
+    filter_list = (
+        (
+            (*_filter_video_srcs, *_filter_audio_srcs)
+            if stream_type is None
+            else _filter_video_srcs
+            if stream_type.startswith("v")
+            else _filter_audio_srcs
+        )
+        if io_type.startswith("i")
+        else (
+            (*_filter_video_snks, *_filter_audio_snks)
+            if stream_type is None
+            else _filter_video_snks
+            if stream_type.startswith("v")
+            else _filter_audio_snks
+        )
+    )
+
+    return url in filter_list
+
+
+def parse_video_size(expr):
+
+    m = re.match(r"(\d+)x(\d+)", expr)
+    if m:
+        return (int(m[1]), int(m[2]))
+
+    return caps.video_size_presets[expr]
+
+
+def parse_frame_rate(expr):
+    try:
+        return fractions.Fraction(expr)
+    except ValueError:
+        return caps.frame_rate_presets[expr]
+
+
+def parse_color(expr):
+    m = re.match(
+        r"([^@]+)?(?:@(0x[\da-f]{2}|[0-1]\.[0-9]+))?$",
+        expr,
+        re.IGNORECASE,
+    )
+    expr = m[1]
+    alpha = m[2] and (int(m[2], 16) if m[2][1] == "x" else float(m[2]))
+
+    m = re.match(
+        r"(?:0x|#)?([\da-f]{6})([\da-f]{2})?$",
+        expr,
+        re.IGNORECASE,
+    )
+    if m:
+        rgb = m[1]
+        if m[2] and alpha is None:
+            alpha = int(m[2], 16)
+    else:
+        colors = caps.colors()
+        name = next((k for k in colors.keys() if k.lower() == expr.lower()), None)
+        if name is None:
+            raise Exception("invalid color expression")
+        rgb = colors[name][1:]
+
+    return int(rgb[:2], 16), int(rgb[2:4], 16), int(rgb[4:], 16), alpha
+
+
+def compose_color(r, *args):
+
+    if isinstance(r, str):
+        colors = caps.colors()
+        name = next((k for k in colors.keys() if k.lower() == r.lower()), None)
+        if name is None:
+            raise Exception("invalid predefined color name")
+        return name
+    else:
+
+        def conv(x):
+            if isinstance(x, (np.floating, float)):
+                x = int(x * 255)
+            return f"{x:02X}"
+
+        if len(args) < 4:
+            args = (*args, *([255] * (3 - len(args))))
+
+        return "".join((conv(x) for x in (r, *args)))

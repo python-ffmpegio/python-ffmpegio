@@ -165,7 +165,7 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
     :type command: str, optional
     :param shell_command: True to output shell command ready string, defaults to False
     :type shell_command: bool, optional
-    :returns: list of arguments (possibly missing the leading 'ffmpeg' command if `command` 
+    :returns: list of arguments (possibly missing the leading 'ffmpeg' command if `command`
               is not given) or shell command string if `shell_command` is True
     :rtype: list of str or str
     """
@@ -303,7 +303,10 @@ def find(dir=None):
                     ],
                     *[
                         os.path.join(os.environ[var], "Programs")
-                        for var in ("APPDATA", "LOCALAPPDATA",)
+                        for var in (
+                            "APPDATA",
+                            "LOCALAPPDATA",
+                        )
                         if var in os.environ
                     ],
                 ]
@@ -312,7 +315,8 @@ def find(dir=None):
 
     def search(cmd):
         return next(
-            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))), None,
+            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))),
+            None,
         )
 
     p = search("ffmpeg")
@@ -351,7 +355,12 @@ def _get_ffmpeg(probe=False):
 
 
 def run_sync(
-    args, *sp_arg, hide_banner=True, stdout=PIPE, stderr=PIPE, **sp_kwargs,
+    args,
+    *sp_arg,
+    hide_banner=True,
+    stdout=PIPE,
+    stderr=PIPE,
+    **sp_kwargs,
 ):
     """run ffmpeg synchronously as a subprocess (block until completion)
 
@@ -387,7 +396,12 @@ def run_sync(
 
 
 def run(
-    args, *sp_arg, hide_banner=True, stdout=PIPE, stderr=PIPE, **sp_kwargs,
+    args,
+    *sp_arg,
+    hide_banner=True,
+    stdout=PIPE,
+    stderr=PIPE,
+    **sp_kwargs,
 ):
     if isinstance(args, dict):
         args = compose(**args, command=_get_ffmpeg())
@@ -457,7 +471,7 @@ def versions():
     v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
     i = 2 if s[1].startswith("built with") else 1
     if s[i].startswith("configuration:"):
-        v["configuration"] = [m[1] for m in re.finditer(r"\s--(\S+)", s[i])]
+        v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
         i += 1
     lv = None
     for l in s[i:]:

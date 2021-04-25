@@ -42,6 +42,12 @@ def add_url(args, type, url, opts=None):
     :return: file index and its entry
     :rtype: tuple(int, tuple(str, dict or None))
     """
+
+    # instead of url, input tuple (url, opts) is given
+    if not isinstance(url, str):
+        opts = url[1] if opts is None else {**url[1], **opts}
+        url = url[0]
+
     type = f"{type}s"
     filelist = args.get(type, None)
     if filelist is None:
@@ -151,10 +157,10 @@ def get_option(ffmpeg_args, type, name, file_id=0, stream_type=None, stream_id=N
 
 
 def input_timing(
+    ffmpeg_args,
     url,
     vstream_id=None,
     astream_id=None,
-    ffmpeg_args=None,
     prefix="",
     aliases={},
     excludes=None,
@@ -162,14 +168,14 @@ def input_timing(
 ):
     """set input decoding timing
 
+    :param ffmpeg_args: ffmpeg argument dict
+    :type ffmpeg_args: dict
     :param url: input url
     :type url: str
     :param vstream_id: refernce video stream id ('v:#'), defaults to None
     :type vstream_id: int, optional
     :param astream_id: reference audio stream id ('a:#'), defaults to None
     :type astream_id: int, optional
-    :param ffmpeg_args: ffmpeg argument dict, defaults to None
-    :type ffmpeg_args: dict, optional
     :param prefix: option name prefix, defaults to ""
     :type prefix: str, optional
     :param aliases: option name aliases, defaults to {}
@@ -189,7 +195,7 @@ def input_timing(
     "duration"           duration (-t)
     "input_frame_rate"   frame rate of reference video stream (-ar:a)
     "input_sample_rate"  sampling rate of reference audio stream (-r:v)
-    "units"              time units for `start`, `end`, and `duration`: 
+    "units"              time units for `start`, `end`, and `duration`:
                            "seconds" (Default), "frames", or "samples"
     ===================  ================================================
 
@@ -215,9 +221,7 @@ def input_timing(
             "ar:a" if astream_id is None else f"ar:{utils.spec_stream(astream_id,'a')}"
         ] = input_sample_rate
 
-    file_id, file_entry = add_url(
-        ffmpeg_args or (ffmpeg_args := empty()), "input", url, inopts
-    )
+    file_id, file_entry = add_url(ffmpeg_args, "input", url, inopts)
 
     # if start/end/duration are specified
     start = opts.get("start", None)
@@ -267,10 +271,10 @@ def input_timing(
 
 
 def codec(
+    ffmpeg_args,
     url,
     stream_type,
     stream_id=None,
-    ffmpeg_args=None,
     prefix="",
     aliases={},
     excludes=None,
@@ -278,14 +282,14 @@ def codec(
 ):
     """configure output codec configuration
 
+    :param ffmpeg_args: ffmpeg args dict
+    :type ffmpeg_args: dict
     :param url: output url
     :type url: str
     :param stream_type: stream type: 'v' or 'a'
     :type stream_type: str
     :param stream_id: stream index, defaults to None to be applicable to all streams
     :type stream_id: int or None, optional
-    :param ffmpeg_args: ffmpeg args dict, defaults to None
-    :type ffmpeg_args: dict, optional
     :param prefix: option name prefix, defaults to ""
     :type prefix: str, optional
     :param aliases: option name aliases, defaults to {}
@@ -305,14 +309,18 @@ def codec(
     "q"          fixed quality scale (-q)
     ===========  ========================
 
-   """
+    """
 
-    outopts = add_url(ffmpeg_args or (ffmpeg_args := empty()), "output", url, {})[1][1]
+    outopts = add_url(ffmpeg_args, "output", url, {})[1][1]
 
     # TODO get encoder options from caps
 
     opts = finalize_opts(
-        options, ("codec", "q"), prefix=prefix, aliases=aliases, excludes=excludes,
+        options,
+        ("codec", "q"),
+        prefix=prefix,
+        aliases=aliases,
+        excludes=excludes,
     )
 
     spec = utils.spec_stream(type=stream_type, index=stream_id)
@@ -329,10 +337,10 @@ def codec(
 
 
 def audio_io(
+    ffmpeg_args,
     input,
     *stream_ids,
     file_index=None,
-    ffmpeg_args=None,
     prefix="",
     format=None,
     output_url=None,
@@ -341,9 +349,7 @@ def audio_io(
     **kwargs,
 ):
 
-    if isinstance(input, str):
-        input = (input, None)
-    input = add_url(ffmpeg_args or (ffmpeg_args := empty()), "input", *input)[1]
+    input = add_url(ffmpeg_args, "input", *input)[1]
     out_cfg = add_url(ffmpeg_args, "output", output_url, {})[1][1]
 
     cfgs, reader_config = audio_file(
@@ -423,7 +429,7 @@ def audio_file(
 
     """
 
-    all_info = utils.analyze_audio_input(
+    all_info, always_copy = utils.analyze_audio_input(
         input, entries=("sample_rate", "sample_fmt", "channels")
     )
 
@@ -455,7 +461,11 @@ def audio_file(
     ffmpeg_config, reader_config = zip(
         *[
             audio_stream(
-                all_info[st[0]], *st[1:], for_reader=for_reader, default_opts=file_opts,
+                all_info[st[0]],
+                *st[1:],
+                for_reader=for_reader,
+                always_copy=always_copy,
+                default_opts=file_opts,
             )
             for st in streams
         ]
@@ -465,7 +475,12 @@ def audio_file(
 
 
 def audio_stream(
-    info, stream_opts=None, *, for_reader=False, default_opts={},
+    info,
+    stream_opts=None,
+    *,
+    for_reader=False,
+    always_copy=False,
+    default_opts={},
 ):
     """generate output audio stream options and optionally reader data
 
@@ -475,6 +490,8 @@ def audio_stream(
     :type stream_opts: dict, optional
     :param for_reader: True to return reader config, defaults to False
     :type for_reader: bool, optional
+    :param always_copy: True to copy options even if unchanged
+    :tyoe always_copy: bool
     :param default_opts: default options, defaults to {}
     :type default_opts: dict, optional
     :return: FFmpeg options and if requested reader config
@@ -498,11 +515,11 @@ def audio_stream(
     nch = opts.get("channels", None)
 
     ffmpeg_config = {}
-    if rate is not None and rate != info["sample_rate"]:
+    if rate is not None and (always_copy or rate != info["sample_rate"]):
         ffmpeg_config["ar"] = rate
-    if fmt is not None and fmt != info["sample_fmt"]:
+    if fmt is not None and (always_copy or fmt != info["sample_fmt"]):
         ffmpeg_config["sample_fmt"] = fmt
-    if nch is not None and nch != info["channels"]:
+    if nch is not None and (always_copy or nch != info["channels"]):
         ffmpeg_config["ac"] = nch
 
     reader_config = None
@@ -515,9 +532,9 @@ def audio_stream(
 
 
 def video_io(
+    ffmpeg_args,
     input,
     *stream_ids,
-    ffmpeg_args=None,
     prefix="",
     format=None,
     output_url=None,
@@ -526,10 +543,10 @@ def video_io(
     **kwargs,
 ):
     """Create ffmpeg.run() ready arg dict and expected numpy array stream outputs
+    :param ffmpeg_args: ffmpeg run arguments to add
+    :type ffmpeg_args: dict
     :param *input_defs: list of input urls and optional selection of streams
     :type input_defs[]: str or tuple(str, <int|seq>, <dict>)
-    :param ffmpeg_args: ffmpeg run arguments to add, defaults to None
-    :type ffmpeg_args: dict, optional
     :return: [description]
     :rtype: tuple(dict,list of tuples)
 
@@ -559,12 +576,13 @@ def video_io(
 
     """
 
+
     if not len(stream_ids):
         stream_ids = [0]
 
     if isinstance(input, str):
         input = (input, None)
-    in_file_id, input = add_url(ffmpeg_args or (ffmpeg_args := empty()), "input", *input)
+    in_file_id, input = add_url(ffmpeg_args, "input", *input)
     out_cfg = add_url(ffmpeg_args, "output", output_url, {})[1][1]
 
     ffmpeg_opts, ffmpeg_srcs, reader_cfgs = video_file(
@@ -695,7 +713,7 @@ def video_file(
     :rtype: tuple(int, str, str, tuple(str, str)), tuple(int,int,int), numpy.dtype
     """
 
-    all_info = utils.analyze_video_input(
+    all_info, always_copy = utils.analyze_video_input(
         input, entries=("width", "height", "pix_fmt", "frame_rate")
     )
 
@@ -727,7 +745,11 @@ def video_file(
     ffmpeg_opts, ffmpeg_srcs, reader_cfgs = zip(
         *[
             video_stream(
-                all_info[st[0]], *st[1:], for_reader=for_reader, default_opts=file_opts,
+                all_info[st[0]],
+                *st[1:],
+                for_reader=for_reader,
+                always_copy=always_copy,
+                default_opts=file_opts,
             )
             for st in streams
         ]
@@ -737,7 +759,12 @@ def video_file(
 
 
 def video_stream(
-    info, stream_opts=None, *args, default_opts={}, for_reader=False,
+    info,
+    stream_opts=None,
+    *,
+    always_copy=False,
+    default_opts={},
+    for_reader=False,
 ):
     """Configure image/video stream with basic filters
 
@@ -751,6 +778,8 @@ def video_stream(
     :type file_index: int, optional
     :param for_reader: True to prepare reader_config output tuple item
     :type for_reader: bool
+    :param always_copy: True to copy options even if unchanged
+    :tyoe always_copy: bool
     :param default_opts: default stream options, defaults to {}
     :type default_opts: dict, optional
     :return: sequence of output stream data: pix_fmt, filter, bg_src, shape, dtype
@@ -850,7 +879,7 @@ def video_stream(
     opts = {}
     if len(vfilters) > 0:
         opts["vf"] = vfilters
-    if out_pix_fmt is not None and out_pix_fmt != info["pix_fmt"]:
+    if out_pix_fmt is not None and (always_copy or out_pix_fmt != info["pix_fmt"]):
         opts["pix_fmt"] = out_pix_fmt
 
     rate = opts.get("frame_rate", None)
@@ -865,14 +894,14 @@ def video_stream(
 
 
 def global_options(
-    ffmpeg_args=None,
+    ffmpeg_args,
     default_opts=None,
     prefix="",
     aliases=None,
     excludes=None,
     **options,
 ):
-    gopts = ffmpeg_args.get("global_options", None) if ffmpeg_args else None
+    gopts = ffmpeg_args.get("global_options", None)
     if gopts is None:
         ffmpeg_args["global_options"] = gopts = {}
 
@@ -947,12 +976,15 @@ def is_forced(ffmpeg_args):
 
 
 def filters(
-    url=None, ffmpeg_args=None, prefix="", aliases={}, excludes=None, **kwargs,
+    ffmpeg_args,
+    url=None,
+    prefix="",
+    aliases={},
+    excludes=None,
+    **kwargs,
 ):
     # TODO Not tested, needs to be expanded
     if url is None:
-        if ffmpeg_args is None:
-            ffmpeg_args = empty()
         opts = ffmpeg_args.get("global_options", None)
         if opts is None:
             ffmpeg_args["global_options"] = opts = {}
@@ -962,7 +994,11 @@ def filters(
     opt_names = ("filter_complex",) if url is None else ("af", "vf")
 
     opts = finalize_opts(
-        kwargs, opt_names, prefix=prefix, aliases=aliases, excludes=excludes,
+        kwargs,
+        opt_names,
+        prefix=prefix,
+        aliases=aliases,
+        excludes=excludes,
     )
 
     for k, v in opts.items():

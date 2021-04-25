@@ -5,14 +5,14 @@ from .. import ffmpeg, probe, utils, configure
 class SimpleVideoReader:
     def __init__(self, url, stream_id=0, **options) -> None:
 
-        args = configure.input_timing(url, vstream_id=stream_id, **options)
+        args = configure.input_timing({}, url, vstream_id=stream_id, **options)
 
         args, reader_cfg = configure.video_io(
+            args,
             url,
             stream_id,
             output_url="-",
             format="rawvideo",
-            ffmpeg_args=args,
             excludes=["frame_rate"],
             **options,
         )
@@ -85,6 +85,7 @@ class SimpleVideoWriter:
 
         else:
             args = configure.input_timing(
+                {},
                 "-",
                 vstream_id=0,
                 excludes=("start", "end", "duration"),
@@ -92,9 +93,9 @@ class SimpleVideoWriter:
             )
 
             configure.video_io(
+                args,
                 utils.array_to_video_input(self.frame_rate, data, format="rawvideo"),
                 output_url=self.url,
-                ffmpeg_args=args,
                 **self.options,
             )
 
@@ -113,14 +114,14 @@ class SimpleVideoWriter:
 
 class SimpleAudioReader:
     def __init__(self, url, stream_id=0, **options) -> None:
-        args = configure.input_timing(url, astream_id=stream_id, **options)
+        args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
         args, reader_cfg = configure.audio_io(
+            args,
             url,
             int(stream_id),
             output_url="-",
             format="rawvideo",
-            ffmpeg_args=args,
             **options,
         )
 
@@ -178,6 +179,7 @@ class SimpleAudioWriter:
         self.dtype = data.dtype
         self.channels = data.shape[1] if data.ndim > 1 else 1
         args = configure.input_timing(
+            {},
             "-",
             astream_id=0,
             excludes=("start", "end", "duration"),
@@ -185,9 +187,9 @@ class SimpleAudioWriter:
         )
 
         configure.audio_io(
+            args,
             utils.array_to_audio_input(rate, data, format=True),
             output_url=self.url,
-            ffmpeg_args=args,
             **self.options,
         )
         self.proc = ffmpeg.run(args, stdout=None, stdin=ffmpeg.PIPE)

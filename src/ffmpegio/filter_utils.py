@@ -1,5 +1,52 @@
 from collections.abc import Sequence
-import re
+import re, inspect
+from . import utils
+
+
+def parse_filter(expr):
+    """Parse FFmpeg filter expression
+
+    :param expr: filter expression
+    :type expr: str
+    :return: filter name followed by arguments, possibly ended with a dict
+             containing the keyword arguments or id string
+    :rtype: tuple(str, *str[, dict])
+    """
+
+    def unescape(expr):
+        return re.sub(r"\\(.)", r"\1", expr)
+
+    m = re.match(r"([^=]+)(?:\s*=\s*([\s\S]+))?", unescape(expr))
+    if not m:
+        return (None,)
+
+    name = m[1]
+    argstr = m[2]
+
+    m = re.match(r"(.+?)\s*@\s*(.+)", name)
+    if m:
+        name = m[1]
+        id = m[2]
+
+    kwargs = {"id": id} if m else {}
+
+    if not argstr:
+        return (name, kwargs) if m else (name,)
+
+    arguments = re.split(r"\s*(?<!\\)\:\s*", argstr)
+    kwiter = (
+        (i, m[1], m[2])
+        for i, a in enumerate(arguments)
+        if (m := re.match(r"([^=]+)\s*=\s*([\s\S]+)", a))
+    )
+    i, k, v = next(kwiter, (len(arguments), None, None))
+    args = (unescape(a) for a in arguments[:i])
+    if k:
+        kwargs[k] = unescape(v)
+        while kw := next(kwiter, None):
+            kwargs[kw[1]] = unescape(kw[2])
+
+    return (name, *args, kwargs) if k else (name, *args)
 
 
 def compose_filter(name, *args, id=None, **kwargs):
@@ -138,8 +185,6 @@ def compose_graph(*chains, input_labels={}, output_labels={}):
 
     nchains = len(chains)
     cids = range(nchains)
-
-    print(chains, input_labels, output_labels)
 
     def set_pad_label(defs, p, label=None):
         no_pad = isinstance(p, int)
@@ -298,3 +343,169 @@ def extend_chain(chains, labels, new_chain, insert_at, keep_output_label=True):
         outputs[new_label] = src
         if dst is not None:
             outputs[insert_at] = cid
+
+
+def analyze_filter(src, entries):
+    name, *args = parse_filter(src) if isinstance(src, str) else src
+    n = len(args)
+    has_kw = n and isinstance(args[-1], dict)
+    kargs = args[-1] if has_kw else {}
+    if has_kw:
+        n -= 1
+
+    def get_val(d, i, *keys):
+        if n > i:
+            return args[i]
+        else:
+            return next((kargs[k] for k in keys if k in kargs), d)
+
+    key_set = {
+        "allrgb": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": 4096,
+            "height": 4096,
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 0, "rate", "r")
+            ),
+        },
+        "color": {
+            "codec_name": "rawvideo",
+            "pix_fmt": lambda p: "rgb24"
+            if utils.parse_color(get_val(None, 0, "color", "c"))[3] is None
+            else "rgba",
+            "width": lambda p: utils.parse_video_size(
+                get_val("320x240", 1, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("320x240", 1, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 2, "rate", "r")
+            ),
+        },
+        "gradients": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": lambda p: utils.parse_video_size(
+                get_val("640x480", 0, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("640x480", 0, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 1, "rate", "r")
+            ),
+        },
+        "mandelbrot": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": lambda p: utils.parse_video_size(
+                get_val("640x480", 7, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("640x480", 7, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 6, "rate", "r")
+            ),
+        },
+        "mptestsrc": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": 256,
+            "height": 256,
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 0, "rate", "r")
+            ),
+        },
+        "frei0r_src": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": lambda p: utils.parse_video_size(get_val(None, 0, "size", "s"))[0],
+            "height": lambda p: utils.parse_video_size(get_val(None, 0, "size", "s"))[
+                1
+            ],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val(None, 1, "framerate")
+            ),
+        },
+        "life": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": lambda p: utils.parse_video_size(
+                get_val("320x240", 5, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("320x240", 5, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(get_val(25, 1, "rate", "r")),
+        },
+        "haldclutsrc": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": lambda p: int(get_val(None, 0, "level")) ** 3,
+            "height": lambda p: int(get_val(None, 0, "level")) ** 3,
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 1, "rate", "r")
+            ),
+        },
+        "testsrc": {
+            "pix_fmt": "rgb24",
+            "width": lambda p: utils.parse_video_size(
+                get_val("320x240", 0, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("320x240", 0, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 1, "rate", "r")
+            ),
+        },
+        "testsrc2": {
+            "pix_fmt": "rgba",
+            "width": lambda p: utils.parse_video_size(
+                get_val("320x240", 0, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("320x240", 0, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 1, "rate", "r")
+            ),
+        },
+        "sierpinski": {
+            "codec_name": "rawvideo",
+            "pix_fmt": "rgb24",
+            "width": lambda p: utils.parse_video_size(
+                get_val("640x480", 0, "size", "s")
+            )[0],
+            "height": lambda p: utils.parse_video_size(
+                get_val("640x480", 0, "size", "s")
+            )[1],
+            "frame_rate": lambda p: utils.parse_frame_rate(
+                get_val("25", 1, "rate", "r")
+            ),
+        },
+    }
+    key_set["allyuv"] = key_set["allrgb"]
+    key_set["rgbtestsrc"] = key_set["smptebars"] = key_set["smptehdbars"] = key_set[
+        "pal100bars"
+    ] = key_set["yuvtestsrc"] = key_set["pal75bars"] = key_set["testsrc"]
+
+    keys = key_set.get(name, None)
+    if keys is None:
+        raise Exception(f"unknown filter source: {name}")
+
+    info = {}
+    for p in entries:
+        key = keys.get(p, None)
+        if key is None:
+            raise Exception(f"unknown property '{p}' for filter source '{name}'")
+        if inspect.isfunction(key):
+            info[p] = key(p)
+        elif isinstance(key, tuple):
+            info[p] = get_val(*key)
+        else:
+            info[p] = key
+    return info
