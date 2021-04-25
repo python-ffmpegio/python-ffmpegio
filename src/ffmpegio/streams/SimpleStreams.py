@@ -220,7 +220,7 @@ class SimpleAudioWriter:
         else:
             if data.ndim != 2 and data.ndim != 1:
                 raise Exception("audio data must be 1d or 2d numpy.ndarray")
-            self.open(self.rate, data.dtype, data.channels)
+            self.open(self.sample_rate, data)
 
         self.proc.stdin.write(data.tobytes())
         self.samples_written += data.shape[0]

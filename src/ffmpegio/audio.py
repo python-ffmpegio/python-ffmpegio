@@ -17,8 +17,9 @@ def read(url, stream_id=0, **options):
     :rtype: tuple(`float`, `numpy.ndarray`)
     """
 
+    print(url)
     args = configure.input_timing({}, url, astream_id=stream_id, **options)
-
+    print(url)
     args, reader_cfg = configure.audio_io(
         args,
         url,

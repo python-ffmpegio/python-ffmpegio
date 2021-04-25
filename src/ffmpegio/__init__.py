@@ -229,7 +229,7 @@ def open(
             else (_streams.SimpleVideoWriter if write else _streams.SimpleVideoReader)
         )
         if read:
-            kwds["stream_id"] = stream_id
+            kwds["stream_id"] = stream_id or 0
         if write:
             kwds["rate"] = rate
             kwds["dtype"] = dtype

@@ -84,9 +84,9 @@ def test_array_to_audio_input():
 
 def test_analyze_audio_input():
 
-    assert utils.analyze_audio_input(("-", None)) == [{}]
+    assert utils.analyze_audio_input(("-", None))[0] == [{}]
 
-    cfgs = utils.analyze_audio_input(
+    cfgs,always_copy = utils.analyze_audio_input(
         (
             "-",
             {
@@ -187,9 +187,9 @@ def test_array_to_video_input_nodata(image_spec):
 
 def test_analyze_video_input():
 
-    assert utils.analyze_video_input(("-", None)) == [{}]
+    assert utils.analyze_video_input(("-", None))[0] == [{}]
 
-    cfgs = utils.analyze_video_input(
+    cfgs,always_copy = utils.analyze_video_input(
         (
             "-",
             {

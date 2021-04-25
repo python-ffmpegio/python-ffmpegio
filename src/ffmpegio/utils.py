@@ -510,6 +510,10 @@ def analyze_input(filter_srcs, streams_basic, set_cfg, option_regex, input, entr
         if is_fsrc
         else {i: v for i, v in enumerate(streams_basic(input[0], entries=entries))}
     )
+    
+    # no target media type in the file
+    if not len(cfgs):
+        return cfgs, None
 
     if (opts := input[1]) is not None:
         file = {}

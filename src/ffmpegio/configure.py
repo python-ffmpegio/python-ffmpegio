@@ -348,7 +348,8 @@ def audio_io(
     excludes=None,
     **kwargs,
 ):
-
+    if isinstance(input, str):
+        input = (input, None)
     input = add_url(ffmpeg_args, "input", *input)[1]
     out_cfg = add_url(ffmpeg_args, "output", output_url, {})[1][1]
 
@@ -363,7 +364,7 @@ def audio_io(
     )
 
     if cfgs is None:
-        raise Exception(f"cannot find audio source: {input[0]}")
+        return ffmpeg_args, reader_config
 
     nstreams = len(cfgs)
     if not len(stream_ids):
