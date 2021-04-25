@@ -216,7 +216,7 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
         *inputs2args(inputs),
         *outputs2args(outputs),
     ]
-    return shlex.join(args) if shell_command else args
+    return " ".join(shlex.quote(arg) for arg in args) if shell_command else args
 
 
 # add FFmpeg directory to the system path as given in system environment variable FFMPEG_DIR
@@ -314,10 +314,11 @@ def find(dir=None):
         )
 
     def search(cmd):
-        return next(
-            (p for d in dirs if (p := shutil.which(os.path.join(d, cmd + ext)))),
-            None,
-        )
+        for d in dirs:
+            p = shutil.which(os.path.join(d, cmd + ext))
+            if p:
+                return p
+        return None
 
     p = search("ffmpeg")
     if not p:
@@ -390,7 +391,9 @@ def run_sync(
         try:
             msg = msg.decode("utf-8")
         finally:
-            raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{msg}")
+            raise Exception(
+                f"execution failed\n   {' '.join(shlex.quote(arg) for arg in args)}\n\n{msg}"
+            )
 
     return ret.stderr if ret.stdout is None else ret.stdout
 
@@ -442,7 +445,9 @@ def ffprobe(
     )
 
     if ret.returncode != 0:
-        raise Exception(f"execution failed\n   {shlex.join(args)}\n\n{ret.stderr}")
+        raise Exception(
+            f"execution failed\n   {' '.join(shlex.quote(arg) for arg in args)}\n\n{ret.stderr}"
+        )
     return ret.stdout
 
 

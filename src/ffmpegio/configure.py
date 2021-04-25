@@ -91,12 +91,17 @@ def finalize_opts(
     for k, v in input.items():
         if excludes and k in excludes:
             pass
-        elif aliases and (name := aliases.get(k, None)) is not None:
-            opts[name] = v
-        elif not prefix or k.startswith(prefix):
-            name = k[len(prefix) :]
-            if name in opt_names:
-                opts[name] = v
+        else:
+            found = False
+            if aliases:
+                name = aliases.get(k, None)
+                found = name is not None
+                if found:
+                    opts[name] = v
+            if not found and (not prefix or k.startswith(prefix)):
+                name = k[len(prefix) :]
+                if name in opt_names:
+                    opts[name] = v
     return opts
 
 
@@ -326,7 +331,8 @@ def codec(
     spec = utils.spec_stream(type=stream_type, index=stream_id)
 
     if "codec" in opts:
-        if (val := opts["codec"]) == "none" or val is None:
+        val = opts["codec"]
+        if val == "none" or val is None:
             outopts[f"{stream_type}n"] = None
         else:
             outopts[f"c:{spec}"] = val
@@ -576,7 +582,6 @@ def video_io(
 
 
     """
-
 
     if not len(stream_ids):
         stream_ids = [0]

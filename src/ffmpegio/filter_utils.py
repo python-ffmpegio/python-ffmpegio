@@ -34,17 +34,22 @@ def parse_filter(expr):
         return (name, kwargs) if m else (name,)
 
     arguments = re.split(r"\s*(?<!\\)\:\s*", argstr)
-    kwiter = (
-        (i, m[1], m[2])
-        for i, a in enumerate(arguments)
-        if (m := re.match(r"([^=]+)\s*=\s*([\s\S]+)", a))
-    )
+
+    def kwgen():
+        for i, a in enumerate(arguments):
+            m = re.match(r"([^=]+)\s*=\s*([\s\S]+)", a)
+            if m:
+                yield (i, m[1], m[2])
+
+    kwiter = kwgen()
     i, k, v = next(kwiter, (len(arguments), None, None))
     args = (unescape(a) for a in arguments[:i])
     if k:
         kwargs[k] = unescape(v)
-        while kw := next(kwiter, None):
+        kw = next(kwiter, None)
+        while kw:
             kwargs[kw[1]] = unescape(kw[2])
+            kw = next(kwiter, None)
 
     return (name, *args, kwargs) if k else (name, *args)
 
@@ -236,16 +241,16 @@ def compose_graph(*chains, input_labels={}, output_labels={}):
     def finalize_labels(defs):
         return [defs.get(i, "") for i in range(len(defs))]
 
-    return ";".join(
-        [
-            compose_chain(
-                *((chain,) if isinstance((chain := chains[i][0]), str) else chain),
+    def generate():
+        for i in cids:
+            chain = chains[i][0]
+            yield compose_chain(
+                *((chain,) if isinstance(chain, str) else chain),
                 head_label=finalize_labels(input_defs.get(i, {})),
                 tail_label=finalize_labels(output_defs.get(i, {})),
             )
-            for i in cids
-        ]
-    )
+
+    return ";".join([c for c in generate()])
 
 
 def parse_graph(expr):

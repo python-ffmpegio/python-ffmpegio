@@ -84,7 +84,8 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
 
     if entries:
         user_query = set(entries)
-        if bad_query := user_query - query:
+        bad_query = user_query - query
+        if bad_query:
             raise Exception(f"invalid {info_type} entries: {', '.join(bad_query)}")
         query = user_query
 
@@ -218,10 +219,12 @@ def video_streams_basic(url, index=None, entries=None):
         "nb_frames",
     )
 
+    durpara = ("duration_ts", "time_base")
+    fspara = ("avg_frame_rate", "r_frame_rate")
     default_dep_entries = dict(
         start_time=("start_pts", "time_base"),
-        duration=(durpara := ("duration_ts", "time_base")),
-        frame_rate=(fspara := ("avg_frame_rate", "r_frame_rate")),
+        duration=durpara,
+        frame_rate=fspara,
         nb_frames=("nb_frames", *durpara, *fspara),
     )
 
@@ -313,9 +316,10 @@ def audio_streams_basic(url, index=None, entries=None):
         "nb_samples",
     )
 
+    durpara = ("duration_ts", "time_base")
     default_dep_entries = dict(
         start_time=("start_pts", "time_base"),
-        duration=(durpara := ("duration_ts", "time_base")),
+        duration=durpara,
         nb_samples=("sample_rate", *durpara),
     )
 

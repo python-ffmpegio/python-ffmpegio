@@ -1,8 +1,6 @@
-from ffmpegio import audio, probe, caps
+from ffmpegio import audio, probe
 import tempfile, re
 from os import path
-import numpy as np
-from matplotlib import pyplot as plt
 
 def test_read_write():
     # url = "tests/assets/testaudio-one.wav"

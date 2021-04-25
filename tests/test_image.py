@@ -1,8 +1,7 @@
-from ffmpegio import image, probe, caps, ffmpeg, utils
+from ffmpegio import image, probe
 import tempfile, re
 from os import path
 import numpy as np
-from matplotlib import pyplot as plt
 
 outext = ".png"
 # url = "tests/assets/testaudio-one.wav"

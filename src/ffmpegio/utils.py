@@ -286,17 +286,13 @@ def array_to_video_input(
             "configuring audio input with a custom codec requires `sample_fmt` and `channels` to be also specified."
         )
 
-    input = (
-        "-",
-        (
-            opts := {
-                f"c:{spec}": codec,
-                f"s:{spec}": f"{size[0]}x{size[1]}",
-                f"r:{spec}": rate,
-                f"pix_fmt:{spec}": pix_fmt,
-            }
-        ),
-    )
+    opts = {
+        f"c:{spec}": codec,
+        f"s:{spec}": f"{size[0]}x{size[1]}",
+        f"r:{spec}": rate,
+        f"pix_fmt:{spec}": pix_fmt,
+    }
+    input = ("-", opts)
 
     if format is not None:
         if isinstance(format, str):
@@ -356,17 +352,13 @@ def array_to_audio_input(
             "configuring audio input with a custom codec requires `sample_fmt` and `channels` to be also specified."
         )
 
-    input = (
-        "-",
-        (
-            opts := {
-                f"c:{spec}": codec,
-                f"ac:{spec}": channels,
-                f"ar:{spec}": rate,
-                f"sample_fmt:{spec}": sample_fmt,
-            }
-        ),
-    )
+    opts = {
+        f"c:{spec}": codec,
+        f"ac:{spec}": channels,
+        f"ar:{spec}": rate,
+        f"sample_fmt:{spec}": sample_fmt,
+    }
+    input = ("-", opts)
 
     if format is not None:
         if isinstance(format, str):
@@ -510,12 +502,13 @@ def analyze_input(filter_srcs, streams_basic, set_cfg, option_regex, input, entr
         if is_fsrc
         else {i: v for i, v in enumerate(streams_basic(input[0], entries=entries))}
     )
-    
+
     # no target media type in the file
     if not len(cfgs):
         return cfgs, None
 
-    if (opts := input[1]) is not None:
+    opts = input[1]
+    if opts is not None:
         file = {}
 
         for k, v in opts.items():

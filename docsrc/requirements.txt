@@ -1,3 +1,8 @@
+numpy
+matplotlib
+pytest
+PyQt5
+wheel
 sphinx
 sphinx-rtd-theme
 sphinx-autopackagesummary

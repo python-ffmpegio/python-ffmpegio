@@ -1,8 +1,6 @@
-from ffmpegio import video, probe, caps, ffmpeg
+from ffmpegio import video, probe
 import tempfile, re
 from os import path
-import numpy as np
-from matplotlib import pyplot as plt
 
 def test_read_write():
     # url = "tests/assets/testvideo-5m.mpg"

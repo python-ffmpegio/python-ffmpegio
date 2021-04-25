@@ -30,12 +30,13 @@ from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
 __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open"]
-__version__ = '0.0.7'
+__version__ = "0.0.8"
 
 ffmpeg_info = _ffmpeg.versions
 set_path = _ffmpeg.find
 get_path = _ffmpeg.where
 is_ready = _ffmpeg.found
+
 
 @contextmanager
 def open(
@@ -143,8 +144,10 @@ def open(
     Open an MP4 file and process all the frames::
 
         with ffmpegio.open('video_source.mp4') as f:
-            while (frame:=f.read())
+            frame = f.read()
+            while frame:
                 # process the captured frame data
+                frame = f.read()
 
     Read an audio stream of MP4 file and write it to a FLAC file as samples
     are decoded::
@@ -152,8 +155,10 @@ def open(
         with ffmpegio.open('video_source.mp4','ra') as rd:
             fs = rd.sample_rate
             with ffmpegio.open('video_dst.flac','wa',rate=fs) as wr:
-                for frame:=rd.read()
+                frame = rd.read()
+                while frame:
                     wr.write(frame)
+                    frame = rd.read()
 
     """
 
@@ -163,7 +168,8 @@ def open(
     write = "w" in mode
     # filter = "f" in mode
     # backwards = "b" in mode
-    if unk := set(mode) - set("avrw"):
+    unk = set(mode) - set("avrw")
+    if unk :
         raise Exception(
             f"Invalid FFmpeg streaming mode: {mode}. Unknown mode {unk} specified."
         )
