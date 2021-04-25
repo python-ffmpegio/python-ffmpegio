@@ -1,6 +1,24 @@
 from ffmpegio import audio, probe
-import tempfile, re
+import tempfile, re, logging
 from os import path
+
+logging.basicConfig(level=logging.DEBUG)
+
+def test_read():
+
+    url = "tests/assets/testvideo-5m.mpg"
+
+    T = 0.51111
+    fs, x = audio.read(url, duration=T)
+    print(int(fs * T), x.shape)
+    assert int(fs * T) == x.shape[0]
+
+    T = 1.5
+    t0 = 0.5
+    fs, x1 = audio.read(url, start=t0, end=t0+T)
+    print(int(fs * T), x1.shape)
+    assert int(fs * T) == x1.shape[0]
+
 
 def test_read_write():
     # url = "tests/assets/testaudio-one.wav"
@@ -24,18 +42,17 @@ def test_read_write():
     fs, x = audio.read(url)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        
+
         print(probe.audio_streams_basic(url))
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         print(out_url)
-        print(x.shape,x.dtype)
+        print(x.shape, x.dtype)
         audio.write(out_url, fs, x)
-        fs, y = audio.read(out_url,sample_fmt='flt')
+        fs, y = audio.read(out_url, sample_fmt="flt")
         print(probe.audio_streams_basic(out_url))
 
     #     with open(path.join(tmpdirname, "progress.txt")) as f:
     #         print(f.read())
-
 
     # display = os.read(read_pipe, 128).strip()
 
@@ -43,4 +60,5 @@ def test_read_write():
     # plt.plot(t,x,t,y)
     # plt.show()
 
-# test_read_write()
+
+# test_read()

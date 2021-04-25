@@ -5,6 +5,12 @@ from . import filter_utils
 
 PIPE = sp.PIPE
 
+form_shell_cmd = (
+    shlex.join
+    if hasattr(shlex, "join")
+    else lambda args: " ".join(shlex.quote(arg) for arg in args)
+)
+
 # list of global options (gathered on 4/9/21)
 _global_options = (
     ("-y", 0),
@@ -216,7 +222,7 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
         *inputs2args(inputs),
         *outputs2args(outputs),
     ]
-    return " ".join(shlex.quote(arg) for arg in args) if shell_command else args
+    return form_shell_cmd(args) if shell_command else args
 
 
 # add FFmpeg directory to the system path as given in system environment variable FFMPEG_DIR
@@ -385,15 +391,15 @@ def run_sync(
     if hide_banner:
         args.insert(1, "-hide_banner")
 
+    logging.debug(args)
+
     ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
     if ret.returncode != 0 and ret.stderr is not None:
         msg = ret.stderr
         try:
             msg = msg.decode("utf-8")
         finally:
-            raise Exception(
-                f"execution failed\n   {' '.join(shlex.quote(arg) for arg in args)}\n\n{msg}"
-            )
+            raise Exception(f"execution failed\n   {form_shell_cmd(args)}\n\n{msg}")
 
     return ret.stderr if ret.stdout is None else ret.stdout
 
@@ -413,6 +419,8 @@ def run(
 
     if hide_banner:
         args.insert(1, "-hide_banner")
+
+    logging.debug(form_shell_cmd(args))
 
     return sp.Popen(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
 
@@ -434,6 +442,8 @@ def ffprobe(
         *(shlex.split(args) if isinstance(args, str) else args),
     ]
 
+    logging.debug(form_shell_cmd(args))
+
     ret = sp.run(
         args,
         *sp_arg,
@@ -445,9 +455,7 @@ def ffprobe(
     )
 
     if ret.returncode != 0:
-        raise Exception(
-            f"execution failed\n   {' '.join(shlex.quote(arg) for arg in args)}\n\n{ret.stderr}"
-        )
+        raise Exception(f"execution failed\n   {form_shell_cmd(args)}\n\n{ret.stderr}")
     return ret.stdout
 
 

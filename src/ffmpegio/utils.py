@@ -1,5 +1,4 @@
 import re, fractions
-from collections.abc import Sequence
 import numpy as np
 from . import caps, probe, filter_utils
 
@@ -413,12 +412,7 @@ def analyze_video_input(input, entries=None):
                 cfg["codec_name"] = v
 
     return analyze_input(
-        _filter_video_srcs,
-        probe.video_streams_basic,
-        set_cfg,
-        option_regex,
-        input,
-        entries,
+        probe.video_streams_basic, set_cfg, option_regex, input, entries
     )
 
 
@@ -463,16 +457,11 @@ def analyze_audio_input(input, entries=None):
                 cfg["codec_name"] = v
 
     return analyze_input(
-        _filter_audio_srcs,
-        probe.audio_streams_basic,
-        set_cfg,
-        option_regex,
-        input,
-        entries,
+        probe.audio_streams_basic, set_cfg, option_regex, input, entries
     )
 
 
-def analyze_input(filter_srcs, streams_basic, set_cfg, option_regex, input, entries):
+def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
     """analyze input option entry
 
     :param streams_basic: probe.audio_streams_basic or probe.video_streams_basic

@@ -1,7 +1,7 @@
 """Audio Read/Write Module
 """
 import numpy as np
-from . import ffmpeg, utils, configure
+from . import ffmpeg, utils, configure, streams
 
 
 def read(url, stream_id=0, **options):
@@ -15,11 +15,22 @@ def read(url, stream_id=0, **options):
     :type \\**options: dict, optional
     :return: sample rate in samples/second and audio data matrix (timexchannel)
     :rtype: tuple(`float`, `numpy.ndarray`)
+
+    .. note:: even if `start_time` option is set, prior samples are read, and
+    the retrieved data matrix is truncated before returning it to the caller. 
+    This is to ensure the timing accuracy. As such, do not use this function 
+    to perform block-wise processing. Instead use the streaming solution, 
+    see :py:func:`open`.
+
     """
 
-    print(url)
     args = configure.input_timing({}, url, astream_id=stream_id, **options)
-    print(url)
+
+    i0, i1 = configure.get_audio_range(args, stream_id)
+    if i0 > 0:
+        # if start time is set, remove to read all samples from the beginning
+        del args['inputs'][0][1]["ss"]
+
     args, reader_cfg = configure.audio_io(
         args,
         url,
@@ -31,7 +42,9 @@ def read(url, stream_id=0, **options):
 
     dtype, nch, rate = reader_cfg[0]
     stdout = ffmpeg.run_sync(args)
-    return rate, np.frombuffer(stdout, dtype=dtype).reshape(-1, nch)
+
+    data = np.frombuffer(stdout, dtype=dtype).reshape(-1, nch)
+    return rate, data[i0:i1, ...]
 
 
 def write(url, rate, data, **options):
@@ -60,7 +73,5 @@ def write(url, rate, data, **options):
         output_url=url,
         **options,
     )
-
-    print(args)
 
     ffmpeg.run_sync(args, input=data.tobytes())

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.core.shape_base import block
 from .. import ffmpeg, probe, utils, configure
 
 
@@ -116,6 +117,11 @@ class SimpleAudioReader:
     def __init__(self, url, stream_id=0, **options) -> None:
         args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
+        start, end = configure.get_audio_range(args, stream_id)
+        if start > 0:
+            # if start time is set, remove to read all samples from the beginning
+            del args["inputs"][0][1]["ss"]
+
         args, reader_cfg = configure.audio_io(
             args,
             url,
@@ -129,9 +135,17 @@ class SimpleAudioReader:
 
         self.proc = ffmpeg.run(args)
         self.stdout = self.proc.stdout
-        self.eof = False
         self.itemsize = np.dtype(self.dtype).itemsize
         self._nbytes = self.channels * self.itemsize
+        self.remaining = end
+        self.eof = end <= 0
+
+        # if starting mid-stream, drop earlier samples
+        while start > 8192:
+            self.read(8192)
+            start -= 8192
+        if start > 0:
+            self.read(start)
 
     def read(self, nsamples=0):
         """read audio samples
@@ -144,14 +158,26 @@ class SimpleAudioReader:
         :return: frame rate and video frame data (dims: time x rows x cols x pix_comps)
         :rtype: (fractions.Fraction, numpy.ndarray)
         """
+
+        if self.eof:
+            return None
+
         nbytes = self._nbytes * nsamples
-        data = self.stdout.read(nbytes if nbytes > 0 else -1)
-        self.eof = nbytes < 1 or len(data) < nbytes
-        return np.frombuffer(data, dtype=self.dtype).reshape((-1, self.channels))
+        data = np.frombuffer(
+            self.stdout.read(nbytes if nbytes > 0 else -1), dtype=self.dtype
+        ).reshape((-1, self.channels))
+        if self.remaining <= data.shape[0]:
+            self.eof = True
+            data = data[: self.remaining, :]
+        self.remaining -= data.shape[0]
+        return data
+
+    def readiter(self, nsamples):
+        while not self.eof:
+            yield self.read(nsamples)
 
     def close(self):
-        if not self.eof:
-            self.proc.terminate()
+        self.proc.terminate()
         self.proc.wait()
 
 

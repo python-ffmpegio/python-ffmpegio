@@ -1016,3 +1016,31 @@ def filters(
         outopts[k] = v
 
     return ffmpeg_args
+
+
+def get_audio_range(ffmpeg_args, stream_id=0):
+    url, opts = ffmpeg_args["inputs"][stream_id]
+    info = probe.audio_streams_basic(url, stream_id, ("sample_rate", "nb_samples"))[0]
+    fs = info["sample_rate"]
+    i0 = 0
+    i1 = info["nb_samples"]
+    if opts is not None:
+        ss = get_option(ffmpeg_args, "input", "ss")
+        t = get_option(ffmpeg_args, "input", "t")
+        to = get_option(ffmpeg_args, "input", "to")
+        ar = get_option(
+            ffmpeg_args, "input", "ar", stream_type="a", stream_id=stream_id
+        )
+        if ar is not None:
+            fs = ar
+        if ss is None:
+            ss = 0.0
+        else:
+            i0 = int(ss * fs)
+
+        if t is not None:
+            i1 = min(int((ss + t) * fs), i1)
+        elif to is not None:
+            i1 = min(int(to * fs), i1)
+
+    return i0, i1
