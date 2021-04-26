@@ -364,6 +364,12 @@ def analyze_filter(src, entries):
         else:
             return next((kargs[k] for k in keys if k in kargs), d)
 
+    def with_backup(primary, secondary, p_func=None, s_func=None):
+        if primary is None:
+            return secondary if s_func is None else s_func(secondary)
+        else:
+            return primary if p_func is None else p_func(primary)
+
     key_set = {
         "allrgb": {
             "codec_name": "rawvideo",
@@ -491,6 +497,59 @@ def analyze_filter(src, entries):
             "frame_rate": lambda p: utils.parse_frame_rate(
                 get_val("25", 1, "rate", "r")
             ),
+        },
+        # audio sources
+        "aevalsrc": {
+            "codec_name": "pcm_f64le'",
+            "sample_fmt": "dbl",
+            "channels": lambda p: with_backup(
+                get_val(None, 1, "chanel_layout", "c"),
+                get_val(None, 0, "exprs"),
+                utils.layout_to_channels,
+                lambda s: s.count("|") + 1,
+            ),
+            "sample_rate": lambda p: int(get_val(44100, 4, "sample_rate", "s")),
+            "nb_samples": lambda p: with_backup(
+                get_val(None, 2, "duration", "d"),
+                int(get_val(1024, 3, p, "n")),
+                lambda d: int(
+                    utils.parse_time_duration(d)
+                    * int(get_val(44100, 4, "sample_rate", "s"))
+                ),
+                None,
+            ),
+        },
+        "flite": {
+            "codec_name": "pcm_s16le'",
+            "sample_fmt": "s16",
+            "sample_rate": 8000,
+            "channels": 1,
+            "nb_samples": lambda p: int(get_val(512, 1, p, "n")),
+        },
+        "anoisesrc": {
+            "codec_name": "pcm_f64le'",
+            "sample_fmt": "dbl",
+            "channels": 1,
+            "sample_rate": lambda p: int(get_val(48000, 0, "sample_rate", "r")),
+            "nb_samples": lambda p: with_backup(
+                get_val(None, 2, "duration", "d"),
+                int(get_val(1024, 5, p, "n")),
+                lambda d: int(
+                    utils.parse_time_duration(d)
+                    * int(get_val(48000, 0, "sample_rate", "r"))
+                ),
+                None,
+            ),
+        },
+        "sine": {
+            "codec_name": "pcm_f64le'",
+            "sample_fmt": "dbl",
+            "channels": 1,
+            "sample_rate": lambda p: int(get_val(44100, 2, "sample_rate", "r")),
+            "nb_samples": lambda p: utils.parse_time_duration(
+                get_val(None, 3, "duration", "d")
+            )
+            * int(get_val(48000, 0, "sample_rate", "r")),
         },
     }
     key_set["allyuv"] = key_set["allrgb"]

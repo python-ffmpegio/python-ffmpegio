@@ -391,7 +391,7 @@ def audio_io(
             out_map.append(spec)
 
         for k, v in cfgs[i].items():
-            out_cfg[f"{k}:{id}"] = v
+            out_cfg[f"{k}:{spec}"] = v
 
     out_cfg["map"] = out_map
     return ffmpeg_args, reader_config

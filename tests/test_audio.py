@@ -4,6 +4,34 @@ from os import path
 
 logging.basicConfig(level=logging.DEBUG)
 
+
+def test_create():
+    fs = 8000
+    x = audio.create(
+        "aevalsrc",
+        "sin(420*2*PI*t)|cos(430*2*PI*t)",
+        c="FC|BC",
+        nb_samples=fs,
+        sample_rate=fs,
+    )
+    assert x.shape == (fs, 2)
+
+    x = audio.create(
+        "flite",
+        text="The rainbow is a division of white light into many beautiful colors.",
+        nb_samples=1024 * 8,
+    )
+    assert x.shape == (1024 * 8, 1)
+
+    x = audio.create("anoisesrc", d=60, c="pink", r=44100, a=0.5)
+    print(x.shape, 60 * 44100)
+    assert x.shape == (60 * 44100, 1)
+
+    x = audio.create("sine", f=220, b=4, d=5)
+    print(x.shape, 5 * 44100)
+    assert x.shape == (5 * 44100, 1)
+
+
 def test_read():
 
     url = "tests/assets/testvideo-5m.mpg"
@@ -15,7 +43,7 @@ def test_read():
 
     T = 1.5
     t0 = 0.5
-    fs, x1 = audio.read(url, start=t0, end=t0+T)
+    fs, x1 = audio.read(url, start=t0, end=t0 + T)
     print(int(fs * T), x1.shape)
     assert int(fs * T) == x1.shape[0]
 

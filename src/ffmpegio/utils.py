@@ -612,3 +612,47 @@ def compose_color(r, *args):
             args = (*args, *([255] * (3 - len(args))))
 
         return "".join((conv(x) for x in (r, *args)))
+
+
+def layout_to_channels(layout):
+    layouts = caps.layouts()["layouts"]
+    names = caps.layouts()["channels"].keys()
+    if layout in layouts:
+        layout = layouts[layout]
+
+    def each_ch(expr):
+        if expr in layouts:
+            return layout_to_channels(expr)
+        elif expr in names:
+            return 1
+        else:
+            m = re.match(r"(?:(\d+)(?:c|C)|(0x[\da-f]+))", expr)
+            if m:
+                return (
+                    int(m[1])
+                    if m[1]
+                    else sum([(c == "1") for c in tuple(bin(int(m[2], 16))[2:])])
+                )
+            else:
+                raise Exception(f"invalid channel layout expression: {expr}")
+
+    return sum([each_ch(ch) for ch in re.split(r"\+|\|", layout)])
+
+
+def parse_time_duration(expr):
+    print(expr)
+    m = re.match(r"(-)?((\d{2})\:)?(\d{2}):(\d{2}(?:\.\d+)?)", expr)
+    if m:
+        s = int(m[3]) * 60 + float(m[4])
+        if m[2]:
+            s += 3600 * int(m[2])
+        return -s if m[1] else s
+    m = re.match(r"(-)?(\d+(?:\.\d+)?)(s|ms|us)?", expr)
+    if m:
+        s = float(m[2])
+        if m[3] == "ms":
+            s *= 1e-3
+        elif m[3] == "us":
+            s *= 1e-6
+        return -s if m[1] else s
+    raise Exception("invalid time duration")
