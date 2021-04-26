@@ -16,12 +16,12 @@ def test_create():
     )
     assert x.shape == (fs, 2)
 
-    x = audio.create(
-        "flite",
-        text="The rainbow is a division of white light into many beautiful colors.",
-        nb_samples=1024 * 8,
-    )
-    assert x.shape == (1024 * 8, 1)
+    # x = audio.create(
+    #     "flite",
+    #     text="The rainbow is a division of white light into many beautiful colors.",
+    #     nb_samples=1024 * 8,
+    # )
+    # assert x.shape == (1024 * 8, 1)
 
     x = audio.create("anoisesrc", d=60, c="pink", r=44100, a=0.5)
     print(x.shape, 60 * 44100)
