@@ -640,19 +640,29 @@ def layout_to_channels(layout):
 
 
 def parse_time_duration(expr):
-    print(expr)
-    m = re.match(r"(-)?((\d{2})\:)?(\d{2}):(\d{2}(?:\.\d+)?)", expr)
-    if m:
-        s = int(m[3]) * 60 + float(m[4])
-        if m[2]:
-            s += 3600 * int(m[2])
-        return -s if m[1] else s
-    m = re.match(r"(-)?(\d+(?:\.\d+)?)(s|ms|us)?", expr)
-    if m:
-        s = float(m[2])
-        if m[3] == "ms":
-            s *= 1e-3
-        elif m[3] == "us":
-            s *= 1e-6
-        return -s if m[1] else s
-    raise Exception("invalid time duration")
+    """convert time/duration expression to seconds
+
+    if expr is not str, the input is returned without any processing
+
+    :param expr: time/duration expression
+    :type expr: str
+    :return: time/duration in seconds
+    :rtype: float
+    """    
+    if isinstance(expr, str):
+        m = re.match(r"(-)?((\d{2})\:)?(\d{2}):(\d{2}(?:\.\d+)?)", expr)
+        if m:
+            s = int(m[3]) * 60 + float(m[4])
+            if m[2]:
+                s += 3600 * int(m[2])
+            return -s if m[1] else s
+        m = re.match(r"(-)?(\d+(?:\.\d+)?)(s|ms|us)?", expr)
+        if m:
+            s = float(m[2])
+            if m[3] == "ms":
+                s *= 1e-3
+            elif m[3] == "us":
+                s *= 1e-6
+            return -s if m[1] else s
+        raise Exception("invalid time duration")
+    return expr

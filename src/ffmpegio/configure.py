@@ -264,13 +264,17 @@ def input_timing(
 
         inopts = file_entry[1]
         if start:
-            inopts["ss"] = float(start / fs)
+            inopts["ss"] = start if isinstance(start, str) else float(start / fs)
         elif end and duration:
+            if isinstance(end, str) or isinstance(duration, str):
+                raise Exception(
+                    "when specifying end and duration, they both must be numeric"
+                )
             inopts["ss"] = float((end - duration) / fs)
         if end:
-            inopts["to"] = float(end / fs)
+            inopts["to"] = end if isinstance(start, str) else float(end / fs)
         if duration:
-            inopts["t"] = float(duration / fs)
+            inopts["t"] = duration if isinstance(start, str) else float(duration / fs)
 
     return ffmpeg_args
 
@@ -1018,18 +1022,34 @@ def filters(
     return ffmpeg_args
 
 
-def get_audio_range(ffmpeg_args, stream_id=0):
-    url, opts = ffmpeg_args["inputs"][stream_id]
-    info = probe.audio_streams_basic(url, stream_id, ("sample_rate", "nb_samples"))[0]
+def get_audio_range(ffmpeg_args, file_id=0, stream_id=0):
+    """estimated range of audio sample indices
+
+    :param ffmpeg_args: argument dict to ffmpeg
+    :type ffmpeg_args: dict
+    :param file_id: audio input file index, defaults to 0
+    :type file_id: int, optional
+    :param stream_id: audio stream index, defaults to 0
+    :type stream_id: int, optional
+    :return: tuple of first and (exclusive) last sample indices
+    :rtype: tuple(int, int)
+    """
+    url, opts = ffmpeg_args["inputs"][file_id]
+    info = probe.audio_streams_basic(url, file_id, ("sample_rate", "nb_samples"))[0]
     fs = info["sample_rate"]
     i0 = 0
     i1 = info["nb_samples"]
     if opts is not None:
-        ss = get_option(ffmpeg_args, "input", "ss")
-        t = get_option(ffmpeg_args, "input", "t")
-        to = get_option(ffmpeg_args, "input", "to")
+        ss = utils.parse_time_duration(get_option(ffmpeg_args, "input", "ss"))
+        t = utils.parse_time_duration(get_option(ffmpeg_args, "input", "t"))
+        to = utils.parse_time_duration(get_option(ffmpeg_args, "input", "to"))
         ar = get_option(
-            ffmpeg_args, "input", "ar", stream_type="a", stream_id=stream_id
+            ffmpeg_args,
+            "input",
+            "ar",
+            file_id=file_id,
+            stream_type="a",
+            stream_id=stream_id,
         )
         if ar is not None:
             fs = ar

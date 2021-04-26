@@ -60,8 +60,6 @@ def create(name, *args, **kwargs):
         ffmpeg_args, "output", {"t": nb_samples / rate}, file_index=0
     )
 
-    print(ffmpeg_args)
-
     stdout = ffmpeg.run_sync(ffmpeg_args)
     return np.frombuffer(stdout, dtype=dtype).reshape(-1, nch)
 
@@ -88,7 +86,7 @@ def read(url, stream_id=0, **options):
 
     args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
-    i0, i1 = configure.get_audio_range(args, stream_id)
+    i0, i1 = configure.get_audio_range(args, 0, stream_id)
     if i0 > 0:
         # if start time is set, remove to read all samples from the beginning
         del args["inputs"][0][1]["ss"]

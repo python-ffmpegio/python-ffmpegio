@@ -1,6 +1,5 @@
 import numpy as np
-from numpy.core.shape_base import block
-from .. import ffmpeg, probe, utils, configure
+from .. import ffmpeg, utils, configure
 
 
 class SimpleVideoReader:
@@ -19,6 +18,12 @@ class SimpleVideoReader:
         )
 
         self.dtype, self.shape, self.frame_rate = reader_cfg[0]
+
+        # index of the next frame
+        self.frame_index = int(
+            (utils.parse_time_duration(configure.get_option(args, "input", "ss")) or 0)
+            * self.frame_rate
+        )
 
         self.proc = ffmpeg.run(args)
         self.stdout = self.proc.stdout
@@ -44,7 +49,9 @@ class SimpleVideoReader:
         nbytes = self._nbytes * vframes
         data = self.stdout.read(nbytes if nbytes > 0 else -1)
         self.eof = nbytes < 1 or len(data) < nbytes
-        return np.frombuffer(data, dtype=self.dtype).reshape((-1, *self.shape))
+        data = np.frombuffer(data, dtype=self.dtype).reshape((-1, *self.shape))
+        self.frame_index += data.shape[0]
+        return data
 
     def close(self):
         if not self.eof:
@@ -117,7 +124,7 @@ class SimpleAudioReader:
     def __init__(self, url, stream_id=0, **options) -> None:
         args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
-        start, end = configure.get_audio_range(args, stream_id)
+        start, end = configure.get_audio_range(args, 0, stream_id)
         if start > 0:
             # if start time is set, remove to read all samples from the beginning
             del args["inputs"][0][1]["ss"]
@@ -139,6 +146,7 @@ class SimpleAudioReader:
         self._nbytes = self.channels * self.itemsize
         self.remaining = end
         self.eof = end <= 0
+        self.sample_index = start
 
         # if starting mid-stream, drop earlier samples
         while start > 8192:
@@ -170,6 +178,7 @@ class SimpleAudioReader:
             self.eof = True
             data = data[: self.remaining, :]
         self.remaining -= data.shape[0]
+        self.sample_index += data.shape[0]
         return data
 
     def readiter(self, nsamples):
