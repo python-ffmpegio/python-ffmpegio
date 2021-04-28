@@ -6,12 +6,12 @@ Transcode media file to another format/codecs
 ---------------------------------------------
 :py:func:`ffmpegio.transcode()`
 
-Simple Read/Write Streams
--------------------------
+Stream Read/Write
+-----------------
 ffmpegio.open()
 
-Simple Read/Write Functions
----------------------------
+Block Read/Write Functions
+--------------------------
 `ffmpegio.video.read()`
 `ffmpegio.video.write()`
 `ffmpegio.image.read()`

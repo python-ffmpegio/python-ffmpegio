@@ -74,13 +74,14 @@ def read(url, stream_id=0, **options):
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     :return: sample rate in samples/second and audio data matrix (timexchannel)
-    :rtype: tuple(`float`, `numpy.ndarray`)
+    :rtype: tuple(`float`, :py:class:`numpy.ndarray`)
 
-    .. note:: even if `start_time` option is set, prior samples are read, and
-    the retrieved data matrix is truncated before returning it to the caller.
-    This is to ensure the timing accuracy. As such, do not use this function
-    to perform block-wise processing. Instead use the streaming solution,
-    see :py:func:`open`.
+    .. note:: Even if :code:`start_time` option is set, all the prior samples will be read. 
+        The retrieved data will be truncated before returning it to the caller.
+        This is to ensure the timing accuracy. As such, do not use this function
+        to perform block-wise processing. Instead use the streaming solution,
+        see :py:func:`open`.
+
 
     """
 

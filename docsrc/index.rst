@@ -1,13 +1,6 @@
 ffmpegio Python Package: Media File I/O with FFmpeg
 ===================================================
 
-.. toctree::
-   :maxdepth: 2
-
-   get_started
-   api
-   options
-
 | PyPi: `<https://pypi.org/project/ffmpegio/>`__
 | GitHub: `<https://github.com/tikuma-lsuhsc/python-ffmpegio>`__
 
@@ -35,4 +28,11 @@ Main Features
   deinterlacing of video frames (all done by FFmpeg)
 * (planned) Audio and video filtering
 * (planned) Multi-stream read/write
+
+.. toctree::
+   :maxdepth: 2
+
+   quick
+   api
+   options
 
