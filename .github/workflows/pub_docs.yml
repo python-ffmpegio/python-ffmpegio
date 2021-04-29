@@ -1,6 +1,8 @@
 name: Publish Docs
 
 on:
+  push:
+    branches: [main] # only if commit message starts with "docs "
   workflow_run:
     workflows: ["Run Tests"]
     branches: [main]
@@ -11,7 +13,10 @@ jobs:
   publish-docs:
     name: Build sphinx documentation on docs branch
     runs-on: ubuntu-20.04
-    if: ${{ github.event_name=='workflow_dispatch' || (startsWith(github.ref, 'refs/tags') && github.event.workflow_run.conclusion == 'success' )}}
+    if: |
+      ${{ github.event_name=='workflow_dispatch' 
+      || (startsWith(github.ref, 'refs/tags') && github.event.workflow_run.conclusion == 'success' ) 
+      || (github.event_name=='push' && startsWith(github.event.head_commit.message, 'docs '))}}
     steps:
     - name: Checkout
       uses: actions/checkout@master
