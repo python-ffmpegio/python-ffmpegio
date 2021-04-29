@@ -33,6 +33,6 @@ Main Features
    :maxdepth: 2
 
    quick
-   api
+   basicio
+   probe
    options
-

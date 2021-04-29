@@ -104,6 +104,7 @@ def format_basic(url, entries=None):
     :type url: str
     :param entries: specify to narrow which information entries to retrieve. Default to None,
                     to return all entries
+
     :type seq of str
     :return: set of media format information.
     :rtype: dict
@@ -145,6 +146,7 @@ def streams_basic(url, entries=None):
     :type url: str
     :param entries: specify to narrow which information entries to retrieve. Default to None,
                     to return all entries
+                    
     :type seq of str
     :return: List of media stream information.
     :rtype: list of dict
@@ -178,9 +180,11 @@ def video_streams_basic(url, index=None, entries=None):
     :type url: str
     :param index: video stream index. 0=first video stream. Defaults to None, which returns
                   info of all video streams
+
     :type index: int, optional
     :param entries: specify to narrow which information entries to retrieve. Default to None,
                     to return all entries
+
     :type seq of str
     :return: List of video stream information.
     :rtype: list of dict
@@ -279,9 +283,11 @@ def audio_streams_basic(url, index=None, entries=None):
     :type url: str
     :param index: audio stream index. 0=first audio stream. Defaults to None, which returns
                   info of all audio streams
+
     :type index: int, optional
     :param entries: specify to narrow which information entries to retrieve. Default to None,
                     to return all entries
+
     :type seq of str
     :return: List of audio stream information.
     :rtype: list of dict

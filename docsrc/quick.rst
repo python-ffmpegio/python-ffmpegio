@@ -7,7 +7,7 @@ Install
 -------
 
 To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
-having the FFmpeg binary files in a location :py:mod:`ffmpegio` can find.
+having the FFmpeg binary files at a location :py:mod:`ffmpegio` can find.
 
 Install the :py:mod:`ffmpegio` package via ``pip``:
 
@@ -52,21 +52,69 @@ on the system path. For Windows, it is a bit more complicated.
    Alternately, the FFmpeg may be placed elsewhere and use :py:func:`ffmpegio.set_path` to
    specify any arbitrary location.
 
-Core concepts
--------------
+Core offerings
+--------------
 
 FFmpeg can read/write virtually any multimedia file out there, and :code:`ffmpegio` uses 
 the FFmpeg's prowess to perform media I/O (and other) operations in Python. It offers two
 basic modes of operation: block read/write and stream read/write. Another feature of 
 :code:`ffmpegio` is to report the properties of the media files, using FFprobe.
 
+Media Probe
+-----------
+
+To process a media file, you first need to know what's in it. Within FFmpeg
+ecosystem, this task is handled by `ffprobe<https://ffmpeg.org/ffprobe.html>`__.
+:code:`ffmpegio` offers a wrapper module :ref:`ffmpegio:probe<probe>` with 4
+basic functions:: 
+
+    >>> import ffmpegio
+    >>> from pprint import pprint
+    >>> url = 'mytestvideo.mpg'
+    >>> format_info = ffmpegio.probe.format_basic(url)
+    >>> pprint(format_info)
+    {'duration': 66.403256,
+    'filename': 'mytestvideo.mpg',
+    'format_name': 'mpegts',
+    'nb_streams': 2,
+    'start_time': 0.0}
+    >>> stream_info = ffmpegio.probe.streams_basic(url)
+    >>> pprint(stream_info) 
+    [{'codec_name': 'mp2', 'codec_type': 'audio', 'index': 0},
+    {'codec_name': 'h264', 'codec_type': 'video', 'index': 1}]
+    >>> vst_info =ffmpegio.probe.video_streams_basic(url) 
+    >>> pprint.pprint(vst_info) 
+    [{'codec_name': 'h264',
+    'display_aspect_ratio': Fraction(22, 15),
+    'duration': 66.39972222222222,
+    'frame_rate': Fraction(15000, 1001),
+    'height': 240,
+    'index': 1,
+    'pix_fmt': 'yuv420p',
+    'sample_aspect_ratio': Fraction(1, 1),
+    'start_time': 0.0,
+    'width': 352}]
+    >>> ast_info = ffmpegio.probe.audio_streams_basic(url)
+    >>> pprint.pprint(ast_info) 
+    [{'channel_layout': 'stereo',
+    'channels': 2,
+    'codec_name': 'mp2',
+    'duration': 66.40325555555556,
+    'index': 0,
+    'nb_samples': 2928384,
+    'sample_fmt': 'fltp',
+    'sample_rate': 44100,
+    'start_time': 0.0}]
+
+To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.inquire`. For more information, 
+see :ref:`probe`.
+
 Block Read/Write
-^^^^^^^^^^^^^^^^
+----------------
 
 Suppose you need to analyze short audio data in :code:`mytestfile.mp3`, you can
 read all its samples by::
 
-    >>> import ffmpegio
     >>> fs, x = ffmpegio.audio.read('mytestfile.wav')
 
 It returns the sampling rate :code:`fs` and :py:class:`numpy.ndarray` :code:`x`. 
@@ -105,7 +153,7 @@ The image data :code:`I` is like the video frame data, but without the leading
 dimension.
 
 Stream Read/Write
-^^^^^^^^^^^^^^^^^
+-----------------
 
 Block read/write is simple and convenient for a short file, but it quickly 
 becomes slow and inefficient as the data size grows; this is especially true 
@@ -123,7 +171,7 @@ Another example, which uses read and write streams simultaneously::
     >>> with ffmpegio.open("mytestvideo.mp4", 'rv') as f:
     >>>     with ffmpegio.open("myoutput.avi", "wv", f.frame_rate) as g:
     >>>         for frame in f.readiter(): # iterates over all frames, one at a time
-    >>>             output = my_processor(frame) # worker function to process data
+    >>>             output = my_processor(frame) # function to process data
     >>>             g.write(output) # send the processed frame to 'myoutput.avi' 
 
 By default, :code:`ffmpegio.open()` opens the first media stream availble to read.
@@ -134,3 +182,4 @@ file reader object :code:`f` is equipped with :code:`read()` method while the
 write object comes with :code:`write()` method. The reader, in addition, has
 :code:`readiter()` generator to iterate as long as there are data to read. For more, 
 see :py:func:`ffmpegio.open`.
+
