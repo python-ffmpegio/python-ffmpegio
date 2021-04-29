@@ -1,4 +1,5 @@
 import shlex, re, os, shutil, logging
+import threading, io, time, tempfile
 import subprocess as sp
 from collections import abc
 from . import filter_utils
@@ -407,11 +408,13 @@ def run_sync(
 def run(
     args,
     *sp_arg,
+    progress=None,
     hide_banner=True,
     stdout=PIPE,
     stderr=PIPE,
     **sp_kwargs,
 ):
+
     if isinstance(args, dict):
         args = compose(**args, command=_get_ffmpeg())
     else:
@@ -420,9 +423,22 @@ def run(
     if hide_banner:
         args.insert(1, "-hide_banner")
 
+    if progress:
+        progress_monitor = _ProgressMonitor(progress)
+        args = [*args[:1], "-progress", progress_monitor.url, *args[1:]]
+
     logging.debug(form_shell_cmd(args))
 
-    return sp.Popen(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
+    proc = sp.Popen(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
+
+    stderr_monitor = _StderrMonitor(proc)
+    stderr_monitor.start()
+
+    if progress:
+        progress_monitor.proc = proc
+        progress_monitor.start()
+
+    return proc
 
 
 def ffprobe(
@@ -494,3 +510,128 @@ def versions():
                 lv = v["library_versions"] = {}
             lv[m[1]] = m[2].replace(" ", "")
     return v
+
+
+class _ProgressMonitor(threading.Thread):
+    def __init__(self, callback, initial_wait=0.5):
+        threading.Thread.__init__(self)
+        self._td = tempfile.TemporaryDirectory()
+        self.url = os.path.join(self._td.name, "progress.txt")
+        self.callback = callback
+        self.initial_wait = initial_wait
+        self.proc = None
+
+    def run(self):
+        proc = self.proc
+        url = self.url
+        callback = self.callback
+
+        def readnext(f):
+            txt = f.readline()
+            m = pattern.match(txt)
+            while not m:
+                txt = f.readline()
+                m = pattern.match(txt)
+            return m
+
+        pattern = re.compile(r"(.+)?=(.+)\n")
+        done = False
+        logging.debug(f'[progress_monitor] monitoring "{url}"')
+        time.sleep(self.initial_wait)
+        if proc.poll() is None and os.path.isfile(url):
+            logging.debug(f"[progress_monitor] file found")
+            with open(url, "rt") as f:
+                while proc.poll() is None and not done:
+                    d = {}
+                    m = readnext(f)
+                    while m[1] != "progress":
+                        d[m[1]] = m[2]
+                        m = readnext(f)
+                    done = m[2] == "end"
+                    if callback(d, done):
+                        proc.terminate()
+                        proc.stderr.write("Operation canceled by user agent")
+
+        self._td.cleanup()
+
+
+class _StderrMonitorIO(io.StringIO):
+    def __init__(self):
+        io.StringIO.__init__(self)
+        self.lock = threading.Lock()
+
+    def read(self, size=-1):
+        self.lock.acquire()
+        v = io.StringIO.read(self, size)
+        self.lock.release()
+        return v
+
+    def readline(self, size=-1):
+        self.lock.acquire()
+        v = io.StringIO.readline(self, size)
+        self.lock.release()
+        return v
+
+    def write(self, s):
+        self.lock.acquire()
+        pos = io.StringIO.tell(self)
+        n = io.StringIO.write(self, s)
+        io.StringIO.seek(self, pos)
+        self.lock.release()
+        return n
+
+    def seek(self, offset, whence=io.SEEK_SET):
+        self.lock.acquire()
+        pos = io.StringIO.seek(self, offset, whence)
+        self.lock.release()
+        return pos
+
+    def tell(self):
+        self.lock.acquire()
+        pos = io.StringIO.tell(self)
+        self.lock.release()
+        return pos
+
+
+class _StderrMonitor(threading.Thread):
+    def __init__(self, proc):
+        threading.Thread.__init__(self)
+        self.proc = proc
+        self.input = proc.stderr
+        self.output = _StderrMonitorIO()
+        self.monitoring = True
+        setattr(proc, "stderr", self.output)
+
+        self.error_message = None
+        proc._stderr_monitor = self
+
+        def get_errmsg():
+            if self.proc.returncode != 0:
+                while self.monitoring:
+                    time.sleep(0.05)
+                txt = self.output.getvalue().splitlines()
+                self.error_message = txt[-1]
+            return self.error_message
+
+        setattr(proc, "get_errmsg", get_errmsg)
+
+    def run(self):
+        proc = self.proc
+        input = self.input
+
+        if input is None:
+            return
+
+        def read_next():
+            txt = input.readline().decode("utf-8")
+            if txt and txt != "\n":
+                self.output.write(txt)
+            return txt
+
+        while proc.poll() is None:
+            read_next()
+
+        while read_next():
+            pass
+
+        self.monitoring = False
