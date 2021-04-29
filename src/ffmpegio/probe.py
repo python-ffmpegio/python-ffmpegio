@@ -20,7 +20,7 @@ def _items_to_numeric(d):
     return {k: try_conv(v) for k, v in d.items()}
 
 
-def inquire(
+def full_details(
     url,
     show_format=True,
     show_streams=True,
@@ -28,18 +28,23 @@ def inquire(
     show_chapters=False,
     select_streams=None,
 ):
-    """[summary]
+    """Retrieve full details of a media file or stream
 
-    Args:
-        url ([type]): [description]
-        show_format (bool, optional): [description]. Defaults to True.
-        show_streams (bool, optional): [description]. Defaults to True.
-        show_programs (bool, optional): [description]. Defaults to False.
-        show_chapters (bool, optional): [description]. Defaults to False.
-        select_streams ([type], optional): [description]. Defaults to None.
+    :param url: URL of the media file/stream
+    :type url: str
+    :param show_format: True to return format info, defaults to True
+    :type show_format: bool, optional
+    :param show_streams: True to return stream info, defaults to True
+    :type show_streams: bool, optional
+    :param show_programs: True to return program info, defaults to False
+    :type show_programs: bool, optional
+    :param show_chapters: True to return chapter info, defaults to False
+    :type show_chapters: bool, optional
+    :param select_streams: Indices of streams to get info of, defaults to None
+    :type select_streams: seq of int, optional
+    :return: media file information
+    :rtype: dict
 
-    Returns:
-        [type]: [description]
     """
 
     args = ["-of", "json"]
@@ -98,28 +103,27 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
 
 
 def format_basic(url, entries=None):
-    """Retrieve basic info of media format
+    """Retrieve basic media format info
 
     :param url: URL of the media file/stream
     :type url: str
-    :param entries: specify to narrow which information entries to retrieve. Default to None,
-                    to return all entries
-
-    :type seq of str
+    :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
+    :type entries: seq of str
     :return: set of media format information.
     :rtype: dict
 
-    Media Format Information Entries
 
-        ===========  =====
-        name         type
-        ===========  =====
-        filename     int
-        nb_streams   str
-        format_name  str
-        start_time   float
-        duration     float
-        ===========  =====
+    Media Format Information Entries
+    
+    ===========  =====
+    name         type
+    ===========  =====
+    filename     int
+    nb_streams   str
+    format_name  str
+    start_time   float
+    duration     float
+    ===========  =====
 
     """
 
@@ -131,7 +135,7 @@ def format_basic(url, entries=None):
         "duration",
     )
 
-    results = inquire(
+    results = full_details(
         url,
         show_format=_resolve_entries("basic format", entries, default_entries),
         show_streams=False,
@@ -144,28 +148,27 @@ def streams_basic(url, entries=None):
 
     :param url: URL of the media file/stream
     :type url: str
-    :param entries: specify to narrow which information entries to retrieve. Default to None,
-                    to return all entries
-                    
-    :type seq of str
+    :param entries: specify to narrow which stream entries to retrieve. Default to None, returning all entries
+    :type entries: seq of str, optional
     :return: List of media stream information.
     :rtype: list of dict
 
-    Media Format Information Entries
+    Media Stream Information dict Entries
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        ==========   ====
-        name         type
-        ==========   ====
-        index        int
-        codec_name   str
-        codec_type   str
-        ==========   ====
+    ==========   ====
+    name         type
+    ==========   ====
+    index        int
+    codec_name   str
+    codec_type   str
+    ==========   ====
 
     """
 
     default_entries = ("index", "codec_name", "codec_type")
 
-    results = inquire(
+    results = full_details(
         url,
         show_format=False,
         show_streams=_resolve_entries("basic streams", entries, default_entries),
@@ -178,34 +181,31 @@ def video_streams_basic(url, index=None, entries=None):
 
     :param url: URL of the media file/stream
     :type url: str
-    :param index: video stream index. 0=first video stream. Defaults to None, which returns
-                  info of all video streams
-
+    :param index: video stream index. 0=first video stream. Defaults to None, which returns info of all video streams
     :type index: int, optional
-    :param entries: specify to narrow which information entries to retrieve. Default to None,
-                    to return all entries
-
-    :type seq of str
+    :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
+    :type entries: seq of str
     :return: List of video stream information.
     :rtype: list of dict
 
+
     Video Stream Information Entries
 
-        ====================  =========
-        name                  type
-        ====================  =========
-        index                 int
-        codec_name            str
-        width                 int
-        height                int
-        sample_aspect_ratio   Fractions
-        display_aspect_ratio  Fractions
-        pix_fmt               str
-        start_time            float
-        duration              float
-        frame_rate            Fractions
-        nb_frames             int
-        ====================  =========
+    ====================  =========
+    name                  type
+    ====================  =========
+    index                 int
+    codec_name            str
+    width                 int
+    height                int
+    sample_aspect_ratio   Fractions
+    display_aspect_ratio  Fractions
+    pix_fmt               str
+    start_time            float
+    duration              float
+    frame_rate            Fractions
+    nb_frames             int
+    ====================  =========
 
     """
 
@@ -232,7 +232,7 @@ def video_streams_basic(url, index=None, entries=None):
         nb_frames=("nb_frames", *durpara, *fspara),
     )
 
-    results = inquire(
+    results = full_details(
         url,
         show_format=False,
         show_streams=_resolve_entries(
@@ -281,14 +281,10 @@ def audio_streams_basic(url, index=None, entries=None):
 
     :param url: URL of the media file/stream
     :type url: str
-    :param index: audio stream index. 0=first audio stream. Defaults to None, which returns
-                  info of all audio streams
-
+    :param index: audio stream index. 0=first audio stream. Defaults to None, which returns info of all audio streams
     :type index: int, optional
-    :param entries: specify to narrow which information entries to retrieve. Default to None,
-                    to return all entries
-
-    :type seq of str
+    :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
+    :type entries: seq of str
     :return: List of audio stream information.
     :rtype: list of dict
 
@@ -329,7 +325,7 @@ def audio_streams_basic(url, index=None, entries=None):
         nb_samples=("sample_rate", *durpara),
     )
 
-    results = inquire(
+    results = full_details(
         url,
         show_format=False,
         show_streams=_resolve_entries(
