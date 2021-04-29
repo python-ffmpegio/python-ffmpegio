@@ -129,4 +129,4 @@ def write(url, data, **options):
     )
     configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
 
-    ffmpeg.run_sync(args, input=data.tobytes())
+    ffmpeg.run_sync(args, input=np.asarray(data).tobytes())

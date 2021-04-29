@@ -86,6 +86,8 @@ class SimpleVideoWriter:
         :rtype: (fractions.Fraction, numpy.ndarray)
         """
 
+        data = np.asarray(data)
+
         if self._proc is not None:
             if data.dtype != self.dtype:
                 raise Exception(
@@ -247,6 +249,8 @@ class SimpleAudioWriter:
         :return: frame rate and video frame data (dims: time x rows x cols x pix_comps)
         :rtype: (fractions.Fraction, numpy.ndarray)
         """
+
+        data = np.asarray(data)
 
         if self._proc is not None:
             if data.dtype != self.dtype:

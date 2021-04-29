@@ -60,9 +60,7 @@ def create(name, *args, duration=1.0, **kwargs):
 
     n = int(rate * duration)
 
-    configure.merge_user_options(
-        ffmpeg_args, "output", {"frames:v": n}, file_index=0
-    )
+    configure.merge_user_options(ffmpeg_args, "output", {"frames:v": n}, file_index=0)
     stdout = ffmpeg.run_sync(ffmpeg_args)
     return np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
 
@@ -129,4 +127,4 @@ def write(url, rate, data, **options):
         **options
     )
 
-    ffmpeg.run_sync(args, input=data.tobytes())
+    ffmpeg.run_sync(args, input=np.asarray(data).tobytes())

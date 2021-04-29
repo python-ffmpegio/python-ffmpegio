@@ -135,4 +135,4 @@ def write(url, rate, data, **options):
         **options,
     )
 
-    ffmpeg.run_sync(args, input=data.tobytes())
+    ffmpeg.run_sync(args, input=np.asarray(data).tobytes())
