@@ -16,8 +16,8 @@ Python :py:mod:`ffmpegio` package aims to bring the full capability of `FFmpeg <
 to read, write, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
 multimedia framework, which can handle most of the multimedia formats avilable today.
 
-Features
---------
+Main Features
+-------------
 
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
   the system
@@ -26,66 +26,8 @@ Features
 * Auto-conversion of video pixel formats and audio sample formats
 * Out-of-box support for fast resizing, re-orienting, cropping, rotating, and deinterlacing of video frames (all done by FFmpeg)
 * More features to follow
-  
-.. * (planned) Audio and video filtering
-.. * (planned) Multi-stream read/write
 
+Documentation
+-------------
 
-Where to start
---------------
-
-* :ref:`Quick-start guide <quick>`
-
-* Install via ``pip``:
-
-.. code-block:: bash
-
-   pip install ffmpegio
-
-Other resources
----------------
-
-* `GitHub project <https://github.com/tikuma-lsuhsc/python-ffmpegio>`_
-* `Ask questions on the GitHub Discussion board <https://github.com/tikuma-lsuhsc/python-ffmpegio/discussions>`_
-* `FFmpeg Documentation <http://ffmpeg.org/ffmpeg.html>`_
-* `FFprobe Documentation <https://ffmpeg.org/ffprobe.html>`__
-* `FFmpeg Filters Documentation <https://ffmpeg.org/ffmpeg-filters.html>`__
-* `PyPi Project Page <https://pypi.org/project/ffmpegio/>`__
-
-
-Introductory info
------------------
-
-.. toctree::
-    :maxdepth: 1
-
-    quick
-
-
-High-level API reference
-------------------------
-
-
-
-.. toctree::
-    :maxdepth: 1
-
-    basicio
-    probe
-    options
-
-Advanced topics
----------------
-
-TBD
-
-.. .. toctree::
-..     :maxdepth: 1
-
-..     config
-..     special
-..     strings
-..     refs
-..     mpi
-..     swmr
-..     vds
+Visit our [GitHub page here](https://tikuma-lsuhsc.github.io/python-ffmpegio/)
