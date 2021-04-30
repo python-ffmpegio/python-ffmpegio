@@ -52,8 +52,8 @@ on the system path. For Windows, it is a bit more complicated.
    Alternately, the FFmpeg may be placed elsewhere and use :py:func:`ffmpegio.set_path` to
    specify any arbitrary location.
 
-Core offerings
---------------
+Features
+--------
 
 FFmpeg can read/write virtually any multimedia file out there, and :code:`ffmpegio` uses 
 the FFmpeg's prowess to perform media I/O (and other) operations in Python. It offers two
@@ -64,12 +64,13 @@ Media Probe
 -----------
 
 To process a media file, you first need to know what's in it. Within FFmpeg
-ecosystem, this task is handled by `ffprobe<https://ffmpeg.org/ffprobe.html>`__.
-:code:`ffmpegio` offers a wrapper module :ref:`ffmpegio:probe<probe>` with 4
+ecosystem, this task is handled by `ffprobe <https://ffmpeg.org/ffprobe.html>`__.
+:code:`ffmpegio`'s :ref:`ffmpegio:probe<probe>` module wraps ffprobe with 4
 basic functions:: 
 
     >>> import ffmpegio
     >>> from pprint import pprint
+
     >>> url = 'mytestvideo.mpg'
     >>> format_info = ffmpegio.probe.format_basic(url)
     >>> pprint(format_info)
@@ -78,11 +79,13 @@ basic functions::
     'format_name': 'mpegts',
     'nb_streams': 2,
     'start_time': 0.0}
+
     >>> stream_info = ffmpegio.probe.streams_basic(url)
     >>> pprint(stream_info) 
     [{'codec_name': 'mp2', 'codec_type': 'audio', 'index': 0},
     {'codec_name': 'h264', 'codec_type': 'video', 'index': 1}]
-    >>> vst_info =ffmpegio.probe.video_streams_basic(url) 
+
+    >>> vst_info = ffmpegio.probe.video_streams_basic(url) 
     >>> pprint.pprint(vst_info) 
     [{'codec_name': 'h264',
     'display_aspect_ratio': Fraction(22, 15),
@@ -94,6 +97,7 @@ basic functions::
     'sample_aspect_ratio': Fraction(1, 1),
     'start_time': 0.0,
     'width': 352}]
+
     >>> ast_info = ffmpegio.probe.audio_streams_basic(url)
     >>> pprint.pprint(ast_info) 
     [{'channel_layout': 'stereo',
@@ -106,8 +110,8 @@ basic functions::
     'sample_rate': 44100,
     'start_time': 0.0}]
 
-To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.inquire`. For more information, 
-see :ref:`probe`.
+To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.full_details`. 
+For more information on :py:mod:`probe`, see :ref:`probe`.
 
 Block Read/Write
 ----------------
@@ -183,3 +187,75 @@ write object comes with :code:`write()` method. The reader, in addition, has
 :code:`readiter()` generator to iterate as long as there are data to read. For more, 
 see :py:func:`ffmpegio.open`.
 
+Specify Read Time Range
+-----------------------
+
+For both block and stream read operations, you can specify the time range to read 
+data from. There are four options available:
+
+.. table:: Read Timing Options
+   :class: tight-table
+   
+   ========  =======================================================================
+   Name      Description
+   ========  =======================================================================
+   start     Start time. Defaults to the beginning of the stream.
+   end       End time. Defaults to the end of the stream.
+   duration  Duration in seconds. Defaults to the duration from :code:`start` to the 
+             end of the input stream.
+   units     Time units. One of ``seconds``, ``frames``, or ``samples``. Defaults 
+             to ``seconds``.
+   ========  =======================================================================
+
+One of :code:`start`, :code:`end`, :code:`duration` or a combination of two of them
+defines the read range::
+
+    >>>url = "myvideo.mp4"
+    >>>info = ffmpegio.probe.video_streams_basic(url)[0]
+
+    >>>#read only the first 1 seconds
+    >>>fs, F = ffmpegio.video.read(url, duration=1.0)
+    
+    >>>#read the last 2.5 seconds
+    >>>fs, F = ffmpegio.video.read(url, end=info["duration"], duration=2.5)
+    
+    >>>#read from 1.2 second mark to 2.5 second mark
+    >>>fs, F = ffmpegio.video.read(url, start=1.2, end=2.5)
+    
+.. note::
+    If all 3 are given, the read functions honor :code:`start` and :code:`duration` 
+    and ignore :code:`end`.
+
+Rather than specifying the times and durations in seconds, :code:`units` option 
+allows to specify by the frame numbers for video and sample numbers for audio.
+For example::
+
+    >>>#read 30 frame from the 11th frame (remember Python uses 0-based index)
+    >>>with ffmpegio.open("myvideo.mp4", start=10, duration=30, units='frames') as f:
+    >>>    frame = f.read()
+    >>>    # do your thing with the frame data
+
+In this example, the video stream of :code:`"myvideo.mp4"` is first probed for its
+frame rate, then the :code:`start` and :code:`duration` arguments are converted to
+seconds per the discovered frame rate.
+
+Likewise, the timing of the audio input stream can be set with its sample number::
+
+    >>>#read first 10000 audio samples
+    >>>fs, x = ffmpegio.audio.read("myaudio.wav", duration=10000, units='samples')
+
+Now, you may ask about the accuracy of the timing, and this is a very important point
+when using FFmpeg in general. FFmpeg is a media playback/recording/transcoding
+tool and not a precision data analysis software. As such, it does not and cannot 
+guarantee the time accuracy. To quote from its documentation,
+        
+    "Note that in most formats it is not possible to seek exactly, so ffmpeg will 
+    seek to the closest seek point before position. When transcoding and ``-accurate_seek``
+    is enabled (the default), this extra segment between the seek point and position 
+    will be decoded and discarded."
+
+This being said, video frames are generally seeked correctly with ``-accurate_seek``.
+However, the audio stream timing gets a bit dicier due to its frames containing multiple
+samples. To overcome this :py:mod:`ffmpegio` always reads the audio stream from the
+beginning and truncate unrequested samples. So, it is advised to use the stream read
+if multiple audio segments are needed to reduce this necessary overhead.

@@ -30,6 +30,11 @@ Where to start
 
 * :ref:`Quick-start guide <quick>`
 
+* Install via ``pip``:
+
+.. code-block:: bash
+
+   pip install ffmpegio
 
 Other resources
 ---------------

@@ -1,0 +1,8 @@
+table.tight-table {
+    width: 100%;
+    table-layout: auto;
+}
+
+.tight-table td {
+    white-space: normal !important;
+}
