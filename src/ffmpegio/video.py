@@ -95,7 +95,7 @@ def read(url, vframes=None, stream_id=0, **options):
     )
     dtype, shape, rate = reader_cfg[0]
 
-    configure.merge_user_options(args, "output", {"frames:v": vframes})
+    configure.merge_user_options(args, "output", {"frames:v": vframes} if vframes else {})
     stdout = ffmpeg.run_sync(args)
     return rate, np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
 
