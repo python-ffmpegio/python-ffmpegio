@@ -5,3 +5,4 @@ PyQt5
 sphinx
 sphinx-rtd-theme
 sphinx-autopackagesummary
+sphinxcontrib-blockdiag

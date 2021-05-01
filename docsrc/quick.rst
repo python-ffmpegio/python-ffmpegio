@@ -356,3 +356,84 @@ Note when converting from an image with alpha channel (FFmpeg does not support
 alpha channel in video) the background color may be specified with :code:`fill_color`
 option (default: ``'white'``). See `the FFmpeg color specification <https://ffmpeg.org/ffmpeg-utils.html#Color>`__
 for the list of predefined color names.
+
+Built-in Video Manipulation
+---------------------------
+
+FFmpeg can manipulate both video and audio streams by its filters 
+(`FFmpeg Documentation <https://ffmpeg.org/ffmpeg-filters.html#Description>`__).
+Both read and write video routines in :py:mod:`ffmpegio` utilizes the FFmpeg
+filters to perform elementary operations on video frames.
+
+.. list-table:: Options to manipulate video frames
+  :widths: auto
+  :header-rows: 1
+  :class: tight-table
+
+  * - name
+    - value
+    - FFmpeg filter
+    - Description
+  * - :code:`size`
+    - seq(int, int)
+    - `scale <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__
+    - output video frame size (width, height). if one is <=0 scales proportionally to the other dimension
+  * - :code:`scale`
+    - float or seq of 2 floats
+    - `scale  <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__
+    - output video frame scaling factor, if :code:`size` is not defined
+  * - :code:`crop`
+    - seq(int[, int[, int[, int]]])
+    - `crop <https://ffmpeg.org/ffmpeg-filters.html#crop>`__
+    - video frame cropping/padding, values representing the number of pixels to crop from [left top right bottom].
+      If positive, the video frame is cropped from the respective edge. If negative, the video frame is padded on 
+      the respective edge. If right or bottom is missing, uses the same value as left or top, respectively. If top
+      is missing, it defaults to 0.
+  * - :code:`flip`
+    - {:code:`'horizontal'`, :code:`'vertical'`, :code:`'both'`}
+    - `hflip <https://ffmpeg.org/ffmpeg-filters.html#hflip>`__ or `vflip <https://ffmpeg.org/ffmpeg-filters.html#vflip>`__
+    - flip the video frames horizontally, vertically, or both.
+  * - :code:`transpose`
+    - int
+    - `transpose <https://ffmpeg.org/ffmpeg-filters.html#transpose-1>`__
+    - tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
+      For the others, see the FFmpeg documentation.
+  * - :code:`rotate`
+    - float
+    - `rotate <https://ffmpeg.org/ffmpeg-filters.html#rotate>`__
+    - rotate video frame in the clockwise direction. Value specifies the rotation in degrees. 
+      The resulting video frame is enlarged to fit the rotated input frame with background color
+      specified by :code:`fill_color` option (default: :code:`'white'`).
+  * - :code:`deinterlace`
+    - {|bwdif|_, |estdif|_, |kerndeint|_, |nnedi|_, |w3fdif|_, |yadif|_, |yadif_cuda|_}  
+    - specified by value
+    - apply the specified deinterlacing filter with its default settings
+  
+.. |bwdif| replace:: :code:`'bwdif'`
+.. _bwdif: https://ffmpeg.org/ffmpeg-filters.html#bwdif
+.. |estdif| replace:: :code:`'estdif'`
+.. _estdif: https://ffmpeg.org/ffmpeg-filters.html#estdif
+.. |kerndeint| replace:: :code:`'kerndeint'`
+.. _kerndeint: https://ffmpeg.org/ffmpeg-filters.html#kerndeint
+.. |nnedi| replace:: :code:`'nnedi'`
+.. _nnedi: https://ffmpeg.org/ffmpeg-filters.html#nnedi
+.. |w3fdif| replace:: :code:`'w3fdif'`
+.. _w3fdif: https://ffmpeg.org/ffmpeg-filters.html#w3fdif
+.. |yadif| replace:: :code:`'yadif'`
+.. _yadif: https://ffmpeg.org/ffmpeg-filters.html#yadif
+.. |yadif_cuda| replace:: :code:`'yadif_cuda'`
+.. _yadif_cuda: https://ffmpeg.org/ffmpeg-filters.html#yadif_cuda
+
+Note that the these operations are pre-wired to perform in a specific order:
+
+.. blockdiag::
+  :caption: Video Manipulation Order
+
+  blockdiag {
+    crop -> flip -> deinterlace -> transpose -> rotate -> "size/scale";
+    deinterlace -> transpose [folded];
+  }
+
+Be aware of this ordering as these filters are non-commutative (i.e., a change in the 
+order of operation alters the outcome). If your desired order of filtering differs or
+need to use other filters, you must use the forthcoming :code:`filter_graph` option. 

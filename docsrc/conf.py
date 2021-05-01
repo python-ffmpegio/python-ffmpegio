@@ -35,8 +35,13 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
+    'sphinxcontrib.blockdiag'
 ]
 # Looks for objects in external projects
+
+# Fontpath for blockdiag (truetype font)
+blockdiag_fontpath = '_static/ipagp.ttf'
+blockdiag_html_image_format = "SVG"
 
 intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable", None),
