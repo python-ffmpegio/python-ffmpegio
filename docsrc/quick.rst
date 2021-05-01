@@ -178,20 +178,20 @@ read/write operation. It mimics the familiar Python's file I/O with
 
 .. code-block:: python
 
-    >>> with ffmpegio.open('mytestvideo.mp4', 'v') as f: # opens the first video stream
-    >>>     print(f.frame_rate) # frame rate fraction in frames/second
-    >>>     F = f.read() # read the first frame
-    >>>     F = f.read(5) # read the next 5 frames at once
+  >>> with ffmpegio.open('mytestvideo.mp4', 'v') as f: # opens the first video stream
+  >>>     print(f.frame_rate) # frame rate fraction in frames/second
+  >>>     F = f.read() # read the first frame
+  >>>     F = f.read(5) # read the next 5 frames at once
 
 Another example, which uses read and write streams simultaneously:
 
 .. code-block:: python
 
-    >>> with ffmpegio.open('mytestvideo.mp4', 'rv') as f:
-    >>>     with ffmpegio.open('myoutput.avi', 'wv', f.frame_rate) as g:
-    >>>         for frame in f.readiter(): # iterates over all frames, one at a time
-    >>>             output = my_processor(frame) # function to process data
-    >>>             g.write(output) # send the processed frame to 'myoutput.avi' 
+  >>> with ffmpegio.open('mytestvideo.mp4', 'rv') as f:
+  >>>     with ffmpegio.open('myoutput.avi', 'wv', f.frame_rate) as g:
+  >>>         for frame in f.readiter(): # iterates over all frames, one at a time
+  >>>             output = my_processor(frame) # function to process data
+  >>>             g.write(output) # send the processed frame to 'myoutput.avi' 
 
 By default, :code:`ffmpegio.open()` opens the first media stream availble to read.
 However, the operation mode can be specified via the :code:`mode` second argument.
@@ -245,7 +245,7 @@ defines the read range:
 
 Rather than specifying the times and durations in seconds, :code:`units` option 
 allows to specify by the frame numbers for video and sample numbers for audio.
-For example::
+For example:
 
 .. code-block:: python
 
@@ -258,7 +258,7 @@ In this example, the video stream of :code:`'myvideo.mp4'` is first probed for i
 frame rate, then the :code:`start` and :code:`duration` arguments are converted to
 seconds per the discovered frame rate.
 
-Likewise, the timing of the audio input stream can be set with its sample number::
+Likewise, the timing of the audio input stream can be set with its sample number:
 
 .. code-block:: python
 
@@ -286,7 +286,8 @@ Specify Data Formats
 
 FFmpeg can convert the formats of video pixels and sound samples on the fly. 
 This feature is enabled in :py:mod:`ffmpegio` via options :code:`pix_fmt` for
-video and :code:`sample_fmt` for audio:
+video and :code:`sample_fmt` for audio. Also, the number of audio channels can
+be changed with :code:`channels` option.
 
   .. table:: Video :code:`pix_fmt` Option Values
     :class: tight-table
@@ -327,13 +328,13 @@ For example,
   >>> GRAY.shape
   (29, 640, 480, 1)
   
-  # auto-convert PNG image to remove transparency with white background
+  >>> # auto-convert PNG image to remove transparency with white background
   >>> RGBA = ffmpegio.image.read('myimage.png') # natively rgba with transparency
-  >>> RGB = ffmpegio.image.read('myimage.png', pix_fmt='rgb', fill_color='white') 
+  >>> RGB = ffmpegio.image.read('myimage.png', pix_fmt='rgb24', fill_color='white') 
   >>> RGB.shape
   (100, 396, 4)
-  >>> GRAY.shape
-  (29, 640, 480, 1)
+  >>> RGB.shape
+  (100, 396, 3)
   
   >>> # auto-convert to audio samples to double precision
   >>> fs, x = ffmpegio.audio.read('myaudio.wav') # natively s16
@@ -342,7 +343,15 @@ For example,
   2324
   >>> y.max()
   0.0709228515625
-
+  
+  >>> # auto-convert to mono
+  >>> fs, x = ffmpegio.audio.read('myaudio.wav') # natively stereo
+  >>> _, y = ffmpegio.audio.read('myaudio.wav', channels=1) 
+  >>> x.shape
+  (44100, 2)
+  >>> y.shape
+  (44100, 1)
+  
 Note when converting from an image with alpha channel (FFmpeg does not support 
 alpha channel in video) the background color may be specified with :code:`fill_color`
 option (default: ``'white'``). See `the FFmpeg color specification <https://ffmpeg.org/ffmpeg-utils.html#Color>`__
