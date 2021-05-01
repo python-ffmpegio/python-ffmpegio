@@ -579,10 +579,8 @@ def video_io(
     :type transpose: int
     :param rotate: degrees to rotate video frame clockwise
     :type rotate: float
-    :param deinterlace: apply the specified deinterlacing filter with its default settings
-    :type {'bwdif','estdif','kerndeint','nnedi','w3fdif','yadif','yadif_cuda'}
 
-    Filter Order: crop=>flip=>deinterlace=>transpose=>rotate=>scale
+    Filter Order: crop=>flip=>transpose=>rotate=>scale
 
 
     """
@@ -847,15 +845,6 @@ def video_stream(
             vfilters.append("hflip")
         if ftype >= 2:
             vfilters.append("vflip")
-
-    deint = stream_opts.get("deinterlace", None)
-    if deint:
-        # fmt: off
-        if deint not in ("bwdif", "estdif", "kerndeint", "nnedi", "w3fdif", "yadif", "yadif_cuda"):
-            raise Exception("Invalid deinterlacing filter specified.")
-        # fmt: on
-        vfilters.append(deint)
-        h *= 2
 
     transpose = stream_opts.get("transpose", None)
     if transpose:

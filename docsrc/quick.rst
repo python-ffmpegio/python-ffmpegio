@@ -404,25 +404,6 @@ filters to perform elementary operations on video frames.
     - rotate video frame in the clockwise direction. Value specifies the rotation in degrees. 
       The resulting video frame is enlarged to fit the rotated input frame with background color
       specified by :code:`fill_color` option (default: :code:`'white'`).
-  * - :code:`deinterlace`
-    - {|bwdif|_, |estdif|_, |kerndeint|_, |nnedi|_, |w3fdif|_, |yadif|_, |yadif_cuda|_}  
-    - specified by value
-    - apply the specified deinterlacing filter with its default settings
-  
-.. |bwdif| replace:: :code:`'bwdif'`
-.. _bwdif: https://ffmpeg.org/ffmpeg-filters.html#bwdif
-.. |estdif| replace:: :code:`'estdif'`
-.. _estdif: https://ffmpeg.org/ffmpeg-filters.html#estdif
-.. |kerndeint| replace:: :code:`'kerndeint'`
-.. _kerndeint: https://ffmpeg.org/ffmpeg-filters.html#kerndeint
-.. |nnedi| replace:: :code:`'nnedi'`
-.. _nnedi: https://ffmpeg.org/ffmpeg-filters.html#nnedi
-.. |w3fdif| replace:: :code:`'w3fdif'`
-.. _w3fdif: https://ffmpeg.org/ffmpeg-filters.html#w3fdif
-.. |yadif| replace:: :code:`'yadif'`
-.. _yadif: https://ffmpeg.org/ffmpeg-filters.html#yadif
-.. |yadif_cuda| replace:: :code:`'yadif_cuda'`
-.. _yadif_cuda: https://ffmpeg.org/ffmpeg-filters.html#yadif_cuda
 
 Note that the these operations are pre-wired to perform in a specific order:
 
@@ -430,8 +411,8 @@ Note that the these operations are pre-wired to perform in a specific order:
   :caption: Video Manipulation Order
 
   blockdiag {
-    crop -> flip -> deinterlace -> transpose -> rotate -> "size/scale";
-    deinterlace -> transpose [folded];
+    crop -> flip -> transpose -> rotate -> "size/scale";
+    transpose -> rotate [folded];
   }
 
 Be aware of this ordering as these filters are non-commutative (i.e., a change in the 
