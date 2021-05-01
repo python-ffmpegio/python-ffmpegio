@@ -2,35 +2,43 @@ from ffmpegio import ffmpeg, probe
 from os import path
 from pprint import pprint
 
+from ffmpegio import image
+from matplotlib import pyplot as plt
 
-url = "tests/assets/testvideo-5m.mp4"
-if not path.isfile(url):
-    ffmpeg.run_sync(
-        {
-            "inputs": [("testsrc=r=30000/1001:d=300", {"f": "lavfi"})],
-            "outputs": [(url, None)],
-            "global_options": {"y": None},
-        }
-    )
-pprint(probe.full_details(url))
+command_list = (
+    {
+        "inputs": [("testsrc=r=30000/1001:d=60", {"f": "lavfi"})],
+        "outputs": [("tests/assets/testvideo-1m.mp4", None)],
+        "global_options": {"y": None},
+    },
+    {
+        "inputs": [
+            (
+                "aevalsrc = '0.1*sin(2*PI*(360-2.5/2)*t) | 0.1*sin(2*PI*(360+2.5/2)*t)':d=60",
+                {"f": "lavfi"},
+            )
+        ],
+        "outputs": [("tests/assets/testaudio-1m.mp3", None)],
+        "global_options": {"y": None},
+    },
+    {
+        "inputs": [
+            ("testsrc=r=30000/1001:d=60", {"f": "lavfi"}),
+            (
+                "aevalsrc = '0.1*sin(2*PI*(360-2.5/2)*t) | 0.1*sin(2*PI*(360+2.5/2)*t)':d=60",
+                {"f": "lavfi"},
+            ),
+            ("testsrc2=d=60", {"f": "lavfi"}),
+            ("anoisesrc=d=60:c=pink:r=44100:a=0.5:d=60", {"f": "lavfi"}),
+        ],
+        "outputs": [("tests/assets/testmulti-1m.mp4", {"map": (0, 1, 2, 3)})],
+        "global_options": {"y": None},
+    },
+)
 
 
-url = "tests/assets/testvideo-5m.mpg"
-if not path.isfile(url):
-    ffmpeg.run_sync(
-        {
-            "inputs": [("testsrc2=r=30000/1001:d=60", {"f": "lavfi"})],
-            "outputs": [
-                (
-                    "tests/assets/testvideo-5m.mpg",
-                    {
-                        "flags": "+ildct+ilme",
-                        "vf": "interlace=lowpass=0:scan=tff",
-                        "c:v": "mpeg2video",
-                    },
-                )
-            ],
-            "global_options": {"y": None},
-        }
-    )
-pprint(probe.full_details(url))
+for cfg in command_list:
+    url = cfg["outputs"][0][0]
+    if not path.isfile(url):
+        ffmpeg.run_sync(cfg)
+    pprint(probe.full_details(url))

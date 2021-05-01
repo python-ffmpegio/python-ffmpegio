@@ -3,15 +3,8 @@ import tempfile, re
 from os import path
 
 def test_transcode():
-    # url = "tests/assets/testaudio-one.wav"
-    # url = "tests/assets/testaudio-two.wav"
-    url = "tests/assets/testaudio-three.wav"
-    # url = "tests/assets/testvideo-5m.mpg"
+    url = "tests/assets/testmulti-1m.mp4"
     outext = ".flac"
-
-    # url = "tests/assets/testvideo-43.avi"
-    # url = "tests/assets/testvideo-169.avi"
-    # outext = ".mp4"
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # print(probe.audio_streams_basic(url))

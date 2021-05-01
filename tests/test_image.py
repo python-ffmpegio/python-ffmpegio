@@ -4,12 +4,6 @@ from os import path
 import numpy as np
 
 outext = ".png"
-# url = "tests/assets/testaudio-one.wav"
-# url = "tests/assets/testaudio-two.wav"
-# url = "tests/assets/testaudio-three.wav"
-# url = "tests/assets/testvideo-5m.mpg"
-# url = "tests/assets/testvideo-43.avi"
-# url = "tests/assets/testvideo-169.avi"
 
 
 def test_create():

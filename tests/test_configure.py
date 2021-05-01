@@ -2,9 +2,9 @@ from ffmpegio import configure, ffmpeg, probe, filter_utils, utils
 import pytest
 import numpy as np
 
-vid_url = "tests/assets/testvideo-5m.mpg"
+vid_url = "tests/assets/testvideo-1m.mp4"
 img_url = "tests/assets/ffmpeg-logo.png"
-aud_url = "tests/assets/testaudio-one.wav"
+aud_url = "tests/assets/testaudio-1m.wav"
 
 
 def test_add_url():
@@ -72,7 +72,7 @@ def test_get_option():
 
 def test_input_timing():
     args = configure.input_timing({}, vid_url)
-    args_expected = {"inputs": [("tests/assets/testvideo-5m.mpg", {})]}
+    args_expected = {"inputs": [("tests/assets/testvideo-1m.mp4", {})]}
     assert args == args_expected
 
     opts = args_expected["inputs"][0][1]
@@ -115,7 +115,7 @@ def test_input_timing():
 
 def test_codec():
     args = configure.codec({}, vid_url, "v")
-    args_expected = {"outputs": [("tests/assets/testvideo-5m.mpg", {})]}
+    args_expected = {"outputs": [("tests/assets/testvideo-1m.mp4", {})]}
     opts = args_expected["outputs"][0][1]
     assert args == args_expected
 

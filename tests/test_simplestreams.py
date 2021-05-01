@@ -3,9 +3,7 @@ import tempfile, re
 from os import path
 import numpy as np
 
-# url = "tests/assets/testvideo-5m.mpg"
-url = "tests/assets/testvideo-43.avi"
-# url = "tests/assets/testvideo-169.avi"
+url = "tests/assets/testmulti-1m.mp4"
 outext = ".mp4"
 
 
@@ -24,7 +22,6 @@ def test_read_write_video():
 
 
 def test_read_audio():
-    url = "tests/assets/testvideo-5m.mpg"
     with ffmpegio.open(url, "ra") as f:
         x = f.read(1024)
         assert x.shape == (1024, f.channels)
@@ -39,7 +36,6 @@ def test_read_audio():
 
 
 def test_read_write_audio():
-    url = "tests/assets/testaudio-three.wav"
     outext = ".flac"
 
     with ffmpegio.open(url, "ra") as f:

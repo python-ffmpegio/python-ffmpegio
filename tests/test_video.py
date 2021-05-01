@@ -34,10 +34,7 @@ def test_create():
 
 
 def test_read_write():
-    # url = "tests/assets/testvideo-5m.mpg"
-    url = "tests/assets/testvideo-43.avi"
-    # url = "tests/assets/testvideo-169.avi"
-    # url = r"C:\Users\tikum\Music\(アルバム) [Jazz Fusion] T-SQUARE - T-Square Live featuring F-1 Grand Prix Theme [EAC] (flac+cue).mka"
+    url = "tests/assets/testvideo-1m.mp4"
     outext = ".mp4"
 
     info = probe.video_streams_basic(url)[0]
