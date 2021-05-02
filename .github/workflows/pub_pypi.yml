@@ -3,9 +3,6 @@ name: Publish to PyPI
 on:
   workflow_run:
     workflows: ["Run Tests"]
-    branches: [main]
-    tags:
-      - 'v*.*.*'
     types: [completed]
   workflow_dispatch:
 
