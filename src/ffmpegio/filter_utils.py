@@ -127,7 +127,7 @@ def compose_filter(name, *args, id=None, **kwargs):
 
 
 def compose_chain(*filters, head_label=None, tail_label=None):
-    """Compose fitler chain
+    """Compose filter chain
     :param *filters: a sequence defining filters, which defines the chain in
                      the order presented. Each item must adhere to
                      `compose_filter()` arguments, except for the last, which
@@ -146,10 +146,10 @@ def compose_chain(*filters, head_label=None, tail_label=None):
 
         if isinstance(info, str):
             return info
-
-        has_kw = isinstance(info[-1], dict)
-        kwargs = info[-1] if has_kw else {}
-        return compose_filter(*(info[:-1] if has_kw else info), **kwargs)
+        else:
+            has_kw = isinstance(info[-1], dict)
+            kwargs = info[-1] if has_kw else {}
+            return compose_filter(*(info[:-1] if has_kw else info), **kwargs)
 
     chain = ",".join([define_filter(info) for info in filters])
 
@@ -175,7 +175,7 @@ def compose_graph(*chains, input_labels={}, output_labels={}):
                     elements of the chains. If a chain only outputs,
                     specify no link and set its label using `output_labels`
                     argument below.
-    :type chains[]: seq
+    :type chains[]: seq(seq[, seq])
     :param input_labels: specifies input streams to the graph. Keys are
                          stream specifiers and values are sequences of
                          (chain_id, in_pad_id) of the receiving chains, defaults to {}
@@ -186,10 +186,13 @@ def compose_graph(*chains, input_labels={}, output_labels={}):
     :type output_labels: dict, optional
     :returns: filter graph expression
     :rtype: str
-    """
 
-    nchains = len(chains)
-    cids = range(nchains)
+    Examples of chain definitions:
+
+    ((("pad", "iw*2", "ih*2"),), [(4, 0)]) # a link with one filter with one output pad, which connects to 5th link's first input pad
+    (("hflip", ("setpts", "PTS-STARTPTS")), [(2, 0)]) # a link with 2 filters with its one output connecting to the first input pad of the 3rd link
+
+    """
 
     def set_pad_label(defs, p, label=None):
         no_pad = isinstance(p, int)
@@ -222,19 +225,15 @@ def compose_graph(*chains, input_labels={}, output_labels={}):
         set_pad_label(output_defs, p, label)
 
     # add linking labels
-    for i in cids:
-        # get defined links
-        links = chains[i][1:]
-        nlinks = len(links)
-        if not nlinks:
-            continue
+    for i, chain in enumerate(chains):
 
-        for j in range(nlinks):
+        # get defined links
+        for j, links in enumerate(chain[1:]):
             # set source pad label
             label = set_pad_label(output_defs, (i, j))
 
             # set dest pad labels
-            for p in links[j]:
+            for p in links:
                 set_pad_label(input_defs, p, label)
 
     # finalize labels of chain input/ourput
@@ -242,8 +241,8 @@ def compose_graph(*chains, input_labels={}, output_labels={}):
         return [defs.get(i, "") for i in range(len(defs))]
 
     def generate():
-        for i in cids:
-            chain = chains[i][0]
+        for i, chain in enumerate(chains):
+            chain = chain[0]
             yield compose_chain(
                 *((chain,) if isinstance(chain, str) else chain),
                 head_label=finalize_labels(input_defs.get(i, {})),

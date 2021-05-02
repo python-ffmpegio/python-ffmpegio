@@ -635,10 +635,9 @@ def video_io(
     if fg_outputs is None:
         fg_outputs = fg_labels["output_labels"] = {}
 
-    for i in range(nstreams):
+    for i, opts in enumerate(ffmpeg_opts):
 
         st_id = stream_ids[i]
-        opts = ffmpeg_opts[i]
         filt_def = opts.pop("vf", None)
 
         in_spec = out_spec = utils.spec_stream(st_id, "v", file_index=in_file_id)
@@ -688,7 +687,7 @@ def video_io(
 
     out_cfg["map"] = out_map
     if len(fg) > 0:
-        merge_user_options(ffmpeg_args, "global", {"filter_complex": (*fg, fg_labels)})
+        merge_user_options(ffmpeg_args, "global", {"filter_complex": (fg, fg_labels)})
 
     return ffmpeg_args, reader_cfgs
 
