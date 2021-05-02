@@ -73,3 +73,27 @@ def test_read_write():
 
 
 # test_read_write()
+
+if __name__ == "__main__":
+
+    from matplotlib import pyplot as plt
+    import logging
+
+    # logging.basicConfig(level=logging.DEBUG)
+
+    IM = image.read(
+        "tests/assets/ffmpeg-logo.png",
+        # crop=(0, 0, 200, 0),
+        # rotate=30,
+        pix_fmt='rgb24',
+        fill_color="blue",
+        transpose=0,
+        size=(200,-1)
+    )
+    print(IM.shape)
+
+    plt.figure(figsize=(IM.shape[1] / 96, IM.shape[0] / 96))
+    plt.imshow(IM)
+    plt.gca().set_position((0, 0, 1, 1))
+    # plt.axis('off')
+    plt.show()

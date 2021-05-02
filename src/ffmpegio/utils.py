@@ -172,7 +172,7 @@ def get_rotated_shape(w, h, deg):
     C = np.cos(theta)
     S = np.sin(theta)
     X = np.matmul([[C, -S], [S, C]], [[w, w, 0.0], [0.0, h, h]])
-    return int(round(abs(X[0, 0] - X[0, 2]))), int(round(abs(X[1, 1])))
+    return int(round(abs(X[0, 0] - X[0, 2]))), int(round(abs(X[1, 1]))), theta
 
 
 def get_audio_format(fmt):

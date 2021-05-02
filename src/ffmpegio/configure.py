@@ -846,23 +846,25 @@ def video_stream(
             vfilters.append("vflip")
 
     transpose = stream_opts.get("transpose", None)
-    if transpose:
-        vfilters.append(("transpose", transpose % 8))
+    if transpose is not None:
+        vfilters.append(("transpose", transpose))
+        if h > w or (isinstance(transpose, int) and transpose < 4):
+            w, h = h, w
+            # 4-7, the transposition is only done if the input video geometry is portrait and not landscape
 
-    rot = stream_opts.get("rotate", None)
-    if rot:
-        w, h = utils.get_rotated_shape(w, h, rot)
+    rotdeg = stream_opts.get("rotate", None)
+    if rotdeg:
+        w, h, rot = utils.get_rotated_shape(w, h, rotdeg)
         vfilters.append(("rotate", rot, w, h, {"c": bg_color}))
 
     size = stream_opts.get("size", None)
     scale = stream_opts.get("scale", None)
     if size or scale:
         if size:
-            if size[0] <= 0:
-                size[0] = size[1] * w / h
-            elif size[1] <= 0:
-                size[1] = size[0] * h / w
-            w, h = size
+            w, h = (
+                size[1] * w / h if size[0] <= 0 else size[0],
+                size[0] * h / w if size[1] <= 0 else size[1],
+            )
         else:
             sep = isinstance(scale, Sequence)
             w *= scale[0] if sep else scale
