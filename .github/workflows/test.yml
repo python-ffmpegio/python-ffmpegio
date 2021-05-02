@@ -32,6 +32,8 @@ jobs:
             python-version: 3.8
 
     steps:
+      - run: echo ${{github.ref}}
+
       - uses: actions/checkout@v2
 
       - name: Set up FFmpeg
