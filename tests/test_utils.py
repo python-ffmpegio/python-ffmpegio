@@ -32,7 +32,7 @@ def test_get_rotated_shape():
     print(utils.get_rotated_shape(w, h, 30))
     print(utils.get_rotated_shape(w, h, 45))
     print(utils.get_rotated_shape(w, h, 60))
-    assert utils.get_rotated_shape(w, h, 90) == (h, w)
+    assert utils.get_rotated_shape(w, h, 90) == (h, w, np.pi / 2.0)
 
 
 def test_get_audio_format():
@@ -86,7 +86,7 @@ def test_analyze_audio_input():
 
     assert utils.analyze_audio_input(("-", None))[0] == [{}]
 
-    cfgs,always_copy = utils.analyze_audio_input(
+    cfgs, always_copy = utils.analyze_audio_input(
         (
             "-",
             {
@@ -189,7 +189,7 @@ def test_analyze_video_input():
 
     assert utils.analyze_video_input(("-", None))[0] == [{}]
 
-    cfgs,always_copy = utils.analyze_video_input(
+    cfgs, always_copy = utils.analyze_video_input(
         (
             "-",
             {
@@ -217,4 +217,3 @@ def test_analyze_video_input():
         "frame_rate": 60,
         "pix_fmt": "rgb",
     }
-
