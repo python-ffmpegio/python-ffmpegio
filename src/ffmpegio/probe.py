@@ -154,7 +154,6 @@ def streams_basic(url, entries=None):
     :rtype: list of dict
 
     Media Stream Information dict Entries
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
     ==========   ====
     name         type

@@ -357,6 +357,65 @@ alpha channel in video) the background color may be specified with :code:`fill_c
 option (default: ``'white'``). See `the FFmpeg color specification <https://ffmpeg.org/ffmpeg-utils.html#Color>`__
 for the list of predefined color names.
 
+
+.. list-table:: Examples of changing image format
+  :class: tight-table
+
+  * - :code:`'rgba'` (original)
+    - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png')
+
+  * - :code:`'rgb24'` with 'Linen' background
+    - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='rgb24', fill_color='linen')
+
+  * - :code:`'ya8'`
+    - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='ya8')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM[...,0], alpha=IM[...,1]/255, cmap='gray')
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='ya8')
+
+  * - :code:`'gray'` with light gray background
+    - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', fill_color='#F0F0F0')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM, cmap='gray')
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', 
+            fill_color='#F0F0F0')
+
+
+
 Built-in Video Manipulation
 ---------------------------
 
@@ -418,3 +477,69 @@ Note that the these operations are pre-wired to perform in a specific order:
 Be aware of this ordering as these filters are non-commutative (i.e., a change in the 
 order of operation alters the outcome). If your desired order of filtering differs or
 need to use other filters, you must use the forthcoming :code:`filter_graph` option. 
+
+.. list-table:: Examples of manipulated images
+  :class: tight-table
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png')
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0))
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0))
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', rotate=10, fill_color='LightSkyBlue')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', rotate=10, fill_color='LightSkyBlue')
+    
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), transpose=0)
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), transpose=0)
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), flip='both', size=(200,-1))
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), flip='both', size=(200,-1))
+        
+
+

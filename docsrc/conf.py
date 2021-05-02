@@ -35,17 +35,10 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
-    'sphinxcontrib.blockdiag'
+    "sphinxcontrib.blockdiag",
+    "matplotlib.sphinxext.plot_directive",
 ]
 # Looks for objects in external projects
-
-# Fontpath for blockdiag (truetype font)
-blockdiag_fontpath = '_static/ipagp.ttf'
-blockdiag_html_image_format = "SVG"
-
-intersphinx_mapping = {
-    "numpy": ("https://numpy.org/doc/stable", None),
-}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -72,6 +65,22 @@ html_static_path = ["_static"]
 #     "**": ["globaltoc.html", "relations.html", "sourcelink.html", "searchbox.html"]
 # }
 
+# Fontpath for blockdiag (truetype font)
+blockdiag_fontpath = "_static/ipagp.ttf"
+blockdiag_html_image_format = "SVG"
+
+intersphinx_mapping = {
+    "numpy": ("https://numpy.org/doc/stable", None),
+}
+
+plot_html_show_source_link = False
+plot_html_show_formats = False
+plot_pre_code = (
+    "import numpy as np\nfrom matplotlib import pyplot as plt\nimport ffmpegio"
+)
+
+plot_formats = [("png", 96)]
+
+
 def setup(app):
-   app.add_css_file('css/custom.css')
-   
+    app.add_css_file("css/custom.css")
