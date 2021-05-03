@@ -58,3 +58,27 @@ jobs:
 
       - name: Run tests
         run: pytest -vv
+
+      - name: Build a binary wheel and a source tarball
+        run: python -m build --sdist --wheel --outdir dist/ .
+
+      - name: add python distribution files to release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags')
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Publish distribution 📦 to Test PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository_url: https://test.pypi.org/legacy/
+          skip_existing: true
+
+      - name: Publish distribution 📦 to PyPI
+        if: startsWith(github.ref, 'refs/tags')
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
