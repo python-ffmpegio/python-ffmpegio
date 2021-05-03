@@ -431,8 +431,8 @@ def run(
 
     proc = sp.Popen(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
 
-    stderr_monitor = _StderrMonitor(proc)
-    stderr_monitor.start()
+    # stderr_monitor = _StderrMonitor(proc)
+    # stderr_monitor.start()
 
     if progress:
         progress_monitor.proc = proc

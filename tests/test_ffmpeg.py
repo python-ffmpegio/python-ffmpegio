@@ -115,9 +115,11 @@ def test_run_sync():
 
 
 def test_run():
+    import time
     proc = ffmpeg.run("-help")
-    proc.communicate()
+    stdout,stderr = proc.communicate()
     proc.wait()
+    print(stdout.decode('utf-8'), stderr.decode('utf-8'))
 
 
 def test_probe():
