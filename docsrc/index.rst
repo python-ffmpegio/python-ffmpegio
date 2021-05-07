@@ -77,7 +77,11 @@ High-level API reference
 Advanced topics
 ---------------
 
-TBD
+.. toctree::
+    :maxdepth: 1
+
+    adv-args
+
 
 .. .. toctree::
 ..     :maxdepth: 1
