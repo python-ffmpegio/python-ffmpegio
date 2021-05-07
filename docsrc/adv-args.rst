@@ -3,16 +3,19 @@
 Specification of FFmpeg Argument dict :code:`ffmpeg_args`
 =========================================================
 
-:py:mod:`ffmpegio` run the FFmpeg subprocess with :py:func:`ffmpegio.ffmpeg.run` or 
-:py:func:`ffmpegio.ffmpeg.run_sync`. Both of these functions take an argument 
-:code:`ffmpeg_args`, a plain dict object, to define the full FFmpeg command line options:
+FFmpeg command can be invoked directly with :py:func:`ffmpegio.ffmpeg.run` or 
+:py:func:`ffmpegio.ffmpeg.run_sync` functions. Both of these functions support the full
+assortment of FFmpeg command line option arguments, which can be specified via 
+:code:`ffmpeg_args`, a plain dict object. 
+
+The FFmpeg command line options structure:
 
 .. code-block:: bash
 
   ffmpeg [global_options] {[input_file_options] -i input_url} ... \
       {[output_file_options] output_url} ... 
 
-All the options and urls are mapped to :code:`ffmpeg_args`:
+All the options and urls are mapped to :code:`ffmpeg_args` by:
 
 .. code-block:: python
 
@@ -22,17 +25,22 @@ All the options and urls are mapped to :code:`ffmpeg_args`:
       "global_options": global_options,
   }
 
-All options parameters are optional. If URL does not require any options, set its options to :code:`None`. 
-If no global options, the :code:`"global_options"` dict entry may be omitted or set to :code:`None`.
-Each set of options is a dict with option keys as the dict keys **without** the leading dash (-). For 
-stream-specific options, the key shall include the full stream specifiers. For example, use :code:`"b:v"`
-as the dict key to specify the video bitrate.
+Any Python sequence types may be used in place of the tuples are lists in the above definition.
 
-Option values may be given in any type, which get converted to :code:`str` at the time of the subprocess 
-invocation. If an option does not take any values, then use :code:`None`. For any option which can be
-defined multiple times (e.g., :code:`map`), specify its value as a sequence with each of its elements defining
-a value for each FFmpeg option. Another exception are the filters (:code:`vf`, :code:`af`, and :code:`filter_complex`)
-which values may be given with special option value structure (to be covered later).
+:code:`input_file_options`, :code:`output_file_options`, and :code:`global_options` are optional. If 
+URL does not require any options, set its options to :code:`None`. If no global options, the 
+:code:`"global_options"` dict entry may be omitted or set to :code:`None`. 
+
+To specify options, each set of options is a dict with option keys as the dict keys **without** the
+leading dash (-). For stream-specific options, the key shall include the full stream specifiers. For 
+example, use :code:`"b:v"` as the dict key to specify the video bitrate.
+
+Option values may be given as any Python type, so long as it can be converted to :code:`str` at the
+time of the subprocess invocation. If an option does not take any values, then use :code:`None`. For 
+any option which can be defined multiple times (e.g., :code:`map`), specify its value as a sequence 
+with each of its elements defining a value for each FFmpeg option. Another exception are the filters
+(:code:`vf`, :code:`af`, and :code:`filter_complex`) which values may be given with special option 
+value structure (to be covered later).
 
 All defined options are passed unchecked to FFmpeg. 
 
@@ -49,13 +57,6 @@ for the :py:mod:`ffmpegio`:
   ffmpeg_args = {
       "inputs": [("input.avi", None)],
       "outputs": [("output.avi", {"b:v": "64k", "bufsize": "64k"})],
-  }
-
-  # To force the frame rate of the output file to 24 fps:
-  #   ffmpeg -i input.avi -r 24 output.avi
-  ffmpeg_args = {
-      "inputs": [("input.avi", None)],
-      "outputs": [("output.avi", {"r": 24})],
   }
 
   # To force the frame rate of the input file (valid for raw formats only) to 1 fps and 
@@ -102,3 +103,8 @@ for the :py:mod:`ffmpegio`:
       ],
       "global_options": {"filter_complex": "[1:v]hue=s=0[outv];overlay;aresample"}
   }
+
+FFmpeg filter dict Specification
+--------------------------------
+
+TBD
