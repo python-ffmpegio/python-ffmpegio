@@ -1,5 +1,5 @@
-.. _quick:
 .. highlight:: python
+.. _quick:
 
 Quick Start Guide
 =================

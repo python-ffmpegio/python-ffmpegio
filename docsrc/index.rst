@@ -65,8 +65,6 @@ Introductory info
 High-level API reference
 ------------------------
 
-
-
 .. toctree::
     :maxdepth: 1
 
@@ -77,7 +75,12 @@ High-level API reference
 Advanced topics
 ---------------
 
-TBD
+.. toctree::
+    :maxdepth: 1
+
+    adv-ffmpeg
+    adv-args
+
 
 .. .. toctree::
 ..     :maxdepth: 1

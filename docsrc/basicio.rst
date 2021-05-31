@@ -1,3 +1,5 @@
+.. _basicio:
+
 Basic I/O Function References
 =============================
 

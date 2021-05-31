@@ -71,28 +71,12 @@ def parse_options(args):
 
 
 def parse(cmdline):
-    """Parse ffmpeg command line arguments:
+    """parse ffmpeg command line arguments
 
-    `[_global_options] {[input_file_options] -i input_url} ... {[output_file_options] output_url} ...`
-
-    Argument
-    cmdline : str
-        ffmpeg command line string or partial argument thereof
-
-    Returns
-        dict : parsed command fields
-
-        dict["_global_options"] : dict
-        dict["inputs"] : a list of tuples for inputs: (input_url, input_file_options)
-        dict["outputs"] : a list of tuples for outputs : (output_url, output_file_options)
-
-        Any xxx_options item is a dict with the option argument (minus the leading dash, possibly with stream id) as the key and
-        its option value as the dict element value. If option is a flag, its value is None.
-
-    Caution: multiple output_url's are detected based on the assumption that the last output file option of each output_url
-    requires a value unless the option is one of the flag option listed in `_output_flags`. If an unlisted flag option is used
-    add it to appear as an earlier output options.
-
+    :param cmdline: full or partial ffmpeg command line string
+    :type cmdline: str
+    :return: ffmpegio FFmpeg argument dict
+    :rtype: dict
     """
 
     # remove multi-line command
@@ -363,50 +347,54 @@ def _get_ffmpeg(probe=False):
 
 
 def run_sync(
-    args,
+    ffmpeg_args,
     *sp_arg,
     hide_banner=True,
     stdout=PIPE,
     stderr=PIPE,
     **sp_kwargs,
 ):
-    """run ffmpeg synchronously as a subprocess (block until completion)
+    """run ffmpeg command as a subprocess (blocking)
 
-    :param args: command-less FFmpeg arguments
-    :type args: seq or dict
+    :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: dict, seq, or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
-    :param stdout: subprocess stdout mode, defaults to ffmpegio.PIPE
-    :type stdout: [type], optional
-    :param stderr: subprocess stderr mode, defaults to ffmpegio.PIPE
-    :type stderr: [type], optional
-    :raises Exception: [description]
-    :return: [description]
-    :rtype: [type]
+    :return: log of the completed FFmpeg run
+    :rtype: str
     """
-    if isinstance(args, dict):
-        args = compose(**args, command=_get_ffmpeg())
+    if isinstance(ffmpeg_args, dict):
+        ffmpeg_args = compose(**ffmpeg_args, command=_get_ffmpeg())
     else:
-        args = [_get_ffmpeg(), *(shlex.split(args) if isinstance(args, str) else args)]
+        ffmpeg_args = [
+            _get_ffmpeg(),
+            *(
+                shlex.split(ffmpeg_args)
+                if isinstance(ffmpeg_args, str)
+                else ffmpeg_args
+            ),
+        ]
 
     if hide_banner:
-        args.insert(1, "-hide_banner")
+        ffmpeg_args.insert(1, "-hide_banner")
 
-    logging.debug(args)
+    logging.debug(ffmpeg_args)
 
-    ret = sp.run(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
+    ret = sp.run(ffmpeg_args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
     if ret.returncode != 0 and ret.stderr is not None:
         msg = ret.stderr
         try:
             msg = msg.decode("utf-8")
         finally:
-            raise Exception(f"execution failed\n   {form_shell_cmd(args)}\n\n{msg}")
+            raise Exception(
+                f"execution failed\n   {form_shell_cmd(ffmpeg_args)}\n\n{msg}"
+            )
 
     return ret.stderr if ret.stdout is None else ret.stdout
 
 
 def run(
-    args,
+    ffmpeg_args,
     *sp_arg,
     progress=None,
     hide_banner=True,
@@ -414,22 +402,44 @@ def run(
     stderr=PIPE,
     **sp_kwargs,
 ):
+    """start FFmpeg subprocess (non-blocking)
 
-    if isinstance(args, dict):
-        args = compose(**args, command=_get_ffmpeg())
+    :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: dict, seq, or str
+    :param progress: progress callback function, defaults to None
+    :type progress: function, optional
+    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+    :type hide_banner: bool, optional
+    :return: Python subprocess Popen object to monitor/interact with the FFmpeg process
+    :rtype: subprocess.Popen
+    """
+    if isinstance(ffmpeg_args, dict):
+        ffmpeg_args = compose(**ffmpeg_args, command=_get_ffmpeg())
     else:
-        args = [_get_ffmpeg(), *(shlex.split(args) if isinstance(args, str) else args)]
+        ffmpeg_args = [
+            _get_ffmpeg(),
+            *(
+                shlex.split(ffmpeg_args)
+                if isinstance(ffmpeg_args, str)
+                else ffmpeg_args
+            ),
+        ]
 
     if hide_banner:
-        args.insert(1, "-hide_banner")
+        ffmpeg_args.insert(1, "-hide_banner")
 
     if progress:
         progress_monitor = _ProgressMonitor(progress)
-        args = [*args[:1], "-progress", progress_monitor.url, *args[1:]]
+        ffmpeg_args = [
+            *ffmpeg_args[:1],
+            "-progress",
+            progress_monitor.url,
+            *ffmpeg_args[1:],
+        ]
 
-    logging.debug(form_shell_cmd(args))
+    logging.debug(form_shell_cmd(ffmpeg_args))
 
-    proc = sp.Popen(args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
+    proc = sp.Popen(ffmpeg_args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
 
     # stderr_monitor = _StderrMonitor(proc)
     # stderr_monitor.start()
@@ -451,7 +461,15 @@ def ffprobe(
     hide_banner=True,
     **sp_kwargs,
 ):
+    """run ffprobe command as a subprocess (blocking)
 
+    :param args: ffprobe argument options
+    :type args: seq or str
+    :param hide_banner: False to output ffmpeg banner, defaults to True
+    :type hide_banner: bool, optional
+    :return: ffprobe stdout output
+    :rtype: str
+    """
     args = [
         _get_ffmpeg(probe=True),
         *(["-hide_banner"] if hide_banner else []),
