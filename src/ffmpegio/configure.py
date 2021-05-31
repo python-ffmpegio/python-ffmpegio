@@ -444,7 +444,7 @@ def audio_file(
         input, entries=("sample_rate", "sample_fmt", "channels")
     )
 
-    if not (len(all_info) or len(streams)):
+    if not (len(all_info) and len(streams)):
         return None, None
 
     # make streams list elements to be all (int, dict)
@@ -724,7 +724,7 @@ def video_file(
         input, entries=("width", "height", "pix_fmt", "frame_rate")
     )
 
-    if len(all_info) == 0:
+    if not (len(all_info) and len(stream_ids)):
         return None, None, None
 
     # make streams list uniform
