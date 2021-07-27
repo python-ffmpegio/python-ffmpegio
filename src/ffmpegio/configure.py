@@ -931,6 +931,10 @@ def global_options(
             else filter_utils.compose_graph(*filter_defs)
         )
 
+    loglevel = options.get("loglevel", None)
+    if loglevel is not None:
+        gopts["loglevel"] = loglevel
+
     return ffmpeg_args
 
 
