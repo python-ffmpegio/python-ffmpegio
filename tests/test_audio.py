@@ -2,6 +2,8 @@ from ffmpegio import audio, probe
 import tempfile, re, logging
 from os import path
 
+from ffmpegio.configure import global_options
+
 logging.basicConfig(level=logging.DEBUG)
 
 
@@ -68,4 +70,14 @@ def test_read_write():
         print(x.shape, x.dtype)
         audio.write(out_url, fs, x)
         fs, y = audio.read(out_url, sample_fmt="flt")
+        print(probe.audio_streams_basic(out_url))
+
+        out_url = path.join(tmpdirname, re.sub(r"\..*?$", ".wav", path.basename(url)))
+        audio.write(
+            out_url,
+            fs,
+            x,
+            codec="pcm_s16le",
+            log_level="fatal",
+        )
         print(probe.audio_streams_basic(out_url))

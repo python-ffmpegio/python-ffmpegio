@@ -76,7 +76,7 @@ def read(url, stream_id=0, **options):
     :return: sample rate in samples/second and audio data matrix (timexchannel)
     :rtype: tuple(`float`, :py:class:`numpy.ndarray`)
 
-    .. note:: Even if :code:`start_time` option is set, all the prior samples will be read. 
+    .. note:: Even if :code:`start_time` option is set, all the prior samples will be read.
         The retrieved data will be truncated before returning it to the caller.
         This is to ensure the timing accuracy. As such, do not use this function
         to perform block-wise processing. Instead use the streaming solution,
@@ -128,11 +128,24 @@ def write(url, rate, data, **options):
         **{"input_sample_rate": rate, **options},
     )
 
+    configure.codec(args, url, "a", **options)
+
     configure.audio_io(
         args,
         utils.array_to_audio_input(rate, data=data, format=True),
         output_url=url,
         **options,
     )
+
+    configure.global_options(args, **options)
+
+    if "input_options" in options:
+        configure.merge_user_options(args, "input", options['input_options'])
+
+    if "output_options" in options:
+        configure.merge_user_options(args, "output", options['output_options'])
+
+    if "global_options" in options:
+        configure.merge_user_options(args, "global", options['global_options'])
 
     ffmpeg.run_sync(args, input=np.asarray(data).tobytes())

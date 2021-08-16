@@ -95,7 +95,9 @@ def read(url, vframes=None, stream_id=0, **options):
     )
     dtype, shape, rate = reader_cfg[0]
 
-    configure.merge_user_options(args, "output", {"frames:v": vframes} if vframes else {})
+    configure.merge_user_options(
+        args, "output", {"frames:v": vframes} if vframes else {}
+    )
     stdout = ffmpeg.run_sync(args)
     return rate, np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
 
@@ -120,11 +122,24 @@ def write(url, rate, data, **options):
         **{"input_frame_rate": rate, **options}
     )
 
+    configure.codec(args, url, "v", **options)
+
     configure.video_io(
         args,
         utils.array_to_video_input(rate, data=data, format="rawvideo"),
         output_url=url,
         **options
     )
+
+    configure.global_options(args, **options)
+
+    if "input_options" in options:
+        configure.merge_user_options(args, "input", options["input_options"])
+
+    if "output_options" in options:
+        configure.merge_user_options(args, "output", options["output_options"])
+
+    if "global_options" in options:
+        configure.merge_user_options(args, "global", options["global_options"])
 
     ffmpeg.run_sync(args, input=np.asarray(data).tobytes())
