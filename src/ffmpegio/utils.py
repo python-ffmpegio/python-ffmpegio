@@ -482,13 +482,17 @@ def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
     """
 
     is_stdin = input[0] == "-"
-    is_fsrc = is_filter(input[0], "input")
+    
+    try:
+        filtspec = filter_utils.analyze_filter(input[0], entries)
+    except:
+        filtspec = None
 
     cfgs = (
         {0: {}}
         if is_stdin
-        else {0: filter_utils.analyze_filter(input[0], entries)}
-        if is_fsrc
+        else {0: filtspec}
+        if filtspec
         else {i: v for i, v in enumerate(streams_basic(input[0], entries=entries))}
     )
 
@@ -516,16 +520,26 @@ def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
     try:
         return [
             (cfgs[i] if i in cfgs else None) for i in range(max(sorted(cfgs)) + 1)
-        ], is_fsrc
+        ], bool(filtspec)
     except:
         raise Exception("input options are either incomplete or invalid")
 
 
 def is_filter(url, io_type, stream_type=None):
+    """Returns true if url is a filter graph
 
+    :param url: [description]
+    :type url: [type]
+    :param io_type: [description]
+    :type io_type: [type]
+    :param stream_type: [description], defaults to None
+    :type stream_type: [type], optional
+    :return: [description]
+    :rtype: [type]
+    """
     if not isinstance(url, str):
         url = url[0]
-    elif re.match(r"[^=]+=", url):
+    elif re.match(r"([^=]+)(?:\s*=\s*([\s\S]+))?", url):
         return True
 
     filter_list = (

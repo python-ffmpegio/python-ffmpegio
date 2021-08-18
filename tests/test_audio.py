@@ -1,6 +1,7 @@
 from ffmpegio import audio, probe
 import tempfile, re, logging
 from os import path
+import pytest
 
 from ffmpegio.configure import global_options
 
@@ -32,6 +33,14 @@ def test_create():
     x = audio.create("sine", f=220, b=4, d=5)
     print(x.shape, 5 * 44100)
     assert x.shape == (5 * 44100, 1)
+
+
+@pytest.mark.skip(reason="takes too long to test")
+def test_read_url():
+    rid = 1
+    url = f"http://www.stimmdatenbank.coli.uni-saarland.de/csl2wav.php4?file={rid}-i_n"
+    fs, x = audio.read(url)
+    print(fs, x.shape)
 
 
 def test_read():
@@ -81,3 +90,8 @@ def test_read_write():
             log_level="fatal",
         )
         print(probe.audio_streams_basic(out_url))
+
+
+if __name__ == "__main__":
+    # test_create()
+    test_read_url()

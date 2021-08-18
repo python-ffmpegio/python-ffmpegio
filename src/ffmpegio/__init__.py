@@ -30,7 +30,7 @@ from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
 __all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open"]
-__version__ = "0.0.11"
+__version__ = "0.0.12"
 
 ffmpeg_info = _ffmpeg.versions
 set_path = _ffmpeg.find
