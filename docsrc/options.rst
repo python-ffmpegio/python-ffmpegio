@@ -83,3 +83,19 @@ ncomp  `numpy.dtype`   pix_fmt    Description
   4    `numpy.uint16`  rgba64le   16-bit RGB with alpha channel
 =====  ==============  =========  ===================================
 
+Audio formats
+-------------
+
+FFmpeg sample_fmt type and Numpy array dtypes are related as follows
+
+==============  ==========
+`numpy.dtype`   sample_fmt
+==============  ==========
+`numpy.uint8`     u8      
+`numpy.int16`     s16     
+`numpy.int32`     s32     
+`numpy.single`    flt     
+`numpy.double`    dbl     
+==============  ==========
+
+TODO: support for planar format, i.e., auto-transposing data
