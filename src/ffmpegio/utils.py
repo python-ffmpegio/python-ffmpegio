@@ -239,11 +239,32 @@ def array_to_video_input(
     :param size: frame size in (width, height), defaults to None. This input is only relevant (and required)
                      if custom `codec` is set.
     :type size: tuple(int,int), optional
-    :return: tuple of input url and option dict
-    :rtype: tuple(str, dict)
+    :return: tuple of input url and option dict, base numpy array shape, and dtype
+    :rtype: tuple(str, dict), tuple(int,int,int), numpy.dtype
     """
 
-    if data is not None:
+    if data is None:
+        if size is None or (dtype is None and pix_fmt is None):
+            raise ValueError(
+                "size and pix_fmt must be specified to set up video input without sample data block"
+            )
+
+        try:
+            dtype, n = {
+                "gray": (np.uint8, 1),
+                "ya8": (np.uint8, 2),
+                "rgb24": (np.uint8, 3),
+                "rgba": (np.uint8, 4),
+                "gray16le": (np.uint16, 1),
+                "ya16le": (np.uint16, 2),
+                "rgb48le": (np.uint16, 3),
+                "rgba64le": (np.uint16, 4),
+                "grayf32le": (np.float32, 1),
+            }[pix_fmt]
+        except:
+            raise ValueError("Invalid pix_fmt")
+        shape = (*size, n)
+    else:
         # if data is given, detect size and pixel_fmt (overwrite user inputs if given)
         dtype = data.dtype
         shape = data.shape
@@ -266,7 +287,6 @@ def array_to_video_input(
             else shape[::-1]  # rows x columns
         )
 
-    if data is not None or pix_fmt is None:
         if dtype == np.uint8:
             pix_fmt = (
                 "gray" if n == 1 else "ya8" if n == 2 else "rgb24" if n == 3 else "rgba"
@@ -310,7 +330,7 @@ def array_to_video_input(
         elif format is True:
             opts["f"] = "rawvideo"
 
-    return input
+    return input, shape, dtype
 
 
 def array_to_audio_input(

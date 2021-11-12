@@ -154,7 +154,7 @@ def write(url, data, progress=None, show_log=None, **options):
 
     configure.video_io(
         args,
-        utils.array_to_video_input(1, data=data, format="rawvideo"),
+        utils.array_to_video_input(1, data=data, format="rawvideo")[0],
         output_url=url,
         excludes=["frame_rate"],
         **options

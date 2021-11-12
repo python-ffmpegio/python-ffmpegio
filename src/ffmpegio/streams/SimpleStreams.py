@@ -69,7 +69,7 @@ class SimpleVideoWriter:
         self,
         url,
         rate,
-        dtype=None,
+        pix_fmt=None,
         size=None,
         progress=None,
         input_copy=True,
@@ -79,7 +79,6 @@ class SimpleVideoWriter:
     ) -> None:
         self.url = url
         self.frame_rate = rate
-        self.dtype = dtype  # deduces pix_fmt
         self.size = size  # (w,h)
         self.options = kwargs
         self.frames_written = 0
@@ -88,12 +87,16 @@ class SimpleVideoWriter:
         self.capture_log = capture_log
         self.queue_size = queue_size
 
-        if dtype and size:
-            self._open(dtype=dtype, size=size)
+        if pix_fmt is None or size is None:
+            if pix_fmt is not None or size is not None:
+                logging.warn(
+                    "Video stream not opened at the time of instantiation: only pix_fmt or size provided"
+                )
+            self._proc = self.shape = self.dtype = None
         else:
-            self._proc = None
+            self._open(pix_fmt=pix_fmt, size=size)
 
-    def _open(self, data=None, dtype=None, size=None):
+    def _open(self, data=None, pix_fmt=None, size=None):
         args = configure.input_timing(
             {},
             "-",
@@ -102,11 +105,13 @@ class SimpleVideoWriter:
             **{"input_frame_rate": self.frame_rate, **self.options},
         )
 
+        input, self.shape, self.dtype = utils.array_to_video_input(
+            self.frame_rate, data, format="rawvideo", pix_fmt=pix_fmt, size=size
+        )
+
         configure.video_io(
             args,
-            utils.array_to_video_input(
-                self.frame_rate, data, format="rawvideo", dtype=dtype, size=size
-            ),
+            input,
             output_url=self.url,
             **self.options,
         )

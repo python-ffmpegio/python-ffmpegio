@@ -152,7 +152,7 @@ def test_array_to_video_input(video_data, image_spec):
 
     cfg = {"c:v": "rawvideo", "s:v": size_str, "r:v": fs, "pix_fmt:v": pix_fmt}
 
-    input = utils.array_to_video_input(fs, video_data)
+    input = utils.array_to_video_input(fs, video_data)[0]
     assert input[0] == "-" and input[1] == cfg
 
 
@@ -163,25 +163,25 @@ def test_array_to_video_input_nodata(image_spec):
     codec = "h264"
 
     cfg = {"c:v": codec, "s:v": size_str, "r:v": fs, "pix_fmt:v": pix_fmt}
-    input = utils.array_to_video_input(fs, codec=codec, pix_fmt=pix_fmt, size=size)
+    input = utils.array_to_video_input(fs, codec=codec, pix_fmt=pix_fmt, size=size)[0]
     assert input[0] == "-" and input[1] == cfg
 
     cfg = {"c:v:0": codec, "s:v:0": size_str, "r:v:0": fs, "pix_fmt:v:0": pix_fmt}
     input = utils.array_to_video_input(
         fs, stream_id=0, codec=codec, pix_fmt=pix_fmt, size=size
-    )
+    )[0]
     assert input[0] == "-" and input[1] == cfg
 
     cfg["f"] = "rawvideo"
     input = utils.array_to_video_input(
         fs, stream_id=0, codec=codec, pix_fmt=pix_fmt, size=size, format=True
-    )
+    )[0]
     assert input[0] == "-" and input[1] == cfg
 
     cfg["f"] = f = "avi"
     input = utils.array_to_video_input(
         fs, stream_id=0, codec=codec, pix_fmt=pix_fmt, size=size, format=f
-    )
+    )[0]
     assert input[0] == "-" and input[1] == cfg
 
 
