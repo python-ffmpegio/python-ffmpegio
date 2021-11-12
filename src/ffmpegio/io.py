@@ -24,7 +24,7 @@ class IOBase:
         # open pipe (if none open or new_pipe is true)
         self._pipe.open(clear_buffer)
 
-    def close(self):
+    def close(self, timeout=None, force=True):
         """Flush and close this stream.
 
         This method has no effect if the file is already closed. Once the file
@@ -35,6 +35,9 @@ class IOBase:
         As a convenience, it is allowed to call this method more than once;
         only the first call, however, will have an effect.
         """
+
+        if timeout is not None and self._pipe.wait_till_drained(timeout) and not force:
+            raise TimeoutExpired
 
         if not self._pipe.closed:
             self._pipe.close()
@@ -52,6 +55,9 @@ class IOBase:
         True if the stream is closed and no data remains in the queue.
         """
         return self._pipe.drained
+
+    def wait_till_drained(self,timeout=None):
+        return self._pipe.wait_till_drained(timeout)
 
     def __del__(self):
         """Prepare for object destruction.

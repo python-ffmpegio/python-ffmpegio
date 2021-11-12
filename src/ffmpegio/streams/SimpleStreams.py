@@ -1,5 +1,6 @@
+import logging
 import numpy as np
-from .. import ffmpeg, utils, configure, ffmpegprocess
+from .. import utils, configure, ffmpegprocess
 
 
 class SimpleVideoReader:
@@ -153,9 +154,12 @@ class SimpleVideoWriter:
         self._proc.stdin.write(data, block, timeout)
         self.frames_written += data.shape[0] if data.ndim == 4 else 1
 
-    def close(self):
+    def close(self, timeout=0.1):
         if self._proc:
-            self._proc.terminate()
+            self._proc.stdin.mark_eof()
+            self._proc.stdin.close(timeout, True)
+            if self._proc.wait(timeout) is None:
+                self._proc.terminate()
             self._proc = None
 
 
@@ -339,7 +343,10 @@ class SimpleAudioWriter:
         self._proc.stdin.write(data, block, timeout)
         self.samples_written += data.shape[0]
 
-    def close(self):
+    def close(self, timeout=0.1):
         if self._proc:
-            self._proc.terminate()
+            self._proc.stdin.mark_eof()
+            self._proc.stdin.close(timeout, True)
+            if self._proc.wait(timeout) is None:
+                self._proc.terminate()
             self._proc = None

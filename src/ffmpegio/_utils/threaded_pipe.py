@@ -78,6 +78,9 @@ class ThreadedPipe(threading.Thread):
         """
         return self.closed and self.queue.empty()
 
+    def wait_till_drained(self,timeout=None):
+        return self.queue.join(timeout)
+
     def open(self, clear_queue=False):
         with self._mutex:
             self._open(clear_queue)

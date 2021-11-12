@@ -89,7 +89,7 @@ class PausableQueue(_Queue):
             raise Paused
         super().task_done()
 
-    def join(self):
+    def join(self, timeout=None):
         """Blocks until all items in the Queue have been gotten and processed.
         The count of unfinished tasks goes up whenever an item is added to the
         queue. The count goes down whenever a consumer thread calls task_done()
@@ -98,7 +98,8 @@ class PausableQueue(_Queue):
         """
         with self.all_tasks_done:
             while self.unfinished_tasks and not self._paused:
-                self.all_tasks_done.wait()
+                if not self.all_tasks_done.wait(timeout):
+                    return True
 
         if self.paused:
             raise Paused
