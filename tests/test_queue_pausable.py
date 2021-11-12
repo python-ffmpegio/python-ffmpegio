@@ -4,7 +4,7 @@ import threading
 import time
 import pytest
 
-import ffmpegio._utils.queue_pausable as pqueue
+import ffmpegio.utils.queue_pausable as pqueue
 
 
 QUEUE_SIZE = 5

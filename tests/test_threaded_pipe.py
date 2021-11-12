@@ -4,7 +4,7 @@ import logging
 import os
 import time
 import pytest
-from ffmpegio._utils.threaded_pipe import ThreadedPipe, NotOpen, Empty
+from ffmpegio.utils.threaded_pipe import ThreadedPipe, NotOpen, Empty
 
 
 @pytest.fixture

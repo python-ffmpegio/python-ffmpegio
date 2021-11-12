@@ -1,7 +1,7 @@
 import time
 from ffmpegio import ffmpeg, utils, audio
 import subprocess as sp
-from ffmpegio._utils import threaded_pipe as tp
+from ffmpegio.utils import threaded_pipe as tp
 
 # logging.basicConfig(level=logging.DEBUG)
 

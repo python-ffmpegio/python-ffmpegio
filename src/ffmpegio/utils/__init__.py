@@ -1,6 +1,6 @@
 import re, fractions
 import numpy as np
-from . import caps, probe, filter_utils
+from .. import caps, probe, filter_utils
 
 # fmt:off
 _filter_video_srcs = ("allrgb", "allyuv", "buffer", "cellauto", "color",

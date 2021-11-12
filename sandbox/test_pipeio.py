@@ -10,7 +10,7 @@ only reader rx is non-blocking
 
 """
 
-from ffmpegio._utils import pipe_nonblock
+from ffmpegio.utils import pipe_nonblock
 import os
 import threading
 import time

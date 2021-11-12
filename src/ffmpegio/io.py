@@ -3,7 +3,7 @@ from io import UnsupportedOperation
 from subprocess import TimeoutExpired
 import numpy as np
 
-from ._utils.threaded_pipe import NotOpen, ThreadedPipe, Paused, Full, Empty
+from .utils.threaded_pipe import NotOpen, ThreadedPipe, Paused, Full, Empty
 from .ffmpeg import _as_array
 
 
