@@ -1,8 +1,8 @@
 import numpy as np
-from . import ffmpeg, utils, configure, filter_utils
+from . import ffmpegprocess, utils, configure, filter_utils
 
 
-def create(name, *args, duration=1.0, **kwargs):
+def create(name, *args, duration=1.0, progress=None, show_log=None, **kwargs):
     """Create a video using a source video filter
 
     :param name: name of the source filter
@@ -11,6 +11,11 @@ def create(name, *args, duration=1.0, **kwargs):
     :type \\*args: tuple, optional
     :param duration:
     :type duration: int
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: filter keyword arguments
     :type \\**options: dict, optional
     :return: video data
@@ -61,11 +66,16 @@ def create(name, *args, duration=1.0, **kwargs):
     n = int(rate * duration)
 
     configure.merge_user_options(ffmpeg_args, "output", {"frames:v": n}, file_index=0)
-    stdout = ffmpeg.run_sync(ffmpeg_args)
-    return np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
+    return ffmpegprocess.run(
+        ffmpeg_args,
+        progress=progress,
+        dtype=dtype,
+        shape=shape,
+        capture_log=False if show_log else None,
+    ).stdout
 
 
-def read(url, vframes=None, stream_id=0, **options):
+def read(url, vframes=None, stream_id=0, progress=None, show_log=None, **options):
     """Read video frames
 
     :param url: URL of the video file to read.
@@ -75,12 +85,19 @@ def read(url, vframes=None, stream_id=0, **options):
     :type vframes: int, optional
     :param stream_id: video stream id (numeric part of ``v:#`` specifier), defaults to 0.
     :type stream_id: int, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
 
     :return: frame rate and video frame data (dims: time x rows x cols x pix_comps)
     :rtype: (`fractions.Fraction`, `numpy.ndarray`)
     """
+
+    url, stdin, input = configure.check_url(url, False)
 
     args = configure.input_timing({}, url, vstream_id=stream_id, **options)
 
@@ -98,11 +115,21 @@ def read(url, vframes=None, stream_id=0, **options):
     configure.merge_user_options(
         args, "output", {"frames:v": vframes} if vframes else {}
     )
-    stdout = ffmpeg.run_sync(args)
-    return rate, np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))
+    return (
+        rate,
+        ffmpegprocess.run(
+            args,
+            progress=progress,
+            stdin=stdin,
+            input=input,
+            dtype=dtype,
+            shape=shape,
+            capture_log=False if show_log else None,
+        ).stdout,
+    )
 
 
-def write(url, rate, data, **options):
+def write(url, rate, data, show_log=None, progress=None, **options):
     """Write Numpy array to a video file
 
     :param url: URL of the video file to write.
@@ -111,9 +138,17 @@ def write(url, rate, data, **options):
     :type rate: `float`, `int`, or `fractions.Fraction`
     :param data: video frame data 4-D array (framexrowsxcolsxcomponents)
     :type data: `numpy.ndarray`
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     """
+
+    url, stdout, _ = configure.check_url(url, True)
+
     args = configure.input_timing(
         {},
         "-",
@@ -142,4 +177,10 @@ def write(url, rate, data, **options):
     if "global_options" in options:
         configure.merge_user_options(args, "global", options["global_options"])
 
-    ffmpeg.run_sync(args, input=np.asarray(data).tobytes())
+    ffmpegprocess.run(
+        args,
+        progress=progress,
+        stdout=stdout,
+        input=data,
+        capture_log=False if show_log else None,
+    )

@@ -28,6 +28,39 @@ def empty():
     return dict(inputs=[], outputs=[], global_options=None)
 
 
+def check_url(url,nodata=True):
+    """Analyze url argument for non-url input
+
+    :param url: url argument string or data or file
+    :type url: str, bytes-like object, numpy.ndarray, or file-like object
+    :param nodata: True to raise exception if url is a bytes-like object, default to True
+    :type nodata: bool, optional
+    :return: url string, file object, and data object
+    :rtype: tuple<str, file-like object or None, bytes-like object or None>
+    """
+
+    def hasmethod(o, name):
+        return hasattr(o, name) and callable(getattr(o, name))
+
+    fileobj = None
+    data = None
+
+    if not isinstance(url, str):
+        if isinstance(url, (bytes, bytearray, np.ndarray)) or hasmethod(
+            url, "__bytes__"
+        ):
+            data = url
+            url = "-"
+        elif hasmethod(url, "fileno"):
+            fileobj = url
+            url = "-"
+
+    if nodata and data is not None:
+        raise ValueError("Bytes-like object cannot be specified as url.")
+
+    return url, fileobj, data
+
+
 def add_url(args, type, url, opts=None):
     """add new or modify existing url to input or output list
 

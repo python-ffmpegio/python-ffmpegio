@@ -1,10 +1,8 @@
 import shlex, re, os, shutil, logging
-import threading, io, time, tempfile
 import subprocess as sp
 from collections import abc
 from . import filter_utils
-
-PIPE = sp.PIPE
+import numpy as np
 
 form_shell_cmd = (
     shlex.join
@@ -79,11 +77,14 @@ def parse(cmdline):
     :rtype: dict
     """
 
-    # remove multi-line command
-    cmdline = re.sub(r"\\\n", " ", cmdline)
+    if isinstance(cmdline, str):
+        # remove multi-line command
+        cmdline = re.sub(r"\\\n", " ", cmdline)
 
-    # split the command line into its options
-    args = shlex.split(cmdline)
+        # split the command line into its options
+        args = shlex.split(cmdline)
+    else:  # list of strs
+        args = cmdline
 
     # exclude 'ffmpeg' command if present
     if re.search(r'(?:^|[/\\])?ffmpeg(?:.exe)?"?$', args[0], re.IGNORECASE):
@@ -140,14 +141,14 @@ def parse(cmdline):
     extract_gopts(inputs)
     extract_gopts(outputs)
 
-    return dict(_global_options=gopts, inputs=inputs, outputs=outputs)
+    return dict(global_options=gopts, inputs=inputs, outputs=outputs)
 
 
 def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=False):
     """compose ffmpeg subprocess arguments from argument dict values
 
-    :param _global_options: global options, defaults to {}
-    :type _global_options: dict, optional
+    :param global_options: global options, defaults to {}
+    :type global_options: dict, optional
     :param inputs: list of input files and their options, defaults to []
     :type inputs: seq of seq(str, dict or None), optional
     :param outputs: list of output files and thier options, defaults to []
@@ -346,12 +347,12 @@ def _get_ffmpeg(probe=False):
     return path
 
 
-def run_sync(
+def _run(
+    sp_run,
     ffmpeg_args,
     *sp_arg,
     hide_banner=True,
-    stdout=PIPE,
-    stderr=PIPE,
+    progress=None,
     **sp_kwargs,
 ):
     """run ffmpeg command as a subprocess (blocking)
@@ -360,6 +361,8 @@ def run_sync(
     :type ffmpeg_args: dict, seq, or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
+    :param progress: path to which transcoding progress is logged
+    :type progress: bool, optional
     :return: log of the completed FFmpeg run
     :rtype: str
     """
@@ -375,80 +378,63 @@ def run_sync(
             ),
         ]
 
-    if hide_banner:
+    if hide_banner and "-hide_banner" not in ffmpeg_args:
         ffmpeg_args.insert(1, "-hide_banner")
+
+    if progress:
+        try:
+            i = ffmpeg_args.index("-progress")
+            ffmpeg_args[i + 1] = progress
+        except:
+            ffmpeg_args = [
+                *ffmpeg_args[:1],
+                "-progress",
+                progress,
+                *ffmpeg_args[1:],
+            ]
 
     logging.debug(ffmpeg_args)
 
-    ret = sp.run(ffmpeg_args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
-    if ret.returncode != 0 and ret.stderr is not None:
-        msg = ret.stderr
-        try:
-            msg = msg.decode("utf-8")
-        finally:
-            raise Exception(
-                f"execution failed\n   {form_shell_cmd(ffmpeg_args)}\n\n{msg}"
-            )
-
-    return ret.stderr if ret.stdout is None else ret.stdout
+    return sp_run(ffmpeg_args, *sp_arg, **sp_kwargs)
 
 
-def run(
-    ffmpeg_args,
-    *sp_arg,
-    progress=None,
-    hide_banner=True,
-    stdout=PIPE,
-    stderr=PIPE,
-    **sp_kwargs,
+def _as_array(
+    b,
+    shape=None,
+    dtype=None,
 ):
-    """start FFmpeg subprocess (non-blocking)
+    """Convert bytes to numpy.ndarray.
 
-    :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict, seq, or str
-    :param progress: progress callback function, defaults to None
-    :type progress: function, optional
-    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :type hide_banner: bool, optional
-    :return: Python subprocess Popen object to monitor/interact with the FFmpeg process
-    :rtype: subprocess.Popen
+    :param b: raw data to be converted to array
+    :type b: bytes-like object, optional
+    :param block: True to block if queue is full
+    :type block: bool, optional
+    :param timeout: timeout in seconds if blocked
+    :type timeout: float, optional
+    :param shape: sizes of higher dimensions of the output array, default:
+                    None (1d array). The first dimension is set by size parameter.
+    :type shape: int, optional
+    :param dtype: numpy.ndarray data type
+    :type dtype: data-type, optional
+    :return: bytes read
+    :rtype: numpy.ndarray
+
+    As a convenience, if size is unspecified or -1, all bytes until EOF are
+    returned. Otherwise, only one system call is ever made. Fewer than size
+    bytes may be returned if the operating system call returns fewer than
+    size bytes.
+
+    If 0 bytes are returned, and size was not 0, this indicates end of file.
+    If the object is in non-blocking mode and no bytes are available, None
+    is returned.
+
+    The default implementation defers to readall() and readinto().
     """
-    if isinstance(ffmpeg_args, dict):
-        ffmpeg_args = compose(**ffmpeg_args, command=_get_ffmpeg())
-    else:
-        ffmpeg_args = [
-            _get_ffmpeg(),
-            *(
-                shlex.split(ffmpeg_args)
-                if isinstance(ffmpeg_args, str)
-                else ffmpeg_args
-            ),
-        ]
 
-    if hide_banner:
-        ffmpeg_args.insert(1, "-hide_banner")
-
-    if progress:
-        progress_monitor = _ProgressMonitor(progress)
-        ffmpeg_args = [
-            *ffmpeg_args[:1],
-            "-progress",
-            progress_monitor.url,
-            *ffmpeg_args[1:],
-        ]
-
-    logging.debug(form_shell_cmd(ffmpeg_args))
-
-    proc = sp.Popen(ffmpeg_args, *sp_arg, stdout=stdout, stderr=stderr, **sp_kwargs)
-
-    # stderr_monitor = _StderrMonitor(proc)
-    # stderr_monitor.start()
-
-    if progress:
-        progress_monitor.proc = proc
-        progress_monitor.start()
-
-    return proc
+    shape = np.atleast_1d(shape) if bool(shape) else ()
+    nblk = np.prod(shape, dtype=int)
+    size = len(b) // (nblk * np.dtype(dtype).itemsize)
+    return np.frombuffer(b, dtype, size * nblk).reshape(size, *shape)
 
 
 def ffprobe(
@@ -508,13 +494,14 @@ def versions():
     ==================  ====  =========================================
 
     """
-    s = run_sync(
+    s = _run(
+        sp.run,
         ["-version"],
         hide_banner=False,
         stdout=sp.PIPE,
         universal_newlines=True,
         encoding="utf-8",
-    ).splitlines()
+    ).stdout.splitlines()
     v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
     i = 2 if s[1].startswith("built with") else 1
     if s[i].startswith("configuration:"):
@@ -528,128 +515,3 @@ def versions():
                 lv = v["library_versions"] = {}
             lv[m[1]] = m[2].replace(" ", "")
     return v
-
-
-class _ProgressMonitor(threading.Thread):
-    def __init__(self, callback, initial_wait=0.5):
-        threading.Thread.__init__(self)
-        self._td = tempfile.TemporaryDirectory()
-        self.url = os.path.join(self._td.name, "progress.txt")
-        self.callback = callback
-        self.initial_wait = initial_wait
-        self.proc = None
-
-    def run(self):
-        proc = self.proc
-        url = self.url
-        callback = self.callback
-
-        def readnext(f):
-            txt = f.readline()
-            m = pattern.match(txt)
-            while not m:
-                txt = f.readline()
-                m = pattern.match(txt)
-            return m
-
-        pattern = re.compile(r"(.+)?=(.+)\n")
-        done = False
-        logging.debug(f'[progress_monitor] monitoring "{url}"')
-        time.sleep(self.initial_wait)
-        if proc.poll() is None and os.path.isfile(url):
-            logging.debug(f"[progress_monitor] file found")
-            with open(url, "rt") as f:
-                while proc.poll() is None and not done:
-                    d = {}
-                    m = readnext(f)
-                    while m[1] != "progress":
-                        d[m[1]] = m[2]
-                        m = readnext(f)
-                    done = m[2] == "end"
-                    if callback(d, done):
-                        proc.terminate()
-                        proc.stderr.write("Operation canceled by user agent")
-
-        self._td.cleanup()
-
-
-class _StderrMonitorIO(io.StringIO):
-    def __init__(self):
-        io.StringIO.__init__(self)
-        self.lock = threading.Lock()
-
-    def read(self, size=-1):
-        self.lock.acquire()
-        v = io.StringIO.read(self, size)
-        self.lock.release()
-        return v
-
-    def readline(self, size=-1):
-        self.lock.acquire()
-        v = io.StringIO.readline(self, size)
-        self.lock.release()
-        return v
-
-    def write(self, s):
-        self.lock.acquire()
-        pos = io.StringIO.tell(self)
-        n = io.StringIO.write(self, s)
-        io.StringIO.seek(self, pos)
-        self.lock.release()
-        return n
-
-    def seek(self, offset, whence=io.SEEK_SET):
-        self.lock.acquire()
-        pos = io.StringIO.seek(self, offset, whence)
-        self.lock.release()
-        return pos
-
-    def tell(self):
-        self.lock.acquire()
-        pos = io.StringIO.tell(self)
-        self.lock.release()
-        return pos
-
-
-class _StderrMonitor(threading.Thread):
-    def __init__(self, proc):
-        threading.Thread.__init__(self)
-        self.proc = proc
-        self.input = proc.stderr
-        self.output = _StderrMonitorIO()
-        self.monitoring = True
-        setattr(proc, "stderr", self.output)
-
-        self.error_message = None
-        proc._stderr_monitor = self
-
-        def get_errmsg():
-            if self.proc.returncode != 0:
-                while self.monitoring:
-                    time.sleep(0.05)
-                txt = self.output.getvalue().splitlines()
-                self.error_message = txt[-1]
-            return self.error_message
-
-        setattr(proc, "get_errmsg", get_errmsg)
-
-    def run(self):
-        proc = self.proc
-        input = self.input
-
-        if input is None:
-            return
-
-        def read_next():
-            txt = input.readline().decode("utf-8")
-            if txt and txt != "\n":
-                self.output.write(txt)
-            return txt
-
-        while proc.poll() is None:
-            read_next()
-
-        while read_next():
-            pass
-
-        self.monitoring = False

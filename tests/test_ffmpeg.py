@@ -9,7 +9,7 @@ from os import path
 def test_ffmpeg():
     out = ffmpeg.parse("ffmpeg -i input.avi -b:v 64k -bufsize 64k output.avi")
     assert out == {
-        "_global_options": {},
+        "global_options": {},
         "inputs": [("input.avi", {})],
         "outputs": [("output.avi", {"b:v": "64k", "bufsize": "64k"})],
     }
@@ -18,7 +18,7 @@ def test_ffmpeg():
     '[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay' \
     -sn -map '#0x2dc' -map a output.mkv"
     assert ffmpeg.parse(s) == {
-        "_global_options": {
+        "global_options": {
             "filter_complex": "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay"
         },
         "inputs": [("input.ts", {})],
@@ -28,7 +28,7 @@ def test_ffmpeg():
     s = "ffmpeg -i /tmp/a.wav -map 0:a -b:a 64k /tmp/a.mp2 -map 0:a -b:a 128k /tmp/b.mp2"
     p = ffmpeg.parse(s)
     assert p == {
-        "_global_options": {},
+        "global_options": {},
         "inputs": [("/tmp/a.wav", {})],
         "outputs": [
             ("/tmp/a.mp2", {"map": "0:a", "b:a": "64k"}),
@@ -110,43 +110,5 @@ def test_versions():
     assert "version" in ffmpeg.versions()
 
 
-def test_run_sync():
-    ffmpeg.run_sync("-help")
-
-
-def test_run():
-    import time
-    proc = ffmpeg.run("-help")
-    stdout,stderr = proc.communicate()
-    proc.wait()
-    print(stdout.decode('utf-8'), stderr.decode('utf-8'))
-
-
 def test_probe():
     ffmpeg.ffprobe("-help")
-
-
-def test_monitors():
-    from pprint import pprint
-
-    url = "tests/assets/testvideo-1m.mp4"
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        out_url = path.join(tmpdirname, re.sub(r"\..*?$", ".mp4", path.basename(url)))
-
-        args = {
-            "inputs": [(url, {"t": 10.0})],
-            "outputs": [(out_url, None)],
-            # "outputs": [(out_url, {"vcodec": "bad"})],
-        }
-
-        proc = ffmpeg.run(args, progress=lambda d, done: pprint(d))
-
-        while proc.poll() is None:
-            # time.sleep(0.01)
-            # print(stderr_monitor.output.readline())
-            txt = proc.stderr.readline()
-            if txt:
-                print(txt[:-1])
-
-        if proc.returncode != 0:
-            raise Exception(proc.get_errmsg())

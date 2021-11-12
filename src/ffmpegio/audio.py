@@ -1,19 +1,24 @@
 """Audio Read/Write Module
 """
 import numpy as np
-from . import ffmpeg, utils, configure, filter_utils
+from . import ffmpegprocess, utils, configure, filter_utils
 
 
-def create(name, *args, **kwargs):
+def create(name, *args, progress=None, show_log=None, **kwargs):
     """Create audio data using an audio source filter
 
     :param name: name of the source filter
     :type name: str
     :param \\*args: filter arguments
     :type \\*args: tuple, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: filter keyword arguments
     :type \\**options: dict, optional
-    :return: video data
+    :return: audio data
     :rtype: numpy.ndarray
 
     .. note:: Either `duration` or `nb_samples` filter options must be set.
@@ -60,17 +65,27 @@ def create(name, *args, **kwargs):
         ffmpeg_args, "output", {"t": nb_samples / rate}, file_index=0
     )
 
-    stdout = ffmpeg.run_sync(ffmpeg_args)
-    return np.frombuffer(stdout, dtype=dtype).reshape(-1, nch)
+    return ffmpegprocess.run(
+        ffmpeg_args,
+        progress=progress,
+        shape=nch,
+        dtype=dtype,
+        capture_log=False if show_log else None,
+    ).stdout
 
 
-def read(url, stream_id=0, **options):
+def read(url, stream_id=0, progress=None, show_log=None, **options):
     """Read audio samples.
 
     :param url: URL of the audio file to read.
     :type url: str
     :param stream_id: audio stream id (the numeric part of ``a:#`` specifier), defaults to 0.
     :type stream_id: int, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     :return: sample rate in samples/second and audio data matrix (timexchannel)
@@ -84,6 +99,8 @@ def read(url, stream_id=0, **options):
 
 
     """
+
+    url, stdin, input = configure.check_url(url, False)
 
     args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
@@ -102,24 +119,41 @@ def read(url, stream_id=0, **options):
     )
 
     dtype, nch, rate = reader_cfg[0]
-    stdout = ffmpeg.run_sync(args)
 
-    data = np.frombuffer(stdout, dtype=dtype).reshape(-1, nch)
-    return rate, data[i0:i1, ...]
+    data = ffmpegprocess.run(
+        args,
+        stdin=stdin,
+        input=input,
+        progress=progress,
+        dtype=dtype,
+        shape=nch,
+        capture_log=False if show_log else None,
+    ).stdout
+    data = data[i0:i1]
+
+    return (rate, data)
 
 
-def write(url, rate, data, **options):
+def write(url, rate, data, progress=None, show_log=None, **options):
     """Write a NumPy array to an audio file.
 
     :param url: URL of the audio file to write.
     :type url: str
     :param rate: The sample rate in samples/second.
     :type rate: int
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     :param data: A 1-D or 2-D NumPy array of either integer or float data-type.
     :type data: `numpy.ndarray`
     """
+
+    url, stdout, _ = configure.check_url(url, True)
+
     args = configure.input_timing(
         {},
         "-",
@@ -140,12 +174,18 @@ def write(url, rate, data, **options):
     configure.global_options(args, **options)
 
     if "input_options" in options:
-        configure.merge_user_options(args, "input", options['input_options'])
+        configure.merge_user_options(args, "input", options["input_options"])
 
     if "output_options" in options:
-        configure.merge_user_options(args, "output", options['output_options'])
+        configure.merge_user_options(args, "output", options["output_options"])
 
     if "global_options" in options:
-        configure.merge_user_options(args, "global", options['global_options'])
+        configure.merge_user_options(args, "global", options["global_options"])
 
-    ffmpeg.run_sync(args, input=np.asarray(data).tobytes())
+    ffmpegprocess.run(
+        args,
+        input=data,
+        stdout=stdout,
+        progress=progress,
+        capture_log=False if show_log else None,
+    )

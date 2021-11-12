@@ -209,7 +209,14 @@ def get_audio_format(fmt):
 
 
 def array_to_video_input(
-    rate, data=None, stream_id=None, format=None, codec=None, pix_fmt=None, size=None
+    rate,
+    data=None,
+    stream_id=None,
+    format=None,
+    codec=None,
+    pix_fmt=None,
+    size=None,
+    dtype=None,
 ):
     """create an stdin input with video stream
 
@@ -236,11 +243,8 @@ def array_to_video_input(
     :rtype: tuple(str, dict)
     """
 
-    spec = spec_stream(stream_id, "v")
-
-    if codec is None:
-        # determine `pix_fmt` and `size` from data
-        codec = "rawvideo"
+    if data is not None:
+        # if data is given, detect size and pixel_fmt (overwrite user inputs if given)
         dtype = data.dtype
         shape = data.shape
         ndim = data.ndim
@@ -248,6 +252,21 @@ def array_to_video_input(
             raise Exception(f"unknown video data dimension: {shape}")
         nocomp = ndim == 2 or (ndim == 3 and shape[-1] > 4)
         n = 1 if nocomp else shape[-1]
+        if ndim < 2 or ndim > 4:
+            raise Exception("video data array must be 2d or 3d or 4d")
+        size = (
+            shape[2:0:-1]  # frames x rows x columns x ncomponents
+            if ndim > 3
+            else (
+                shape[:0:-1]  # frames x rows x columns
+                if nocomp
+                else shape[-2::-1]  # rows x columns x ncomponents
+            )
+            if ndim > 2
+            else shape[::-1]  # rows x columns
+        )
+
+    if data is not None or pix_fmt is None:
         if dtype == np.uint8:
             pix_fmt = (
                 "gray" if n == 1 else "ya8" if n == 2 else "rgb24" if n == 3 else "rgba"
@@ -266,23 +285,15 @@ def array_to_video_input(
             pix_fmt = "grayf32le"
         else:
             raise Exception("Invalid data format")
-        if ndim < 2 or ndim > 4:
-            raise Exception("video data array must be 2d or 3d or 4d")
-        size = (
-            shape[2:0:-1]  # frames x rows x columns x ncomponents
-            if ndim > 3
-            else (
-                shape[:0:-1]  # frames x rows x columns
-                if nocomp
-                else shape[-2::-1]  # rows x columns x ncomponents
-            )
-            if ndim > 2
-            else shape[::-1]  # rows x columns
-        )
 
+    spec = spec_stream(stream_id, "v")
+
+    if codec is None:
+        # determine `pix_fmt` and `size` from data
+        codec = "rawvideo"
     elif pix_fmt is None or size is None:
         raise Exception(
-            "configuring audio input with a custom codec requires `sample_fmt` and `channels` to be also specified."
+            "configuring audio input with a custom codec requires `pix_fmt` and `size` to be also specified."
         )
 
     opts = {
@@ -482,7 +493,7 @@ def analyze_input(streams_basic, set_cfg, option_regex, input, entries):
     """
 
     is_stdin = input[0] == "-"
-    
+
     try:
         filtspec = filter_utils.analyze_filter(input[0], entries)
     except:
@@ -662,7 +673,7 @@ def parse_time_duration(expr):
     :type expr: str
     :return: time/duration in seconds
     :rtype: float
-    """    
+    """
     if isinstance(expr, str):
         m = re.match(r"(-)?((\d{2})\:)?(\d{2}):(\d{2}(?:\.\d+)?)", expr)
         if m:

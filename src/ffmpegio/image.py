@@ -1,14 +1,19 @@
 import numpy as np
-from . import ffmpeg, utils, configure, filter_utils
+from . import ffmpegprocess, utils, configure, filter_utils
 
 
-def create(name, *args, **kwargs):
+def create(name, *args, progress=None, show_log=None, **kwargs):
     """Create an image using a source video filter
 
     :param name: name of the source filter
     :type name: str
     :param \\*args: filter arguments
     :type \\*args: tuple, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: filter keyword arguments
     :type \\**options: dict, optional
     :return: image data
@@ -58,17 +63,27 @@ def create(name, *args, **kwargs):
     dtype, shape, _ = reader_cfg[0]
 
     configure.merge_user_options(ffmpeg_args, "output", {"frames:v": 1}, file_index=0)
-    stdout = ffmpeg.run_sync(ffmpeg_args)
-    return np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))[0, ...]
+    return ffmpegprocess.run(
+        ffmpeg_args,
+        progress=progress,
+        dtype=dtype,
+        shape=shape,
+        capture_log=False if show_log else None,
+    ).stdout[0, ...]
 
 
-def read(url, stream_id=0, **options):
+def read(url, stream_id=0, progress=None, show_log=None, **options):
     """Read an image file or a snapshot of a video frame
 
     :param url: URL of the image or video file to read.
     :type url: str
     :param stream_id: video stream id (numeric part of ``v:#`` specifier), defaults to 0.
     :type stream_id: int, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     :return: image data
@@ -77,6 +92,8 @@ def read(url, stream_id=0, **options):
     Note on \\**options: To specify the video frame capture time, use `time`
     option which is an alias of `start` standard option.
     """
+
+    url, stdin, input = configure.check_url(url,False)
 
     args = configure.input_timing(
         {},
@@ -102,20 +119,35 @@ def read(url, stream_id=0, **options):
     dtype, shape, _ = reader_cfg[0]
 
     configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
-    stdout = ffmpeg.run_sync(args)
-    return np.frombuffer(stdout, dtype=dtype).reshape((-1, *shape))[0, ...]
+    return ffmpegprocess.run(
+        args,
+        progress=progress,
+        stdin=stdin,
+        input=input,
+        dtype=dtype,
+        shape=shape,
+        capture_log=False if show_log else None,
+    ).stdout[0, ...]
 
 
-def write(url, data, **options):
+def write(url, data, progress=None, show_log=None, **options):
     """Write a NumPy array to an image file.
 
     :param url: URL of the image file to write.
     :type url: str
     :param data: image data 3-D array (rowsxcolsxcomponents)
     :type data: `numpy.ndarray`
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     """
+
+    url, stdout, _ = configure.check_url(url,True)
+
     args = configure.input_timing(
         {}, "-", vstream_id=0, excludes=("start", "end", "duration"), **options
     )
@@ -129,4 +161,10 @@ def write(url, data, **options):
     )
     configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
 
-    ffmpeg.run_sync(args, input=np.asarray(data).tobytes())
+    ffmpegprocess.run(
+        args,
+        progress=progress,
+        stdout=stdout,
+        input=data,
+        capture_log=False if show_log else None,
+    )

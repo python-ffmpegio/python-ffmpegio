@@ -8,10 +8,12 @@ outext = ".mp4"
 
 
 def test_read_write_video():
-    with ffmpegio.open(url, "rv") as f:
-        F = f.read(-1)
-        fs = f.frame_rate
-        print(F.shape)
+    # with ffmpegio.open(url, "rv") as f:
+    #     F = f.read(-1)
+    #     fs = f.frame_rate
+    #     print(F.shape)
+
+    fs,F = ffmpegio.video.read(url)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
@@ -28,7 +30,6 @@ def test_read_audio():
     with ffmpegio.open(url, "ra", start=0.5, end=1.2) as f:
         fs = f.sample_rate
         n = int(fs * (1.2)) - int(fs * (0.5))
-        print(fs, n)
         blks = [blk for blk in f.readiter(1024)]
         x = np.concatenate(blks)
         print("# of blks: ", len(blks), x.shape)
@@ -50,5 +51,6 @@ def test_read_write_audio():
             f.write(F[100:, ...])
             print(f.samples_written)
 
-
-test_read_audio()
+if __name__=="__main__":
+    test_read_write_video()
+    # test_read_audio()

@@ -3,3 +3,4 @@ sphinx-rtd-theme
 sphinx-autopackagesummary
 sphinxcontrib-blockdiag
 matplotlib
+PyQt5

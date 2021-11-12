@@ -49,7 +49,7 @@ def test_read():
 
     T = 0.51111
     fs, x = audio.read(url, duration=T)
-    print(int(fs * T), x.shape)
+    print(fs * T, int(fs * T), x.shape)
     assert int(fs * T) == x.shape[0]
 
     T = 1.5
@@ -94,4 +94,4 @@ def test_read_write():
 
 if __name__ == "__main__":
     # test_create()
-    test_read_url()
+    test_read_write()
