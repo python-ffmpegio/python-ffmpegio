@@ -1,6 +1,7 @@
 from ffmpegio import video, probe
 import tempfile, re
 from os import path
+import numpy as np
 
 
 def test_create():
@@ -54,3 +55,28 @@ def test_read_write():
         fs, A = video.read(out_url, 10)
         print(fs)
         print(A.shape)
+
+
+def test_read():
+    url = "tests/assets/testvideo-1m.mp4"
+    outext = ".mp4"
+
+    info = probe.video_streams_basic(url)[0]
+    # info = probe.inquire(url)
+    print(info)
+
+    fs, A = video.read(url, 10)
+
+    T = 10 / fs
+    n0 = 2
+    N = 5
+    fs, B = video.read(url, 10, start=n0 / fs)
+    assert np.array_equal(A[n0:, ...], B[: 10 - n0, ...])
+
+    fs, C = video.read(url, start=n0 / fs, duration=N / fs)
+
+    print(C.shape)
+    assert np.array_equal(A[n0:n0+N, ...], C)
+
+    fs, D = video.read(url, start=n0, duration=N, units='frames')
+    assert np.array_equal(D, C)

@@ -28,7 +28,7 @@ def empty():
     return dict(inputs=[], outputs=[], global_options=None)
 
 
-def check_url(url,nodata=True):
+def check_url(url, nodata=True):
     """Analyze url argument for non-url input
 
     :param url: url argument string or data or file
@@ -280,6 +280,7 @@ def input_timing(
                 stream_type="v",
                 stream_id=vstream_id,
             )
+            or probe.video_streams_basic(url, vstream_id)[0]["frame_rate"]
             if units == "frames"
             else get_option(
                 ffmpeg_args,
@@ -289,6 +290,7 @@ def input_timing(
                 stream_type="a",
                 stream_id=astream_id,
             )
+            or probe.audio_streams_basic(url, astream_id)[0]["sample_rate"]
             if units == "samples"
             else None
         )
@@ -1049,10 +1051,10 @@ def filters(
     return ffmpeg_args
 
 
-def get_audio_range(ffmpeg_args, file_id=0, stream_id=0):
+def adjust_audio_range(ffmpeg_args, file_id=0, stream_id=0):
     """estimated range of audio sample indices
 
-    :param ffmpeg_args: argument dict to ffmpeg
+    :param ffmpeg_args: argument dict to ffmpeg (possibly modified by this function)
     :type ffmpeg_args: dict
     :param file_id: audio input file index, defaults to 0
     :type file_id: int, optional
@@ -1062,15 +1064,17 @@ def get_audio_range(ffmpeg_args, file_id=0, stream_id=0):
     :rtype: tuple(int, int)
     """
     url, opts = ffmpeg_args["inputs"][file_id]
+
     info = probe.audio_streams_basic(url, file_id, ("sample_rate", "nb_samples"))[0]
-    fs = info["sample_rate"]
+
     i0 = 0
     i1 = info["nb_samples"]
-    if opts is not None:
-        ss = utils.parse_time_duration(get_option(ffmpeg_args, "input", "ss"))
-        t = utils.parse_time_duration(get_option(ffmpeg_args, "input", "t"))
-        to = utils.parse_time_duration(get_option(ffmpeg_args, "input", "to"))
-        ar = get_option(
+
+    if opts is None:
+        return i0, i1
+
+    fs = (
+        get_option(
             ffmpeg_args,
             "input",
             "ar",
@@ -1078,16 +1082,24 @@ def get_audio_range(ffmpeg_args, file_id=0, stream_id=0):
             stream_type="a",
             stream_id=stream_id,
         )
-        if ar is not None:
-            fs = ar
-        if ss is None:
-            ss = 0.0
-        else:
-            i0 = int(ss * fs)
+        or info["sample_rate"]
+    )
 
-        if t is not None:
-            i1 = min(int((ss + t) * fs), i1)
-        elif to is not None:
-            i1 = min(int(to * fs), i1)
+    ss = None if opts is None else utils.parse_time_duration(opts.get("ss", None))
+    t = None if opts is None else utils.parse_time_duration(opts.get("t", None))
+    to = None if opts is None else utils.parse_time_duration(opts.get("to", None))
+
+    if ss is not None:
+        i0 = int(ss * fs)  # starting sample
+        ss = i0 / fs
+        del opts["ss"]
+    else:
+        ss = 0.0
+    if t is not None:
+        i1 = min(int((ss + t) * fs), i1)
+        opts["t"] = i1 / fs
+    elif to is not None:
+        i1 = min(int(to * fs), i1)
+        opts["to"] = i1 / fs
 
     return i0, i1

@@ -1,3 +1,5 @@
+import numpy as np
+from numpy.core.getlimits import _fr0
 from ffmpegio import audio, probe
 import tempfile, re, logging
 from os import path
@@ -58,6 +60,12 @@ def test_read():
     print(int(fs * T), x1.shape)
     assert int(fs * T) == x1.shape[0]
 
+    n0 = int(t0*fs)
+    N = int(T*fs)
+
+    fs, x2 = audio.read(url, start=n0, duration=N, units='samples')
+    assert x1.shape==x2.shape
+    assert np.array_equal(x1,x2)
 
 def test_read_write():
     url = "tests/assets/testaudio-1m.mp3"

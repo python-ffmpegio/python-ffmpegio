@@ -177,10 +177,7 @@ class SimpleAudioReader:
         self.stream_id = stream_id
         args = configure.input_timing({}, url, astream_id=stream_id, **options)
 
-        start, end = configure.get_audio_range(args, 0, stream_id)
-        if start > 0:
-            # if start time is set, remove to read all samples from the beginning
-            del args["inputs"][0][1]["ss"]
+        start, end = configure.adjust_audio_range(args, 0, stream_id)
 
         args, reader_cfg = configure.audio_io(
             args,
