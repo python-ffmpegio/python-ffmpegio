@@ -69,7 +69,7 @@ def reader(stdout, mout, outblks, timeout):
                 nread += len(data)
                 # print(f"[reader {o}] rx'ed {nread}/{mout} bytes")
             except pipe_nonblock.NoData:
-                # print(f"[reader {o}] no data")
+                print(f"[reader {o}] no data")
                 time.sleep(timeout)
             if nread > mout:
                 raise RuntimeError(f"rx'ed too many: {nread}/{mout}")

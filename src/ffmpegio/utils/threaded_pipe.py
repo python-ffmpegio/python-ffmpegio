@@ -78,7 +78,7 @@ class ThreadedPipe(threading.Thread):
         """
         return self.closed and self.queue.empty()
 
-    def wait_till_drained(self,timeout=None):
+    def wait_till_drained(self, timeout=None):
         return self.queue.join(timeout)
 
     def open(self, clear_queue=False):
@@ -132,13 +132,17 @@ class ThreadedPipe(threading.Thread):
                         pass
             except nonblock.NoData:  # nonblock.read() returned empty
                 time.sleep(self.timeout)
+            except Paused:
+                logging.critical("pipe is still open but queue is paused")
             except Exception as e:
                 with mutex:
                     if self._fds is None or self._joinreq:
                         # if pipe is closed, who cares
-                        logging.debug(e)
+                        logging.debug(
+                            f"[ThreadedPipe] pipe_op post-close exception: {e}"
+                        )
                     else:
-                        logging.critical(e)
+                        logging.critical(f"[ThreadedPipe] pipe_op exception: {e}")
 
         logging.debug("exiting ThreadedPipe thread")
 
@@ -201,7 +205,7 @@ class ThreadedPipe(threading.Thread):
 
     def _close(self):
         if self._fds is None:
-            raise NotOpen
+            return
         if self._is_writer or self.queue.empty():
             self.queue.pause()
         elif len(self.queue.queue) and self.queue.queue[-1] is not None:

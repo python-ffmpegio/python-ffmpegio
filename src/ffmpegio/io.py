@@ -56,7 +56,7 @@ class IOBase:
         """
         return self._pipe.drained
 
-    def wait_till_drained(self,timeout=None):
+    def wait_till_drained(self, timeout=None):
         return self._pipe.wait_till_drained(timeout)
 
     def __del__(self):
@@ -269,7 +269,7 @@ class QueuedReader(IOBase):
         """Return True if the stream can be read from. If False, read() will raise OSError."""
         return True
 
-    def readall(self, block=None, timeout=None):
+    def readall(self, block=True, timeout=None):
         """Read and return all the bytes from the stream until EOF.
 
         :param block: True to block until queued, defaults to True
@@ -293,10 +293,8 @@ class QueuedReader(IOBase):
 
         """
 
-        if self.drained:
-            raise RuntimeError("pipe is closed and no more data in the queue")
-
         b = bytearray()
+
         if self._buf:
             b.extend(self._buf)
             self._buf = None
@@ -317,7 +315,7 @@ class QueuedReader(IOBase):
 
         return b
 
-    def readinto(self, out, block=None, timeout=None, blksize=None):
+    def readinto(self, out, block=True, timeout=None, blksize=None):
         """Read bytes into a pre-allocated buffer
 
         :param b: writable object to store read bytes to
@@ -338,7 +336,7 @@ class QueuedReader(IOBase):
         """
 
         if self.drained:
-            raise RuntimeError("pipe is closed and no more data in the queue")
+            raise Empty
 
         if blksize is None or blksize <= 0:
             blksize = 1
@@ -380,6 +378,9 @@ class QueuedReader(IOBase):
             except Empty:
                 # timed out
                 break
+
+        if not i:
+            raise Empty
 
         nblks = i // blksize
 
@@ -436,7 +437,7 @@ class QueuedReader(IOBase):
     def read_as_array(
         self,
         size=-1,
-        block=None,
+        block=True,
         timeout=None,
         shape=None,
         dtype=None,

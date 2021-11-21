@@ -567,11 +567,14 @@ def run(
             ffmpeg_args,
             hide_banner=hide_banner,
             progress=pmon and pmon.url,
-            stdin=inpipe,
             stdout=outpipe,
             stderr=errpipe,
-            input=input if input is None else memoryview(input).cast("b"),
-            **kwargs,
+            **(
+                {"input": memoryview(input).cast("b")}
+                if inpipe is None
+                else {"stdin": inpipe}
+            ),
+            ** kwargs,
         )
     finally:
         if pmon:

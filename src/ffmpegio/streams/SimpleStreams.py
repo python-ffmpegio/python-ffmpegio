@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-from .. import utils, configure, ffmpegprocess
+from .. import utils, configure, ffmpegprocess, io
 
 
 class SimpleVideoReader:
@@ -236,10 +236,13 @@ class SimpleAudioReader:
 
     def readiter(self, nsamples, block=True, timeout=None):
         while self.remaining > 0:
-            data = self.read(nsamples, block, timeout)
-            if not data.shape[0]:
-                break  # no data, not data for nonblocking or timed out
-            yield data
+            try:
+                data = self.read(nsamples, block, timeout)
+                if data is None or not data.size:
+                    break  # no data, not data for nonblocking or timed out
+                yield data
+            except io.Empty:
+                break
 
     def close(self):
         if self._proc:

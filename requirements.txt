@@ -1,3 +1,2 @@
 -r tests/requirements.txt
 -r docsrc/requirements.txt
-yappi

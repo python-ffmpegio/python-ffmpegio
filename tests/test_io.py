@@ -42,7 +42,11 @@ def test_reader(reader):
 
     shape = (5, 16, 64)
     wdata = feed_reader(reader, shape)
+    # rdata = reader.read(size=wdata.size*wdata.itemsize)
+    # print(len(rdata))
+    # rdata = np.frombuffer(rdata,float).reshape(shape)
     rdata = reader.read_as_array(size=shape[0], shape=shape[1:], dtype=float)
+    print(rdata.shape)
     assert np.array_equal(wdata, rdata)
 
 

@@ -2,8 +2,10 @@ import os
 
 # https://stackoverflow.com/questions/34504970/non-blocking-read-on-os-pipe-on-windows
 
+
 class NoData(RuntimeError):
     pass
+
 
 if os.name == "nt":
 
@@ -39,7 +41,8 @@ else:
         fcntl.fcntl(pipefd, fcntl.F_SETFL, os.O_NONBLOCK)
 
     def _check_error(err):
-        return err.errno == errno.EAGAIN or err.errno == errno.EWOULDBLOCK
+        return isinstance(err, BlockingIOError)
+        # return err.errno == errno.EAGAIN or err.errno == errno.EWOULDBLOCK
 
 
 def pipe():
