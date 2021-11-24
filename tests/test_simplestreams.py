@@ -38,16 +38,24 @@ def test_read_audio(caplog):
         x1 = np.concatenate(blks)
         assert np.array_equal(x, x1)
 
-    with ffmpegio.open(url, "ra", start=0.5, end=1.2) as f:
-        #     fs = f.sample_rate
-        n0 = int(0.5 * fs)
-        n1 = int(1.2 * fs)
-        #     n = int(fs * (1.2)) - int(fs * (0.5))
+    n0 = int(0.5 * fs)
+    n1 = int(1.2 * fs)
+    t0 = n0 / fs
+    t1 = n1 / fs
+
+    with ffmpegio.open(url, "ra", start=t0, end=t1, capture_log=True) as f:
         blks = [blk for blk in f.readiter(1024)]
-        x2 = np.concatenate(blks)
-        #     # print("# of blks: ", len(blks), x1.shape)
-        assert np.array_equal(x[n0:n1,:],x2)
-        #     assert x1.shape == (n, f.channels)
+        log = f._proc.stderr.readlines()
+
+    print(log)
+
+    x2 = np.concatenate(blks)
+    #     # print("# of blks: ", len(blks), x1.shape)
+    # for i, xi in enumerate(x2):
+    #     print(i, xi-x[n0 + i])
+    #     assert np.array_equal(xi, x[n0 + i])
+    assert x2.shape == (n1 - n0, f.channels)
+    assert np.array_equal(x[n0:n1, :], x2)
 
 
 def test_read_write_audio():

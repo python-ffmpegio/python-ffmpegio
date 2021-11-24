@@ -296,19 +296,20 @@ class Popen:
             self._thread.join()
 
     def _run(self):
-        _logging.debug("starting ffmpegprocess.Popen thread")
+        _logging.debug("[ffmpegprocess.Popen thread] started")
         self._proc.wait()
+        _logging.debug("[ffmpegprocess.Popen thread] ffmpeg process exited")
         if self.readable:
-            self.stdout.mark_eof()
             if self._own_stdout:
+                _logging.debug(f"[ffmpegprocess.Popen thread] joining stdout (drained: {self.stdout.drained})")
                 self.stdout._pipe.join()
-                self.stdout._pipe.queue.resume()  # allow access to the remaining data
+                _logging.debug(f"[ffmpegprocess.Popen thread] joined stdout (drained: {self.stdout.drained})")
+            self.stdout.mark_eof()
         if self.loggable:
-            self.stderr.mark_eof()
             if self._own_stderr:
                 self.stderr._pipe.join()
-                self.stderr._pipe.queue.resume()  # allow access to the remaining data
-        _logging.debug("exiting ffmpegprocess.Popen thread")
+            self.stderr.mark_eof()
+        _logging.debug(f"[ffmpegprocess.Popen thread] exiting")
 
     def _run_cancelable(self):
         proc = self._proc
@@ -440,12 +441,18 @@ class Popen:
         return output_data, stderr_data
 
     def terminate(self):
-        self._proc.terminate()
+        try:
+            self._proc.terminate()
+        except ProcessLookupError:
+            pass
         if self._thread:
             self._thread.join()
 
     def kill(self):
-        self._proc.kill()
+        try:
+            self._proc.kill()
+        except ProcessLookupError:
+            pass
         if self._thread:
             self._thread.join()
 
@@ -574,7 +581,7 @@ def run(
                 if inpipe is None
                 else {"stdin": inpipe}
             ),
-            ** kwargs,
+            **kwargs,
         )
     finally:
         if pmon:

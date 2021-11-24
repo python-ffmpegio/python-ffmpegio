@@ -93,14 +93,18 @@ class ThreadedPipe(threading.Thread):
             # self._just_closed.notify_all()
 
     def join(self):
+        if self._joinreq:
+            return
         with self._new_state:
             self._joinreq = True
-            try:
-                self._close()
-            except:
-                pass
+            if self._is_writer:
+                self.queue.pause()
             self._new_state.notify()
         super().join()
+        try:
+            self.close()
+        except:
+            pass
 
     def run(self):
         logging.debug("starting ThreadedPipe thread")
@@ -120,7 +124,11 @@ class ThreadedPipe(threading.Thread):
                 if self._fds is None and not self._joinreq:
                     cv.wait()
             if self._joinreq:  # thread join request has been issued
-                break
+                try:
+                    if self._fds is not None:
+                        pipe_op(que, file_op)
+                finally:
+                    break
 
             # run the pipe-queue transaction
             try:
@@ -206,9 +214,9 @@ class ThreadedPipe(threading.Thread):
     def _close(self):
         if self._fds is None:
             return
-        if self._is_writer or self.queue.empty():
+        if self._is_writer:
             self.queue.pause()
-        elif len(self.queue.queue) and self.queue.queue[-1] is not None:
+        else:
             self.queue.put(None)
         if self._fds is not None:
             for fd in self._fds:

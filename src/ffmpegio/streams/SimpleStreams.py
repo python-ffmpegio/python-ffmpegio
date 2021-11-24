@@ -235,11 +235,11 @@ class SimpleAudioReader:
         while self.remaining > 0:
             try:
                 data = self.read(nsamples, block, timeout)
-                if data is None or not data.size:
-                    break  # no data, not data for nonblocking or timed out
                 yield data
             except io.Empty:
+                logging.debug('[SimpleAudioRear::readiter] read returned empty')
                 break
+        logging.debug(f"[SimpleAudioRear::readiter] stopped reading (remaining: {self.remaining} samples)")
 
     def close(self):
         if self._proc:

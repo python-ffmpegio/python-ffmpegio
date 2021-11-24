@@ -1,6 +1,6 @@
+import logging
 import threading as _threading, time as _time
 from queue import Empty, Full, Queue as _Queue
-
 
 class Paused(RuntimeError):
     "Exception raised by attempting to access empty buffer queue while operation is paused."
@@ -150,6 +150,7 @@ class PausableQueue(_Queue):
         with self.not_empty:
             if not block:
                 if not self._qsize():
+                    logging.debug('[PausableQueue::get] nonblocking nodata')
                     raise Empty
             elif timeout is None:
                 while not self._qsize() and not self._paused:
@@ -161,6 +162,7 @@ class PausableQueue(_Queue):
                 while not self._qsize() and not self._paused:
                     remaining = endtime - _time.time()
                     if remaining <= 0.0:
+                        logging.debug('[PausableQueue::get] timed out')
                         raise Empty
                     self.not_empty.wait(remaining)
             if self._paused:

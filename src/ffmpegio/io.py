@@ -1,4 +1,4 @@
-import threading, time, re
+import logging, re
 from io import UnsupportedOperation
 from subprocess import TimeoutExpired
 import numpy as np
@@ -15,6 +15,7 @@ class IOBase:
         self._pipe = ThreadedPipe(is_writer, queue_size, timeout, block_size, pipe_op)
         self._pipe.start()
         self._pipe.open()
+        self._eof = False
 
     def open(self, clear_buffer=True):
         """open new connection to a FFmpeg subprocess"""
@@ -23,6 +24,7 @@ class IOBase:
 
         # open pipe (if none open or new_pipe is true)
         self._pipe.open(clear_buffer)
+        self._eof = False
 
     def close(self, timeout=None, force=True):
         """Flush and close this stream.
@@ -41,6 +43,7 @@ class IOBase:
 
         if not self._pipe.closed:
             self._pipe.close()
+        self._eof = True
 
     @property
     def closed(self):
@@ -253,6 +256,8 @@ class QueuedWriter(IOBase):
             self._pipe.queue.put(b, block, timeout)
         except Full:
             return None
+        if b is None:
+            self._eof = True
         return 0 if b is None else len(b)
 
     def writelines(self, *_, **__):
@@ -264,6 +269,13 @@ class QueuedReader(IOBase):
     def __init__(self, queue_size=0, timeout=1e-3, block_size=2 ** 20):
         super().__init__(False, queue_size, timeout, block_size)
         self._buf = None  # holds leftover bytes from previously dequeued block
+
+    @property
+    def drained(self):
+        """
+        True if the stream is closed and no data remains in the queue.
+        """
+        return self._buf is None and super().drained
 
     def readable(self):
         """Return True if the stream can be read from. If False, read() will raise OSError."""
@@ -336,6 +348,7 @@ class QueuedReader(IOBase):
         """
 
         if self.drained:
+            logging.debug(f'[io.QueuedReader] already drained')
             raise Empty
 
         if blksize is None or blksize <= 0:
@@ -353,37 +366,48 @@ class QueuedReader(IOBase):
                 self._buf = self._buf[i:]
                 return i
             self._buf = None
+
+        timedout = False
         while not self.drained:
+            # read next block
             try:
                 blk = self._pipe.queue.get(block, timeout)
-                break_loop = blk is None
-                if not break_loop:
-                    buf = memoryview(blk).cast("b")
-                    n = len(buf)
-                    i1 = i + n
-
-                    break_loop = i1 >= sz
-                    if break_loop:  # got enough
-                        j = sz - i
-                        b[i:sz] = buf[0:j]
-                        self._buf = buf[j:]  # keep excess for later
-                        i = sz
-                    else:  # need more
-                        b[i:i1] = buf
-                        i = i1
-                self._pipe.queue.task_done()
-                if break_loop:
-                    break  # eof
-
             except Empty:
-                # timed out
+                timedout = True
                 break
 
-        if not i:
-            raise Empty
+            self._pipe.queue.task_done()
+            if blk is None:
+                self.close()
+                break  # eof
 
+            # get buffered bytes
+            buf = memoryview(blk).cast("b")
+            n = len(buf)
+            i1 = i + n
+
+            if i1 >= sz:  # got enough
+                j = sz - i
+                b[i:sz] = buf[0:j]
+                self._buf = buf[j:]  # keep excess for later
+                i = sz
+                break  # done
+            else:  # need more
+                b[i:i1] = buf
+                i = i1
+
+        # raise error if timed out
+        if timedout:
+            self._buf = bytes(b[:i])  # put the retrieved data to temp buffer
+            raise TimeoutExpired("readinto", timeout)
+        
+        # raise error if no
+        if i==0:
+            logging.debug(f'[io.QueuedReader] no data (drained={self.drained})')
+            raise Empty()
+
+        # trim data if too much read
         nblks = i // blksize
-
         n = nblks * blksize
         if n < i1:
             # odd blocks of data, truncate
@@ -427,12 +451,15 @@ class QueuedReader(IOBase):
         The default implementation defers to readall() and readinto().
         """
 
-        if size > 0:
-            b = bytearray(size)
-            n = self.readinto(b, block, timeout, 1)
-            return b[:n] if n < size else b
-        else:
-            return self.readall(block, timeout)
+        try:
+            if size > 0:
+                b = bytearray(size)
+                n = self.readinto(b, block, timeout, 1)
+                return b[:n] if n < size else b
+            else:
+                return self.readall(block, timeout)
+        except TimeoutExpired:
+            raise TimeoutExpired("read", timeout)
 
     def read_as_array(
         self,
@@ -482,36 +509,41 @@ class QueuedReader(IOBase):
         The default implementation defers to readall() and readinto().
         """
 
-        if size is None or size <= 0:
-            # read all, truncate excess
-            b = self.readall(block, timeout)
-            return np.empty((0, *shape)) if b is None else _as_array(b, shape, dtype)
-        else:
-            if out is not None:
-                # override the following arguments
-                size = out.shape[0]
-                shape = out.shape[1:]
-                shrink_if_partial = False
+        try:
+            if size is None or size <= 0:
+                # read all, truncate excess
+                b = self.readall(block, timeout)
+                return (
+                    np.empty((0, *shape)) if b is None else _as_array(b, shape, dtype)
+                )
+            else:
+                if out is not None:
+                    # override the following arguments
+                    size = out.shape[0]
+                    shape = out.shape[1:]
+                    shrink_if_partial = False
 
-            shape = (size, *(np.atleast_1d(shape) if bool(shape) else ()))
-            if not out:
-                out = np.empty(shape, dtype or "b")
-            shape = out.shape
+                shape = (size, *(np.atleast_1d(shape) if bool(shape) else ()))
+                if not out:
+                    out = np.empty(shape, dtype or "b")
+                shape = out.shape
 
-            # determine the data block size
-            blksize = out.itemsize  # 1 element
-            if no_partial:
-                blksize *= out.size  # full array
-            elif out.ndim > 1:
-                # allow partial first dimension
-                blksize *= np.prod(shape[1:])
+                # determine the data block size
+                blksize = out.itemsize  # 1 element
+                if no_partial:
+                    blksize *= out.size  # full array
+                elif out.ndim > 1:
+                    # allow partial first dimension
+                    blksize *= np.prod(shape[1:])
 
-            n = self.readinto(out.data, block, timeout, blksize)
-            # raises Empty if zero blk retrieved
+                n = self.readinto(out.data, block, timeout, blksize)
+                # raises TimeoutExpired if zero blk retrieved
 
-            n //= blksize  # convert to # of elements
+                n //= blksize  # convert to # of elements
 
-            return out[:n, ...] if shrink_if_partial and n < shape[0] else out
+                return out[:n, ...] if shrink_if_partial and n < shape[0] else out
+        except TimeoutExpired:
+            raise TimeoutExpired("read_as_array", timeout)
 
     def readline(self, size=-1):
         """Not supported"""
