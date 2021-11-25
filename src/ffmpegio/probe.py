@@ -1,5 +1,12 @@
-import json, fractions
+import json, fractions, os, pickle, re
+from collections import OrderedDict
 from . import ffmpeg
+
+# stores all the local queries during the session
+# - key: path
+# - value: (mtime, blob)
+_db = OrderedDict()
+_db_maxsize = 16
 
 
 def _items_to_numeric(d):
@@ -20,7 +27,7 @@ def _items_to_numeric(d):
     return {k: try_conv(v) for k, v in d.items()}
 
 
-def full_details(
+def _full_details(
     url,
     show_format=True,
     show_streams=True,
@@ -83,6 +90,101 @@ def full_details(
     return _items_to_numeric(results)
 
 
+def _queryall_if_path(url):
+
+    if re.match(r"[a-z][a-z0-9+.-]*://", url) is not None:
+        return None
+
+    mtime = os.stat(url).st_mtime
+
+    db_entry = _db.get(url, None)
+    if db_entry and db_entry[0] == mtime:
+        _db.move_to_end(url, True)  # refresh the entry position
+        return pickle.loads(db_entry[1])
+
+    results = _full_details(url, True, True, True, True)
+    _db[url] = (mtime, pickle.dumps(results))
+    if len(_db) > _db_maxsize:
+        _db.popitem(False)  # remove the oldest entry
+    return results
+
+
+def full_details(
+    url,
+    show_format=True,
+    show_streams=True,
+    show_programs=False,
+    show_chapters=False,
+    select_streams=None,
+):
+    """Retrieve full details of a media file or stream
+
+    :param url: URL of the media file/stream
+    :type url: str
+    :param show_format: True to return format info, defaults to True
+    :type show_format: bool, optional
+    :param show_streams: True to return stream info, defaults to True
+    :type show_streams: bool, optional
+    :param show_programs: True to return program info, defaults to False
+    :type show_programs: bool, optional
+    :param show_chapters: True to return chapter info, defaults to False
+    :type show_chapters: bool, optional
+    :param select_streams: Indices of streams to get info of, defaults to None
+    :type select_streams: seq of int, optional
+    :return: media file information
+    :rtype: dict
+
+    """
+
+    if not show_streams:
+        select_streams = None
+
+    sspec = None
+
+    if isinstance(select_streams, int):
+        sspec = (None, select_streams)
+    elif select_streams is not None:
+        m = re.match("([avstd])(?::([0-9]+))?$", select_streams)
+        sspec = m and (
+            {
+                "a": "audio",
+                "v": "video",
+                "s": "subtitle",
+                "t": "attachment",
+                "d": "data",
+            }[m[1]],
+            m[2] and int(m[2]),
+        )
+
+    # get full query if url is a path
+    results = (
+        _queryall_if_path(url) if select_streams is None or sspec is not None else None
+    )
+
+    if results is None:  # actual url, no store
+        return _full_details(
+            url, show_format, show_streams, show_programs, show_chapters, select_streams
+        )
+
+    for show, key in zip(
+        (show_format, show_streams, show_programs, show_chapters),
+        ("format", "streams", "programs", "chapters"),
+    ):
+        if not show:
+            del results[key]
+
+    if sspec is not None:
+        t, i = sspec
+        streams = results["streams"]
+        if t is not None:
+            streams = [st for st in streams if st["codec_type"] == t]
+        if i is not None:
+            streams = streams[i : i + 1]
+        results["streams"] = streams
+
+    return results
+
+
 def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}):
 
     query = set(default_entries)
@@ -114,7 +216,7 @@ def format_basic(url, entries=None):
 
 
     Media Format Information Entries
-    
+
     ===========  =====
     name         type
     ===========  =====
@@ -350,6 +452,55 @@ def audio_streams_basic(url, index=None, entries=None):
         return res
 
     return [adjust(r) for r in results]
+
+
+def query(url, stream=None, fields=None, return_none=False):
+    """Query a specific fields of media format or stream
+
+    :param url: URL of the media file/stream
+    :type url: str
+    :param stream: stream specifier, defaults to None to get format
+    :type stream: str or int, optional
+    :param fields: info, defaults to None
+    :type fields: sequence of str, optional
+    :param return_none: True to return None for an invalid field, defaults to False
+    :type return_none: bool, optional
+    :return: list of values of specified info fields or dict of specified
+             stream/format if fields not specified
+    :rtype: list or dict
+
+    Note: Unlike `video_stream_basic()` and `audio_stream_basic()`, `query()`
+          does not process ffprobe output except for the conversion from
+          str to float/int.
+
+    """
+
+    get_stream = stream is not None
+
+    info = full_details(
+        url,
+        show_format=not get_stream,
+        show_streams=get_stream,
+        select_streams=stream,
+    )
+
+    if get_stream and not len(info["streams"]):
+        raise ValueError(f"Unknown or invliad stream specifier: {stream}")
+
+    info = info["streams"][0] if get_stream else info["format"]
+
+    if fields is None:
+        return info
+
+    try:
+        return [info[f] for f in fields]
+    except:
+        if return_none:
+            return [info[f] if f in info else None for f in fields]
+
+        raise ValueError(
+            f"Unknown {'stream' if get_stream else 'format'} fields: {[f for f in fields if f not in info]}"
+        )
 
 
 # -show_data
