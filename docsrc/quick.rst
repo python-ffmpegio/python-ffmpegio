@@ -66,7 +66,7 @@ Media Probe
 
 To process a media file, you first need to know what's in it. Within FFmpeg
 ecosystem, this task is handled by `ffprobe <https://ffmpeg.org/ffprobe.html>`__.
-:code:`ffmpegio`'s :ref:`ffmpegio:probe<probe>` module wraps ffprobe with 4
+:code:`ffmpegio`'s :ref:`ffmpegio:probe<probe>` module wraps ffprobe with 5
 basic functions:
 
 .. code-block:: python
@@ -113,7 +113,8 @@ basic functions:
     'sample_rate': 44100,
     'start_time': 0.0}]
 
-To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.full_details`. 
+To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.full_details`,
+and to obtain specific format or stream fields, use :py:func:`ffmpegio.probe.query`. 
 For more information on :py:mod:`probe`, see :ref:`probe`.
 
 Block Read/Write

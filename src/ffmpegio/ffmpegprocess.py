@@ -146,6 +146,41 @@ class ProgressMonitor(_Thread):
 
 
 class Popen:
+    """Execute FFmpeg in a new process.
+
+    :param ffmpeg_args: FFmpeg arguments
+    :type ffmpeg_args: dict, seq, or str
+    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+    :type hide_banner: bool, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                    logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
+    :param input_queue_size: maximum size of the stdin queue, default 0 (infinite)
+    :type input_queue_size: int, optional
+    :param output_queue_size: maximum size of the stdout queue, default 0 (infinite)
+    :type output_queue_size: int, optional
+    :param output_block_size: maximum number of bytes to get FFmpeg in one transaction, default 2**20
+    :type output_block_size: int, optional
+    :param stdin: source file object, defaults to None
+    :type stdin: readable file object, optional
+    :param stdout: sink file object, defaults to None
+    :type stdout: writable file object, optional
+    :param stderr: file to log ffmpeg messages, defaults to None
+    :type stderr: writable file object, optional
+    :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`, defaults to {}
+    :type \\**other_popen_args: dict, optional
+
+    Details on `progress` argument: Function signature
+
+        ```
+        progress(d, done) -> bool
+        ```
+
+
+    """
+
     def __init__(
         self,
         ffmpeg_args,
@@ -158,41 +193,12 @@ class Popen:
         stdin=None,
         stdout=None,
         stderr=None,
-        **popen_args,
+        **other_popen_args,
     ):
-        """Execute FFmpeg in a new process.
-
-        :param ffmpeg_args: FFmpeg arguments
-        :type ffmpeg_args: dict, seq, or str
-        :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-        :type hide_banner: bool, optional
-        :param progress: progress callback function, defaults to None
-        :type progress: callable object, optional
-        :param capture_log: True to capture log messages on stderr, False to send
-                        logs to console, defaults to None (no show/capture)
-        :type capture_log: bool, optional
-        :param input_queue_size: maximum size of the stdin queue, default 0 (infinite)
-        :type input_queue_size: int, optional
-        :param output_queue_size: maximum size of the stdout queue, default 0 (infinite)
-        :type output_queue_size: int, optional
-        :param output_block_size: maximum number of bytes to get FFmpeg in one transaction, default 2**20
-        :type output_block_size: int, optional
-        :param stdin: source file object, defaults to None
-        :type stdin: readable file object, optional
-        :param stdout: sink file object, defaults to None
-        :type stdout: writable file object, optional
-        :param stderr: file to log ffmpeg messages, defaults to None
-        :type stderr: writable file object, optional
-
-        Details on `progress` argument: Function signature
-           ```
-           progress() -> bool
-           ```
-        """
         if any(
             (
                 k
-                for k in popen_args.keys()
+                for k in other_popen_args.keys()
                 if k
                 in (
                     # fmt: off
@@ -207,9 +213,19 @@ class Popen:
                 "Input arguments contain protected subprocess.Popen keyword argument(s)."
             )
 
+        #: dict: The FFmpeg args argument as it was passed to `Popen`
         self.args = (
             {**ffmpeg_args} if isinstance(ffmpeg_args, dict) else parse(ffmpeg_args)
         )
+
+        #: `io.QueuedWriter` or user-supplied writable file object: Writeable stream object to send data to FFmpeg
+        self.stdin = None
+
+        #: `io.QueuedReader` or user-supplied readable file object: Readable stream object to receive data from FFmpeg
+        self.stdout = None
+
+        #: `io.QueuedLogger` or user-supplied readable file object: Readable stream object to receive messages from FFmpeg
+        self.stderr = None
 
         self._progress = ProgressMonitor(progress) if progress else None
 
@@ -263,8 +279,13 @@ class Popen:
             else (None, False)
         )
 
+        #: bool: True if FFmpeg instance accepts input data via stdin
         self.writable = isinstance(self.stdin, QueuedWriter)
+
+        #: bool: True if FFmpeg instance outputs output data to stdout
         self.readable = isinstance(self.stdout, QueuedReader)
+
+        #: bool: True if FFmpeg instance outputs log messages to stderr
         self.loggable = isinstance(self.stderr, QueuedLogger)
 
         # start FFmpeg process
@@ -301,9 +322,13 @@ class Popen:
         _logging.debug("[ffmpegprocess.Popen thread] ffmpeg process exited")
         if self.readable:
             if self._own_stdout:
-                _logging.debug(f"[ffmpegprocess.Popen thread] joining stdout (drained: {self.stdout.drained})")
+                _logging.debug(
+                    f"[ffmpegprocess.Popen thread] joining stdout (drained: {self.stdout.drained})"
+                )
                 self.stdout._pipe.join()
-                _logging.debug(f"[ffmpegprocess.Popen thread] joined stdout (drained: {self.stdout.drained})")
+                _logging.debug(
+                    f"[ffmpegprocess.Popen thread] joined stdout (drained: {self.stdout.drained})"
+                )
             self.stdout.mark_eof()
         if self.loggable:
             if self._own_stderr:
@@ -345,6 +370,7 @@ class Popen:
 
     @property
     def canceled(self):
+        """: bool: True if FFmpeg process has been terminated via user cancellation"""
         return self._progress and self._progress.canceled
 
     def poll(self):
@@ -352,6 +378,7 @@ class Popen:
 
         :return: returncode if terminated else None
         :rtype: int or None
+
         """
         return self._proc.poll()
 
@@ -360,9 +387,9 @@ class Popen:
 
         :param timeout: timeout in seconds, defaults to None
         :type timeout: float, optional
-        :raises TimeoutExpired
         :return: returncode
         :rtype: int
+        :raises TimeoutExpired: if the process does not terminate after timeout seconds.
         """
         if self._thread is None:
             self._proc.wait(timeout)
@@ -379,9 +406,7 @@ class Popen:
         shape=None,
         dtype=None,
     ):
-        """Interact with FFmpeg process: Send data to stdin. Read data from stdout and
-        stderr, until end-of-file is reached. Wait for process to terminate and set
-        the returncode attribute.
+        """Interact with FFmpeg process. 
 
         :param input: input data buffer must be given if FFmpeg is configured to receive
                       data stream from Python. It must be bytes convertible to bytes.
@@ -403,6 +428,13 @@ class Popen:
                    stdout was opened in bytes mode, else numpy.ndarray. The stderr_data
                    is a tuple of information lines that FFmpeg output to stderr.
         :rtype: tuple
+
+        This method performs one-time data transaction with the spawned FFmpeg process:
+        Send data to stdin. Read data from stdout and stderr until end-of-file is reached. 
+        Wait for process to terminate and set the returncode attribute.
+
+        For truly interactive data transactions, use the queued IO objects mapped to the
+        Popen object's`stdin` and `stdout`.
         """
 
         tend = _time() + timeout if timeout else None
@@ -441,6 +473,7 @@ class Popen:
         return output_data, stderr_data
 
     def terminate(self):
+        """Stop the FFmpeg process."""
         try:
             self._proc.terminate()
         except ProcessLookupError:
@@ -449,6 +482,7 @@ class Popen:
             self._thread.join()
 
     def kill(self):
+        """Kills the FFmpeg process"""
         try:
             self._proc.kill()
         except ProcessLookupError:
@@ -458,10 +492,12 @@ class Popen:
 
     @property
     def pid(self):
+        """int: The process ID of the child process."""
         return self._proc.pid
 
     @property
     def returncode(self):
+        """:int or None: The child return code"""
         return self._proc.returncode
 
     ####################################################################################################
@@ -479,7 +515,7 @@ def run(
     size=-1,
     shape=None,
     dtype=None,
-    **kwargs,
+    **other_popen_kwargs,
 ):
     """run FFmpeg subprocess with standard pipes with a single transaction
 
@@ -510,6 +546,8 @@ def run(
     :type shape: int or tuple of int, optional
     :param dtype: output array data type, defaults to None
     :type dtype: numpy data-type, optional
+    :param \\**other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
+    :type \\**other_popen_kwargs: dict, optional
     :rparam: completed process
     :rtype: subprocess.CompleteProcess
     """
@@ -581,7 +619,7 @@ def run(
                 if inpipe is None
                 else {"stdin": inpipe}
             ),
-            **kwargs,
+            **other_popen_kwargs,
         )
     finally:
         if pmon:
@@ -603,7 +641,7 @@ def run(
 
     # equivalent if ffmpegprocess.Popen is used (slower)
     # ===========================================================================
-    # proc = Popen(*popen_args, input_copy=False, **kwargs)
+    # proc = Popen(*other_popen_args, input_copy=False, **kwargs)
 
     # if isinstance(proc.stdin, QueuedWriter) and input is None:
     #     raise ValueError(

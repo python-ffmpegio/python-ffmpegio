@@ -267,7 +267,8 @@ def find(dir=None):
 
     When :py:mod:`ffmpegio` is first imported in Python, it automatically run
     this function once, searching in the system path and Windows default
-    locations (see below). If both not found, a warning message is displayed.
+    locations (see above). If both ffmpeg and ffprobe are not found, a
+    warning message is displayed.
 
     """
 
