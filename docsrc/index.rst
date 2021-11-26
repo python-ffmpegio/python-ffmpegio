@@ -80,6 +80,7 @@ Advanced topics
 
     adv-ffmpeg
     adv-args
+    adv-io
 
 
 .. .. toctree::

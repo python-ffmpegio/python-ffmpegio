@@ -3,10 +3,9 @@
 :py:mod:`ffmpegio.ffmpegprocess`: Direct invocation of FFmpeg subprocess
 ========================================================================
 
-Instead of indirectly calling FFmpeg via :ref:`Basic I/O Functions <basicio>`, 
-you can directly invoke a FFmpeg subprocess using the functions in 
-:py:mod:`ffmpegio.ffmpegprocess` module, which mocks Python's builtin `subprocess`
-module.
+Instead of indirectly calling FFmpeg with :py:mod:`ffmpegio`'s :ref:`Basic I/O Functions <basicio>`, 
+you can directly invoke a FFmpeg subprocess with :py:mod:`ffmpegio.ffmpegprocess` module, 
+which mocks Python's builtin :py:mod:`subprocess` module.
 
 .. autosummary::
    :nosignatures:

@@ -28,7 +28,7 @@ class ThreadedPipe(threading.Thread):
                            can be placed in the queue, defaults to 0
         :type queue_size: int, optional
         :param timeout: timeout, defaults to 1e-3
-        :type timeout: [type], optional
+        :type timeout: float, optional
         :param block_size: maximum number of bytes to read (only relevant if
                            `is_writer=False`), defaults to 2**23 (or 8 MB)
         :type block_size: int, optional

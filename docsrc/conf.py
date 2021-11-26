@@ -84,3 +84,10 @@ plot_formats = [("png", 96)]
 
 def setup(app):
     app.add_css_file("css/custom.css")
+
+
+rst_prolog = """
+.. role:: python(code)
+    :language: python
+    :class: highlight
+"""

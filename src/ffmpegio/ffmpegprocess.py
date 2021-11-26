@@ -152,8 +152,12 @@ class Popen:
     :type ffmpeg_args: dict, seq, or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
-    :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
+    :param progress: progress callback function, defaults to None. This function
+                     takes two arguments and may return True to terminate execution::
+
+                        progress(data:dict, done:bool) -> bool|None
+
+    :type progress: Callable, optional
     :param capture_log: True to capture log messages on stderr, False to send
                     logs to console, defaults to None (no show/capture)
     :type capture_log: bool, optional
@@ -169,15 +173,18 @@ class Popen:
     :type stdout: writable file object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
     :type stderr: writable file object, optional
-    :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`, defaults to {}
+    :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
     :type \\**other_popen_args: dict, optional
 
-    Details on `progress` argument: Function signature
+    If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen` creates
+    a pipe for each piped url. If input is piped, :code:`stdin` is default to :code:`ffmpegio.io.QueuedWriter` 
+    class instance.  If output is piped, :code:`stdout` is default to :code:`ffmpegio.io.QueuedReader` class 
+    instance. If :code:`capture_log=True`, then :code:`stderr` is default to :code:`ffmpegio.io.QueuedWriter`. See
+    :ref:`ffmpegio.io module<adv_io>` for how to use these custom stream classes.
 
-        ```
-        progress(d, done) -> bool
-        ```
-
+    Alternately, a file-stream object could be specified in the argument for each of :code:`stdin`, :code:`stdout`,
+    and :code:`stderr` to redirect pipes to existing file streams. If files aren't already open in Python,
+    specify their urls in :ref:`ffmpeg_args<adv_args>` instead of using the pipes.
 
     """
 
@@ -523,7 +530,10 @@ def run(
     :type ffmpeg_args: dict, seq, or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to None. This function
+                     takes two arguments and may return True to terminate execution::
+
+                        progress(data:dict, done:bool) -> bool|None
     :type progress: callable object, optional
     :param capture_log: True to capture log messages on stderr, False to send
                         logs to console, defaults to None (no show/capture)

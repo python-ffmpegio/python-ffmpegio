@@ -3,10 +3,13 @@
 Specification of FFmpeg Argument dict :code:`ffmpeg_args`
 =========================================================
 
-FFmpeg command can be invoked directly with :py:func:`ffmpegio.ffmpeg.run` or 
-:py:func:`ffmpegio.ffmpeg.run_sync` functions. Both of these functions support the full
-assortment of FFmpeg command line option arguments, which can be specified via 
-:code:`ffmpeg_args`, a plain dict object. 
+FFmpeg command can be invoked directly with :py:func:`ffmpegio.ffmpegprocess.run` or 
+:py:class:`ffmpegio.ffmpegprocess.Popen` (see :ref:`the reference page <adv_ffmpeg>` 
+for the details). Both of them fully support the FFmpeg command line option
+arguments, which can be specified via  as :py:mod:`subprocess` via :code:`ffmpeg_args` 
+argument, which may be supplied as a string or a list of strings to be compatible
+with :py:mod:`subprocess`
+in a plain dict object. 
 
 The FFmpeg command line options structure:
 
