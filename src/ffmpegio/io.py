@@ -9,10 +9,10 @@ from .ffmpeg import _as_array
 
 class IOBase:
     def __init__(
-        self, is_writer, queue_size, timeout, block_size=None, pipe_op=None
+        self, is_writer, queue_size, block_size=None, timeout=None, pipe_op=None
     ) -> None:
         # create new pipe with a thread handling the data transfer
-        self._pipe = ThreadedPipe(is_writer, queue_size, timeout, block_size, pipe_op)
+        self._pipe = ThreadedPipe(is_writer, queue_size, block_size, timeout, pipe_op)
         self._pipe.start()
         self._pipe.open()
         self._eof = False
@@ -72,7 +72,7 @@ class IOBase:
         :type timeout: float, optional
         :return: True if timeout occurred
         :rtype: bool
-        """        
+        """
         return self._pipe.wait_till_drained(timeout)
 
     def __del__(self):
@@ -114,32 +114,32 @@ class IOBase:
 
     def read(self, size=-1):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support read access.")
 
     def readall(self):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support read access.")
 
     def readinto(self, b):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support read access.")
 
     def readline(self, size=-1):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support read access.")
 
     def readlines(self, hint=-1):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support read access.")
 
     def seekable(self):
@@ -149,20 +149,20 @@ class IOBase:
 
     def seek(self, *_, **__):
         """
-        :raises UnsupportedOperation: do not support random access 
+        :raises UnsupportedOperation: do not support random access
         """
         raise UnsupportedOperation("FFmpeg pipe do not support random access.")
 
     def tell(self):
         """
-        :raises UnsupportedOperation: do not support random access 
+        :raises UnsupportedOperation: do not support random access
         """
         raise UnsupportedOperation("FFmpeg pipe do not support random access.")
 
     def truncate(self, *_, **__):
         """
-        :raises UnsupportedOperation: do not support random access 
-        """        
+        :raises UnsupportedOperation: do not support random access
+        """
         raise UnsupportedOperation("FFmpeg pipe .")
 
     def writable(self):
@@ -171,14 +171,14 @@ class IOBase:
 
     def write(self, b):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support write access.")
 
     def writelines(self, *_, **__):
         """
-        :raises UnsupportedOperation: wrong pipe direction 
-        """        
+        :raises UnsupportedOperation: wrong pipe direction
+        """
         raise UnsupportedOperation("FFmpeg pipe do not support text writing.")
 
 
@@ -187,20 +187,18 @@ class QueuedWriter(IOBase):
 
     :param queue_size: maximum data queue size, defaults to 0
     :type queue_size: int, optional
-    :param timeout: seconds to allow till FFmpeg process terminates, defaults to 1e-3
-    :type timeout: float, optional
 
     The stream is stored in a queue and write operations to the pipe is
-    performed in the internal thread, writing one item at a time popped 
+    performed in the internal thread, writing one item at a time popped
     from the queue.
 
     The pipe is open when instantiated, and the client can request closure
     by writing None to the queue. The pipe will then be closed when the
     internal thread processes the None item in the queue.
-    """        
-    
-    def __init__(self, queue_size=0, timeout=1e-3):
-        super().__init__(True, queue_size, timeout)
+    """
+
+    def __init__(self, queue_size=0):
+        super().__init__(True, queue_size)
 
     @property
     def writable(self):
@@ -263,6 +261,8 @@ class QueuedReader(IOBase):
 
     :param queue_size: maximum data queue size, defaults to 0
     :type queue_size: int, optional
+    :param block_size: maximum number of bytes to read, defaults to 2**20 (or 1 MB)
+    :type block_size: int, optional
     :param timeout: seconds to allow till FFmpeg process terminates, defaults to 1e-3
     :type timeout: float, optional
 
@@ -270,11 +270,12 @@ class QueuedReader(IOBase):
     from the pipe. The stored data can be read by read() or readall().
 
     The pipe is open when instantiated, and the client can request closure
-    by call mark_eof(), which enqueues None to the buffer. The pipe will 
+    by call mark_eof(), which enqueues None to the buffer. The pipe will
     then be closed when read() or readall() encounters None item in the queue.
-    """        
-    def __init__(self, queue_size=0, timeout=1e-3, block_size=2 ** 20):
-        super().__init__(False, queue_size, timeout, block_size)
+    """
+
+    def __init__(self, queue_size=0, block_size=2 ** 20, timeout=1e-3):
+        super().__init__(False, queue_size, block_size, timeout)
         self._buf = None  # holds leftover bytes from previously dequeued block
 
     @property
@@ -355,7 +356,7 @@ class QueuedReader(IOBase):
         """
 
         if self.drained:
-            logging.debug(f'[io.QueuedReader] already drained')
+            logging.debug(f"[io.QueuedReader] already drained")
             raise Empty
 
         if blksize is None or blksize <= 0:
@@ -407,10 +408,10 @@ class QueuedReader(IOBase):
         if timedout:
             self._buf = bytes(b[:i])  # put the retrieved data to temp buffer
             raise TimeoutExpired("readinto", timeout)
-        
+
         # raise error if no
-        if i==0:
-            logging.debug(f'[io.QueuedReader] no data (drained={self.drained})')
+        if i == 0:
+            logging.debug(f"[io.QueuedReader] no data (drained={self.drained})")
             raise Empty()
 
         # trim data if too much read
@@ -577,18 +578,19 @@ class QueuedLogger(IOBase):
 
     :param queue_size: maximum data queue size, defaults to 0
     :type queue_size: int, optional
-    :param timeout: seconds to allow till FFmpeg process terminates, defaults to 1e-3
+    :param timeout: seconds to allow till FFmpeg process terminates, defaults to 10e-3
     :type timeout: float, optional
 
     The stream is stored in a queue and stored by the internal thread reading
     from the pipe. The stored data can be read by readline() or readlines().
 
     The pipe is open when instantiated, and the client can request closure
-    by call mark_eof(), which enqueues None to the buffer. The pipe will 
+    by call mark_eof(), which enqueues None to the buffer. The pipe will
     then be closed when readline() or readlines() encounters None item in the queue.
-    """        
+    """
+
     def __init__(self, queue_size=0, timeout=10e-3):
-        super().__init__(False, queue_size, timeout, 1024, QueuedLogger._pipe_op)
+        super().__init__(False, queue_size, 1024, timeout, QueuedLogger._pipe_op)
         # expose write file descriptor (so FFmpeg can write to it)
         self._buf = None  # store excess character for partial line reads
 

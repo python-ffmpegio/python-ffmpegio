@@ -17,7 +17,7 @@ class NotOpen(RuntimeError):
 
 class ThreadedPipe(threading.Thread):
     def __init__(
-        self, is_writer, queue_size=0, timeout=1e-3, block_size=2 ** 20, pipe_op=None
+        self, is_writer, queue_size=0, block_size=2 ** 20, timeout=None, pipe_op=None
     ):
         """Subclass of threading.Thread to control data flow in or out of FFmpeg
 
@@ -27,17 +27,17 @@ class ThreadedPipe(threading.Thread):
         :param queue_size: Upperbound limit on the number of data blocks that
                            can be placed in the queue, defaults to 0
         :type queue_size: int, optional
-        :param timeout: timeout, defaults to 1e-3
-        :type timeout: float, optional
         :param block_size: maximum number of bytes to read (only relevant if
-                           `is_writer=False`), defaults to 2**23 (or 8 MB)
+                           `is_writer=False`), defaults to 2**20 (or 1 MB)
         :type block_size: int, optional
+        :param timeout: pipe read timeout (only relevant if `is_writer=False`), defaults to None (1e-3)
+        :type timeout: float or None, optional
         :param pipe_op: Custom enqueue/dequeue operation, defaults to None
                         to use the default operation. See the details below.
         :type pipe_op: Callable, optional
         """
         super().__init__()
-        self.timeout = timeout
+        self.timeout = 1e-3 if timeout is None or timeout <= 0.0 else timeout
         self.block_size = block_size
         self._pipe = os.pipe if is_writer else nonblock.pipe
         self._is_writer = is_writer  # true if fileno() is the reading-end of the pipe

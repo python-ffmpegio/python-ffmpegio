@@ -20,7 +20,7 @@ constructor accepts the :code:`args` argument of Python's :py:func:`subprocess.r
 with a Python dict: 
 see :ref:`its specification page <adv_args>` for the details.
 
-:py:mod:`ffmpegio.ffmpeg` Module Reference
+:py:mod:`ffmpegio.ffmpegprocess` Module Reference
 ------------------------------------------
 
 .. autofunction:: ffmpegio.ffmpegprocess.run
