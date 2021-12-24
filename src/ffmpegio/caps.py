@@ -22,7 +22,7 @@ _cache = dict()
 def _(cap):
     return (
         (None, _cache[cap])
-        if ("cap" in _cache)
+        if (cap in _cache)
         else (ffmpeg.ffprobe([f"-{cap}"], stderr=None), None)
     )
 
