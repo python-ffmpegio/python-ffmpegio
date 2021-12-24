@@ -376,7 +376,7 @@ def array_to_audio_input(
         ndim = data.ndim
         if ndim < 1 or ndim > 2:
             raise Exception("audio data array must be 1d or 2d")
-        channels = shape[-1] if ndim > 1 else shape[0] if ndim > 0 else 1
+        channels = shape[-1] if ndim > 1 else 1
     elif sample_fmt is None or channels is None:
         raise Exception(
             "configuring audio input with a custom codec requires `sample_fmt` and `channels` to be also specified."
