@@ -367,7 +367,7 @@ def array_to_audio_input(
     :rtype: tuple(str, dict)
     """
 
-    spec = spec_stream(stream_id, "a")
+    spec = "" if stream_id is None else ":" + spec_stream(stream_id, "a")
 
     if codec is None:
         codec, sample_fmt = get_audio_format(data.dtype)
@@ -383,10 +383,10 @@ def array_to_audio_input(
         )
 
     opts = {
-        f"c:{spec}": codec,
-        f"ac:{spec}": channels,
-        f"ar:{spec}": rate,
-        f"sample_fmt:{spec}": sample_fmt,
+        f"c{spec or ':a'}": codec,
+        f"ac{spec}": channels,
+        f"ar{spec}": rate,
+        f"sample_fmt{spec}": sample_fmt,
     }
     input = ("-", opts)
 

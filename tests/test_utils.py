@@ -50,11 +50,11 @@ def test_array_to_audio_input():
     data = np.random.randint(ii16.min, high=ii16.max, size=(N, nchmax), dtype=np.int16)
     sample = np.random.randint(ii16.min, high=ii16.max, size=(nchmax), dtype=np.int16)
 
-    cfg = {"c:a": "pcm_s16le", "ac:a": 4, "ar:a": 44100, "sample_fmt:a": "s16"}
+    cfg = {"c:a": "pcm_s16le", "ac": 1, "ar": 44100, "sample_fmt": "s16"}
     input = utils.array_to_audio_input(fs, sample)
     assert input[0] == "-" and input[1] == cfg
 
-    cfg = {"c:a": "pcm_s16le", "ac:a": 4, "ar:a": 44100, "sample_fmt:a": "s16"}
+    cfg = {"c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
     input = utils.array_to_audio_input(fs, data)
     assert input[0] == "-" and input[1] == cfg
 
