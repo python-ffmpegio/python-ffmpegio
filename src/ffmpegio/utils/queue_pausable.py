@@ -2,6 +2,7 @@ import logging
 import threading as _threading, time as _time
 from queue import Empty, Full, Queue as _Queue
 
+
 class Paused(RuntimeError):
     "Exception raised by attempting to access empty buffer queue while operation is paused."
     pass
@@ -96,13 +97,15 @@ class PausableQueue(_Queue):
         to indicate the item was retrieved and all work on it is complete.
         When the count of unfinished tasks drops to zero, join() unblocks.
         """
+        if self.paused:
+            raise Paused
         with self.all_tasks_done:
             while self.unfinished_tasks and not self._paused:
                 if not self.all_tasks_done.wait(timeout):
                     return True
 
-        if self.paused:
-            raise Paused
+        # if self.paused:
+        #     raise Paused
 
     def put(self, item, block=True, timeout=None):
         """Put an item into the queue.
@@ -150,7 +153,7 @@ class PausableQueue(_Queue):
         with self.not_empty:
             if not block:
                 if not self._qsize():
-                    logging.debug('[PausableQueue::get] nonblocking nodata')
+                    logging.debug("[PausableQueue::get] nonblocking nodata")
                     raise Empty
             elif timeout is None:
                 while not self._qsize() and not self._paused:
@@ -162,7 +165,7 @@ class PausableQueue(_Queue):
                 while not self._qsize() and not self._paused:
                     remaining = endtime - _time.time()
                     if remaining <= 0.0:
-                        logging.debug('[PausableQueue::get] timed out')
+                        logging.debug("[PausableQueue::get] timed out")
                         raise Empty
                     self.not_empty.wait(remaining)
             if self._paused:
@@ -170,3 +173,13 @@ class PausableQueue(_Queue):
             item = self._get()
             self.not_full.notify()
             return item
+
+    def clear(self):
+        """Resume the buffering operation.
+
+        :param clear: True to clear the buffer, defaults to False
+        :type clear: bool, optional
+        """
+        self.queue.clear()
+        with self.not_full:
+            self.not_full.notify_all()

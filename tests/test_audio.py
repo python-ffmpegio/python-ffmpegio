@@ -1,11 +1,8 @@
 import numpy as np
-from numpy.core.getlimits import _fr0
-from ffmpegio import audio, probe
+from ffmpegio import audio, probe, FilterGraph
 import tempfile, re, logging
 from os import path
 import pytest
-
-from ffmpegio.configure import global_options
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -16,8 +13,10 @@ def test_create():
         "aevalsrc",
         "sin(420*2*PI*t)|cos(430*2*PI*t)",
         c="FC|BC",
+        d=1,
         nb_samples=fs,
         sample_rate=fs,
+        show_log=True
     )
     assert x.shape == (fs, 2)
 
@@ -50,22 +49,24 @@ def test_read():
     url = "tests/assets/testaudio-1m.mp3"
 
     T = 0.51111
-    fs, x = audio.read(url, duration=T)
-    print(fs * T, int(fs * T), x.shape)
-    assert int(fs * T) == x.shape[0]
+    T = 0.49805
+    fs, x = audio.read(url, t=T, show_log=True)
+    print(fs * T, round(fs * T), x.shape)
+    assert round(fs * T) == x.shape[0]
 
     T = 1.5
     t0 = 0.5
-    fs, x1 = audio.read(url, start=t0, end=t0 + T)
+    fs, x1 = audio.read(url, ss=t0, to=t0 + T)
     print(int(fs * T), x1.shape)
-    assert int(fs * T) == x1.shape[0]
+    assert round(fs * T) == x1.shape[0]
 
-    n0 = int(t0*fs)
-    N = int(T*fs)
+    # n0 = int(t0 * fs)
+    # N = int(T * fs)
 
-    fs, x2 = audio.read(url, start=n0, duration=N, units='samples')
-    assert x1.shape==x2.shape
-    assert np.array_equal(x1,x2)
+    # fs, x2 = audio.read(url, ss=n0, t=N, units="samples")
+    # assert x1.shape == x2.shape
+    # assert np.array_equal(x1, x2)
+
 
 def test_read_write():
     url = "tests/assets/testaudio-1m.mp3"
@@ -74,8 +75,6 @@ def test_read_write():
     info = probe.audio_streams_basic(
         url, index=0, entries=("sample_rate", "sample_fmt", "channels")
     )[0]
-
-    print(info)
 
     fs, x = audio.read(url)
 
@@ -94,12 +93,55 @@ def test_read_write():
             out_url,
             fs,
             x,
-            codec="pcm_s16le",
-            log_level="fatal",
+            acodec="pcm_s16le",
+            loglevel="fatal",
+            show_log=True
         )
         print(probe.audio_streams_basic(out_url))
 
 
+def test_filter():
+    input_rate = 44100
+    input = np.random.rand(input_rate) * 2.0 - 1.0
+    expr = FilterGraph(
+        [
+            [
+                ("channelmap", {"channel_layout": "stereo", "map": "FC|FC"}),
+                ("bandpass", {"channels": "FL"}),
+                ("aresample", 22050),
+            ]
+        ],
+    )
+
+    output_rate, output = audio.filter(expr, input_rate, input)
+    assert output_rate == 22050
+    assert np.array_equal(output.shape, [22050, 2])
+    assert output.dtype == input.dtype
+
+    # force output format and rate
+    output_rate, output = audio.filter(
+        expr, input_rate, input, ar=44100, sample_fmt="s16"
+    )
+    assert output_rate == 44100
+    assert np.array_equal(output.shape, [44100, 2])
+    assert output.dtype == np.int16
+
+    # complex filtergraph
+    expr = FilterGraph(
+        [[("anoisesrc", 44100, {"color": "pink"}), ("amerge",)]],
+        {"in": (0, 1, 0)},
+        {"out": (0, 1, 0)},
+    )
+    output_rate, output = audio.filter(expr, input_rate, input)
+    assert output_rate == 44100
+    assert np.array_equal(output.shape, [44100, 2])
+    assert output.dtype == input.dtype
+
+
 if __name__ == "__main__":
-    # test_create()
-    test_read_write()
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
+    test_read()
+
+    # url = "tests/assets/testaudio-1m.mp3"
+    # print(probe.audio_streams_basic(url,0)[0]['sample_fmt'])

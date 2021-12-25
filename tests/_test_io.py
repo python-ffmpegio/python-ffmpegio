@@ -121,32 +121,32 @@ def feed_logger(logger, nlines=1):
     return [create_n_write(i) for i in range(nlines)]
 
 
-def test_logger(logger):
-    # should open automatically
-    assert not logger.closed
+# def test_logger(logger):
+#     # should open automatically
+#     assert not logger.closed
 
-    assert logger.readable
+#     assert logger.readable
 
-    # test timout
-    with pytest.raises(io.TimeoutExpired):
-        logger.readline(timeout=0.01)
+#     # test timout
+#     with pytest.raises(io.TimeoutExpired):
+#         logger.readline(timeout=0.01)
 
-    n = 10
-    wlines = feed_logger(logger, n)
+#     n = 10
+#     wlines = feed_logger(logger, n)
 
-    for wline in wlines[:2]:
-        rline = logger.readline()
-        assert wline == rline
-    wlines = wlines[2:]
+#     for wline in wlines[:2]:
+#         rline = logger.readline()
+#         assert wline == rline
+#     wlines = wlines[2:]
 
-    part = logger.readline(3)
-    rest = logger.readline()
-    assert wlines[0] == part + rest
-    wlines = wlines[1:]
+#     part = logger.readline(3)
+#     rest = logger.readline()
+#     assert wlines[0] == part + rest
+#     wlines = wlines[1:]
 
-    rlines = logger.readlines(len(wlines[0]) + 1)
-    for i, rline in enumerate(rlines):
-        assert wlines[i] == rline
+#     rlines = logger.readlines(len(wlines[0]) + 1)
+#     for i, rline in enumerate(rlines):
+#         assert wlines[i] == rline
 
 
 if __name__ == "__main__":

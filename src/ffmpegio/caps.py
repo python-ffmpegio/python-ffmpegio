@@ -1,6 +1,6 @@
 # TODO add function to guess media type given extension
 
-from . import ffmpeg
+from .ffmpeg import ffprobe, exec as ffmpeg, PIPE
 import re, fractions
 
 _ffCodecRegexp = re.compile(
@@ -23,7 +23,7 @@ def _(cap):
     return (
         (None, _cache[cap])
         if (cap in _cache)
-        else (ffmpeg.ffprobe([f"-{cap}"], stderr=None), None)
+        else (ffprobe([f"-{cap}"], stderr=None), None)
     )
 
 
@@ -31,7 +31,91 @@ def __(type, name):
     return (
         (None, _cache[type][name])
         if (type in _cache and name in _cache[type])
-        else (ffmpeg.ffprobe(["--help", f"{type}={name}"], stderr=None), None)
+        else (ffprobe(["--help", f"{type}={name}"], stderr=None), None)
+    )
+
+
+def options(type=None, name_only=False, return_desc=False):
+    """get FFmpeg command options
+
+    :param type: specify option type to return, defaults to None
+    :type type: "per-file"|"video"|"audio"|"subtitle"|"general"|"global"|None, optional
+    :param name_only: True to only return option names, defaults to False
+    :type name_only: bool, optional
+    :param return_desc: True to also return option description, defaults to False
+    :type return_desc: bool, optional
+    :return: dict of types of options
+    :rtype: dict(dict or tuple) if type not specified
+    """
+    try:
+        opts = _cache["options"]
+    except:
+        ret = ffmpeg(
+            {"global_options": {"help": "long"}}, stdout=PIPE, encoding="utf-8"
+        )
+        lines = ret.stdout.split("\n")
+        ginds = [
+            (i + 1, l[:-1].lower())
+            for i, l in enumerate(lines)
+            if len(l) and l[0] not in "- \t" and l[-1] == ":"
+        ]
+        ginds.append((len(lines) + 1, None))
+
+        def parse_line(s):
+            m = re.match(r"\s*-(.+?) ([^ ]+?)? {2,}(.*)$", s)
+            return (m[1], m[2], m[3]) if m else None
+
+        raw_opts = (
+            (
+                l,
+                {
+                    o[0]: o[1:]
+                    for s in lines[i0 : i1 - 1]
+                    if (o := parse_line(s)) is not None
+                },
+            )
+            for (i0, l), (i1, _) in zip(ginds[:-1], ginds[1:])
+        )
+
+        opts = {
+            "video": {},
+            "audio": {},
+            "subtitle": {},
+            "general": {},
+            "global": {"overwrite": ("bool", "[ffmpegio] combining -y/-n options")},
+        }
+        for gname, gopts in raw_opts:
+            if "video" in gname:
+                opts["video"] |= gopts
+            elif "audio" in gname:
+                opts["audio"] |= gopts
+            elif "subtitle" in gname:
+                opts["subtitle"] |= gopts
+            elif "per-file" in gname:
+                opts["general"] |= gopts
+            else:
+                opts["global"] |= gopts
+        _cache["options"] = opts
+
+    if type == "per-file":
+        opts = {
+            "per-file": {k: v for t, o in opts.items() if t != "global" for k, v in o.items()}
+        }
+
+    return (
+        ({t: tuple(o) for t, o in opts.items()} if type is None else tuple(opts[type]))
+        if name_only
+        else (
+            (
+                opts
+                if return_desc
+                else {t: {k: v[0] for k, v in o.items()} for t, o in opts.items()}
+            )
+            if type is None
+            else (
+                opts[type] if return_desc else {k: v[0] for k, v in opts[type].items()}
+            )
+        )
     )
 
 
@@ -68,7 +152,6 @@ def filters():
 
     data = {}
     for match in _filterRegexp.finditer(stdout):
-        print(match[5])
         data[match[4]] = {
             "description": match[7],
             "input": types[match[5][0]],
@@ -629,7 +712,9 @@ frame_rate_presets = {
     "film": fractions.Fraction(24, 1),
     "ntsc-film": fractions.Fraction(24000, 1001),
 }
+
 __all__ = [
+    "options",
     "filters",
     "codecs",
     "coders",

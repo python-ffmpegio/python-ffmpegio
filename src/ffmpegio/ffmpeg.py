@@ -1,42 +1,21 @@
-import shlex, re, os, shutil, logging
-import subprocess as sp
+import shlex as _shlex, shutil as _shutil
 from collections import abc
-from . import filter_utils
-import numpy as np
+from .utils import filter as filter_utils
+
+import subprocess as _sp
+from subprocess import DEVNULL, PIPE
+
+import re as _re, os as _os, logging as _logging
+
+from threading import Thread as _Thread, Event as _Event
+from time import sleep as _sleep
+from tempfile import TemporaryDirectory as _TemporaryDirectory
 
 form_shell_cmd = (
-    shlex.join
-    if hasattr(shlex, "join")
-    else lambda args: " ".join(shlex.quote(arg) for arg in args)
+    _shlex.join
+    if hasattr(_shlex, "join")
+    else lambda args: " ".join(_shlex.quote(arg) for arg in args)
 )
-
-# list of global options (gathered on 4/9/21)
-_global_options = (
-    ("-y", 0),
-    ("-n", 0),
-    ("-cpuflags", 1),
-    ("-stats", 0),
-    ("-stats_period", 0),
-    ("-progress", 1),
-    ("-debug_ts", 0),
-    ("-qphist", 0),
-    ("-benchmark", 0),
-    ("-benchmark_all", 0),
-    ("-timelimit", 1),
-    ("-dump", 0),
-    ("-hex", 0),
-    ("-filter_complex", 1),
-    ("-filter_threads", 1),
-    ("-lavfi", 1),
-    ("-filter_complex_script", 1),
-    ("-sdp_file", 1),
-    ("-abort_on", 1),
-    ("-max_error_rate", 0),
-    ("-xerror", 0),
-    ("-auto_conversion_filters", 0),
-)
-
-_output_flags = ("-dn", "-an", "-vn", "-copyinkf", "-sn", "-bitexact", "-shortest")
 
 
 def parse_options(args):
@@ -48,7 +27,7 @@ def parse_options(args):
     :rtype: dict
     """
     if isinstance(args, str):
-        args = shlex.split(args)
+        args = _shlex.split(args)
     res = {}
     n = len(args)
     i = 0
@@ -72,82 +51,77 @@ def parse(cmdline):
     """parse ffmpeg command line arguments
 
     :param cmdline: full or partial ffmpeg command line string
-    :type cmdline: str
+    :type cmdline: str or seq(str)
     :return: ffmpegio FFmpeg argument dict
     :rtype: dict
     """
 
+    from .caps import options
+
     if isinstance(cmdline, str):
         # remove multi-line command
-        cmdline = re.sub(r"\\\n", " ", cmdline)
+        cmdline = _re.sub(r"\\\n", " ", cmdline)
 
         # split the command line into its options
-        args = shlex.split(cmdline)
+        args = _shlex.split(cmdline)
     else:  # list of strs
         args = cmdline
 
     # exclude 'ffmpeg' command if present
-    if re.search(r'(?:^|[/\\])?ffmpeg(?:.exe)?"?$', args[0], re.IGNORECASE):
+    if _re.search(r'(?:^|[/\\])?ffmpeg(?:.exe)?"?$', args[0], _re.IGNORECASE):
         args = args[1:]
 
+    # extract global options
+    all_gopts = options("global")
+    all_lopts = options("per-file")
+    is_gopt = [len(s) and s[0] == "-" and s[1:] in all_gopts for s in args]
+    is_lopt = [not tf for tf in is_gopt]
+    gopts = {}
+    for i, s in enumerate(args):
+        if not is_gopt[i]:
+            continue
+        k = s[1:]
+        if all_gopts[k] is None:
+            gopts[k] = None
+        else:
+            gopts[k] = args[i + 1]
+            is_lopt[i + 1] = False
+
+    args = [s for s, tf in zip(args, is_lopt) if tf]
+
     # identify -i options
-    ipos = [i for i, v in enumerate(args) if v == "-i"]
-    ninputs = len(ipos)
-    inputs = [None] * ninputs
-    if ninputs:
-        i0 = 0
-        for j in range(ninputs):
-            i = ipos[j]
-            inputs[j] = (args[i + 1], parse_options(args[i0:i]))
-            i0 = i + 2
-        args = args[i0:]  # drop all input arguments
+    ipos = [i + 2 for i, v in enumerate(args) if v == "-i"]
+    inputs = [
+        (args[i1 - 1], parse_options(args[i0 : i1 - 2]))
+        for i0, i1 in zip((0, *ipos[:-1]), ipos)
+    ]
+    if len(inputs):
+        args = args[ipos[-1] :]  # drop all input arguments
 
     # identify output_urls
-    nargs = len(args)
-    opos = (
-        [
-            i
-            for i in range(1, nargs)
-            if args[i][0] != "-"
-            and (args[i - 1][0] != "-" or args[i - 1].split(":")[0] in _output_flags)
-        ]
-        if nargs > 1
-        else [0]
-        if nargs > 0
-        else []
-    )
-
-    noutputs = len(opos)
-    outputs = [None] * noutputs
-    if noutputs:
-        i0 = 0
-        for j in range(noutputs):
-            i = opos[j]
-            outputs[j] = (args[i], parse_options(args[i0:i]))
-            i0 = i + 1
-        args = args[i0:]  # drop all input arguments
-
-    # identify and transfer global options
-    gopts = {}
-    gnames = [o[0][1:] for o in _global_options]
-
-    def extract_gopts(configs):
-        for cfg in configs:
-            d = cfg[1]
-            keys = [key for key in d.keys() if key in gnames]
-            for key in keys:
-                gopts[key] = d.pop(key)
-
-    extract_gopts(inputs)
-    extract_gopts(outputs)
+    opos = [
+        i + 1
+        for i, v in enumerate(args)
+        if v[0] != "-"  # must not be an option name/flag
+        and (
+            i == 0  # no output options
+            or args[i - 1][0] != "-"  # prev arg specifies an output option value
+            or all_lopts.get(args[i - 1][1:].split(":", 1)[0], False)
+            is None  # prev arg is a flag
+        )
+    ]
+    outputs = [
+        (args[i1 - 1], parse_options(args[i0 : i1 - 1]))
+        for i0, i1 in zip((0, *opos[:-1]), opos)
+    ]
 
     return dict(global_options=gopts, inputs=inputs, outputs=outputs)
 
 
-def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=False):
+def compose(args, command="", shell_command=False):
     """compose ffmpeg subprocess arguments from argument dict values
 
-    :param global_options: global options, defaults to {}
+    :param global_options: global options, defaults to None
     :type global_options: dict, optional
     :param inputs: list of input files and their options, defaults to []
     :type inputs: seq of seq(str, dict or None), optional
@@ -160,21 +134,35 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
     :returns: list of arguments (possibly missing the leading 'ffmpeg' command if `command`
               is not given) or shell command string if `shell_command` is True
     :rtype: list of str or str
+
+    If global_options is None and only 1 output file given, FFmpeg global options
+    may be specified as additional output options.
     """
 
-    def opts2args(opts):
+    def finalize_global(key, val):
+        if key == "overwrite":
+            key = "y" if val else "n"
+            val = None
+        elif key in ("filter_complex", "lavfi"):
+            val = filter_utils.compose(val)
+        return key, val
+
+    def finalize_output(key, val):
+        if key in ("vf", "af") or _re.match(r"filter(?:\:|$)?", key):
+            val = filter_utils.compose(val)
+        elif _re.match(r"s(?:\:|$)", key) and not isinstance(val, str):
+            val = "x".join((str(v) for v in val))
+        return key, val
+
+    def finalize_input(key, val):
+        if _re.match(r"s(?:\:|$)", key) and not isinstance(val, str):
+            val = "x".join((str(v) for v in val))
+        return key, val
+
+    def opts2args(opts, finalize):
         args = []
-        for key, val in opts.items():
-            if (
-                (key == "vf" or key == "af" or key == "filter_complex")
-                and val is not None
-                and not isinstance(val, str)
-            ):
-                val = (
-                    filter_utils.compose_graph(*val[:-1], **val[-1])
-                    if isinstance(val[-1], dict)
-                    else filter_utils.compose_graph(*val)
-                )
+        for itm in opts.items():
+            key, val = finalize(*itm)
 
             karg = f"-{key}"
             if not isinstance(val, str) and isinstance(val, abc.Sequence):
@@ -190,7 +178,7 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
         args = []
         for url, opts in inputs:
             if opts:
-                args.extend(opts2args(opts))
+                args.extend(opts2args(opts, finalize_input))
             args.extend(["-i", url])
         return args
 
@@ -198,15 +186,15 @@ def compose(global_options={}, inputs=[], outputs=[], command="", shell_command=
         args = []
         for url, opts in outputs:
             if opts:
-                args.extend(opts2args(opts))
+                args.extend(opts2args(opts, finalize_output))
             args.append(url)
         return args
 
     args = [
         *([command] if command else []),
-        *opts2args(global_options or {}),
-        *inputs2args(inputs),
-        *outputs2args(outputs),
+        *opts2args(args.get("global_options", None) or {}, finalize_global),
+        *inputs2args(args.get("inputs", None) or ()),
+        *outputs2args(args.get("outputs", None) or ()),
     ]
     return form_shell_cmd(args) if shell_command else args
 
@@ -231,7 +219,7 @@ def where():
     :return: path to FFmpeg bin directory or `None` if ffmpeg and ffprobe paths have not been set.
     :rtype: str or None
     """
-    return os.path.dirname(FFMPEG_BIN) if found() else None
+    return _os.path.dirname(FFMPEG_BIN) if found() else None
 
 
 def find(dir=None):
@@ -274,17 +262,17 @@ def find(dir=None):
 
     global FFMPEG_BIN, FFPROBE_BIN
 
-    ext = ".exe" if os.name == "nt" else ""
+    ext = ".exe" if _os.name == "nt" else ""
 
     dirs = [dir] if dir else [""]
 
-    if not dir and os.name == "nt":
+    if not dir and _os.name == "nt":
         dirs.extend(
             [
-                os.path.join(d, "ffmpeg", "bin")
+                _os.path.join(d, "ffmpeg", "bin")
                 for d in [
                     *[
-                        os.environ[var]
+                        _os.environ[var]
                         for var in (
                             "PROGRAMFILES",
                             "PROGRAMFILES(X86)",
@@ -292,15 +280,15 @@ def find(dir=None):
                             "APPDATA",
                             "LOCALAPPDATA",
                         )
-                        if var in os.environ
+                        if var in _os.environ
                     ],
                     *[
-                        os.path.join(os.environ[var], "Programs")
+                        _os.path.join(_os.environ[var], "Programs")
                         for var in (
                             "APPDATA",
                             "LOCALAPPDATA",
                         )
-                        if var in os.environ
+                        if var in _os.environ
                     ],
                 ]
             ]
@@ -308,7 +296,7 @@ def find(dir=None):
 
     def search(cmd):
         for d in dirs:
-            p = shutil.which(os.path.join(d, cmd + ext))
+            p = _shutil.which(_os.path.join(d, cmd + ext))
             if p:
                 return p
         return None
@@ -333,7 +321,7 @@ def find(dir=None):
 try:
     find()
 except Exception as e:
-    logging.warn(str(e))
+    _logging.warn(str(e))
 
 
 def _get_ffmpeg(probe=False):
@@ -348,101 +336,14 @@ def _get_ffmpeg(probe=False):
     return path
 
 
-def _run(
-    sp_run,
-    ffmpeg_args,
-    *sp_arg,
-    hide_banner=True,
-    progress=None,
-    **sp_kwargs,
-):
-    """run ffmpeg command as a subprocess (blocking)
-
-    :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict, seq, or str
-    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :type hide_banner: bool, optional
-    :param progress: path to which transcoding progress is logged
-    :type progress: bool, optional
-    :return: log of the completed FFmpeg run
-    :rtype: str
-    """
-    if isinstance(ffmpeg_args, dict):
-        ffmpeg_args = compose(**ffmpeg_args, command=_get_ffmpeg())
-    else:
-        ffmpeg_args = [
-            _get_ffmpeg(),
-            *(
-                shlex.split(ffmpeg_args)
-                if isinstance(ffmpeg_args, str)
-                else ffmpeg_args
-            ),
-        ]
-
-    if hide_banner and "-hide_banner" not in ffmpeg_args:
-        ffmpeg_args.insert(1, "-hide_banner")
-
-    if progress:
-        try:
-            i = ffmpeg_args.index("-progress")
-            ffmpeg_args[i + 1] = progress
-        except:
-            ffmpeg_args = [
-                *ffmpeg_args[:1],
-                "-progress",
-                progress,
-                *ffmpeg_args[1:],
-            ]
-
-    logging.debug(ffmpeg_args)
-
-    return sp_run(ffmpeg_args, *sp_arg, **sp_kwargs)
-
-
-def _as_array(
-    b,
-    shape=None,
-    dtype=None,
-):
-    """Convert bytes to numpy.ndarray.
-
-    :param b: raw data to be converted to array
-    :type b: bytes-like object, optional
-    :param block: True to block if queue is full
-    :type block: bool, optional
-    :param timeout: timeout in seconds if blocked
-    :type timeout: float, optional
-    :param shape: sizes of higher dimensions of the output array, default:
-                    None (1d array). The first dimension is set by size parameter.
-    :type shape: int, optional
-    :param dtype: numpy.ndarray data type
-    :type dtype: data-type, optional
-    :return: bytes read
-    :rtype: numpy.ndarray
-
-    As a convenience, if size is unspecified or -1, all bytes until EOF are
-    returned. Otherwise, only one system call is ever made. Fewer than size
-    bytes may be returned if the operating system call returns fewer than
-    size bytes.
-
-    If 0 bytes are returned, and size was not 0, this indicates end of file.
-    If the object is in non-blocking mode and no bytes are available, None
-    is returned.
-
-    The default implementation defers to readall() and readinto().
-    """
-
-    shape = np.atleast_1d(shape) if bool(shape) else ()
-    nblk = np.prod(shape, dtype=int)
-    size = len(b) // (nblk * np.dtype(dtype).itemsize)
-    return np.frombuffer(b, dtype, size * nblk).reshape(size, *shape)
+###############################################################################
 
 
 def ffprobe(
     args,
     *sp_arg,
-    stdout=sp.PIPE,
-    stderr=sp.PIPE,
+    stdout=PIPE,
+    stderr=PIPE,
     universal_newlines=True,
     encoding="utf8",
     hide_banner=True,
@@ -460,12 +361,12 @@ def ffprobe(
     args = [
         _get_ffmpeg(probe=True),
         *(["-hide_banner"] if hide_banner else []),
-        *(shlex.split(args) if isinstance(args, str) else args),
+        *(_shlex.split(args) if isinstance(args, str) else args),
     ]
 
-    logging.debug(form_shell_cmd(args))
+    _logging.debug(form_shell_cmd(args))
 
-    ret = sp.run(
+    ret = _sp.run(
         args,
         *sp_arg,
         stdout=stdout,
@@ -478,6 +379,213 @@ def ffprobe(
     if ret.returncode != 0:
         raise Exception(f"execution failed\n   {form_shell_cmd(args)}\n\n{ret.stderr}")
     return ret.stdout
+
+
+###############################################################################
+
+
+class ProgressMonitor(_Thread):
+    """FFmpeg progress monitor class
+
+    :param callback: [description]
+    :type callback: function
+    :param cancel_fun: [description], defaults to None
+    :type cancel_fun: [type], optional
+    :param url: [description], defaults to None
+    :type url: [type], optional
+    :param timeout: [description], defaults to 10e-3
+    :type timeout: [type], optional
+    """
+
+    def __init__(self, callback, cancelfun=None, url=None, timeout=10e-3):
+        if callback is None:
+            self.url = self.cancelfun = self._thread = None
+        else:
+            tempdir = None if url else _TemporaryDirectory()
+            self.url = url or _os.path.join(tempdir.name, "progress.txt")
+            self.cancelfun = cancelfun
+            super().__init__(args=(callback, tempdir, timeout))
+            self._stop_monitor = _Event()
+
+    def start(self):
+        if self.url:
+            super().start()
+
+    def join(self, timeout=None):
+        if self.url:
+            self._stop_monitor.set()
+            super().join(timeout)
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.join()
+
+    def run(self):
+        callback, tempdir, timeout = self._args
+        url = self.url
+
+        pattern = _re.compile(r"(.+)?=(.+)")
+        _logging.debug(f'[progress_monitor] monitoring "{url}"')
+
+        while not (self._stop_monitor.is_set() or _os.path.isfile(url)):
+            _sleep(timeout)
+
+        _logging.debug("[progress_monitor] file found")
+
+        if not self._stop_monitor.is_set():
+
+            with open(url, "rt") as f:
+
+                last_mtime = None
+
+                def update(sleep=True):
+                    d = {}
+                    mtime = _os.fstat(f.fileno()).st_mtime
+                    new_data = mtime != last_mtime
+                    if new_data:
+                        lines = f.readlines()
+                        for line in lines:
+                            m = pattern.match(line)
+                            if not m:
+                                continue
+                            if m[1] != "progress":
+                                d[m[1]] = m[2]
+                            else:
+                                done = m[2] == "end"
+                                try:
+                                    if callback(d, done) and self.cancelfun:
+                                        _logging.debug(
+                                            "[progress_monitor] operation canceled by user agent"
+                                        )
+                                        self.cancelfun()
+                                except Exception as e:
+                                    _logging.critical(
+                                        f"[progress_monitor] user callback error:\n\n{e}"
+                                    )
+                    elif sleep:
+                        _sleep(timeout)
+
+                while not self._stop_monitor.is_set():
+                    last_mtime = update()
+
+                # one final update just in case FFmpeg termianted during sleep
+                update(False)
+
+        if tempdir is not None:
+            try:
+                tempdir.cleanup()
+            except:
+                pass
+
+        _logging.debug("[progress_monitor] terminated")
+
+
+def exec(
+    ffmpeg_args,
+    hide_banner=True,
+    progress=None,
+    capture_log=None,
+    stdin=None,
+    stdout=None,
+    stderr=None,
+    sp_run=_sp.run,
+    **sp_kwargs,
+):
+    """run ffmpeg command
+
+    :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: dict, seq(str), or str
+    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+    :type hide_banner: bool, optional
+    :param progress: progress monitor object, defaults to None
+    :type progress: ProgressMonitor, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                        logs to console, defaults to None (no show/capture)
+    :type capture_log: bool or None, optional
+    :param stdin: source file object, defaults to None
+    :type stdin: readable file-like object, optional
+    :param stdout: sink file object, defaults to None
+    :type stdout: writable file-like object, optional
+    :param stderr: file to log ffmpeg messages, defaults to None
+    :type stderr: writable file-like object, optional
+    :param sp_run: function to run FFmpeg as a subprocess, defaults to subprocess.run
+    :type sp_run: Callable, optional
+    :param **sp_kwargs: additional keyword arguments for sp_run, optional
+    :type **sp_kwargs: dict
+    :return: depends on sp_run
+    :rtype: depends on sp_run
+    """
+
+    # convert to FFmpeg argument dict if str or seq(str) given
+    if not isinstance(ffmpeg_args, dict):
+        ffmpeg_args = parse(ffmpeg_args)
+
+    gopts = ffmpeg_args.get("global_options", None)
+    if hide_banner:
+        if gopts is None:
+            gopts = ffmpeg_args["global_options"] = {"hide_banner": None}
+        else:
+            gopts["hide_banner"] = None
+
+    if progress and progress.url:
+        if gopts is None:
+            ffmpeg_args["global_options"] = {"progress": progress.url}
+        else:
+            gopts["progress"] = progress.url
+
+    # configure stdin pipe (if needed)
+    inpipe = (
+        next(
+            (
+                PIPE
+                for inp in ffmpeg_args["inputs"]
+                if inp[0] in ("-", "pipe:", "pipe:0")  # or not isinstance(inp[0], str)
+            ),
+            DEVNULL,
+        )
+        if "inputs" in ffmpeg_args
+        else DEVNULL
+    )
+
+    if inpipe == PIPE and stdin == DEVNULL:
+        raise ValueError("FFmpeg expects input pipe but no input given")
+    elif stdin is not None or "input" in sp_kwargs:
+        inpipe = stdin  # redirection
+
+    # configure stdout
+    outpipe = (
+        next(
+            (
+                PIPE
+                for outp in ffmpeg_args["outputs"]
+                if outp[0] in ("-", "pipe:", "pipe:1")  # or not isinstance(inp[0], str)
+            ),
+            DEVNULL,
+        )
+        if "outputs" in ffmpeg_args
+        else DEVNULL
+    )
+
+    if outpipe == PIPE and stdout == DEVNULL:
+        raise ValueError("FFmpeg expects output pipe but no input given")
+    elif stdout is not None:
+        outpipe = stdout
+
+    # set stderr for logging FFmpeg message
+    if stderr == _sp.STDOUT and outpipe == PIPE:
+        raise ValueError("stderr cannot be redirected to stdout, which is in use")
+    errpipe = stderr or (
+        PIPE if capture_log else DEVNULL if capture_log is None else None
+    )
+
+    args = compose(ffmpeg_args, command=_get_ffmpeg())
+    _logging.debug(args)
+
+    # run the FFmpeg
+    return sp_run(args, stdin=inpipe, stdout=outpipe, stderr=errpipe, **sp_kwargs)
 
 
 def versions():
@@ -495,22 +603,21 @@ def versions():
     ==================  ====  =========================================
 
     """
-    s = _run(
-        sp.run,
+    s = exec(
         ["-version"],
         hide_banner=False,
-        stdout=sp.PIPE,
+        stdout=PIPE,
         universal_newlines=True,
         encoding="utf-8",
     ).stdout.splitlines()
-    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    v = dict(version=_re.match(r"ffmpeg version (\S+)", s[0])[1])
     i = 2 if s[1].startswith("built with") else 1
     if s[i].startswith("configuration:"):
-        v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
+        v["configuration"] = sorted([m[1] for m in _re.finditer(r"\s--(\S+)", s[i])])
         i += 1
     lv = None
     for l in s[i:]:
-        m = re.match(r"(\S+)\s+(.+?) /", l)
+        m = _re.match(r"(\S+)\s+(.+?) /", l)
         if m:
             if lv is None:
                 lv = v["library_versions"] = {}

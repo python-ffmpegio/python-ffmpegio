@@ -3,8 +3,8 @@ from io import UnsupportedOperation
 from subprocess import TimeoutExpired
 import numpy as np
 
-from .utils.threaded_pipe import NotOpen, ThreadedPipe, Paused, Full, Empty
-from .ffmpeg import _as_array
+from .utils.threaded_pipe import NotOpen, ThreadedPipe, Paused, Full, Empty, NoData
+from .utils import bytes_to_ndarray as _as_array
 
 
 class IOBase:
@@ -16,6 +16,7 @@ class IOBase:
         self._pipe.start()
         self._pipe.open()
         self._eof = False
+        self.must_join = True
 
     def open(self, clear_buffer=True):
         """open a new pipe to FFmpeg process
@@ -30,15 +31,11 @@ class IOBase:
         self._pipe.open(clear_buffer)
         self._eof = False
 
-    def close(self, timeout=None, force=True):
+    def close(self, join=False):
         """Flush and close this stream.
 
-        :param timeout: timeout in seconds to wait for queue to drain, defaults to None
-        :type timeout: float, optional
-        :param force: Close the pipe regardless of the queue drainage, defaults to True
-        :type force: bool, optional
-
-        :raises TimeoutExpired: if the queue not drained before the timeout and forced=False
+        :param join: True to completely shutdown the stream, False to keep the background thread running, defaults to True
+        :type join: bool, optional
 
         This method has no effect if the file is already closed. Once the file
         is closed, any operation on the file (e.g. reading or writing) will
@@ -48,11 +45,10 @@ class IOBase:
         only the first call, however, will have an effect.
         """
 
-        if timeout is not None and self._pipe.wait_till_drained(timeout) and not force:
-            raise TimeoutExpired
-
-        if not self._pipe.closed:
-            self._pipe.close()
+        if self.must_join or join:
+            self._pipe.join()
+        else:
+            self._pipe.close()  # close pipe but keep the thread
         self._eof = True
 
     @property
@@ -60,26 +56,21 @@ class IOBase:
         """: bool:  True if the stream is closed."""
         return self._pipe.closed
 
-    @property
-    def drained(self):
-        """: bool:  True if the stream is closed and no data remains in the queue."""
-        return self._pipe.drained
-
-    def wait_till_drained(self, timeout=None):
-        """Block until the queue is drained.
+    def wait_till_closed(self, timeout=None):
+        """Block until the queue is closed.
 
         :param timeout: Maximum duration to wait in seconds, defaults to None or indefinite.
         :type timeout: float, optional
         :return: True if timeout occurred
         :rtype: bool
         """
-        return self._pipe.wait_till_drained(timeout)
+        return self._pipe.wait_till_closed(timeout)
 
     def __del__(self):
         """Prepare for object destruction.
         IOBase provides a default implementation of this method that calls the close() methods on read and write ends of its pipe.
         """
-        self._pipe.join()
+        self._pipe.join()  # close the pipe and kill the thread
 
     def fileno(self):
         """Return the underlying file descriptor (an integer) of the stream.
@@ -106,7 +97,10 @@ class IOBase:
                         to None (block indefinitely)
         :type timeout: float, optional
         """
-        self._pipe.queue.put(None, block, timeout)
+        try:
+            self._pipe.queue.put(None, block, timeout)
+        except Paused:
+            pass
 
     def readable(self):
         """Always returns False as the stream does not support read operations."""
@@ -200,6 +194,28 @@ class QueuedWriter(IOBase):
     def __init__(self, queue_size=0):
         super().__init__(True, queue_size)
 
+    def close(self, join=True, timeout=None):
+        """Flush and close this stream.
+
+        :param join: True to completely shutdown the stream, False to keep the background thread running, defaults to True
+        :type join: bool, optional
+        :param timeout: timeout in seconds to wait for queue to drain, defaults to None
+        :type timeout: float, optional
+
+        :raises TimeoutExpired: if the queue not closed before the timeout and forced=False
+
+        This method has no effect if the file is already closed. Once the file
+        is closed, any operation on the file (e.g. reading or writing) will
+        raise a ValueError.
+
+        As a convenience, it is allowed to call this method more than once;
+        only the first call, however, will have an effect.
+        """
+
+        if not join and timeout is not None and self._pipe.wait_till_closed(timeout):
+            raise TimeoutExpired
+        super().close(join)
+
     @property
     def writable(self):
         """Always returns True."""
@@ -278,13 +294,6 @@ class QueuedReader(IOBase):
         super().__init__(False, queue_size, block_size, timeout)
         self._buf = None  # holds leftover bytes from previously dequeued block
 
-    @property
-    def drained(self):
-        """
-        True if the stream is closed and no data remains in the queue.
-        """
-        return self._buf is None and super().drained
-
     def readable(self):
         """Always returns True."""
         return True
@@ -318,9 +327,9 @@ class QueuedReader(IOBase):
         if self._buf:
             b.extend(self._buf)
             self._buf = None
-        while not self.drained:
+        while True:
             try:
-                buf = self._pipe.queue.get(block, timeout)
+                buf = self._pipe.queue.get(False if self.closed else block, timeout)
                 if buf is None:
                     self._pipe.queue.task_done()
                     self.close()
@@ -355,10 +364,6 @@ class QueuedReader(IOBase):
         mode and no bytes are available, None is returned.
         """
 
-        if self.drained:
-            logging.debug(f"[io.QueuedReader] already drained")
-            raise Empty
-
         if blksize is None or blksize <= 0:
             blksize = 1
 
@@ -376,10 +381,10 @@ class QueuedReader(IOBase):
             self._buf = None
 
         timedout = False
-        while not self.drained:
+        while True:
             # read next block
             try:
-                blk = self._pipe.queue.get(block, timeout)
+                blk = self._pipe.queue.get(False if self.closed else block, timeout)
             except Empty:
                 timedout = True
                 break
@@ -411,7 +416,7 @@ class QueuedReader(IOBase):
 
         # raise error if no
         if i == 0:
-            logging.debug(f"[io.QueuedReader] no data (drained={self.drained})")
+            logging.debug(f"[io.QueuedReader] no data (closed={self.closed})")
             raise Empty()
 
         # trim data if too much read
@@ -568,11 +573,6 @@ _re_newline = re.compile(r"\r\n?")
 _re_block = re.compile(r"\n(?! )")
 
 
-def _split_logs(msg):
-    s = _re_newline.sub("\n", msg.decode("utf-8"))
-    return _re_block.split(s if s[-1] != "\n" else s[:-1])
-
-
 class QueuedLogger(IOBase):
     """A text stream representing an incoming OS pipe
 
@@ -596,9 +596,15 @@ class QueuedLogger(IOBase):
 
     @staticmethod
     def _pipe_op(que, fread):
+        print("stderr read")
 
         # try to read data from FFmpeg
         data = fread()
+
+        print("data", data)
+
+        if data[-1] not in (10, 13):
+            data += fread()
 
         # assume data always end with a newline
         lines = _split_logs(data)
@@ -627,14 +633,21 @@ class QueuedLogger(IOBase):
             else:
                 line = self._buf
                 self._buf = None
-        elif self.drained:
-            raise RuntimeError("pipe is closed and no more data in the queue")
         else:
+            # try to retrieve nonblocking first
             try:
-                line = self._pipe.queue.get(block, timeout)
+                line = self._pipe.queue.get(False)
             except Empty:
-                # timed out before stdin is closed, save what's read and re-raise
-                raise TimeoutExpired("readline", timeout)
+                if self.closed:
+                    raise Empty("pipe is closed and no more data in the queue")
+
+                # try once again with user-specified blocking configuration
+                try:
+                    line = self._pipe.queue.get(block, timeout)
+                except Empty:
+                    # timed out before stdin is closed, save what's read and re-raise
+                    raise TimeoutExpired("readline", timeout) if block else Empty
+
             if line is not None and size > 0 and size < len(line):
                 self._buf = line[size:]
                 line = line[:size]
@@ -666,13 +679,15 @@ class QueuedLogger(IOBase):
             lines = [self._buf]
             nbytes = len(self._buf)
             self._buf = None
-        elif self.drained:
-            raise RuntimeError("pipe is closed and no more data in the queue")
-        else:
-            lines = []
-            nbytes = 0
 
-        while not self.closed and (hint < 0 or nbytes < hint):
+        # try to retrieve first line nonblocking
+        if self.closed:
+            block = False
+
+        lines = []
+        nbytes = 0
+
+        while hint < 0 or nbytes < hint:
             try:
                 line = self._pipe.queue.get(block, timeout)
                 if line is None:

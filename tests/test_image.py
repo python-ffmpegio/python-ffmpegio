@@ -3,35 +3,41 @@ import tempfile, re
 from os import path
 import numpy as np
 
+from ffmpegio.utils.log import FFmpegError
+
 outext = ".png"
 
 
 def test_create():
+    
     # make sure rgb channels are mapped properly
-    A = image.create("color", c="red", s="100x100")
+    A = image.create("color", c="red", s="100x100", d=1)
     assert np.all(A[:, :, 1:] == 0)
-    A = image.create("color", c="green", s="100x100")
+    A = image.create("color", c="green", s="100x100", d=1)
     assert np.all(A[:, :, 0] == 0) and np.all(A[:, :, 2] == 0)
-    A = image.create("color", c="blue", s="100x100")
+    A = image.create("color", c="blue", s="100x100", d=1)
     assert np.all(A[:, :, :-1] == 0)
-    # B = image.create("allrgb")
-    # B = image.create("allyuv")
-    # B = image.create("gradients=s=1920x1080:c0=000000:c1=434343:x0=0:x1=0:y0=0:y1=1080")
-    # B = image.create("gradients")
-    # B = image.create("mandelbrot")
-    # B = image.create("mptestsrc=t=dc_luma")
-    # B = image.create("mptestsrc", t="ring1")
-    # B = image.create("life",life_color='red')
-    # B = image.create("haldclutsrc",16)
-    # A = image.create("testsrc")
-    # B = image.create("testsrc2",alpha=0)
-    # B = image.create("rgbtestsrc")
-    # B = image.create("smptebars")
-    # B = image.create("smptehdbars")
-    # B = image.create("pal100bars")
-    # B = image.create("pal75bars")
-    # B = image.create("yuvtestsrc")
-    # B = image.create("sierpinski")
+    B = image.create("cellauto")
+    B = image.create("allrgb", d=1)
+    B = image.create("allyuv", d=1)
+    B = image.create(
+        "gradients=s=1920x1080:x0=0:x1=0:y0=0:y1=1080", d=1
+    )
+    B = image.create("gradients", d=1)
+    B = image.create("mandelbrot")
+    B = image.create("mptestsrc=t=dc_luma", d=1)
+    B = image.create("mptestsrc", t="ring1", d=1)
+    B = image.create("life", life_color='#00ff00')
+    B = image.create("haldclutsrc", 16, d=1)
+    A = image.create("testsrc", d=1)
+    B = image.create("testsrc2", alpha=0, d=1)
+    B = image.create("rgbtestsrc", d=1)
+    B = image.create("smptebars", d=1)
+    B = image.create("smptehdbars", d=1)
+    B = image.create("pal100bars", d=1)
+    B = image.create("pal75bars", d=1)
+    B = image.create("yuvtestsrc", d=1)
+    B = image.create("sierpinski")
     # print(A.dtype, A.shape)
     # plt.subplot(1,2,1)
     # plt.imshow(A)
@@ -54,7 +60,7 @@ def test_read_write():
         print(out_url, C.shape)
         image.write(out_url, C)
         print(probe.video_streams_basic(out_url))
-        C = image.read(out_url, pix_fmt="rgba")
+        C = image.read(out_url, pix_fmt="rgba", show_log=True)
 
     #     with open(path.join(tmpdirname, "progress.txt")) as f:
     #         print(f.read())
@@ -75,25 +81,11 @@ def test_read_write():
 # test_read_write()
 
 if __name__ == "__main__":
-
     from matplotlib import pyplot as plt
     import logging
+    from ffmpegio import utils, ffmpegprocess
+    from ffmpegio.utils import filter as filter_utils, log as log_utils
 
-    # logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.DEBUG)
 
-    IM = image.read(
-        "tests/assets/ffmpeg-logo.png",
-        # crop=(0, 0, 200, 0),
-        # rotate=30,
-        pix_fmt='rgb24',
-        fill_color="blue",
-        transpose=0,
-        size=(200,-1)
-    )
-    print(IM.shape)
-
-    plt.figure(figsize=(IM.shape[1] / 96, IM.shape[0] / 96))
-    plt.imshow(IM)
-    plt.gca().set_position((0, 0, 1, 1))
-    # plt.axis('off')
-    plt.show()
+    test_read_write()
