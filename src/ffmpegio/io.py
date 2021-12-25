@@ -57,7 +57,7 @@ class IOBase:
 
     @property
     def closed(self):
-        """: bool:  True if the stream is closed. """
+        """: bool:  True if the stream is closed."""
         return self._pipe.closed
 
     @property
@@ -570,7 +570,7 @@ _re_block = re.compile(r"\n(?! )")
 
 def _split_logs(msg):
     s = _re_newline.sub("\n", msg.decode("utf-8"))
-    return _re_block.split(s)
+    return _re_block.split(s if s[-1] != "\n" else s[:-1])
 
 
 class QueuedLogger(IOBase):
