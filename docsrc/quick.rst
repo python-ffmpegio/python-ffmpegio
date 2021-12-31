@@ -89,7 +89,7 @@ basic functions:
     {'codec_name': 'h264', 'codec_type': 'video', 'index': 1}]
 
     >>> vst_info = ffmpegio.probe.video_streams_basic(url) 
-    >>> pprint.pprint(vst_info) 
+    >>> pprint(vst_info) 
     [{'codec_name': 'h264',
     'display_aspect_ratio': Fraction(22, 15),
     'duration': 66.39972222222222,
@@ -102,7 +102,7 @@ basic functions:
     'width': 352}]
 
     >>> ast_info = ffmpegio.probe.audio_streams_basic(url)
-    >>> pprint.pprint(ast_info) 
+    >>> pprint(ast_info) 
     [{'channel_layout': 'stereo',
     'channels': 2,
     'codec_name': 'mp2',
