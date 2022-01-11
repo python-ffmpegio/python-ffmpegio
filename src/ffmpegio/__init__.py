@@ -26,11 +26,12 @@ from contextlib import contextmanager
 
 from .transcode import transcode
 from . import caps, probe, audio, image, video
+from . import ffmpegprocess as process
 from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
-__all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open"]
-__version__ = "0.0.13"
+__all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open", "process"]
+__version__ = "0.0.14"
 
 ffmpeg_info = _ffmpeg.versions
 set_path = _ffmpeg.find
