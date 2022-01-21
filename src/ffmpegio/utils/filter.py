@@ -133,7 +133,7 @@ def parse_filter(expr):
 
     args = parse_filter_args(expr[i:]) if m[3] else []
 
-    return ((name, id) if id else name), *args
+    return (((name, id) if id else name), *args)
 
 
 def compose_filter(name, *args):

@@ -249,9 +249,12 @@ class Popen(_sp.Popen):
         :param sig: signal id
         :type sig: int
         """
-        super().send_signal(sig)
-        if self.returncode is None:
-            self._monitor.join()
+        try:
+            super().send_signal(sig)
+            if self.returncode is None:
+                self._monitor.join()
+        except:
+            pass
 
     ####################################################################################################
 

@@ -70,8 +70,8 @@ def options(type=None, name_only=False, return_desc=False):
                 l,
                 {
                     o[0]: o[1:]
-                    for s in lines[i0 : i1 - 1]
-                    if (o := parse_line(s)) is not None
+                    for o in (parse_line(s) for s in lines[i0 : i1 - 1])
+                    if o is not None
                 },
             )
             for (i0, l), (i1, _) in zip(ginds[:-1], ginds[1:])
@@ -86,20 +86,22 @@ def options(type=None, name_only=False, return_desc=False):
         }
         for gname, gopts in raw_opts:
             if "video" in gname:
-                opts["video"] |= gopts
+                opts["video"].update(gopts)
             elif "audio" in gname:
-                opts["audio"] |= gopts
+                opts["audio"].update(gopts)
             elif "subtitle" in gname:
-                opts["subtitle"] |= gopts
+                opts["subtitle"].update(gopts)
             elif "per-file" in gname:
-                opts["general"] |= gopts
+                opts["general"].update(gopts)
             else:
-                opts["global"] |= gopts
+                opts["global"].update(gopts)
         _cache["options"] = opts
 
     if type == "per-file":
         opts = {
-            "per-file": {k: v for t, o in opts.items() if t != "global" for k, v in o.items()}
+            "per-file": {
+                k: v for t, o in opts.items() if t != "global" for k, v in o.items()
+            }
         }
 
     return (
