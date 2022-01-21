@@ -24,9 +24,7 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
     :rtype: numpy.ndarray
     """
 
-    dtype, shape, _ = configure.finalize_video_read_opts(
-        args[0], pix_fmt_in, s_in
-    )
+    dtype, shape, _ = configure.finalize_video_read_opts(args[0], pix_fmt_in, s_in)
 
     if dtype == np.dtype("b"):
         raise ValueError("pix_fmt must be one of gray*, ya*, rgb*, rgba*")
@@ -63,7 +61,6 @@ def create(
     pix_fmt=None,
     vf=None,
     vframe=None,
-    progress=None,
     show_log=None,
     **kwargs
 ):
@@ -73,8 +70,12 @@ def create(
     :type name: str
     :param \\*args: filter arguments
     :type \\*args: tuple, optional
-    :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
+    :param pix_fmt: RGB/grayscale pixel format name, defaults to None (rgb24)
+    :type pix_fmt: str, optional
+    :param vf: additional video filter, defaults to None
+    :type vf: FilterGraph or str, optional
+    :param vframe: video frame index to capture, defaults to None (=0)
+    :type vframe: int, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
@@ -83,6 +84,7 @@ def create(
     :type \\**options: dict, optional
     :return: image data
     :rtype: numpy.ndarray
+
 
     Supported Video Source Filters
     ------------------------------
@@ -128,23 +130,19 @@ def create(
 
     outopts["frames:v"] = vframe if vframe else 1
 
-    return _run_read(ffmpeg_args, progress=progress, s_in=s_in, show_log=show_log)
+    return _run_read(ffmpeg_args, s_in=s_in, show_log=show_log)
 
 
-def read(url, progress=None, show_log=None, **options):
+def read(url, show_log=None, **options):
     """Read an image file or a snapshot of a video frame
 
     :param url: URL of the image or video file to read.
     :type url: str
-    :param stream_id: video stream id (numeric part of ``v:#`` specifier), defaults to 0.
-    :type stream_id: int, optional
-    :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :return: image data
     :rtype: numpy.ndarray
@@ -179,26 +177,23 @@ def read(url, progress=None, show_log=None, **options):
         ffmpeg_args,
         stdin=stdin,
         input=input,
-        progress=progress,
         show_log=show_log,
         pix_fmt_in=pix_fmt_in,
         s_in=s_in,
     )
 
 
-def write(url, data, progress=None, show_log=None, **options):
+def write(url, data, show_log=None, **options):
     """Write a NumPy array to an image file.
 
     :param url: URL of the image file to write.
     :type url: str
     :param data: image data 3-D array (rowsxcolsxcomponents)
     :type data: `numpy.ndarray`
-    :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
 
@@ -217,20 +212,19 @@ def write(url, data, progress=None, show_log=None, **options):
         ffmpeg_args,
         input=data,
         stdout=stdout,
-        progress=progress,
         capture_log=False if show_log else None,
     )
 
 
-def filter(expr, input, progress=None, **options):
+def filter(expr, input, **options):
     """Filter image pixels.
 
     :param expr: SISO filter graph.
     :type expr: str
     :param input: input image data
     :type input: 2D/3D numpy.ndarray
-    :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :type \\**options: dict, optional
     :return: output sampling rate and data
     :rtype: numpy.ndarray
 
