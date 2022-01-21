@@ -28,11 +28,23 @@ from .utils.log import FFmpegError
 from .utils.filter import FilterGraph
 from .transcode import transcode
 from . import caps, probe, audio, image, video
-from . import ffmpegprocess as process
+from . import ffmpegprocess
 from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
-__all__ = ["transcode", "caps", "probe", "set_path", "audio", "image", "video", "open", "process"]
+__all__ = [
+    "transcode",
+    "caps",
+    "probe",
+    "set_path",
+    "audio",
+    "image",
+    "video",
+    "open",
+    "ffmpegprocess",
+    "FFmpegError",
+    "FilterGraph",
+]
 __version__ = "0.1.1"
 
 ffmpeg_info = _ffmpeg.versions
