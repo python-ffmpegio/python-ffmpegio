@@ -4,7 +4,7 @@ Basic I/O Function References
 =============================
 
 | PyPi: `<https://pypi.org/project/ffmpegio/>`__
-| GitHub: `<https://github.com/tikuma-lsuhsc/python-ffmpegio>`__
+| GitHub: `<https://github.com/python-ffmpegio/python-ffmpegio>`__
 
 
 .. warning::

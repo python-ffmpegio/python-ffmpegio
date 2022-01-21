@@ -2,7 +2,7 @@ Getting Started with ffmpegio
 =============================
 
 | PyPi: `<https://pypi.org/project/ffmpegio/>`__
-| GitHub: `<https://github.com/tikuma-lsuhsc/python-ffmpegio>`__
+| GitHub: `<https://github.com/python-ffmpegio/python-ffmpegio>`__
 
 .. warning::
    This package is still in an early alpha stage and under heavy consturction.

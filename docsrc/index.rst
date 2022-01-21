@@ -7,9 +7,9 @@
   :alt: PyPI - Status
 .. image:: https://img.shields.io/pypi/pyversions/ffmpegio
   :alt: PyPI - Python Version
-.. image:: https://img.shields.io/github/license/tikuma-lsuhsc/python-ffmpegio
+.. image:: https://img.shields.io/github/license/python-ffmpegio/python-ffmpegio
   :alt: GitHub
-.. image:: https://img.shields.io/github/workflow/status/tikuma-lsuhsc/python-ffmpegio/Run%20Tests
+.. image:: https://img.shields.io/github/workflow/status/python-ffmpegio/python-ffmpegio/Run%20Tests
   :alt: GitHub Workflow Status
 
 Python :py:mod:`ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
@@ -45,8 +45,8 @@ Where to start
 Other resources
 ---------------
 
-* `GitHub project <https://github.com/tikuma-lsuhsc/python-ffmpegio>`_
-* `Ask questions on the GitHub Discussion board <https://github.com/tikuma-lsuhsc/python-ffmpegio/discussions>`_
+* `GitHub project <https://github.com/python-ffmpegio/python-ffmpegio>`_
+* `Ask questions on the GitHub Discussion board <https://github.com/python-ffmpegio/python-ffmpegio/discussions>`_
 * `FFmpeg Documentation <http://ffmpeg.org/ffmpeg.html>`_
 * `FFprobe Documentation <https://ffmpeg.org/ffprobe.html>`__
 * `FFmpeg Filters Documentation <https://ffmpeg.org/ffmpeg-filters.html>`__
