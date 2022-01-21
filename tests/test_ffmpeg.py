@@ -52,39 +52,51 @@ def test_parse_options():
     p = ffmpeg.parse_options(s)
     assert p == {"i": "/tmp/a.wav", "map": ["0:a", "1:a", "1:v"], "b:a": "64k"}
 
-    def test_compose():
-        assert ffmpeg.compose(
-            {}, [("input.avi", {})], [("output.avi", {"b:v": "64k", "bufsize": "64k"})]
-        ) == ["-i", "input.avi", "-b:v", "64k", "-bufsize", "64k", "output.avi"]
 
-        assert ffmpeg.compose(
+def test_compose():
+    assert (
+        ffmpeg.compose(
             {
+                "global_options": None,
+                "inputs": [("input.avi", {})],
+                "outputs": [("output.avi", {"b:v": "64k", "bufsize": "64k"})],
+            }
+        )
+        == ["-i", "input.avi", "-b:v", "64k", "-bufsize", "64k", "output.avi"]
+    )
+
+    assert ffmpeg.compose(
+        {
+            "global_options": {
                 "filter_complex": "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay"
             },
-            [("input.ts", {})],
-            [("output.mkv", {"sn": None, "map": ["#0x2dc", "a"]})],
-            command="ffmpeg",
-        ) == [
-            "ffmpeg",
-            "-filter_complex",
-            "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay",
-            "-i",
-            "input.ts",
-            "-sn",
-            "-map",
-            "#0x2dc",
-            "-map",
-            "a",
-            "output.mkv",
-        ]
+            "inputs": [("input.ts", {})],
+            "outputs": [("output.mkv", {"sn": None, "map": ["#0x2dc", "a"]})],
+        },
+        command="ffmpeg",
+    ) == [
+        "ffmpeg",
+        "-filter_complex",
+        "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay",
+        "-i",
+        "input.ts",
+        "-sn",
+        "-map",
+        "#0x2dc",
+        "-map",
+        "a",
+        "output.mkv",
+    ]
 
     assert (
         ffmpeg.compose(
-            inputs=[("/tmp/a.wav", {})],
-            outputs=[
-                ("/tmp/a test.mp2", {"map": "0:a", "b:a": "64k"}),
-                ("/tmp/b.mp2", {"map": "0:a", "b:a": "128k"}),
-            ],
+            dict(
+                inputs=[("/tmp/a.wav", {})],
+                outputs=[
+                    ("/tmp/a test.mp2", {"map": "0:a", "b:a": "64k"}),
+                    ("/tmp/b.mp2", {"map": "0:a", "b:a": "128k"}),
+                ],
+            ),
             command="ffmpeg",
             shell_command=True,
         )

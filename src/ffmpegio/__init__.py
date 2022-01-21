@@ -24,6 +24,8 @@ Block Read/Write Functions
 
 from contextlib import contextmanager
 
+from .utils.log import FFmpegError
+from .utils.filter import FilterGraph
 from .transcode import transcode
 from . import caps, probe, audio, image, video
 from . import ffmpegprocess as process
@@ -170,7 +172,7 @@ def open(
     # filter = "f" in mode
     # backwards = "b" in mode
     unk = set(mode) - set("avrw")
-    if unk :
+    if unk:
         raise Exception(
             f"Invalid FFmpeg streaming mode: {mode}. Unknown mode {unk} specified."
         )
@@ -235,15 +237,10 @@ def open(
             if audio
             else (_streams.SimpleVideoWriter if write else _streams.SimpleVideoReader)
         )
-        if read:
-            kwds["stream_id"] = stream_id or 0
         if write:
             kwds["rate"] = rate
             kwds["dtype"] = dtype
-            if video:
-                kwds["shape"] = shape
-            elif audio:
-                kwds["channels"] = channels
+            kwds["shape"] = shape or channels
 
     # instantiate the streaming object
     # TODO wrap in try-catch if AV stream fails to try a multi-stream version

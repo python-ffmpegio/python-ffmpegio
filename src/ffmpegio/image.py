@@ -1,8 +1,72 @@
 import numpy as np
-from . import ffmpegprocess, utils, configure, filter_utils
+
+from . import ffmpegprocess, utils, configure, FFmpegError, probe
+from .utils import filter as filter_utils, log as log_utils
 
 
-def create(name, *args, progress=None, show_log=None, **kwargs):
+def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kwargs):
+    """run FFmpeg and retrieve audio stream data
+    :param *args ffmpegprocess.run arguments
+    :type *args: tuple
+    :param shape: output frame size if known, defaults to None
+    :type shape: (int, int), optional
+    :param pix_fmt_in: input pixel format if known but not specified in the ffmpeg arg dict, defaults to None
+    :type pix_fmt_in: str, optional
+    :param s_in: input frame size (wxh) if known but not specified in the ffmpeg arg dict, defaults to None
+    :type s_in: str or (int, int), optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+                     Ignored if stream format must be retrieved automatically.
+    :type show_log: bool, optional
+    :param **kwargs ffmpegprocess.run keyword arguments
+    :type **kwargs: tuple
+    :return: image data
+    :rtype: numpy.ndarray
+    """
+
+    dtype, shape, _ = configure.finalize_video_read_opts(
+        args[0], pix_fmt_in, s_in
+    )
+
+    if dtype == np.dtype("b"):
+        raise ValueError("pix_fmt must be one of gray*, ya*, rgb*, rgba*")
+
+    if shape is None:
+        configure.clear_loglevel(args[0])
+
+        out = ffmpegprocess.run(*args, capture_log=True, **kwargs)
+        if out.returncode:
+            raise FFmpegError(out.stderr)
+
+        info = log_utils.extract_output_stream(out.stderr)
+        dtype, ncomp, _ = utils.get_video_format(info["pix_fmt"])
+        shape = (-1, *info["s"][::-1], ncomp)
+
+        data = np.frombuffer(out.stdout, dtype).reshape(*shape)
+    else:
+        out = ffmpegprocess.run(
+            *args,
+            dtype=dtype,
+            shape=shape,
+            capture_log=False if show_log else True,
+            **kwargs,
+        )
+        if out.returncode:
+            raise FFmpegError(out.stderr)
+        data = out.stdout
+    return data[-1, ...]
+
+
+def create(
+    expr,
+    *args,
+    pix_fmt=None,
+    vf=None,
+    vframe=None,
+    progress=None,
+    show_log=None,
+    **kwargs
+):
     """Create an image using a source video filter
 
     :param name: name of the source filter
@@ -11,9 +75,10 @@ def create(name, *args, progress=None, show_log=None, **kwargs):
     :type \\*args: tuple, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
-    :param capture_log: True to capture log messages on stderr, False to send
-                    logs to console, defaults to None (no show/capture)
-    :type capture_log: bool, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+                     Ignored if stream format must be retrieved automatically.
+    :type show_log: bool, optional
     :param \\**options: filter keyword arguments
     :type \\**options: dict, optional
     :return: image data
@@ -48,31 +113,25 @@ def create(name, *args, progress=None, show_log=None, **kwargs):
 
     """
 
-    url = filter_utils.compose_filter(name, *args, **kwargs)
+    url, (_, s_in) = filter_utils.compose_source("video", expr, *args, **kwargs)
 
     ffmpeg_args = configure.empty()
     configure.add_url(ffmpeg_args, "input", url, {"f": "lavfi"})
+    outopts = configure.add_url(ffmpeg_args, "output", "-", {"f": "rawvideo"})[1][1]
 
-    ffmpeg_args, reader_cfg = configure.video_io(
-        ffmpeg_args,
-        url,
-        output_url="-",
-        format="rawvideo",
-        excludes=["frame_rate"],
-    )
-    dtype, shape, _ = reader_cfg[0]
+    for k, v in zip(
+        ("pix_fmt", "filter:v"),
+        (pix_fmt or "rgb24", vf),
+    ):
+        if v is not None:
+            outopts[k] = v
 
-    configure.merge_user_options(ffmpeg_args, "output", {"frames:v": 1}, file_index=0)
-    return ffmpegprocess.run(
-        ffmpeg_args,
-        progress=progress,
-        dtype=dtype,
-        shape=shape,
-        capture_log=False if show_log else None,
-    ).stdout[0, ...]
+    outopts["frames:v"] = vframe if vframe else 1
+
+    return _run_read(ffmpeg_args, progress=progress, s_in=s_in, show_log=show_log)
 
 
-def read(url, stream_id=0, progress=None, show_log=None, **options):
+def read(url, progress=None, show_log=None, **options):
     """Read an image file or a snapshot of a video frame
 
     :param url: URL of the image or video file to read.
@@ -81,9 +140,10 @@ def read(url, stream_id=0, progress=None, show_log=None, **options):
     :type stream_id: int, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
-    :param capture_log: True to capture log messages on stderr, False to send
-                    logs to console, defaults to None (no show/capture)
-    :type capture_log: bool, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+                     Ignored if stream format must be retrieved automatically.
+    :type show_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     :return: image data
@@ -93,41 +153,37 @@ def read(url, stream_id=0, progress=None, show_log=None, **options):
     option which is an alias of `start` standard option.
     """
 
-    url, stdin, input = configure.check_url(url,False)
+    pix_fmt = options.get("pix_fmt", None)
 
-    args = configure.input_timing(
-        {},
-        url,
-        vstream_id=stream_id,
-        aliases={"time": "start"},
-        excludes=("start", "end", "duration"),
-        **options
-    )
+    # get pix_fmt of the input file only if needed
+    if pix_fmt is None and "pix_fmt_in" not in options:
+        info = probe.video_streams_basic(url, 0)[0]
+        pix_fmt_in = info["pix_fmt"]
+        s_in = (info["width"], info["height"])
+    else:
+        pix_fmt_in = s_in = None
 
-    if "input_options" in options:
-        configure.merge_user_options(args, "input", options["input_options"])
+    # get url/file stream
+    url, stdin, input = configure.check_url(url, False)
 
-    args, reader_cfg = configure.video_io(
-        args,
-        url,
-        stream_id,
-        output_url="-",
-        format="rawvideo",
-        excludes=["frame_rate"],
-        **options
-    )
-    dtype, shape, _ = reader_cfg[0]
+    input_options = utils.pop_extra_options(options, "_in")
 
-    configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
-    return ffmpegprocess.run(
-        args,
-        progress=progress,
+    ffmpeg_args = configure.empty()
+    configure.add_url(ffmpeg_args, "input", url, input_options)[1][1]
+    outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
+    outopts["f"] = "rawvideo"
+    if "frames:v" not in outopts:
+        outopts["frames:v"] = 1
+
+    return _run_read(
+        ffmpeg_args,
         stdin=stdin,
         input=input,
-        dtype=dtype,
-        shape=shape,
-        capture_log=False if show_log else None,
-    ).stdout[0, ...]
+        progress=progress,
+        show_log=show_log,
+        pix_fmt_in=pix_fmt_in,
+        s_in=s_in,
+    )
 
 
 def write(url, data, progress=None, show_log=None, **options):
@@ -139,32 +195,62 @@ def write(url, data, progress=None, show_log=None, **options):
     :type data: `numpy.ndarray`
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
-    :param capture_log: True to capture log messages on stderr, False to send
-                    logs to console, defaults to None (no show/capture)
-    :type capture_log: bool, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+    :type show_log: bool, optional
     :param \\**options: other keyword options (see :doc:`options`)
     :type \\**options: dict, optional
     """
 
-    url, stdout, _ = configure.check_url(url,True)
+    url, stdout, _ = configure.check_url(url, True)
 
-    args = configure.input_timing(
-        {}, "-", vstream_id=0, excludes=("start", "end", "duration"), **options
-    )
+    input_options = utils.pop_extra_options(options, "_in")
 
-    configure.video_io(
-        args,
-        utils.array_to_video_input(1, data=data, format="rawvideo")[0],
-        output_url=url,
-        excludes=["frame_rate"],
-        **options
+    ffmpeg_args = configure.empty()
+    configure.add_url(
+        ffmpeg_args, "input", *utils.array_to_video_input(1, data=data, **input_options)
     )
-    configure.merge_user_options(args, "output", {"frames:v": 1}, file_index=0)
+    outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
+    outopts["frames:v"] = 1
 
     ffmpegprocess.run(
-        args,
-        progress=progress,
-        stdout=stdout,
+        ffmpeg_args,
         input=data,
+        stdout=stdout,
+        progress=progress,
         capture_log=False if show_log else None,
+    )
+
+
+def filter(expr, input, progress=None, **options):
+    """Filter image pixels.
+
+    :param expr: SISO filter graph.
+    :type expr: str
+    :param input: input image data
+    :type input: 2D/3D numpy.ndarray
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :return: output sampling rate and data
+    :rtype: numpy.ndarray
+
+    """
+
+    input_options = utils.pop_extra_options(options, "_in")
+
+    ffmpeg_args = configure.empty()
+    configure.add_url(
+        ffmpeg_args,
+        "input",
+        *utils.array_to_video_input(1, data=input, **input_options),
+    )
+    outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
+    outopts["f"] = "rawvideo"
+    outopts["filter:v"] = expr
+
+    return _run_read(
+        ffmpeg_args,
+        input=input,
+        progress=progress,
+        show_log=True,
     )

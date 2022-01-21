@@ -21,131 +21,67 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
-from subprocess import (
-    DEVNULL,
-    PIPE,
-    TimeoutExpired,
-    # CalledProcessError,
-    # CompletedProcess,
-)
-import re as _re, os as _os, logging as _logging
-from threading import Condition as _Condition, Thread as _Thread, Lock as _Lock
-from time import time as _time, sleep as _sleep
-from tempfile import TemporaryDirectory as _TemporaryDirectory
+# from subprocess import (
+#     DEVNULL,
+#     PIPE,
+#     TimeoutExpired,
+#     # CalledProcessError,
+#     # CompletedProcess,
+# )
+
+# PIPE_NONBLK = -4
+
+import re as _re, logging as _logging
+from threading import Thread as _Thread
 import subprocess as _sp
-
-# import numpy as _np
-
-from .ffmpeg import _run, _as_array, parse
-from .io import (
-    Full as _Full,
-    QueuedWriter,
-    QueuedReader,
-    QueuedLogger,
-    _split_logs,
-)
+from .ffmpeg import exec, parse, ProgressMonitor
+from .configure import move_global_options
+from .utils import bytes_to_ndarray as _as_array
 
 
-class ProgressMonitor(_Thread):
-    def __init__(self, callback, url=None, timeout=10e-3):
-        self._td = None if url else _TemporaryDirectory()
-        self.url = url or _os.path.join(self._td.name, "progress.txt")
-        self._callback = callback
-        self.timeout = timeout
-        self._mutex = _Lock()
-        self._status = 0  # >0 done, <0 canceled
-        self._status_change = _Condition(self._mutex)
-        super().__init__()
+def monitor_process(
+    proc, close_stdin=True, close_stdout=True, close_stderr=True, on_exit=None
+):
+    """thread function to monitor subprocess termination
 
-    @property
-    def completed(self):
-        with self._mutex:
-            return self._status > 0
+    :param proc: subprocess to be monitored
+    :type proc: subprocess.Popen
+    :param close_stdin: if True, auto-close stdin, defaults to True
+    :type close_stdin: bool, optional
+    :param close_stdout: if True, auto-close stdout, defaults to True
+    :type close_stdout: bool, optional
+    :param close_stderr: if True, auto-close stderr, defaults to True
+    :type close_stderr: bool, optional
+    :param on_exit: callback function(s) to be called after process is terminated and
+                    all auto-closing streams are closed
+    :type on_exit: Callable or seq(Callables), optional
+    """
 
-    @property
-    def canceled(self):
-        with self._mutex:
-            return self._status < 0
-
-    @property
-    def running(self):
-        with self._mutex:
-            return not self._status
-
-    def wait(self, timeout=None):
-        with self._status_change:
-            if not self._status:
-                self._status_change.wait(timeout)
-            return self._status < 0
-
-    def join(self):
-        with self._mutex:
-            if not self._status:
-                self._status = -1
-        super().join()
-        if self._td is not None:
-            try:
-                self._td.cleanup()
-            except:
-                pass
-            self._td = None
-
-    def run(self):
-        url = self.url
-        last_mtime = None
-
-        def set_status(st):
-            with self._mutex:
-                self._status = st
-
-        pattern = _re.compile(r"(.+)?=(.+)")
-        done = False
-        _logging.debug(f'[progress_monitor] monitoring "{url}"')
-
-        while self.running and not _os.path.isfile(url):
-            _sleep(self.timeout)
-
-        _logging.debug("[progress_monitor] file found")
-        d = {}
-        with open(url, "rt") as f:
-            while self.running:
-                mtime = _os.fstat(f.fileno()).st_mtime
-                if mtime != last_mtime:
-                    lines = f.readlines()
-                    last_mtime = mtime
-                    for line in lines:
-                        m = pattern.match(line)
-                        if not m:
-                            continue
-                        if m[1] != "progress":
-                            d[m[1]] = m[2]
-                        else:
-                            done = m[2] == "end"
-                            if done:
-                                set_status(1)
-                            try:
-                                if self._callback(d, done):
-                                    _logging.debug(
-                                        "[progress_monitor] operation canceled by user agent"
-                                    )
-                                    set_status(-1)
-                            except Exception as e:
-                                _logging.critical(
-                                    f"[progress_monitor] user callback error:\n\n{e}"
-                                )
-                            d = {}
-                            if not self.running:  # get out of the inner loop
-                                break
-                else:
-                    _sleep(self.timeout)
-
-        with self._status_change:
-            self._status_change.notify_all()
-
-        _logging.debug("[progress_monitor] terminated")
+    proc.wait()
+    if close_stdin and proc.stdin:
+        try:
+            proc.stdin.close()
+        except:
+            pass
+    if close_stdout and proc.stdout:
+        try:
+            proc.stdout.close()
+        except:
+            pass
+    if close_stderr and proc.stderr:
+        try:
+            proc.stderr.close()
+        except:
+            pass
+    if on_exit is not None:
+        try:
+            on_exit()
+        except:
+            for fcn in on_exit:
+                fcn()
 
 
-class Popen:
+class Popen(_sp.Popen):
     """Execute FFmpeg in a new process.
 
     :param ffmpeg_args: FFmpeg arguments
@@ -173,12 +109,20 @@ class Popen:
     :type stdout: writable file object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
     :type stderr: writable file object, optional
+    :param close_stdin: True to auto-close stdin, defaults to None (True only if stdin not given)
+    :type close_stdin: bool, optional
+    :param close_stdout: True to auto-close stdout, defaults to None (True only if stdout not given)
+    :type close_stdout: bool, optional
+    :param close_stderr: True to auto-close stderr, defaults to None (True only if stderr not given)
+    :type close_stderr: bool, optional
+    :param on_exit: function(s) to execute when FFmpeg process terminates, defaults to None
+    :type on_exit: Callable or seq(Callable), optional
     :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
     :type \\**other_popen_args: dict, optional
 
     If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen` creates
-    a pipe for each piped url. If input is piped, :code:`stdin` is default to :code:`ffmpegio.io.QueuedWriter` 
-    class instance.  If output is piped, :code:`stdout` is default to :code:`ffmpegio.io.QueuedReader` class 
+    a pipe for each piped url. If input is piped, :code:`stdin` is default to :code:`ffmpegio.io.QueuedWriter`
+    class instance.  If output is piped, :code:`stdout` is default to :code:`ffmpegio.io.QueuedReader` class
     instance. If :code:`capture_log=True`, then :code:`stderr` is default to :code:`ffmpegio.io.QueuedWriter`. See
     :ref:`ffmpegio.io module<adv_io>` for how to use these custom stream classes.
 
@@ -194,12 +138,13 @@ class Popen:
         hide_banner=True,
         progress=None,
         capture_log=None,
-        input_queue_size=0,
-        output_queue_size=0,
-        output_block_size=2 ** 20,
         stdin=None,
         stdout=None,
         stderr=None,
+        close_stdin=None,
+        close_stdout=None,
+        close_stderr=None,
+        on_exit=None,
         **other_popen_args,
     ):
         if any(
@@ -221,291 +166,92 @@ class Popen:
             )
 
         #: dict: The FFmpeg args argument as it was passed to `Popen`
-        self.args = (
+        self.ffmpeg_args = (
             {**ffmpeg_args} if isinstance(ffmpeg_args, dict) else parse(ffmpeg_args)
         )
 
-        #: `io.QueuedWriter` or user-supplied writable file object: Writeable stream object to send data to FFmpeg
-        self.stdin = None
-
-        #: `io.QueuedReader` or user-supplied readable file object: Readable stream object to receive data from FFmpeg
-        self.stdout = None
-
-        #: `io.QueuedLogger` or user-supplied readable file object: Readable stream object to receive messages from FFmpeg
-        self.stderr = None
-
-        self._progress = ProgressMonitor(progress) if progress else None
-
-        def get_file(file, args, Default, argname, st_kwargs):
-
-            # scan args for '-' or file object
-            m = (
-                [(i, arg[0]) for i, arg in enumerate(args) if arg[0] in ("-", "pipe:")]
-                if args is not None
-                else []
-            )
-            if len(m) > 1:
-                raise ValueError(f"cannot redirect more than one stream to {argname}.")
-
-            redirect = bool(m)
-            create = False
-
-            if not redirect:
-                # nothing to redirect
-                file = DEVNULL
-            else:
-                create = not file or file == PIPE
-                if create:
-                    file = Default(**st_kwargs)
-
-            return file, create, args
-
-        self.stdin, self._own_stdin, self.args["inputs"] = get_file(
-            stdin,
-            self.args["inputs"],
-            QueuedWriter,
-            "stdin",
-            {"queue_size": input_queue_size},
-        )
-        self.stdout, self._own_stdout, self.args["outputs"] = get_file(
-            stdout,
-            self.args["outputs"],
-            QueuedReader,
-            "stdout",
-            {"queue_size": output_queue_size, "block_size": output_block_size},
-        )
-        self.stderr, self._own_stderr = (
-            get_file(
-                stderr,
-                [("-", None)] if capture_log else None,
-                QueuedLogger,
-                "stderr",
-                {},
-            )[:2]
-            if capture_log is not False
-            else (None, False)
-        )
-
-        #: bool: True if FFmpeg instance accepts input data via stdin
-        self.writable = isinstance(self.stdin, QueuedWriter)
-
-        #: bool: True if FFmpeg instance outputs output data to stdout
-        self.readable = isinstance(self.stdout, QueuedReader)
-
-        #: bool: True if FFmpeg instance outputs log messages to stderr
-        self.loggable = isinstance(self.stderr, QueuedLogger)
+        # run progress monitor
+        self._progmon = None if progress is None else ProgressMonitor(progress)
 
         # start FFmpeg process
-        self._proc = _run(
-            _sp.Popen,
-            self.args,
-            progress=self._progress and self._progress.url,
-            hide_banner=hide_banner,
-            stdin=self.stdin,
-            stdout=self.stdout,
-            stderr=self.stderr,
+        exec(
+            self.ffmpeg_args,
+            hide_banner,
+            self._progmon,
+            capture_log,
+            stdin,
+            stdout,
+            stderr,
+            super().__init__,
         )
 
-        # start the FFmpeg process monitoring thread
-        if self._progress or self.readable or self.loggable:
-            self._thread = (
-                _Thread(target=self._run_cancelable)
-                if self._progress
-                else _Thread(target=self._run)
-            )
-            self._thread.start()
-        else:
-            self._thread = None
+        # set progress monitor's cancelfun to allow its callback to terminate the FFmpeg process
+        if self._progmon:
+            self._progmon.cancelfun = self.terminate
+            self._progmon.start()
 
-    def __del__(self):
-        if self._proc.poll():
-            self._proc.kill()
-        if self._thread:
-            self._thread.join()
-
-    def _run(self):
-        _logging.debug("[ffmpegprocess.Popen thread] started")
-        self._proc.wait()
-        _logging.debug("[ffmpegprocess.Popen thread] ffmpeg process exited")
-        if self.readable:
-            if self._own_stdout:
-                _logging.debug(
-                    f"[ffmpegprocess.Popen thread] joining stdout (drained: {self.stdout.drained})"
-                )
-                self.stdout._pipe.join()
-                _logging.debug(
-                    f"[ffmpegprocess.Popen thread] joined stdout (drained: {self.stdout.drained})"
-                )
-            self.stdout.mark_eof()
-        if self.loggable:
-            if self._own_stderr:
-                self.stderr._pipe.join()
-            self.stderr.mark_eof()
-        _logging.debug(f"[ffmpegprocess.Popen thread] exiting")
-
-    def _run_cancelable(self):
-        proc = self._proc
-        progress = self._progress
-        timeout = 10e-3
-
-        # self.writable and self.stdin.close,
-
-        _logging.debug("starting ffmpegprocess.Popen thread (with progress monitoring)")
-        progress.start()
-        while proc.returncode is None and not progress.canceled:
-            try:
-                proc.wait(timeout)
-                _logging.debug(f"proc.returncode={proc.returncode}")
-            except TimeoutExpired:
-                pass
-        if progress.canceled:
-            proc.terminate()
-            if self.writable:
-                self.stdin.close()
-            if self._own_stdin:
-                self.stdin._pipe.join()
-        if self.readable:
-            self.stdout.mark_eof()
-            if self._own_stdout:
-                self.stdout._pipe.join()
-        if self.loggable:
-            self.stderr.mark_eof()
-            if self._own_stderr:
-                self.stderr._pipe.join()
-        progress.join()
-        _logging.debug("exiting ffmpegprocess.Popen thread (with progress monitoring)")
-
-    @property
-    def canceled(self):
-        """: bool: True if FFmpeg process has been terminated via user cancellation"""
-        return self._progress and self._progress.canceled
-
-    def poll(self):
-        """check if FFmpeg process has terminated
-
-        :return: returncode if terminated else None
-        :rtype: int or None
-
-        """
-        return self._proc.poll()
+        # start the process monitor to perform the cleanup when FFmpeg terminates
+        # if auto-close mode not set, audo-close only if stream handlers are not given
+        if close_stdin is None:
+            close_stdin = stdin is None
+        if close_stdout is None:
+            close_stdout = stdout is None
+        if close_stderr is None:
+            close_stderr = stderr is None
+        if self._progmon:
+            if on_exit:
+                try:
+                    on_exit = (self._progmon.join, *on_exit)
+                except:
+                    on_exit = (self._progmon.join, on_exit)
+            else:
+                on_exit = self._progmon.join
+                    
+        self._monitor = _Thread(
+            target=monitor_process,
+            args=(self, close_stdin, close_stdout, close_stderr, on_exit),
+        )
+        self._monitor.start()
 
     def wait(self, timeout=None):
-        """wait for FFmpeg process to termiante
+        """Wait for FFmpeg process to terminate; returns self.returncode
 
-        :param timeout: timeout in seconds, defaults to None
+        :param timeout: optional timeout in seconds, defaults to None
         :type timeout: float, optional
-        :return: returncode
-        :rtype: int
-        :raises TimeoutExpired: if the process does not terminate after timeout seconds.
+
+        For FFmpeg to terminate autonomously, its stdin PIPE must be closed.
+
+        If the process does not terminate after timeout seconds, raise a TimeoutExpired exception.
+        It is safe to catch this exception and retry the wait.
         """
-        if self._thread is None:
-            self._proc.wait(timeout)
-        else:
-            self._thread.join(timeout)
-        return self.returncode
+        super().wait(timeout)
 
-    def communicate(
-        self,
-        input=None,
-        timeout=None,
-        copy=False,
-        size=-1,
-        shape=None,
-        dtype=None,
-    ):
-        """Interact with FFmpeg process. 
-
-        :param input: input data buffer must be given if FFmpeg is configured to receive
-                      data stream from Python. It must be bytes convertible to bytes.
-        :type input: bytes-like object, optional
-        :param timeout: seconds to allow till FFmpeg process terminates, defaults to None
-        :type timeout: float or None, optional
-        :param copy: True to place a copy of the input data in buffer, default False
-        :type copy: bool, optional
-        :param size: size of stdout items to read, default -1
-        :type size: int, optional
-        :param shape: shape of the output array elements,
-            defaults to None (results in 1d array)
-        :type shape: int or tuple of int, optional
-        :param dtype: output array data type, defaults to None
-        :type dtype: numpy data-type, optional
-        :raises TimeoutExpired: if the process does not terminate after timeout seconds.
-                Catching this exception and retrying communication will not lose any output.
-        :return: a tuple (output_data, stderr_data). The output_data will be bytes if
-                   stdout was opened in bytes mode, else numpy.ndarray. The stderr_data
-                   is a tuple of information lines that FFmpeg output to stderr.
-        :rtype: tuple
-
-        This method performs one-time data transaction with the spawned FFmpeg process:
-        Send data to stdin. Read data from stdout and stderr until end-of-file is reached. 
-        Wait for process to terminate and set the returncode attribute.
-
-        For truly interactive data transactions, use the queued IO objects mapped to the
-        Popen object's`stdin` and `stdout`.
-        """
-
-        tend = _time() + timeout if timeout else None
-        if input:
-            if not self.writable:
-                raise ValueError("No input allowed. stdin not open or managed.")
-            try:
-                self.stdin.write(input, True, timeout, copy)  # one data packet then
-                self.stdin.write(None, True, timeout)  # close the pipe
-            except _Full:
-                raise TimeoutExpired
-
-        if timeout is not None:
-            timeout = max(tend - _time(), 1e-3)
-
-        # get the output/console messages
-        output_data = (
-            None
-            if not self.readable
-            else self.stdout.read(size, True, timeout)
-            if shape is None and dtype is None
-            else self.stdout.read_as_array(size, True, timeout, shape, dtype)
-        )
-
-        if timeout is not None:
-            timeout = max(tend - _time(), 1e-3)
-
-        # let FFmpeg run till terminates
-        self.wait(timeout)
-
-        if self.canceled:
-            raise RuntimeError("User-agent canceled the FFmpeg execution")
-
-        stderr_data = self.stderr.readlines(-1, False) if self.loggable else None
-
-        return output_data, stderr_data
+        # Popen waits on monitor thread as well. Ignore "cannot join current thread" error when 
+        # monitor waits Popen
+        try:
+            self._monitor.join()
+        except:
+            pass
 
     def terminate(self):
-        """Stop the FFmpeg process."""
-        try:
-            self._proc.terminate()
-        except ProcessLookupError:
-            pass
-        if self._thread:
-            self._thread.join()
+        """Terminate the FFmpeg process"""
+        super().terminate()
+        self._monitor.join()
 
     def kill(self):
-        """Kills the FFmpeg process"""
-        try:
-            self._proc.kill()
-        except ProcessLookupError:
-            pass
-        if self._thread:
-            self._thread.join()
+        """Kill the FFmpeg process"""
+        super().kill()
+        self._monitor.join()
 
-    @property
-    def pid(self):
-        """int: The process ID of the child process."""
-        return self._proc.pid
+    def send_signal(self, sig: int):
+        """Sends the signal signal to the FFmpeg process
 
-    @property
-    def returncode(self):
-        """:int or None: The child return code"""
-        return self._proc.returncode
+        :param sig: signal id
+        :type sig: int
+        """
+        super().send_signal(sig)
+        if self.returncode is None:
+            self._monitor.join()
 
     ####################################################################################################
 
@@ -527,23 +273,24 @@ def run(
     """run FFmpeg subprocess with standard pipes with a single transaction
 
     :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict, seq, or str
+    :type ffmpeg_args: dict, seq(str), or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
     :param progress: progress callback function, defaults to None. This function
-                     takes two arguments and may return True to terminate execution::
+                     takes two arguments:
 
-                        progress(data:dict, done:bool) -> bool|None
+                        progress(data:dict, done:bool) -> None
+
     :type progress: callable object, optional
     :param capture_log: True to capture log messages on stderr, False to send
                         logs to console, defaults to None (no show/capture)
     :type capture_log: bool, optional
     :param stdin: source file object, defaults to None
-    :type stdin: readable file object, optional
+    :type stdin: readable file-like object, optional
     :param stdout: sink file object, defaults to None
-    :type stdout: writable file object, optional
+    :type stdout: writable file-like object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
-    :type stderr: writable file object, optional
+    :type stderr: writable file-like object, optional
     :param input: input data buffer must be given if FFmpeg is configured to receive
                     data stream from Python. It must be bytes convertible to bytes.
     :type input: bytes-convertible object, optional
@@ -562,79 +309,19 @@ def run(
     :rtype: subprocess.CompleteProcess
     """
 
-    ffmpeg_args = (
-        {**ffmpeg_args} if isinstance(ffmpeg_args, dict) else parse(ffmpeg_args)
-    )
-
-    # configure stdin pipe (if needed)
-    inpipe = next(
-        (
-            PIPE
-            for inp in ffmpeg_args["inputs"]
-            if inp[0] in ("-", "pipe:", "pipe:0")  # or not isinstance(inp[0], str)
-        ),
-        DEVNULL,
-    )
-
-    if inpipe == PIPE:  # expects input
-        if input is not None:
-            if stdin is not None:
-                raise ValueError("stdin and input arguments may not both be used")
-            inpipe = None  # let sp.run handle stdin assignment
-        elif stdin in (None, DEVNULL, PIPE):
-            raise ValueError("FFmpeg expects input pipe but no input given")
-        else:
-            inpipe = stdin  # redirection
-    elif stdin == PIPE or input is not None:
-        raise ValueError(
-            "FFmpeg does not expect input pipe but stdin==PIPE or input is given"
-        )
-
-    # configure stdout
-    outpipe = (
-        stdout
-        if stdout is not None
-        else next(
-            (
-                PIPE
-                for inp in ffmpeg_args["outputs"]
-                if inp[0] in ("-", "pipe:", "pipe:1")  # or not isinstance(inp[0], str)
-            ),
-            DEVNULL,
-        )
-    )
-
-    # set stderr for logging FFmpeg message
-    if stderr == _sp.STDOUT:
-        raise ValueError("stderr cannot be redirected to stdout")
-    errpipe = stderr or (
-        PIPE if capture_log else DEVNULL if capture_log is None else None
-    )
-
-    pmon = progress and ProgressMonitor(progress)
-    if pmon:
-        pmon.start()
-
-    try:
+    with ProgressMonitor(progress) as progmon:
         # run the FFmpeg
-        ret = _run(
-            _sp.run,
-            ffmpeg_args,
-            hide_banner=hide_banner,
-            progress=pmon and pmon.url,
-            stdout=outpipe,
-            stderr=errpipe,
-            **(
-                {"input": memoryview(input).cast("b")}
-                if inpipe is None
-                else {"stdin": inpipe}
-            ),
+        ret = exec(
+            move_global_options(ffmpeg_args),
+            hide_banner,
+            progmon,
+            capture_log,
+            stdin if input is None else None,
+            stdout,
+            stderr,
+            input=input if input is None else memoryview(input).cast("b"),
             **other_popen_kwargs,
         )
-    finally:
-        if pmon:
-            pmon.wait(1)
-            pmon.join()
 
     # format output
     if ret.stdout is not None:
@@ -645,7 +332,7 @@ def run(
 
     # split log lines
     if ret.stderr is not None:
-        ret.stderr = _split_logs(ret.stderr)
+        ret.stderr = _re.split(r"[\n\r]+", ret.stderr.decode("utf-8"))
 
     return ret
 

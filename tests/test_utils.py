@@ -3,13 +3,30 @@ import pytest
 import numpy as np
 
 
+def test_parse_spec_stream():
+    assert utils.parse_spec_stream(1) == {"index": 1}
+    assert utils.parse_spec_stream("1") == {"index": 1}
+    assert utils.parse_spec_stream("v") == {"type": "v"}
+    assert utils.parse_spec_stream("p:1") == {"program_id": 1}
+    assert utils.parse_spec_stream("p:1:V") == {"program_id": 1, "type": "V"}
+    assert utils.parse_spec_stream("p:1:a:#6") == {
+        "program_id": 1,
+        "type": "a",
+        "pid": 6,
+    }
+    assert utils.parse_spec_stream("d:i:6") == {"type": "d", "pid": 6}
+    assert utils.parse_spec_stream("t:m:key") == {"type": "t", "tag": "key"}
+    assert utils.parse_spec_stream("m:key:value") == {"tag": ("key", "value")}
+    assert utils.parse_spec_stream("u") == {"usable": True}
+
+
 def test_spec_stream():
     assert utils.spec_stream() == ""
     assert utils.spec_stream(0) == "0"
     assert utils.spec_stream(type="a") == "a"
     assert utils.spec_stream(1, type="v") == "v:1"
     assert utils.spec_stream(program_id="1") == "p:1"
-    assert utils.spec_stream(1, type="v", program_id="1") == "p:1:v:1"
+    assert utils.spec_stream(1, type="v", program_id="1") == "v:p:1:1"
     assert utils.spec_stream(pid=342) == "#342"
     assert utils.spec_stream(tag="creation_time") == "m:creation_time"
     assert (
@@ -50,69 +67,44 @@ def test_array_to_audio_input():
     data = np.random.randint(ii16.min, high=ii16.max, size=(N, nchmax), dtype=np.int16)
     sample = np.random.randint(ii16.min, high=ii16.max, size=(nchmax), dtype=np.int16)
 
-    cfg = {"c:a": "pcm_s16le", "ac": 1, "ar": 44100, "sample_fmt": "s16"}
-    input = utils.array_to_audio_input(fs, sample)
+    cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 1, "ar": 44100, "sample_fmt": "s16"}
+    input = utils.array_to_audio_input(fs, sample)[0]
     assert input[0] == "-" and input[1] == cfg
 
-    cfg = {"c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
-    input = utils.array_to_audio_input(fs, data)
+    cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
+    input = utils.array_to_audio_input(fs, data)[0]
     assert input[0] == "-" and input[1] == cfg
 
-    cfg = {"c:a:0": "pcm_s16le", "ac:a:0": 4, "ar:a:0": 44100, "sample_fmt:a:0": "s16"}
-    input = utils.array_to_audio_input(fs, data, 0)
+    cfg = {
+        "f": "s16le",
+        "c:a:0": "pcm_s16le",
+        "ac:a:0": 4,
+        "ar:a:0": 44100,
+        "sample_fmt:a:0": "s16",
+    }
+    input = utils.array_to_audio_input(fs, data, 0)[0]
     assert input[0] == "-" and input[1] == cfg
 
-    input = utils.array_to_audio_input(fs, data, 0, format="avi")
-    cfg["f"] = "avi"
+    cfg = {
+        "f": "s16le",
+        "c:a:1": "pcm_s16le",
+        "ac:a:1": 4,
+        "ar:a:1": 44100,
+        "sample_fmt:a:1": "s16",
+    }
+    input = utils.array_to_audio_input(fs, data, 1)[0]
     assert input[0] == "-" and input[1] == cfg
 
-    cfg = {"c:a:1": "pcm_s16le", "ac:a:1": 4, "ar:a:1": 44100, "sample_fmt:a:1": "s16"}
-    input = utils.array_to_audio_input(fs, data, 1)
-    assert input[0] == "-" and input[1] == cfg
-
-    cfg = {"c:a:1": "pcm_s16le", "ac:a:1": 4, "ar:a:1": 44100, "sample_fmt:a:1": "s16"}
+    cfg = {
+        "f": "s16le",
+        "c:a:1": "pcm_s16le",
+        "ac:a:1": 4,
+        "ar:a:1": 44100,
+        "sample_fmt:a:1": "s16",
+    }
     with pytest.raises(Exception):
         # no sample_fmt or channels
-        input = utils.array_to_audio_input(fs, data, 1, codec="mp3")
-
-    cfg["c:a:1"] = "mp3"
-    input = utils.array_to_audio_input(
-        fs, data, 1, codec="mp3", channels=4, sample_fmt="s16"
-    )
-    assert input[0] == "-" and input[1] == cfg
-
-
-def test_analyze_audio_input():
-
-    assert utils.analyze_audio_input(("-", None))[0] == [{}]
-
-    cfgs, always_copy = utils.analyze_audio_input(
-        (
-            "-",
-            {
-                "c:a:0": "pcm_s16le",
-                "c:a:1": "pcm_s32le",
-                "ac:a:0": "4",
-                "ac:a:1": 2,
-                "ar:a:0": "44100",
-                "ar:a:1": 96000,
-                "sample_fmt:a:1": "s32",
-                "sample_fmt:a": "s16",
-            },
-        )
-    )
-    assert cfgs[0] == {
-        "codec_name": "pcm_s16le",
-        "channels": 4,
-        "sample_rate": 44100,
-        "sample_fmt": "s16",
-    }
-    assert cfgs[1] == {
-        "codec_name": "pcm_s32le",
-        "channels": 2,
-        "sample_rate": 96000,
-        "sample_fmt": "s32",
-    }
+        input = utils.array_to_audio_input(fs, 1)
 
 
 @pytest.fixture(scope="module", params=["rgb24", "rgba", "gray", "ya8"])
@@ -148,72 +140,43 @@ def video_data(request, image_spec):
 def test_array_to_video_input(video_data, image_spec):
     fs = 30
     size, pix_fmt = image_spec
-    size_str = f"{size[0]}x{size[1]}"
 
-    cfg = {"c:v": "rawvideo", "s:v": size_str, "r:v": fs, "pix_fmt:v": pix_fmt}
+    cfg = {
+        "f": "rawvideo",
+        "c:v": "rawvideo",
+        "s": size,
+        "r": fs,
+        "pix_fmt": pix_fmt,
+    }
 
-    input = utils.array_to_video_input(fs, video_data)[0]
+    input = utils.array_to_video_input(fs, video_data)
     assert input[0] == "-" and input[1] == cfg
 
 
 def test_array_to_video_input_nodata(image_spec):
     fs = 30
     size, pix_fmt = image_spec
-    size_str = f"{size[0]}x{size[1]}"
-    codec = "h264"
 
-    cfg = {"c:v": codec, "s:v": size_str, "r:v": fs, "pix_fmt:v": pix_fmt}
-    input = utils.array_to_video_input(fs, codec=codec, pix_fmt=pix_fmt, size=size)[0]
+    dtype, ncomp, _ = utils.get_video_format(pix_fmt)
+    shape = (*size[::-1], ncomp)
+
+    cfg = {"f": "rawvideo", "c:v": "rawvideo", "s": size, "r": fs, "pix_fmt": pix_fmt}
+    input = utils.array_to_video_input(fs, dtype=dtype, shape=shape)
     assert input[0] == "-" and input[1] == cfg
 
-    cfg = {"c:v:0": codec, "s:v:0": size_str, "r:v:0": fs, "pix_fmt:v:0": pix_fmt}
-    input = utils.array_to_video_input(
-        fs, stream_id=0, codec=codec, pix_fmt=pix_fmt, size=size
-    )[0]
-    assert input[0] == "-" and input[1] == cfg
-
-    cfg["f"] = "rawvideo"
-    input = utils.array_to_video_input(
-        fs, stream_id=0, codec=codec, pix_fmt=pix_fmt, size=size, format=True
-    )[0]
-    assert input[0] == "-" and input[1] == cfg
-
-    cfg["f"] = f = "avi"
-    input = utils.array_to_video_input(
-        fs, stream_id=0, codec=codec, pix_fmt=pix_fmt, size=size, format=f
-    )[0]
-    assert input[0] == "-" and input[1] == cfg
-
-
-def test_analyze_video_input():
-
-    assert utils.analyze_video_input(("-", None))[0] == [{}]
-
-    cfgs, always_copy = utils.analyze_video_input(
-        (
-            "-",
-            {
-                "c:v": "h264",
-                "s:v:0": "1920x1080",
-                "s:v:1": "2560x1440",
-                "r:v:0": "30000/1001",
-                "r:v:1": 60,
-                "pix_fmt:v:1": "rgb",
-                "pix_fmt:v": "rgba",
-            },
-        )
-    )
-    assert cfgs[0] == {
-        "codec_name": "h264",
-        "width": 1920,
-        "height": 1080,
-        "frame_rate": "30000/1001",
-        "pix_fmt": "rgba",
+    cfg = {
+        "f": "rawvideo",
+        "c:v:0": "rawvideo",
+        "s:v:0": size,
+        "r:v:0": fs,
+        "pix_fmt:v:0": pix_fmt,
     }
-    assert cfgs[1] == {
-        "codec_name": "h264",
-        "width": 2560,
-        "height": 1440,
-        "frame_rate": 60,
-        "pix_fmt": "rgb",
-    }
+    input = utils.array_to_video_input(fs, stream_id=0, dtype=dtype, shape=shape)
+    assert input[0] == "-" and input[1] == cfg
+
+
+if __name__ == "__main__":
+    import re
+
+    spec = "p:4"
+    print(re.split(r"(?<![pi]\:|m\:.+?\:)\:", spec))

@@ -77,9 +77,21 @@ def _full_details(
 
     args.append("-show_entries")
     args.append(":".join(entries))
-    args.append(url)
+
+    pipe = not isinstance(url, str)
+    args.append('-' if pipe else url)
+
+    if pipe:
+        try:
+            assert not url.seekable
+            pos0 = url.tell()
+        except:
+            raise ValueError('url must be str or seekable io object')
 
     results = json.loads(ffmpeg.ffprobe(args))
+
+    if pipe:
+        url.seek(pos0)
 
     if not modes["stream"]:
         modes["streams"] = modes["stream"]

@@ -3,6 +3,7 @@ import time
 
 from .queue_pausable import PausableQueue, Paused, Full, Empty
 from . import pipe_nonblock as nonblock
+from .pipe_nonblock import NoData
 
 
 class AlreadyOpen(RuntimeError):
@@ -76,83 +77,86 @@ class ThreadedPipe(threading.Thread):
         """
         True if the pipe is closed and no data remains in the queue.
         """
-        return self.closed and self.queue.empty()
+        return self.closed or self.queue.empty()
 
-    def wait_till_drained(self, timeout=None):
-        return self.queue.join(timeout)
+    def wait_till_closed(self, timeout=None):
+        """wait till the pipe is closed
+
+        :param timeout: timeout for the operation in seconds, defaults to None
+        :type timeout: float, optional
+        """
+        # reaches the EOF (i.e., None in queue) or empty queue
+        with self._new_state:
+            if self._fds is None:
+                return
+            self._new_state.wait(timeout)
 
     def open(self, clear_queue=False):
-        with self._mutex:
+        with self._new_state:
             self._open(clear_queue)
-            self._new_state.notify()
+            self._new_state.notify_all()
             # self._just_opened.notify_all()
 
     def close(self):
-        with self._mutex:
+        """close the pipe but keep the thread running."""
+        with self._new_state:
             self._close()
+            self._new_state.notify_all()
             # self._just_closed.notify_all()
 
     def join(self):
+        """close the pipe and terminate the thread"""
         if self._joinreq:
             return
-        with self._new_state:
-            self._joinreq = True
-            if self._is_writer:
-                self.queue.pause()
-            self._new_state.notify()
-        super().join()
+        self._joinreq = True
         try:
             self.close()
-        except:
-            pass
+        except Exception as e:
+            logging.critical(f"[ThreadedPipe::join()] failed to close: {e}")
+
+        # make sure paused queue is not holding back
+        with self.queue.not_paused:
+            self.queue.not_paused.notify_all()
+
+        super().join()
 
     def run(self):
-        logging.debug("starting ThreadedPipe thread")
+        logging.debug("[ThreadedPipe thread] starting")
 
         que = self.queue
-        file_op = self._fwrite if self._is_writer else self._fread
-        pipe_op = self._pipe_op or (
-            self._deque_op if self._is_writer else self._enque_op
+        pipe_op, file_op = (
+            (self._deque_op, self._fwrite)
+            if self._is_writer
+            else (self._enque_op, self._fread)
         )
-        cv = self._new_state
-        mutex = self._mutex
 
-        while True:
-            # make sure the pipe is open, wait otherwise unless thread joining has been requested
-            # loop until new pipe is opened
-            with cv:
-                if self._fds is None and not self._joinreq:
-                    cv.wait()
-            if self._joinreq:  # thread join request has been issued
+        while not self._joinreq:
+
+            if self.closed:
+                # make sure the pipe is open, wait otherwise unless thread joining has been requested
+                # loop until new pipe is opened
+                with self._new_state:
+                    self._new_state.wait()
+            else:
+                # run the pipe-queue transaction
                 try:
-                    if self._fds is not None:
-                        pipe_op(que, file_op)
-                finally:
-                    break
-
-            # run the pipe-queue transaction
-            try:
-                # auto-close pipe if returned True
-                if pipe_op(que, file_op):
-                    try:
+                    # auto-close pipe if returned True
+                    if pipe_op(que, file_op):
                         self.close()
-                    except NotOpen:
-                        pass
-            except nonblock.NoData:  # nonblock.read() returned empty
-                time.sleep(self.timeout)
-            except Paused:
-                logging.critical("pipe is still open but queue is paused")
-            except Exception as e:
-                with mutex:
-                    if self._fds is None or self._joinreq:
-                        # if pipe is closed, who cares
-                        logging.debug(
-                            f"[ThreadedPipe] pipe_op post-close exception: {e}"
-                        )
-                    else:
-                        logging.critical(f"[ThreadedPipe] pipe_op exception: {e}")
+                except nonblock.NoData:  # nonblock.read() returned empty
+                    time.sleep(self.timeout)
+                except Paused:
+                    logging.critical("[ThreadedPipe thread] pipe is still open but queue is paused")
+                    with que.not_paused:
+                        que.not_paused.wait()
+                except Exception as e:
+                    if not self._joinreq:
+                        logging.critical(f"[ThreadedPipe thread] pipe_op exception: {e}")
 
-        logging.debug("exiting ThreadedPipe thread")
+        if self._is_writer:
+            que.clear()
+
+        logging.debug("[ThreadedPipe thread] exiting")
 
     def _fread(self):
         """Return the backend file descriptor (an integer) of the stream,
@@ -206,22 +210,25 @@ class ThreadedPipe(threading.Thread):
         return False
 
     def _open(self, clear_queue):
+        # assume self._mutex is locked
         if self._fds is not None:
             raise AlreadyOpen
         self._fds = self._pipe()
         self.queue.resume(clear_queue)
 
     def _close(self):
+        # assume self._mutex is locked
         if self._fds is None:
-            return
+            return False  # no change in the state
         if self._is_writer:
             self.queue.pause()
         else:
-            self.queue.put(None)
-        if self._fds is not None:
-            for fd in self._fds:
-                try:
-                    os.close(fd)
-                except:
-                    pass
+            self.queue.put(None)  # enqueue eof marker
+
+        for fd in self._fds:
+            try:
+                os.close(fd)
+            except:
+                pass
         self._fds = None
+        return True  # pipe state changed
