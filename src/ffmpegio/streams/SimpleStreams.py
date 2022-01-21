@@ -1,17 +1,29 @@
 import logging
-from subprocess import TimeoutExpired
-from threading import Thread as _Thread
 import numpy as np
 from .. import utils, configure, ffmpegprocess, io, probe
 from ..utils import log as log_utils, bytes_to_ndarray as _as_array
 
+__all__ = [
+    "SimpleVideoReader",
+    "SimpleAudioReader",
+    "SimpleVideoWriter",
+    "SimpleAudioWriter",
+]
+
 
 class SimpleReaderBase:
-    def __init__(self, url, show_log=None, progress=None, **options) -> None:
+    """base class for SISO media read stream classes"""
 
-        self.dtype = None
-        self.shape = None
-        self.itemsize = None
+    def __init__(
+        self, url, show_log=None, progress=None, blocksize=None, **options
+    ) -> None:
+
+        self.dtype = None  # :numpy.dtype: output data type
+        self.shape = (
+            None  # :tuple of ints: dimension of each video frame or audio sample
+        )
+        self.itemsize = None  #:int: number of bytes of each video frame or audio sample
+        self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
 
         # get url/file stream
         url, stdin, input = configure.check_url(url, False)
@@ -60,18 +72,35 @@ class SimpleReaderBase:
             else:
                 raise ValueError("failed retrieve output data format")
 
+        self.itemsize = utils.get_itemsize(self.shape, self.dtype)
+
+        self.blocksize = blocksize or max(1024 ** 2 // self.itemsize, 1)
+
     def close(self):
+        """Flush and close this stream. This method has no effect if the stream is already
+            closed. Once the stream is closed, any read operation on the stream will raise
+            a ValueError.
+
+        As a convenience, it is allowed to call this method more than once; only the first call,
+        however, will have an effect.
+
+        """
         self._proc.stdout.close()
         self._proc.stderr.close()
-        self._proc.terminate()
+        try:
+            self._proc.terminate()
+        except:
+            pass
         self._logger.join()
 
     @property
     def closed(self):
+        """:bool: True if the stream is closed."""
         return self._proc.poll() is not None
 
     @property
     def lasterror(self):
+        """:FFmpegError: Last error FFmpeg posted"""
         if self._proc.poll():
             return self._logger.Exception()
         else:
@@ -82,6 +111,15 @@ class SimpleReaderBase:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            return self.read(self.blocksize)
+        except:
+            raise StopIteration
 
     def readlog(self, n=None):
         if n is not None:
@@ -108,15 +146,6 @@ class SimpleReaderBase:
         if not len(b):
             self._proc.stdout.close()
         return _as_array(b, self.shape, self.dtype)
-
-    def readiter(self, n):
-        while not self._proc.stdout.closed:
-            try:
-                yield self.read(n)
-            except io.Empty:
-                logging.debug("[SimpleReaderBase::readiter] read returned empty")
-                break
-        logging.debug(f"[SimpleReaderBase::readiter] stopped reading)")
 
     def readinto(self, array):
         """Read bytes into a pre-allocated, writable bytes-like object array and
@@ -159,16 +188,12 @@ class SimpleVideoReader(SimpleReaderBase):
             self.frame_rate,
         ) = configure.finalize_video_read_opts(ffmpeg_args, pix_fmt_in, s_in, r_in)
 
-        if self.shape is not None:
-            self.itemsize = utils.get_itemsize(self.shape, self.dtype)
-
     def _finalize_array(self, info):
         # finalize array setup from FFmpeg log
 
         self.framerate = info["r"]
         self.dtype, ncomp, _ = utils.get_video_format(info["pix_fmt"])
         self.shape = (*info["s"][::-1], ncomp)
-        self.itemsize = utils.get_itemsize(self.shape, self.dtype)
 
 
 class SimpleAudioReader(SimpleReaderBase):
@@ -199,7 +224,6 @@ class SimpleAudioReader(SimpleReaderBase):
 
         if ac is not None:
             self.shape = (ac,)
-            self.itemsize = utils.get_itemsize(self.shape, self.dtype)
 
     def _finalize_array(self, info):
         # finalize array setup from FFmpeg log
@@ -208,7 +232,6 @@ class SimpleAudioReader(SimpleReaderBase):
         _, self.dtype = utils.get_audio_format(info["sample_fmt"])
         ac = info.get("ac", 1)
         self.shape = (ac,)
-        self.itemsize = utils.get_itemsize(self.shape, self.dtype)
 
     @property
     def channels(self):

@@ -35,10 +35,10 @@ def test_read_audio(caplog):
 
     fs, x = ffmpegio.audio.read(url)
 
-    with ffmpegio.open(url, "ra", show_log=True) as f:
+    with ffmpegio.open(url, "ra", show_log=True, blocksize=1024**2) as f:
         # x = f.read(1024)
         # assert x.shape == (1024, f.ac)
-        blks = [blk for blk in f.readiter(1024)]
+        blks = [blk for blk in f]
         x1 = np.concatenate(blks)
         assert np.array_equal(x, x1)
 
@@ -47,8 +47,10 @@ def test_read_audio(caplog):
     t0 = n0 / fs
     t1 = n1 / fs
 
-    with ffmpegio.open(url, "ra", ss_in=t0, to_in=t1, show_log=True) as f:
-        blks = [blk for blk in f.readiter(1024)]
+    with ffmpegio.open(
+        url, "ra", ss_in=t0, to_in=t1, show_log=True, blocksize=1024**2
+    ) as f:
+        blks = [blk for blk in f]
         log = f.readlog()
 
     print(log)
@@ -81,5 +83,5 @@ if __name__ == "__main__":
     outext = ".flac"
 
     with ffmpegio.open(url, "ra") as f:
-        F = np.empty((10,*f.shape),f.dtype)
+        F = np.empty((10, *f.shape), f.dtype)
         print(f.readinto(F))
