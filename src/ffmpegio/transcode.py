@@ -35,19 +35,13 @@ def transcode(input_url, output_url, progress=None, show_log=None, **options):
     configure.add_url(args, "input", input_url, input_options)[1][1]
     configure.add_url(args, "output", output_url, options)
 
-    try:
-        pout = ffmpegprocess.run(
-            args,
-            progress=progress,
-            capture_log=False if show_log else True,
-            stdin=stdin,
-            stdout=stdout,
-            input=input,
-        )
-        if pout.returncode:
-            assert False
-    except Exception as e:
-        if pout:
-            raise FFmpegError(pout.stderr, show_log)
-        else:
-            raise e
+    pout = ffmpegprocess.run(
+        args,
+        progress=progress,
+        capture_log=False if show_log else True,
+        stdin=stdin,
+        stdout=stdout,
+        input=input,
+    )
+    if pout.returncode:
+        raise FFmpegError(pout.stderr, show_log)
