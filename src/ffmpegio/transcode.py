@@ -46,5 +46,8 @@ def transcode(input_url, output_url, progress=None, show_log=None, **options):
         )
         if pout.returncode:
             assert False
-    except:
-        raise FFmpegError(pout.stderr, show_log)
+    except Exception as e:
+        if pout:
+            raise FFmpegError(pout.stderr, show_log)
+        else:
+            raise e
