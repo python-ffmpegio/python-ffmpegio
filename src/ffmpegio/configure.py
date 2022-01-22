@@ -296,19 +296,6 @@ def merge_user_options(ffmpeg_args, type, user_options, file_index=None):
     return ffmpeg_args
 
 
-def is_forced(ffmpeg_args):
-    opts = ffmpeg_args.get("global_options", None)
-    return (
-        None
-        if opts is None
-        else True
-        if "y" in opts
-        else False
-        if "n" in opts
-        else opts.get("overwrite", None)
-    )
-
-
 def get_video_array_format(ffmpeg_args, type, file_id=0):
 
     try:
