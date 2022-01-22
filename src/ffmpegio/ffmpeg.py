@@ -140,10 +140,7 @@ def compose(args, command="", shell_command=False):
     """
 
     def finalize_global(key, val):
-        if key == "overwrite":
-            key = "y" if val else "n"
-            val = None
-        elif key in ("filter_complex", "lavfi"):
+        if key in ("filter_complex", "lavfi"):
             val = filter_utils.compose(val)
         return key, val
 
@@ -487,6 +484,7 @@ def exec(
     ffmpeg_args,
     hide_banner=True,
     progress=None,
+    overwrite=None,
     capture_log=None,
     stdin=None,
     stdout=None,
@@ -502,6 +500,9 @@ def exec(
     :type hide_banner: bool, optional
     :param progress: progress monitor object, defaults to None
     :type progress: ProgressMonitor, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to send
                         logs to console, defaults to None (no show/capture)
     :type capture_log: bool or None, optional
@@ -580,6 +581,16 @@ def exec(
     errpipe = stderr or (
         PIPE if capture_log else DEVNULL if capture_log is None else None
     )
+
+    # set y or n flags (overwrite)
+    gopts = ffmpeg_args["global_options"]
+    if not (gopts and ("y" in gopts or "n" in gopts)):
+        if gopts is None:
+            gopts = ffmpeg_args["global_options"] = {}
+        if overwrite is not None:
+            gopts["y" if overwrite else "n"] = None
+        elif inpipe == PIPE:
+            gopts["n"] = None
 
     args = compose(ffmpeg_args, command=_get_ffmpeg())
     _logging.debug(args)

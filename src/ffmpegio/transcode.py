@@ -2,7 +2,7 @@ from . import ffmpegprocess, configure, utils
 from .utils.log import FFmpegError
 
 
-def transcode(input_url, output_url, progress=None, show_log=None, **options):
+def transcode(input_url, output_url, progress=None, overwrite=None, show_log=None, **options):
     """Transcode a media file to another format/encoding
 
     :param input_url: url/path of the input media file
@@ -11,6 +11,9 @@ def transcode(input_url, output_url, progress=None, show_log=None, **options):
     :type output_url: str
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
@@ -38,6 +41,7 @@ def transcode(input_url, output_url, progress=None, show_log=None, **options):
     pout = ffmpegprocess.run(
         args,
         progress=progress,
+        overwrite=overwrite,
         capture_log=False if show_log else True,
         stdin=stdin,
         stdout=stdout,

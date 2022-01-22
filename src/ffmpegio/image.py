@@ -183,13 +183,16 @@ def read(url, show_log=None, **options):
     )
 
 
-def write(url, data, show_log=None, **options):
+def write(url, data, overwrite=None, show_log=None, **options):
     """Write a NumPy array to an image file.
 
     :param url: URL of the image file to write.
     :type url: str
     :param data: image data 3-D array (rowsxcolsxcomponents)
     :type data: `numpy.ndarray`
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
@@ -212,6 +215,7 @@ def write(url, data, show_log=None, **options):
         ffmpeg_args,
         input=data,
         stdout=stdout,
+        overwrite=overwrite,
         capture_log=False if show_log else None,
     )
 

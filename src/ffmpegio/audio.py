@@ -158,7 +158,7 @@ def read(url, progress=None, show_log=None, **options):
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :return: sample rate in samples/second and audio data matrix (timexchannel)
     :rtype: tuple(`float`, :py:class:`numpy.ndarray`)
@@ -201,7 +201,7 @@ def read(url, progress=None, show_log=None, **options):
     )
 
 
-def write(url, rate, data, progress=None, show_log=None, **options):
+def write(url, rate, data, progress=None, overwrite=None, show_log=None, **options):
     """Write a NumPy array to an audio file.
 
     :param url: URL of the audio file to write.
@@ -212,10 +212,13 @@ def write(url, rate, data, progress=None, show_log=None, **options):
     :type data: numpy.ndarray
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :param data: A 1-D or 2-D NumPy array of either integer or float data-type.
     :type data: `numpy.ndarray`
@@ -237,6 +240,7 @@ def write(url, rate, data, progress=None, show_log=None, **options):
         input=data,
         stdout=stdout,
         progress=progress,
+        overwrite=overwrite,
         capture_log=False if show_log else None,
     )
 
@@ -252,8 +256,8 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
     :type input: 1D or 2D numpy.ndarray
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
-    :param **options: FFmpeg options, prepend 'input_' for input option names.
-    :type **options: dict
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :type \\**options: dict, optional
     :return: output sampling rate and data
     :rtype: tuple(int, numpy.ndarray)
 

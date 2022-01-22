@@ -195,7 +195,7 @@ def read(url, progress=None, show_log=None, **options):
     )
 
 
-def write(url, rate, data, show_log=None, progress=None, **options):
+def write(url, rate, data, progress=None, overwrite=None, show_log=None, **options):
     """Write Numpy array to a video file
 
     :param url: URL of the video file to write.
@@ -206,10 +206,13 @@ def write(url, rate, data, show_log=None, progress=None, **options):
     :type data: `numpy.ndarray`
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
 
@@ -230,6 +233,7 @@ def write(url, rate, data, show_log=None, progress=None, **options):
         input=data,
         stdout=stdout,
         progress=progress,
+        overwrite=overwrite,
         capture_log=False if show_log else None,
     )
 

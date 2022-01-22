@@ -10,9 +10,7 @@ Main API
 ========
 run(...): Runs a FFmpeg command, waits for it to complete, then returns a 
           CompletedProcess instance.
-Popen(...): A class to stream input and output data in and out of FFmpeg. It
-            duck-types `subprocess.Popen` but uses the queued I/O in `ffmpegio.io` 
-            module. 
+Popen(...): A subclass of subprocess.Popen to manage FFmpeg subprocess.  
 
 Constants
 ---------
@@ -37,6 +35,8 @@ import subprocess as _sp
 from .ffmpeg import exec, parse, ProgressMonitor
 from .configure import move_global_options
 from .utils import bytes_to_ndarray as _as_array
+
+__all__ = ["run", "Popen"]
 
 
 def monitor_process(
@@ -94,15 +94,12 @@ class Popen(_sp.Popen):
                         progress(data:dict, done:bool) -> bool|None
 
     :type progress: Callable, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to send
                     logs to console, defaults to None (no show/capture)
     :type capture_log: bool, optional
-    :param input_queue_size: maximum size of the stdin queue, default 0 (infinite)
-    :type input_queue_size: int, optional
-    :param output_queue_size: maximum size of the stdout queue, default 0 (infinite)
-    :type output_queue_size: int, optional
-    :param output_block_size: maximum number of bytes to get FFmpeg in one transaction, default 2**20
-    :type output_block_size: int, optional
     :param stdin: source file object, defaults to None
     :type stdin: readable file object, optional
     :param stdout: sink file object, defaults to None
@@ -137,6 +134,7 @@ class Popen(_sp.Popen):
         ffmpeg_args,
         hide_banner=True,
         progress=None,
+        overwrite=None,
         capture_log=None,
         stdin=None,
         stdout=None,
@@ -178,6 +176,7 @@ class Popen(_sp.Popen):
             self.ffmpeg_args,
             hide_banner,
             self._progmon,
+            overwrite,
             capture_log,
             stdin,
             stdout,
@@ -206,7 +205,7 @@ class Popen(_sp.Popen):
                     on_exit = (self._progmon.join, on_exit)
             else:
                 on_exit = self._progmon.join
-                    
+
         self._monitor = _Thread(
             target=monitor_process,
             args=(self, close_stdin, close_stdout, close_stderr, on_exit),
@@ -226,7 +225,7 @@ class Popen(_sp.Popen):
         """
         super().wait(timeout)
 
-        # Popen waits on monitor thread as well. Ignore "cannot join current thread" error when 
+        # Popen waits on monitor thread as well. Ignore "cannot join current thread" error when
         # monitor waits Popen
         try:
             self._monitor.join()
@@ -263,6 +262,7 @@ def run(
     ffmpeg_args,
     hide_banner=True,
     progress=None,
+    overwrite=None,
     capture_log=None,
     stdin=None,
     stdout=None,
@@ -285,6 +285,9 @@ def run(
                         progress(data:dict, done:bool) -> None
 
     :type progress: callable object, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :param overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to send
                         logs to console, defaults to None (no show/capture)
     :type capture_log: bool, optional
@@ -297,8 +300,6 @@ def run(
     :param input: input data buffer must be given if FFmpeg is configured to receive
                     data stream from Python. It must be bytes convertible to bytes.
     :type input: bytes-convertible object, optional
-    :param timeout: seconds to allow till FFmpeg process terminates, defaults to None
-    :type timeout: float or None, optional
     :param size: size of stdout items to read, default -1
     :type size: int, optional
     :param shape: shape of the output array elements,
@@ -318,6 +319,7 @@ def run(
             move_global_options(ffmpeg_args),
             hide_banner,
             progmon,
+            overwrite,
             capture_log,
             stdin if input is None else None,
             stdout,
@@ -338,23 +340,3 @@ def run(
         ret.stderr = _re.split(r"[\n\r]+", ret.stderr.decode("utf-8"))
 
     return ret
-
-    # equivalent if ffmpegprocess.Popen is used (slower)
-    # ===========================================================================
-    # proc = Popen(*other_popen_args, input_copy=False, **kwargs)
-
-    # if isinstance(proc.stdin, QueuedWriter) and input is None:
-    #     raise ValueError(
-    #         "`input` argument is required as an input is expected from memory."
-    #     )
-
-    # output_data, stderr_data = proc.communicate(
-    #     input, timeout, copy, size, shape, dtype
-    # )
-
-    # if check and proc.returncode:
-    #     raise CalledProcessError
-
-    # return CompletedProcess(
-    #     proc.args, proc.returncode, stdout=output_data, stderr=stderr_data
-    # )
