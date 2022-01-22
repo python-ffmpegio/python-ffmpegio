@@ -29,7 +29,6 @@ PIPE:    Special value that indicates a pipe should be created
 
 # PIPE_NONBLK = -4
 
-import re as _re, logging as _logging
 from threading import Thread as _Thread
 import subprocess as _sp
 from .ffmpeg import exec, parse, ProgressMonitor
@@ -337,6 +336,6 @@ def run(
 
     # split log lines
     if ret.stderr is not None:
-        ret.stderr = _re.split(r"[\n\r]+", ret.stderr.decode("utf-8"))
+        ret.stderr = ret.stderr.decode("utf-8")
 
     return ret

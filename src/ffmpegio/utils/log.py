@@ -12,6 +12,8 @@ class ThreadNotActive(RuntimeError):
 class FFmpegError(RuntimeError):
     def __init__(self, logs=None, log_shown=None):
         if logs is not None:
+            if isinstance(logs,str):
+                logs = re.split(r"[\n\r]+", logs)
             log = next((x for x in reversed(logs) if x.startswith("[")), None)
             nl = "\n"
             super().__init__(
@@ -160,6 +162,8 @@ def extract_output_stream(logs, file_id=0, stream_id=0, hint=None):
     :return: stream information
     :rtype: dict
     """
+    if isinstance(logs,str):
+        logs = re.split(r"[\n\r]+", logs)
     fname = f"Output #{file_id}"
     sname = f"  Stream #{file_id}:{stream_id}"
     if hint:

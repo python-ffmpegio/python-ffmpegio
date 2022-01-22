@@ -44,6 +44,8 @@ def _run_read(
         configure.clear_loglevel(args[0])
 
         out = ffmpegprocess.run(*args, capture_log=True, **kwargs)
+        if show_log:
+            print(out.stderr)
         if out.returncode:
             raise FFmpegError(out.stderr)
 

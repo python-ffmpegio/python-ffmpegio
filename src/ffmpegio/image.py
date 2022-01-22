@@ -33,6 +33,8 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
         configure.clear_loglevel(args[0])
 
         out = ffmpegprocess.run(*args, capture_log=True, **kwargs)
+        if show_log:
+            print(out.stderr)
         if out.returncode:
             raise FFmpegError(out.stderr)
 

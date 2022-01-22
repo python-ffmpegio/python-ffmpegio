@@ -20,8 +20,8 @@ def _run_read(
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param **kwargs ffmpegprocess.run keyword arguments
-    :type **kwargs: tuple
+    :param \\**options: FFmpeg options (see :doc:`options`)
+    :type \\**options: dict, optional
     :return: image data
     :rtype: numpy.ndarray
     """
@@ -34,6 +34,8 @@ def _run_read(
         configure.clear_loglevel(args[0])
 
         out = ffmpegprocess.run(*args, capture_log=True, **kwargs)
+        if show_log:
+            print(out.stderr)
         if out.returncode:
             raise FFmpegError(out.stderr)
 
@@ -69,12 +71,16 @@ def create(
 ):
     """Create a video using a source video filter
 
-    :param expr: name of the source filter
-    :type expr: str
+    :param name: name of the source filter
+    :type name: str
     :param \\*args: filter arguments
     :type \\*args: tuple, optional
-    :param duration:
-    :type duration: int
+    :param t_in: duration of the video in seconds, defaults to None
+    :type t_in: float, optional
+    :param pix_fmt_in: input pixel format if known but not specified in the ffmpeg arg dict, defaults to None
+    :type pix_fmt_in: str, optional
+    :param vf: additional video filter, defaults to None
+    :type vf: FilterGraph or str, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -145,18 +151,13 @@ def read(url, progress=None, show_log=None, **options):
 
     :param url: URL of the video file to read.
     :type url: str
-    :param vframes: number of frames to read, default to None. If not set,
-                    uses the timing options to determine the number of frames.
-    :type vframes: int, optional
-    :param stream_id: video stream id (numeric part of ``v:#`` specifier), defaults to 0.
-    :type stream_id: int, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
 
     :return: frame rate and video frame data (dims: time x rows x cols x pix_comps)
@@ -238,7 +239,7 @@ def write(url, rate, data, progress=None, overwrite=None, show_log=None, **optio
     )
 
 
-def filter(expr, rate, input, progress=None, **options):
+def filter(expr, rate, input, progress=None, show_log=None, **options):
     """Filter video frames.
 
     :param expr: SISO filter graph.
@@ -249,6 +250,11 @@ def filter(expr, rate, input, progress=None, **options):
     :type input: 2D/3D numpy.ndarray
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+    :type show_log: bool, optional
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :type \\**options: dict, optional
     :return: output sampling rate and data
     :rtype: numpy.ndarray
 
@@ -269,5 +275,5 @@ def filter(expr, rate, input, progress=None, **options):
         ffmpeg_args,
         input=input,
         progress=progress,
-        show_log=True,
+        show_log=show_log,
     )
