@@ -195,57 +195,59 @@ def filters():
 
 def codecs(type=None, stream_type=None):
     stdout, data = _("codecs")
-    if data:
+    if not data:
+        data = {}
+        for match in _ffCodecRegexp.finditer(stdout):
+
+            stype = {"V": "video", "A": "audio", "S": "subtitle"}[match[3]]
+
+            desc = match[8]
+            encoders = _ffEncodersRegexp.match(desc)
+            if encoders:
+                desc = desc.slice(0, encoders.index) + desc.slice(
+                    encoders.index + encoders[0].length
+                )
+            encoders = encoders[1].trim().split(" ") if encoders else None
+
+            decoders = _ffDecodersRegexp.match(desc)
+            if decoders:
+                desc = desc.slice(0, decoders.index) + desc.slice(
+                    decoders.index + decoders[0].length
+                )
+            decoders = decoders[1].trim().split(" ") if decoders else None
+
+            data[match[7]] = {
+                "type": stype,
+                "description": desc,
+                "can_decode": match[1] == "D",
+                "decoders": decoders,
+                "can_encode": match[2] == "E",
+                "encoders": encoders,
+                "intra_frame_only": match[4] == "I",
+                "is_lossy": match[5] == "L",
+                "is_lossless": match[6] == "S",
+            }
+            if not encoders:
+                del data[match[7]]["encoders"]
+            if not decoders:
+                del data[match[7]]["decoders"]
+
+        _cache["codecs"] = data
+
+    # return all if no argument specified
+    if type is None and stream_type is None:
         return data
 
-    must_decode = type is not None and type == "decoder"
-    must_encode = type is not None and type == "encoder"
+    decoder = type is not None and type == "decoder"
+    encoder = type is not None and type == "encoder"
+    stype = stream_type is not None
 
-    data = {}
-    for match in _ffCodecRegexp.finditer(stdout):
+    def pick(entry):
+        return (
+            (decoder and entry["can_decode"]) or (encoder and entry["can_encode"])
+        ) and (stype and stream_type == entry["type"])
 
-        if must_decode and match[1] != "D":
-            continue
-        if must_encode and match[2] != "E":
-            continue
-
-        stype = {"V": "video", "A": "audio", "S": "subtitle"}[match[3]]
-        if stream_type and stype != stream_type:
-            continue
-
-        desc = match[8]
-        encoders = _ffEncodersRegexp.match(desc)
-        if encoders:
-            desc = desc.slice(0, encoders.index) + desc.slice(
-                encoders.index + encoders[0].length
-            )
-        encoders = encoders[1].trim().split(" ") if encoders else None
-
-        decoders = _ffDecodersRegexp.match(desc)
-        if decoders:
-            desc = desc.slice(0, decoders.index) + desc.slice(
-                decoders.index + decoders[0].length
-            )
-        decoders = decoders[1].trim().split(" ") if decoders else None
-
-        data[match[7]] = {
-            "type": stype,
-            "description": desc,
-            "can_decode": match[1] == "D",
-            "decoders": decoders,
-            "can_encode": match[2] == "E",
-            "encoders": encoders,
-            "intra_frame_only": match[4] == "I",
-            "is_lossy": match[5] == "L",
-            "is_lossless": match[6] == "S",
-        }
-        if not encoders:
-            del data[match[7]]["encoders"]
-        if not decoders:
-            del data[match[7]]["decoders"]
-
-    _cache["codecs"] = data
-    return data
+    return {k: v for k, v in data.items() if pick(v)}
 
 
 #   / **
