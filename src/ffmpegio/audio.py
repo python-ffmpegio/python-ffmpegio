@@ -73,12 +73,12 @@ def create(
     *args,
     progress=None,
     show_log=None,
-    aframes=None,
+    t_in=None,
     ar=None,
     ac=None,
     sample_fmt=None,
     af=None,
-    **kwargs
+    **kwargs,
 ):
     """Create audio data using an audio source filter
 
@@ -92,7 +92,17 @@ def create(
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param \\**options: filter keyword arguments
+    :param t_in: duration of the video in seconds, defaults to None
+    :type t_in: float, optional
+    :param ar: sampling rate in samples/second, defaults to None
+    :type ar: int, optional
+    :param ac: number of channels, defaults to None
+    :type ac: int, optional
+    :param sample_fmt: sample format, defaults to None
+    :type sample_fmt: str, optional
+    :param af: additional filter, defaults to None
+    :type af: FilterGraph or str, optional
+    :param \\**options: FFmpeg options (see :doc:`options`)
     :type \\**options: dict, optional
     :return: audio data
     :rtype: numpy.ndarray
@@ -114,25 +124,25 @@ def create(
 
     """
 
-    # if duration is not None:
-    #     nb_samples = int(duration * sample_rate)
-    # elif nb_samples is not None:
-    #     duration = nb_samples / sample_rate
-    # else:
-    #     raise Exception("either duration or nb_samples must be specified")
-
     url, (ar_in, ac_in) = filter_utils.compose_source("audio", expr, *args, **kwargs)
 
     if sample_fmt is None:
         sample_fmt = "dbl"
 
+    # need_t = ("mandelbrot", "life")
+    # if t_in is None and any((expr.startswith(f) for f in need_t)):
+    #     raise ValueError(f"Some sources {need_t} must have t_in specified")
+
     ffmpeg_args = configure.empty()
-    configure.add_url(ffmpeg_args, "input", url, {"f": "lavfi"})
+    inopts = configure.add_url(ffmpeg_args, "input", url, {"f": "lavfi"})[1][1]
     outopts = configure.add_url(ffmpeg_args, "output", "-", {})[1][1]
 
+    if t_in:
+        inopts["t"] = t_in
+
     for k, v in zip(
-        ("frames:a", "ar", "ac", "sample_fmt", "filter:a"),
-        (aframes, ar or ar_in, ac or ac_in, sample_fmt, af),
+        ("ar", "ac", "sample_fmt", "filter:a"),
+        (ar or ar_in, ac or ac_in, sample_fmt, af),
     ):
         if v is not None:
             outopts[k] = v
