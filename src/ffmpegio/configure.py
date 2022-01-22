@@ -2,16 +2,7 @@ import re, logging
 import numpy as np
 
 from . import utils
-
-_video_filter_opts = (
-    "fill_color",
-    "crop",
-    "flip",
-    "transpose",
-    "rotate",
-    "deinterlace",
-)
-
+from .utils.filter import video_basic_filter
 
 def empty():
     """create empty ffmpeg arg dict
@@ -134,7 +125,6 @@ def finalize_video_read_opts(
 ):
     inopts = args["inputs"][ifile][1] or {}
     outopts = args["outputs"][ofile][1]
-    has_filter = has_filtergraph(args, "video", ofile)
 
     if outopts is None:
         outopts = {}
@@ -161,14 +151,34 @@ def finalize_video_read_opts(
         else:
             _, ncomp, dtype, remove_alpha = utils.get_pixel_config(pix_fmt_in, pix_fmt)
     if remove_alpha:
-        print(
-            "TODO: (remove_alpha) alpha channel is removed without a background color"
+        outopts["remove_alpha"] = True
+
+    # set up basic video filter if specified
+    fopts = {
+        name: outopts.pop(name)
+        for name in (
+            "fill_color",
+            "remove_alpha",
+            "crop",
+            "flip",
+            "transpose",
         )
+        if name in outopts
+    }
+    vf = video_basic_filter(**fopts)
+    if len(vf):
+        if "vf" not in outopts:
+            outopts["vf"] = vf
+        elif not ("remove_alpha" in fopts and len(fopts) == 1):
+            raise ValueError(
+                f"cannot specify `vf` and video basic filter options {tuple(fopts.keys())}"
+            )
+
     outopts["f"] = "rawvideo"
 
     # if no filter and video shape and rate are known, all known
     r = shape = None
-    if not has_filter and ncomp is not None:
+    if not has_filtergraph(args, "video", ofile) and ncomp is not None:
         r = outopts.get("r", inopts.get("r", r_in))
 
         s = outopts.get("s", inopts.get("s", s_in))

@@ -9,7 +9,7 @@ outext = ".png"
 
 
 def test_create():
-    
+
     # make sure rgb channels are mapped properly
     A = image.create("color", c="red", s="100x100", d=1)
     assert np.all(A[:, :, 1:] == 0)
@@ -20,14 +20,12 @@ def test_create():
     B = image.create("cellauto")
     B = image.create("allrgb", d=1)
     B = image.create("allyuv", d=1)
-    B = image.create(
-        "gradients=s=1920x1080:x0=0:x1=0:y0=0:y1=1080", d=1
-    )
+    B = image.create("gradients=s=1920x1080:x0=0:x1=0:y0=0:y1=1080", d=1)
     B = image.create("gradients", d=1)
     B = image.create("mandelbrot")
     B = image.create("mptestsrc=t=dc_luma", d=1)
     B = image.create("mptestsrc", t="ring1", d=1)
-    B = image.create("life", life_color='#00ff00')
+    B = image.create("life", life_color="#00ff00")
     B = image.create("haldclutsrc", 16, d=1)
     A = image.create("testsrc", d=1)
     B = image.create("testsrc2", alpha=0, d=1)
@@ -86,6 +84,19 @@ if __name__ == "__main__":
     from ffmpegio import utils, ffmpegprocess
     from ffmpegio.utils import filter as filter_utils, log as log_utils
 
-    logging.basicConfig(level=logging.DEBUG)
+    # logging.basicConfig(level=logging.DEBUG)
 
-    test_read_write()
+    url = "tests/assets/ffmpeg-logo.png"
+    outext = ".jpg"
+    B = image.read(
+        url,
+        show_log=True,
+        pix_fmt="rgb24",
+        fill_color="red",
+        crop=(300, 50),
+        flip="horizontal",
+        transpose="clock",
+    )
+
+    plt.imshow(B)
+    plt.show()

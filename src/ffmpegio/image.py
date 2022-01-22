@@ -156,7 +156,7 @@ def read(url, show_log=None, **options):
     pix_fmt = options.get("pix_fmt", None)
 
     # get pix_fmt of the input file only if needed
-    if pix_fmt is None and "pix_fmt_in" not in options:
+    if "pix_fmt_in" not in options:
         info = probe.video_streams_basic(url, 0)[0]
         pix_fmt_in = info["pix_fmt"]
         s_in = (info["width"], info["height"])

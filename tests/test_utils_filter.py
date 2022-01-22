@@ -145,14 +145,36 @@ if __name__ == "__main__":
     from ffmpegio.utils.filter import FilterGraph
     from pprint import pprint
 
-    fg = FilterGraph('scale=850:240 [inScale]; color=c=black@1.0:s=850x480:r=29.97:d=30.0 [bg]; movie=bf3Sample2.mp4, scale=850:240 [vid2]; [bg][vid2] overlay=0:0 [basis1]; [basis1][inScale] overlay=0:240')
+    print(
+        filter_utils.video_basic_filter(
+            fill_color=None,
+            remove_alpha=None,
+            crop=None,
+            flip=None,
+            transpose=None,
+        )
+    )
+    print(
+        filter_utils.video_basic_filter(
+            fill_color="red",
+            remove_alpha=True,
+            # crop=(100, 100, 5, 10),
+            # flip="horizontal",
+            # transpose="clock",
+        )
+    )
+    exit()
+
+    fg = FilterGraph(
+        "scale=850:240 [inScale]; color=c=black@1.0:s=850x480:r=29.97:d=30.0 [bg]; movie=bf3Sample2.mp4, scale=850:240 [vid2]; [bg][vid2] overlay=0:0 [basis1]; [basis1][inScale] overlay=0:240"
+    )
     pprint(fg.filter_specs)
     for f in fg:
         print(f)
-    
+
     print(fg)
 
-    del fg[2,1]
+    del fg[2, 1]
 
     # fg[0] = FilterGraph("negate")
     # fg[0::2] = FilterGraph("test")
@@ -162,7 +184,9 @@ if __name__ == "__main__":
     exit()
 
     # one shot from a full filtergraph expression
-    fg = FilterGraph("[1:v]negate[a];  [2:v]hflip[b];  [3:v]edgedetect[c];  [0:v][a]hstack=inputs=2[top]; [b][c]hstack=inputs=2[bottom]; [top][bottom]vstack=inputs=2[out]")
+    fg = FilterGraph(
+        "[1:v]negate[a];  [2:v]hflip[b];  [3:v]edgedetect[c];  [0:v][a]hstack=inputs=2[top]; [b][c]hstack=inputs=2[bottom]; [top][bottom]vstack=inputs=2[out]"
+    )
     print(fg)
 
     # one filter at a time
@@ -185,20 +209,20 @@ if __name__ == "__main__":
     print(fg)
 
     # one filter at a time with links
-    fg1 = FilterGraph([["negate"]],input_labels={"1:v": (0,0,0)})
-    fg2 = FilterGraph([["hflip"]],input_labels={"2:v": (0,0,0)})
-    fg3 = FilterGraph([["edgedetect"]],input_labels={"3:v": (0,0,0)})
-    fg4 = FilterGraph([[("hstack", {"inputs": 2})]], input_labels={"0:v":(0,0,0)})
+    fg1 = FilterGraph([["negate"]], input_labels={"1:v": (0, 0, 0)})
+    fg2 = FilterGraph([["hflip"]], input_labels={"2:v": (0, 0, 0)})
+    fg3 = FilterGraph([["edgedetect"]], input_labels={"3:v": (0, 0, 0)})
+    fg4 = FilterGraph([[("hstack", {"inputs": 2})]], input_labels={"0:v": (0, 0, 0)})
     fg5 = FilterGraph([[("hstack", {"inputs": 2})]])
-    fg6  = FilterGraph([[("vstack", {"inputs": 2})]], output_labels={"out":(0,0,0)})
+    fg6 = FilterGraph([[("vstack", {"inputs": 2})]], output_labels={"out": (0, 0, 0)})
 
-    fgA = fg1.append(fg4,inplace=False,links_to={(0,0,1):(0,0,0)})
-    fgB = fg2.append(fg5,inplace=False,links_to={(0,0,0):(0,0,0)})
-    fgB.append(fg3,links_from={(0,0,0):(1,0,1)})
-    fg = fg6.append(fgA,inplace=False,links_from={(1,0,0):(0,0,0)})
-    fg.append(fgB,links_from={(1,0,0):(0,0,1)})
+    fgA = fg1.append(fg4, inplace=False, links_to={(0, 0, 1): (0, 0, 0)})
+    fgB = fg2.append(fg5, inplace=False, links_to={(0, 0, 0): (0, 0, 0)})
+    fgB.append(fg3, links_from={(0, 0, 0): (1, 0, 1)})
+    fg = fg6.append(fgA, inplace=False, links_from={(1, 0, 0): (0, 0, 0)})
+    fg.append(fgB, links_from={(1, 0, 0): (0, 0, 1)})
     print(fg)
-    
+
     # fg = fg4.append(fg1,inplace=False,links_from={(0,0,0):(0,0,1)})
     # fg.append(fg5,inplace=True,links_to={(1,0,0):(0,0,1)})
 
@@ -209,4 +233,3 @@ if __name__ == "__main__":
     # fg.set_link((-1, 0, 1), (-3, 0, 0))
     # fg.set_link("out", (-1, 0, 0))
     # print(fg)
-

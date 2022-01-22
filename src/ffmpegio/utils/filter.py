@@ -1455,28 +1455,29 @@ def compose(expr, **kwargs):
     return compose_graph(*expr, **kwargs)
 
 
-def video_basic_filter(stream_opts, remove_alpha, w, h):
+def video_basic_filter(
+    fill_color=None,
+    remove_alpha=None,
+    crop=None,
+    flip=None,
+    transpose=None,
+):
     vfilters = []
 
-    bg_color = stream_opts.get("fill_color", "white")
+    bg_color = fill_color or "white"
 
     if remove_alpha:
-        vfilters.append(f"color=c={bg_color}:s={w}x{h}, [in] overlay")
+        vfilters.append(
+            f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay"
+        )
 
-    crop = stream_opts.get("crop", None)
     if crop:
-        n = len(crop)
-        left = crop[0]
-        top = crop[1] if n > 1 else 0
-        right = crop[2] if n > 2 else left
-        bottom = crop[3] if n > 3 else top
-        w -= left + right
-        h -= top + bottom
-        if w < 0 or h < 0:
-            raise Exception("invalid crop filter specified")
-        vfilters.append(("crop", w, h, left, top))
+        try:
+            assert not isinstance(crop, str)
+            vfilters.append(compose_filter("crop", *crop))
+        except:
+            vfilters.append(compose_filter("crop", crop))
 
-    flip = stream_opts.get("flip", None)
     if flip:
         try:
             ftype = ("", "horizontal", "vertical", "both").index(flip)
@@ -1487,16 +1488,11 @@ def video_basic_filter(stream_opts, remove_alpha, w, h):
         if ftype >= 2:
             vfilters.append("vflip")
 
-    transpose = stream_opts.get("transpose", None)
     if transpose is not None:
-        vfilters.append(("transpose", transpose))
-        if h > w or (isinstance(transpose, int) and transpose < 4):
-            w, h = h, w
-            # 4-7, the transposition is only done if the input video geometry is portrait and not landscape
-
-    rotdeg = stream_opts.get("rotate", None)
-    if rotdeg:
-        w, h, rot = utils.get_rotated_shape(w, h, rotdeg)
-        vfilters.append(("rotate", rot, w, h, {"c": bg_color}))
+        try:
+            assert not isinstance(transpose, str)
+            vfilters.append(compose_filter("transpose", *transpose))
+        except:
+            vfilters.append(compose_filter("transpose", transpose))
 
     return ",".join(vfilters)
