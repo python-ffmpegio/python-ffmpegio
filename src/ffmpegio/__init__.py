@@ -70,19 +70,17 @@ def open(
     :type url: str
     :param mode: specifies the mode in which the FFmpeg is used, defaults to None
     :type mode: str, optional
+    :param stream_id: (read specific) media stream, defaults to None
+    :type stream_id: int or str, optional
     :param rate: (write specific) frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate: Fraction, float, int, or dict, optional
-    :param stream_id: (read specific) media stream, defaults to None
-    :type stream_id: int or str, optional
     :param dtype: (write specific) input data numpy dtype, defaults to None
     :type dtype: numpy.dtype, optional
     :param shape: (write specific) video frame size (height x width [x ncomponents]),
                   defaults to None
     :type shape: seq of int, optional
-    :param channels: (write specific) audio number of channels, defaults to None
-    :type channels: int, optional
-    :param \\**options: other keyword options (see :doc:`options`)
+    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :yields: ffmpegio stream object
 

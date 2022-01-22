@@ -194,7 +194,7 @@ def write(url, data, overwrite=None, show_log=None, **options):
     :type data: `numpy.ndarray`
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :param overwrite: bool, optional
+    :type overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional

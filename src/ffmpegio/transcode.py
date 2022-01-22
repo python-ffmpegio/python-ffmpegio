@@ -13,7 +13,7 @@ def transcode(input_url, output_url, progress=None, overwrite=None, show_log=Non
     :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :param overwrite: bool, optional
+    :type overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.

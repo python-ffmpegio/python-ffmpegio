@@ -1,73 +1,42 @@
-References: Standard Keyword Options
-====================================
+.. highlight:: python
+.. _options:
 
-| PyPi: `<https://pypi.org/project/ffmpegio/>`__
-| GitHub: `<https://github.com/python-ffmpegio/python-ffmpegio>`__
+FFmpeg Option References
+========================
 
-.. warning::
-   This package is still in an early alpha stage and under heavy consturction.
+All open/read/write/filter functions in :py:mod:`ffmpegio` accepts any `FFmpeg options <https://ffmpeg.org/ffmpeg.html#Options>`__ as their keyword arguments. Two rules apply to construct Python function argument: 
 
-All read/write `ffmpegio` functions support a set of default keyword options.
+(1) Drop the `-` from FFmpeg option name, e.g., enter `-ss 50` as `(..., ss=50, ...)`; and 
+(2) All the options are by default assumed output options. To specify input options, append `_in` to the option name. To apply `-ss 50` to input url, enter `(..., ss_in=50, ...)`. Global options are automatically identified.
 
-Keyword Options
----------------
+The option values can be specified in any data type, but it must have a `__str__` function defined to convert Python data to correct FFmpeg string expression.
 
-=================  =======  =  =  =  =  ===========================================================
-Name               type     V  A  R  W  Description
-=================  =======  =  =  =  =  ===========================================================
-start              float    X  X  X     Start time in seconds or in the units as specified by 
-                   int                  `units` parameter. Defaults to the beginning of the stream
-end                float    X  X  X     End time in seconds or in the units as specified by `units`
-                   int                  parameter. Defaults to the end of the stream
-duration           float    X  X  X     Duration in seconds or in the units as specified by `units`
-                                        parameter. Defaults to the duration from `start` to the end
-                                        of the input stream
-units              str      X  X  X     Units of `start`, `end`, and `duration` parameters: 
-                                        ``seconds``, ``frames``, or ``samples``. defaults to ``seconds``.
-                                        See resolution policy below.
-input_frame_rate   numeric  X     X     Input video frame rate in frames/second, overriding the specified 
-                                        in the file.  
-input_sample_rate  numeric     X  X     Input audio sampling rate in samples/second, overriding the specified 
-                                        in the file.
-codec              str      X  X     X  Codec, "none", or "copy", defaults to auto-detect from file extension
-crf                int      X        X  Video encoding constant quality
-frame_rate         numeric  X  X  X  X  Video frame rate in frames/second.
-pix_fmt            str      X     X  X  Video frame pixel format, defaults to auto-detect. Run `caps.pixfmts()` to list all available pixel formats.
-channels           int         X  X  X  Number of audio channels, defaults to auto-detect
-sample_fmt         int         X  X  X  Audio sample format, defaults to None (same as input). Run `caps.samplefmts()` to list available formats and their bits/sample.
-force              bool     X  X     X  True to overwrite if file exists or False to skip. If unspecified, FFmpeg will prompt.
-=================  =======  =  =  =  =  ===========================================================
+Common FFmpeg Options
+---------------------
 
-Option names may differ in the functions which accepts both video and audio streams, e.g., `ffmpegio.transcode`
+==========  =========  =  =  =  =  ============================================================
+Name        type       V  A  I  O  Description
+==========  =========  =  =  =  =  ============================================================
+ss          float      X  X  X  X  Start time in seconds
+t           float      X  X  X  X  Duration in seconds 
+to          float      X  X  X  X  End time in seconds (ignored if both `ss`` and `t` are set)
+r           numeric    X     X  X  Video frame rate in frames/second
+ar          numeric       X  X  X  Audio sampling rate in samples/second
+s           (int,int)  X     X  X  Video frame size (width, height). Alt. str expression: `wxh`
+pix_fmt     str        X     X  X  Video frame pixel format, defaults to auto-detect
+vf          str           X     X  Video filtergraph (leave output pad unlabeled)
+ac          int           X  X  X  Number of audio channels, defaults to auto-detect
+sample_fmt  int           X  X  X  Audio sample format, defaults to None (same as input)
+af          str        X        X  Audio filtergraph (leave output pad unlabeled)
+crf         int        X        X  H.264 video encoding constant quality factor (0-51)
+==========  =========  =  =  =  =  ============================================================
 
-Resolution `start` vs. `end` vs. `duration`
--------------------------------------------
+Video Pixel Formats :code:`pix_fmt`
+-----------------------------------
 
-Only 2 out of 3 are honored.
-
-+-------+-----+----------+----------------------------------------------------------------------+
-|`start`|`end`+`duration`| FFmpeg config                                                        |
-+=======+=====+==========+======================================================================+
-|   X   |     |          |    start time specified, continue till the end of input              |
-+-------+-----+----------+----------------------------------------------------------------------+
-|       |   X |          |   start from the beginning of the input till `end` time is hit       |
-+-------+-----+----------+----------------------------------------------------------------------+
-|       |     |      X   | start from the beginning of the input till encoded `duration` long   |
-+-------+-----+----------+----------------------------------------------------------------------+
-|  X    |   X |          |   start and end time specified                                       | 
-+-------+-----+----------+----------------------------------------------------------------------+
-|  X    |     |      X   |   start and duration specified                                       |
-+-------+-----+----------+----------------------------------------------------------------------+
-|       |   X |      X   |   end and duration specified (actually sets start time)              |
-+-------+-----+----------+----------------------------------------------------------------------+
-|  X    |   X |      X   |   `end` parameter ignored                                            |
-+-------+-----+----------+----------------------------------------------------------------------+
-
-Video formats
--------------
-
-The Numpy array dimensions and dtypes are dictated by the video pixel 
-formats:
+There are many video pixel formats that FFmpeg support, which you can obtain with 
+:py:func:`caps.pixfmts()` function. For the I/O purpose, :py:mod:`ffmpegio` video/image
+functions operate strictly with RGB or grayscale formats listed below.
 
 =====  ==============  =========  ===================================
 ncomp  `numpy.dtype`   pix_fmt    Description
@@ -83,10 +52,16 @@ ncomp  `numpy.dtype`   pix_fmt    Description
   4    `numpy.uint16`  rgba64le   16-bit RGB with alpha channel
 =====  ==============  =========  ===================================
 
-Audio formats
--------------
+This table defines how the Numpy array dimensions and dtypes are related to
+the video pixel formats.
 
-FFmpeg sample_fmt type and Numpy array dtypes are related as follows
+
+Audio Sample Formats :code:`sample_fmt`
+---------------------------------------
+
+FFmpeg offers its audio channels in both interleaved and planar sample formats (`sample_fmt`, 
+run :py:func:`caps.samplefmts()` to list available formats). For the I/O purpose, 
+:py:mod:`ffmpegio` audio functions always use the interleaved formats:
 
 ==============  ==========
 `numpy.dtype`   sample_fmt
@@ -98,4 +73,95 @@ FFmpeg sample_fmt type and Numpy array dtypes are related as follows
 `numpy.double`    dbl     
 ==============  ==========
 
-TODO: support for planar format, i.e., auto-transposing data
+Built-in Video Manipulation Options
+-----------------------------------
+
+FFmpeg can manipulate both video and audio streams by filtergraph 
+(`FFmpeg Documentation <https://ffmpeg.org/ffmpeg-filters.html#Description>`__).
+Video/image routines of :py:mod:`ffmpegio` adds addtional video options to
+perform simple video maninpulations without the need of setting up a filtergraph.
+
+
+.. list-table:: Options to manipulate video frames
+  :widths: auto
+  :header-rows: 1
+  :class: tight-table
+
+  * - name
+    - value
+    - FFmpeg filter
+    - Description
+  * - :code:`crop`
+    - seq(int[, int[, int[, int]]])
+    - `crop <https://ffmpeg.org/ffmpeg-filters.html#crop>`__
+    - video frame cropping/padding, values representing the number of pixels to crop from [left top right bottom].
+      If positive, the video frame is cropped from the respective edge. If negative, the video frame is padded on 
+      the respective edge. If right or bottom is missing, uses the same value as left or top, respectively. If top
+      is missing, it defaults to 0.
+  * - :code:`flip`
+    - {:code:`'horizontal'`, :code:`'vertical'`, :code:`'both'`}
+    - `hflip <https://ffmpeg.org/ffmpeg-filters.html#hflip>`__ or `vflip <https://ffmpeg.org/ffmpeg-filters.html#vflip>`__
+    - flip the video frames horizontally, vertically, or both.
+  * - :code:`transpose`
+    - int
+    - `transpose <https://ffmpeg.org/ffmpeg-filters.html#transpose-1>`__
+    - tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
+      For the others, see the FFmpeg documentation.
+  * - :code:`fill_color`
+    - str
+    - n/a
+    - This option is used to auto-convert transparent images to an 
+      opaque :code:`pix_fmt`. Its option value specifies a color according to
+      `FFmpeg Color Specifications <https://ffmpeg.org/ffmpeg-utils.html#Color>`__.
+
+Note that the these operations are pre-wired to perform in a specific order:
+
+.. blockdiag::
+  :caption: Video Manipulation Order
+
+  blockdiag {
+    crop -> flip -> transpose;
+  }
+
+Be aware of this ordering as these filters are non-commutative (i.e., a change in the 
+order of operation alters the outcome). If your desired order of filters differs or
+need to use additional filters, use the :code:`vf` option to specify your own filtergraph. 
+
+.. list-table:: Examples of manipulated images
+  :class: tight-table
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png')
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png')
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), transpose=0)
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), transpose=0)
+
+  * - .. plot:: 
+    
+        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), flip='both', s=(200,50))
+        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+        plt.imshow(IM)
+        plt.gca().set_position((0, 0, 1, 1))
+        plt.axis('off')
+    
+      .. code-block:: python
+
+        ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), flip='both', size=(200,-1))

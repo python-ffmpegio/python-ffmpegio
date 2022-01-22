@@ -481,9 +481,9 @@ def query(url, stream=None, fields=None, return_none=False):
              stream/format if fields not specified
     :rtype: list or dict
 
-    Note: Unlike `video_stream_basic()` and `audio_stream_basic()`, `query()`
-          does not process ffprobe output except for the conversion from
-          str to float/int.
+    Note: Unlike :py:func:`video_stream_basic()` and :py:func:`audio_stream_basic()`, 
+          :py:func:`query()` does not process ffprobe output except for the conversion 
+          from str to float/int.
 
     """
 

@@ -1,3 +1,4 @@
+.. highlight:: python
 .. _adv_ffmpeg:
 
 :py:mod:`ffmpegio.ffmpegprocess`: Direct invocation of FFmpeg subprocess
@@ -21,7 +22,7 @@ with a Python dict:
 see :ref:`its specification page <adv_args>` for the details.
 
 :py:mod:`ffmpegio.ffmpegprocess` Module Reference
-------------------------------------------
+-------------------------------------------------
 
 .. autofunction:: ffmpegio.ffmpegprocess.run
 .. autoclass:: ffmpegio.ffmpegprocess.Popen

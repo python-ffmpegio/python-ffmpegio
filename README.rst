@@ -14,17 +14,22 @@
 
 Python `ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
 to read, write, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
-multimedia framework, which can handle most of the multimedia formats avilable today.
+multimedia framework, which can handle most of the multimedia formats available today.
 
 Main Features
 -------------
 
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
   the system
-* A set of simple read and write functions for audio, image, and video data
-* Context-managing `ffmpegio.open` to perform stream read/write operations
-* Auto-conversion of video pixel formats and audio sample formats
-* Out-of-box support for fast resizing, re-orienting, cropping, rotating, and deinterlacing of video frames (all done by FFmpeg)
+* Transcode a media file to another in Python
+* Read, write, filter, and create functions for audio, image, and video data
+* Context-managing `ffmpegio.open` to perform stream read/write operations of video and audio
+* Automatically detect and convert audio & video formats to and from `numpy.ndarray` properties
+* Probe media file information
+* Accepts all FFmpeg options including filter graphs
+* Supports a user callback whenever FFmpeg updates its progress information file 
+  (see `-progress` FFmpeg option)
+* Advanced users can gain finer controls of FFmpeg I/O with `ffmpegio.ffmpegprocess` submodule
 * More features to follow
 
 Documentation

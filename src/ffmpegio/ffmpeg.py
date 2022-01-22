@@ -502,7 +502,7 @@ def exec(
     :type progress: ProgressMonitor, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :param overwrite: bool, optional
+    :type overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to send
                         logs to console, defaults to None (no show/capture)
     :type capture_log: bool or None, optional

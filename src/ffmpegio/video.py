@@ -209,7 +209,7 @@ def write(url, rate, data, progress=None, overwrite=None, show_log=None, **optio
     :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :param overwrite: bool, optional
+    :type overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional

@@ -16,42 +16,8 @@ Install the :py:mod:`ffmpegio` package via ``pip``:
 
    pip install ffmpegio
 
-The installation of FFmpeg is platform dependent. For Ubuntu,
-
-.. code-block:: bash
-
-   sudo apt install ffmpeg
-
-and Mac,
-
-.. code-block:: bash
-
-   brew install ffmpeg
-
-no other actions are needed as these commands will place the FFmpeg executables 
-on the system path. For Windows, it is a bit more complicated.
-
-1. Download pre-built packages from the links available on the `FFmpeg's Download page
-   <https://ffmpeg.org/download.html#build-windows>`__.
-2. Unzip the content and place the files in one of the following directories:
-
-   ==================================  ===============================================
-   Auto-detectable FFmpeg folder path  Example
-   ==================================  ===============================================
-   ``%PROGRAMFILES%\ffmpeg``           ``C:\Program Files\ffmpeg``
-   ``%PROGRAMFILES(X86)%\ffmpeg``      ``C:\Program Files (x86)\ffmpeg``
-   ``%USERPROFILE%\ffmpeg``            ``C:\Users\john\ffmpeg``
-   ``%APPDATA%\ffmpeg``                ``C:\Users\john\AppData\Roaming\ffmpeg``
-   ``%APPDATA%\programs\ffmpeg``       ``C:\Users\john\AppData\Roaming\programs\ffmpeg``
-   ``%LOCALAPPDATA%\ffmpeg``           ``C:\Users\john\AppData\Local\ffmpeg``
-   ``%LOCALAPPDATA%\programs\ffmpeg``  ``C:\Users\john\AppData\Local\programs\ffmpeg``
-   ==================================  ===============================================
-
-   Keep the internal structure intact, i.e., the executables must be found at 
-   ``ffmpeg\bin\ffmpeg.exe`` and ``ffmpeg\bin\ffprobe.exe``.
-
-   Alternately, the FFmpeg may be placed elsewhere and use :py:func:`ffmpegio.set_path` to
-   specify any arbitrary location.
+If FFmpeg is not installed on your system, please follow the instructions on
+:ref:`Installation page <install>`
 
 Features
 --------
@@ -212,83 +178,93 @@ data from. There are four options available:
 .. table:: Read Timing Options
   :class: tight-table
 
-  ========  =======================================================================
-  Name      Description
-  ========  =======================================================================
-  start     Start time. Defaults to the beginning of the stream.
-  end       End time. Defaults to the end of the stream.
-  duration  Duration in seconds. Defaults to the duration from :code:`start` to the 
-            end of the input stream.
-  units     Time units. One of ``seconds``, ``frames``, or ``samples``. Defaults 
-            to ``seconds``.
-  ========  =======================================================================
+  =============  ========================================================================
+  Name           Description
+  =============  ========================================================================
+  :code:`ss`     Start time in seconds
+  :code:`t`      Duration in seconds
+  :code:`to`     End time in seconds (ignored if :code:`t_in` is also specified)
+  =============  ========================================================================
 
-One of :code:`start`, :code:`end`, :code:`duration` or a combination of two of them
-defines the read range:
+Note it is also possible to specify these timing options for the input (i.e., using the 
+options :code:`ss_in`, :code:`t_in`, and :code:`to_in`). The input options, especially 
+:code:`ss_in`, may run faster but potentially less accurate. See `FFmpeg documentation 
+<https://ffmpeg.org/ffmpeg.html#Options>`__ for the explanation.
 
 .. code-block:: python
 
   >>> url = 'myvideo.mp4'
-  >>> info = ffmpegio.probe.video_streams_basic(url)[0]
 
   >>> #read only the first 1 seconds
-  >>> fs, F = ffmpegio.video.read(url, duration=1.0)
-
-  >>> #read the last 2.5 seconds
-  >>> fs, F = ffmpegio.video.read(url, end=info['duration'], duration=2.5)
+  >>> fs, F = ffmpegio.video.read(url, t=1.0)
 
   >>> #read from 1.2 second mark to 2.5 second mark
-  >>> fs, F = ffmpegio.video.read(url, start=1.2, end=2.5)
+  >>> fs, F = ffmpegio.video.read(url, t=1.2, to=2.5)
     
-.. note::
-  If all 3 are given, the read functions honor :code:`start` and :code:`duration` 
-  and ignore :code:`end`.
-
-Rather than specifying the times and durations in seconds, :code:`units` option 
-allows to specify by the frame numbers for video and sample numbers for audio.
-For example:
+To specify by the frame numbers for video and sample numbers for audio, user must
+convert the units to seconds using :py:func:`probe`. For example:
 
 .. code-block:: python
 
+  >>> # get frame rate of the (first) video stream
+  >>> info = ffmpegio.probe.video_streams_basic('myvideo.mp4')
+  >>> fs = info[0]['frame_rate'] 
+
   >>> #read 30 frame from the 11th frame (remember Python uses 0-based index)
-  >>> with ffmpegio.open('myvideo.mp4', start=10, duration=30, units='frames') as f:
+  >>> with ffmpegio.open('myvideo.mp4', t=10/fs, t=30/fs) as f:
   >>>     frame = f.read()
   >>>     # do your thing with the frame data
 
-In this example, the video stream of :code:`'myvideo.mp4'` is first probed for its
-frame rate, then the :code:`start` and :code:`duration` arguments are converted to
-seconds per the discovered frame rate.
-
-Likewise, the timing of the audio input stream can be set with its sample number:
+Likewise, for an audio input stream:
 
 .. code-block:: python
 
+  >>> # get sampling rate of the (first) audio stream
+  >>> info = ffmpegio.probe.audio_streams_basic('myaudio.wav')
+  >>> fs = info[0]['sample_rate'] 
+
   >>> #read first 10000 audio samples
-  >>> fs, x = ffmpegio.audio.read('myaudio.wav', duration=10000, units='samples')
+  >>> fs, x = ffmpegio.audio.read('myaudio.wav', t=10000/fs)
 
-Now, you may ask about the accuracy of the timing, and this is a very important point
-when using FFmpeg in general. FFmpeg is a media playback/recording/transcoding
-tool and not a precision data analysis software. As such, it does not and cannot 
-guarantee the time accuracy. To quote from its documentation,
-        
-  "Note that in most formats it is not possible to seek exactly, so ffmpeg will 
-  seek to the closest seek point before position. When transcoding and ``-accurate_seek``
-  is enabled (the default), this extra segment between the seek point and position 
-  will be decoded and discarded."
+Specify Output Frame/Sample Size
+--------------------------------
 
-This being said, video frames are generally seeked correctly with ``-accurate_seek``.
-However, the audio stream timing gets a bit dicier due to its frames containing multiple
-samples. To overcome this :py:mod:`ffmpegio` always reads the audio stream from the
-beginning and truncate unrequested samples. So, it is advised to use the stream read
-if multiple audio segments are needed to reduce this necessary overhead.
+FFmpeg let you change video size or the number of audio channels via output 
+options :code:`s` and :code:`ac`, respectively, without setting up a 
+filtergraph. For example,
 
-Specify Data Formats
---------------------
+.. code-block:: python
 
-FFmpeg can convert the formats of video pixels and sound samples on the fly. 
-This feature is enabled in :py:mod:`ffmpegio` via options :code:`pix_fmt` for
-video and :code:`sample_fmt` for audio. Also, the number of audio channels can
-be changed with :code:`channels` option.
+  >>> # auto-scale video frame
+  >>> fs, F = ffmpegio.video.read('myvideo.mp4', t=1.0) # natively rgb24
+  >>> F.shape
+  (30, 240, 320, 3)
+
+  >>> # halve the size
+  >>> width = 160
+  >>> height = 120  
+  >>> _, G = ffmpegio.video.read('myvideo.mp4', t=1.0, s=(width,height)) 
+  >>> G.shape
+  (29, 120, 160, 3)
+  
+  >>> # auto-convert to mono
+  >>> fs, x = ffmpegio.audio.read('myaudio.wav') # natively stereo
+  >>> _, y = ffmpegio.audio.read('myaudio.wav', ac=1) 
+  >>> x.shape
+  (44100, 2)
+  >>> y.shape
+  (44100, 1)
+
+To customize the conversion configuration, use :code:`vf` output option 
+with with :code:`scale` filter or :code:`af` output option with 
+:code:`channelmap` or :code:`pan` or other channel mixing filter
+
+Specify Sample Formats
+----------------------
+
+FFmpeg can also convert the formats of video pixels and sound samples on the fly. 
+This feature is enabled in :py:mod:`ffmpegio` via output options :code:`pix_fmt` 
+for video and :code:`sample_fmt` for audio. 
 
   .. table:: Video :code:`pix_fmt` Option Values
     :class: tight-table
@@ -322,8 +298,8 @@ For example,
 .. code-block:: python
 
   >>> # auto-convert video frames to grayscale
-  >>> fs, RGB = ffmpegio.video.read('myvideo.mp4', duration=1.0) # natively rgb24
-  >>> _, GRAY = ffmpegio.video.read('myvideo.mp4', duration=1.0, pix_fmt='gray') 
+  >>> fs, RGB = ffmpegio.video.read('myvideo.mp4', t=1.0) # natively rgb24
+  >>> _, GRAY = ffmpegio.video.read('myvideo.mp4', t=1.0, pix_fmt='gray') 
   >>> RGB.shape
   (29, 640, 480, 3)
   >>> GRAY.shape
@@ -331,7 +307,7 @@ For example,
   
   >>> # auto-convert PNG image to remove transparency with white background
   >>> RGBA = ffmpegio.image.read('myimage.png') # natively rgba with transparency
-  >>> RGB = ffmpegio.image.read('myimage.png', pix_fmt='rgb24', fill_color='white') 
+  .. >>> RGB = ffmpegio.image.read('myimage.png', pix_fmt='rgb24', fill_color='white') 
   >>> RGB.shape
   (100, 396, 4)
   >>> RGB.shape
@@ -344,18 +320,11 @@ For example,
   2324
   >>> y.max()
   0.0709228515625
-  
-  >>> # auto-convert to mono
-  >>> fs, x = ffmpegio.audio.read('myaudio.wav') # natively stereo
-  >>> _, y = ffmpegio.audio.read('myaudio.wav', channels=1) 
-  >>> x.shape
-  (44100, 2)
-  >>> y.shape
-  (44100, 1)
-  
+
 Note when converting from an image with alpha channel (FFmpeg does not support 
-alpha channel in video) the background color may be specified with :code:`fill_color`
-option (default: ``'white'``). See `the FFmpeg color specification <https://ffmpeg.org/ffmpeg-utils.html#Color>`__
+alpha channel in video input) the background color may be specified with 
+:code:`fill_color` option (which defaults to ``'white'``). 
+See `the FFmpeg color specification <https://ffmpeg.org/ffmpeg-utils.html#Color>`__
 for the list of predefined color names.
 
 
@@ -414,133 +383,3 @@ for the list of predefined color names.
 
         ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', 
             fill_color='#F0F0F0')
-
-
-
-Built-in Video Manipulation
----------------------------
-
-FFmpeg can manipulate both video and audio streams by its filters 
-(`FFmpeg Documentation <https://ffmpeg.org/ffmpeg-filters.html#Description>`__).
-Both read and write video routines in :py:mod:`ffmpegio` utilizes the FFmpeg
-filters to perform elementary operations on video frames.
-
-.. list-table:: Options to manipulate video frames
-  :widths: auto
-  :header-rows: 1
-  :class: tight-table
-
-  * - name
-    - value
-    - FFmpeg filter
-    - Description
-  * - :code:`size`
-    - seq(int, int)
-    - `scale <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__
-    - output video frame size (width, height). if one is <=0 scales proportionally to the other dimension
-  * - :code:`scale`
-    - float or seq of 2 floats
-    - `scale  <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__
-    - output video frame scaling factor, if :code:`size` is not defined
-  * - :code:`crop`
-    - seq(int[, int[, int[, int]]])
-    - `crop <https://ffmpeg.org/ffmpeg-filters.html#crop>`__
-    - video frame cropping/padding, values representing the number of pixels to crop from [left top right bottom].
-      If positive, the video frame is cropped from the respective edge. If negative, the video frame is padded on 
-      the respective edge. If right or bottom is missing, uses the same value as left or top, respectively. If top
-      is missing, it defaults to 0.
-  * - :code:`flip`
-    - {:code:`'horizontal'`, :code:`'vertical'`, :code:`'both'`}
-    - `hflip <https://ffmpeg.org/ffmpeg-filters.html#hflip>`__ or `vflip <https://ffmpeg.org/ffmpeg-filters.html#vflip>`__
-    - flip the video frames horizontally, vertically, or both.
-  * - :code:`transpose`
-    - int
-    - `transpose <https://ffmpeg.org/ffmpeg-filters.html#transpose-1>`__
-    - tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
-      For the others, see the FFmpeg documentation.
-  * - :code:`rotate`
-    - float
-    - `rotate <https://ffmpeg.org/ffmpeg-filters.html#rotate>`__
-    - rotate video frame in the clockwise direction. Value specifies the rotation in degrees. 
-      The resulting video frame is enlarged to fit the rotated input frame with background color
-      specified by :code:`fill_color` option (default: :code:`'white'`).
-
-Note that the these operations are pre-wired to perform in a specific order:
-
-.. blockdiag::
-  :caption: Video Manipulation Order
-
-  blockdiag {
-    crop -> flip -> transpose -> rotate -> "size/scale";
-    transpose -> rotate [folded];
-  }
-
-Be aware of this ordering as these filters are non-commutative (i.e., a change in the 
-order of operation alters the outcome). If your desired order of filtering differs or
-need to use other filters, you must use the forthcoming :code:`filter_graph` option. 
-
-.. list-table:: Examples of manipulated images
-  :class: tight-table
-
-  * - .. plot:: 
-    
-        IM = ffmpegio.image.read('ffmpeg-logo.png')
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
-    
-      .. code-block:: python
-
-        ffmpegio.image.read('ffmpeg-logo.png')
-
-  * - .. plot:: 
-    
-        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0))
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
-    
-      .. code-block:: python
-
-        ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0))
-
-  * - .. plot:: 
-    
-        IM = ffmpegio.image.read('ffmpeg-logo.png', rotate=10, fill_color='LightSkyBlue')
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
-    
-      .. code-block:: python
-
-        ffmpegio.image.read('ffmpeg-logo.png', rotate=10, fill_color='LightSkyBlue')
-    
-  * - .. plot:: 
-    
-        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), transpose=0)
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
-    
-      .. code-block:: python
-
-        ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), transpose=0)
-
-  * - .. plot:: 
-    
-        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), flip='both', size=(200,-1))
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
-    
-      .. code-block:: python
-
-        ffmpegio.image.read('ffmpeg-logo.png', crop=(118,26,22,0), flip='both', size=(200,-1))
-        
-
-

@@ -3,13 +3,6 @@
 Media Probe Function References
 ===============================
 
-| PyPi: `<https://pypi.org/project/ffmpegio/>`__
-| GitHub: `<https://github.com/python-ffmpegio/python-ffmpegio>`__
-
-
-.. warning::
-   This package is still in an early alpha stage and under heavy consturction.
-
 :py:mod:`ffmpegio.probe` module contains a full-featured ffprobe wrapper function
 :py:func:`ffmpegio.probe.full_details` and its derivative functions, which are
 tailored to retrieve specific type of information from a media file or stream.
