@@ -31,11 +31,12 @@ PIPE:    Special value that indicates a pipe should be created
 
 from threading import Thread as _Thread
 import subprocess as _sp
+from subprocess import PIPE, DEVNULL
 from .ffmpeg import exec, parse, ProgressMonitor
 from .configure import move_global_options
 from .utils import bytes_to_ndarray as _as_array
 
-__all__ = ["run", "Popen"]
+__all__ = ["run", "Popen", "PIPE", "DEVNULL"]
 
 
 def monitor_process(
@@ -84,7 +85,7 @@ class Popen(_sp.Popen):
     """Execute FFmpeg in a new process.
 
     :param ffmpeg_args: FFmpeg arguments
-    :type ffmpeg_args: dict, seq, or str
+    :type ffmpeg_args: dict
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
     :param progress: progress callback function, defaults to None. This function
@@ -275,7 +276,7 @@ def run(
     """run FFmpeg subprocess with standard pipes with a single transaction
 
     :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict, seq(str), or str
+    :type ffmpeg_args: dict
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
     :param progress: progress callback function, defaults to None. This function
