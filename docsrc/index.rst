@@ -49,35 +49,32 @@ Examples
 
 .. code-block:: python
 
+.. code-block:: python
+
   >>> import ffmpegio
 
-  >>> # read audio samples from 24.15 seconds to 63.2 seconds
-  >>> fs, x = ffmpegio.audio.read('myaudio.wav', ss=24.15, to=63.2)
+  >>> # read audio samples from 24.15 seconds to 63.2 seconds, pre-convert to mono in float data type 
+  >>> fs, x = ffmpegio.audio.read('myaudio.wav', ss=24.15, to=63.2, sample_fmt='dbl', ac=1)
 
-  >>> # read 50 video frames at t=00:32:40
-  >>> fs, x = ffmpegio.audio.read('myvideo.mp4', ss='00:32:40', vframes=50)
+  >>> # read 50 video frames at t=00:32:40, pre-convert to grayscale
+  >>> fs, x = ffmpegio.video.read('myvideo.mp4', ss='00:32:40', vframes=50, pix_fmt='gray')
 
-  >>> # capture video frame at t=0.24
-  >>> x = ffmpegio.image.read('myvideo.mp4', ss=0.24)
+  >>> # capture video frame at t=0.24 and resize it to 540px wide and height proportionally
+  >>> # scaled with assuring even # of pixels
+  >>> x = ffmpegio.image.read('myvideo.mp4', ss=0.24, s=(540,-2))
 
   >>> # save numpy array x as an audio file at 24000 samples/second
-  >>> ffmpegio.audio.write('outputvideo.mp4', 24000, x)
-
-  >>> # process video 100 frames at a time
-  >>> with ffmpegio.open('myvideo.mp4', blocksize=100) as f:
-  >>>     for frames in f:
-  >>>         myprocess(frames)
+  >>> ffmpegio.audio.write('output.flac', 24000, x, sample_fmt='s16')
 
   >>> # process video 100 frames at a time and save output as a new video 
   >>> # with the same frame rate
-  >>> fs = ffmpegio.probe.video_streams_basic('myvideo.mp4')[0]['frame_rate']
-  >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100) as f,
-  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fs) as g:
-  >>>     for frames in f:
-  >>>         g.write(myprocess(frames))
+  >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100) as fin,
+  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fin.frame_rate) as fout:
+  >>>     for frames in fin:
+  >>>         fout.write(myprocess(frames))
 
 
-Introductory info
+Introductory Info
 -----------------
 
 .. toctree::
@@ -87,7 +84,7 @@ Introductory info
     install
 
 
-High-level API reference
+High-level API Reference
 ------------------------
 
 .. toctree::
@@ -98,7 +95,7 @@ High-level API reference
     options
     caps
 
-Advanced topics
+Advanced Topics
 ---------------
 
 .. toctree::
@@ -107,7 +104,7 @@ Advanced topics
     adv-ffmpeg
     adv-args
 
-External links
+External Links
 --------------
 
 .. toctree::

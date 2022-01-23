@@ -55,13 +55,11 @@ Examples
   >>> x = ffmpegio.image.read('myvideo.mp4', ss=0.24, s=(540,-2))
 
   >>> # save numpy array x as an audio file at 24000 samples/second
-  >>> ffmpegio.audio.write('outputvideo.mp4', 24000, x)
+  >>> ffmpegio.audio.write('output.flac', 24000, x, sample_fmt='s16')
 
   >>> # process video 100 frames at a time and save output as a new video 
   >>> # with the same frame rate
-  >>> fs = ffmpegio.probe.video_streams_basic('myvideo.mp4')[0]['frame_rate']
-  >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100) as f,
-  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fs) as g:
-  >>>     for frames in f:
-  >>>         g.write(myprocess(frames))
-
+  >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100) as fin,
+  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fin.frame_rate) as fout:
+  >>>     for frames in fin:
+  >>>         fout.write(myprocess(frames))
