@@ -646,6 +646,12 @@ def decoder_info(name):
     return _getCodecInfo(name, False)
 
 
+_re_layouts = re.compile(
+    re.sub(r"([().])", r"\\\1", "|".join(layouts()["layouts"]))
+    + r"|\d+ channels \(.+?\)"
+)
+
+
 def _getCodecInfo(name, encoder):
     stdout, data = __("encoder" if encoder else "decoder", name)
     if data:
@@ -668,20 +674,20 @@ def _getCodecInfo(name, encoder):
     )
 
     def resolveFs(s):
-        m = re.match(r"(\d+)\/ (\d+)", s)
-        return [int(m[0]), int(m[1])]
+        m = re.match(r"(\d+)\/(\d+)", s)
+        return fractions.Fraction(int(m[1]),int(m[2]))
 
     data = {
         "name": m[1],
         "long_name": m[2],
         "capabilities": m[3].split(" ") if m[3] and m[3] != "none" else [],
-        "threading": m[4] if m[4] and m[4] != "none" else "",
+        "threading": m[4].split(" and ") if m[4] and m[4] != "none" else [],
         "supported_hwdevices": m[5].split(" ") if m[5] else [],
-        "supported_framerates": map(resolveFs, m[6].split(" ")) if m[6] else [],
+        "supported_framerates": [resolveFs(s) for s in m[6].split(" ")] if m[6] else [],
         "supported_pix_fmts": m[7].split(" ") if m[7] else [],
-        "supported_sample_rates": m[8].split(" ") if m[8] else [],
+        "supported_sample_rates": [int(v) for v in m[8].split(" ")] if m[8] else [],
         "supported_sample_fmts": m[9].split(" ") if m[9] else [],
-        "supported_layouts": m[10].split(" ") if m[10] else [],
+        "supported_layouts": _re_layouts.findall(m[10]) if m[10] else [],
         "options": m[11],
     }
 
