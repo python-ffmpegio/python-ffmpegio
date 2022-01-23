@@ -7,10 +7,6 @@ from subprocess import DEVNULL, PIPE
 
 import re as _re, os as _os, logging as _logging
 
-from threading import Thread as _Thread, Event as _Event
-from time import sleep as _sleep
-from tempfile import TemporaryDirectory as _TemporaryDirectory
-
 form_shell_cmd = (
     _shlex.join
     if hasattr(_shlex, "join")
@@ -381,114 +377,6 @@ def ffprobe(
 ###############################################################################
 
 
-class ProgressMonitor(_Thread):
-    """FFmpeg progress monitor class
-
-    :param callback: [description]
-    :type callback: function
-    :param cancel_fun: [description], defaults to None
-    :type cancel_fun: [type], optional
-    :param url: [description], defaults to None
-    :type url: [type], optional
-    :param timeout: [description], defaults to 10e-3
-    :type timeout: [type], optional
-    """
-
-    def __init__(self, callback, cancelfun=None, url=None, timeout=10e-3):
-        if callback is None:
-            self.url = self.cancelfun = self._thread = None
-        else:
-            tempdir = None if url else _TemporaryDirectory()
-            self.url = url or _os.path.join(tempdir.name, "progress.txt")
-            self.cancelfun = cancelfun
-            super().__init__(args=(callback, tempdir, timeout))
-            self._stop_monitor = _Event()
-
-    def start(self):
-        if self.url:
-            super().start()
-
-    def join(self, timeout=None):
-        if self.url:
-            self._stop_monitor.set()
-            super().join(timeout)
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.join()
-
-    def run(self):
-        callback, tempdir, timeout = self._args
-        url = self.url
-
-        pattern = _re.compile(r"(.+)?=(.+)")
-        _logging.debug(f'[progress_monitor] monitoring "{url}"')
-
-        while not (self._stop_monitor.is_set() or _os.path.isfile(url)):
-            _sleep(timeout)
-
-        _logging.debug("[progress_monitor] file found")
-
-        if not self._stop_monitor.is_set():
-
-            with open(url, "rt") as f:
-
-                last_mtime = None
-
-                def update(sleep=True):
-                    d = {}
-                    mtime = _os.fstat(f.fileno()).st_mtime
-                    new_data = mtime != last_mtime
-                    if new_data:
-                        lines = f.readlines()
-                        for line in lines:
-                            m = pattern.match(line)
-                            if not m:
-                                continue
-                            if m[1] != "progress":
-                                val = m[2].lstrip()
-                                try:
-                                    val = int(val)
-                                except:
-                                    try:
-                                        val = float(val)
-                                    except:
-                                        pass
-
-                                d[m[1]] = val
-                            else:
-                                done = m[2] == "end"
-                                try:
-                                    if callback(d, done) and self.cancelfun:
-                                        _logging.debug(
-                                            "[progress_monitor] operation canceled by user agent"
-                                        )
-                                        self.cancelfun()
-                                except Exception as e:
-                                    _logging.critical(
-                                        f"[progress_monitor] user callback error:\n\n{e}"
-                                    )
-                    elif sleep:
-                        _sleep(timeout)
-
-                while not self._stop_monitor.is_set():
-                    last_mtime = update()
-
-                # one final update just in case FFmpeg termianted during sleep
-                update(False)
-
-        if tempdir is not None:
-            try:
-                tempdir.cleanup()
-            except:
-                pass
-
-        _logging.debug("[progress_monitor] terminated")
-
-
 def exec(
     ffmpeg_args,
     hide_banner=True,
@@ -508,7 +396,7 @@ def exec(
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
     :param progress: progress monitor object, defaults to None
-    :type progress: ProgressMonitor, optional
+    :type progress: ProgressMonitorThread, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
     :type overwrite: bool, optional

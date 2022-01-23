@@ -343,6 +343,47 @@ def get_audio_format(fmt, return_format=False):
             raise ValueError(f"incompatible numpy dtype used: {fmt}")
 
 
+def guess_audio_format(data=None):
+    """get audio format
+
+    :param data: data array or a tuple of non-temporal shape and dtype of the data
+    :type data: numpy.ndarray or (numpy.dtype, seq of ints)
+    :return: tuple of # of channels and sample_fmt
+    :rtype: tuple(int,str)
+
+    ```
+        X = np.ones((1000,2),np.int16)
+        ac, sample_fmt = guess_audio_format(X)
+        # => ac=2, sample_fmt='s16'
+
+        # the same result can be obtained by
+        ac, sample_fmt = guess_audio_format((X.shape,X.dtype))
+    """
+
+    try:
+        dtype = np.dtype(data.dtype)
+        shape = data.shape
+        ndim = data.ndim
+    except:
+        try:
+            shape, dtype = data
+            ndim = len(shape)
+            dtype = np.dtype(dtype)
+        except:
+            raise ValueError(
+                "invalid input argument: must be either numpy.array or (shape, dtype) sequence"
+            )
+
+    if ndim < 1 or ndim > 2:
+        raise ValueError(
+            f"invalid audio data dimension: data shape must be must be 1d or 2d"
+        )
+
+    sample_fmt = get_audio_format(dtype)
+
+    return shape[-1], sample_fmt
+
+
 def array_to_video_input(
     rate,
     data=None,
@@ -464,11 +505,14 @@ def array_to_audio_input(
 
 def parse_video_size(expr):
 
-    m = re.match(r"(\d+)x(\d+)", expr)
-    if m:
-        return (int(m[1]), int(m[2]))
+    if isinstance(expr, str):
+        m = re.match(r"(\d+)x(\d+)", expr)
+        if m:
+            return (int(m[1]), int(m[2]))
 
-    return caps.video_size_presets[expr]
+        return caps.video_size_presets[expr]
+    else:
+        return expr
 
 
 def parse_frame_rate(expr):

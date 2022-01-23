@@ -1,18 +1,13 @@
 import re
-import time
 from . import layout_to_channels
 from ..caps import sample_fmts
 from fractions import Fraction
 
 
-class ThreadNotActive(RuntimeError):
-    pass
-
-
 class FFmpegError(RuntimeError):
     def __init__(self, logs=None, log_shown=None):
         if logs is not None:
-            if isinstance(logs,str):
+            if isinstance(logs, str):
                 logs = re.split(r"[\n\r]+", logs)
             log = next((x for x in reversed(logs) if x.startswith("[")), None)
             nl = "\n"
@@ -162,7 +157,7 @@ def extract_output_stream(logs, file_id=0, stream_id=0, hint=None):
     :return: stream information
     :rtype: dict
     """
-    if isinstance(logs,str):
+    if isinstance(logs, str):
         logs = re.split(r"[\n\r]+", logs)
     fname = f"Output #{file_id}"
     sname = f"  Stream #{file_id}:{stream_id}"
@@ -192,123 +187,3 @@ def extract_output_stream(logs, file_id=0, stream_id=0, hint=None):
         raise RuntimeError(f"parser for {type.lower()} codec is not defined.")
 
     return sinfo
-
-
-from threading import Thread as _Thread, Condition as _Condition, Lock as _Lock
-from io import TextIOBase as _TextIOBase, TextIOWrapper as _TextIOWrapper
-
-
-class Logger(_Thread):
-    def __init__(self, stderr, echo=False) -> None:
-        self.stderr = stderr
-        self.logs = []
-        self._newline_mutex = _Lock()
-        self.newline = _Condition(self._newline_mutex)
-        self.echo = echo
-        super().__init__()
-
-    def __enter__(self):
-        self.start()
-        return self
-
-    def __exit__(self, *_):
-        self.stderr.close()
-        self.join()  # will wait until stderr is closed
-        return self
-
-    def run(self):
-        stderr = self.stderr
-        if not isinstance(stderr, _TextIOBase):
-            stderr = self.stderr = _TextIOWrapper(stderr, "utf-8")
-        while True:
-            try:
-                log = stderr.readline()
-            except:
-                # stderr stream closed/FFmpeg terminated, end the thread as well
-                break
-            if not log and stderr.closed:
-                break
-
-            log = log[:-1]  # remove the newline
-
-            if not log:
-                time.sleep(0.001)
-                continue
-
-            if self.echo:
-                print(log)
-
-            with self.newline:
-                self.logs.append(log)
-                self.newline.notify_all()
-
-        with self.newline:
-            self.stderr = None
-            self.newline.notify_all()
-
-    def index(self, prefix, start=None, block=True, timeout=None):
-        start = int(start or 0)
-        with self.newline:
-            logs = self.logs[start:] if start else self.logs
-            try:
-                # check existing lines
-                return (
-                    next((i for i, log in enumerate(logs) if log.startswith(prefix)))
-                    + start
-                )
-            except:
-                if not self.is_alive():
-                    raise ThreadNotActive("Logger is not running")
-
-                # no wait mode
-                if not block:
-                    raise ValueError("Specified line not found")
-
-                # wait till matching line is read by the thread
-                if timeout is not None:
-                    timeout = time.time + timeout
-                start = len(self.logs)
-                while True:
-                    # wait till the next log update
-                    if not self.newline.wait(
-                        timeout if timeout is None else timeout - time.time
-                    ):
-                        raise TimeoutError("Specified line not found")
-
-                    # FFmpeg could have been terminated without match
-                    if self.stderr is None:
-                        raise ValueError("Specified line not found")
-
-                    # check the new lines
-                    try:
-                        return (
-                            next(
-                                (
-                                    i
-                                    for i, log in enumerate(self.logs[start:])
-                                    if log.startswith(prefix)
-                                )
-                            )
-                            + start
-                        )
-                    except:
-                        # still no match, update the starting position
-                        start = len(self.logs)
-
-    def output_stream(self, file_id=0, stream_id=0, block=True, timeout=None):
-        try:
-            i = self.index(f"Output #{file_id}", block=block, timeout=timeout)
-            self.index(f"  Stream #{file_id}:{stream_id}", i, block, timeout)
-        except ThreadNotActive as e:
-            raise e
-        except TimeoutError:
-            raise TimeoutError("Specified output stream not found")
-        except:
-            raise ValueError("Specified output stream not found")
-
-        with self._newline_mutex:
-            return extract_output_stream(self.logs, hint=i)
-
-    @property
-    def Exception(self):
-        return FFmpegError(self.logs)

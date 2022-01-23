@@ -19,20 +19,11 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
-# from subprocess import (
-#     DEVNULL,
-#     PIPE,
-#     TimeoutExpired,
-#     # CalledProcessError,
-#     # CompletedProcess,
-# )
-
-# PIPE_NONBLK = -4
-
 from threading import Thread as _Thread
 import subprocess as _sp
 from subprocess import PIPE, DEVNULL
-from .ffmpeg import exec, parse, ProgressMonitor
+from .ffmpeg import exec, parse
+from .threading import ProgressMonitorThread
 from .configure import move_global_options
 from .utils import bytes_to_ndarray as _as_array
 
@@ -169,7 +160,7 @@ class Popen(_sp.Popen):
         )
 
         # run progress monitor
-        self._progmon = None if progress is None else ProgressMonitor(progress)
+        self._progmon = None if progress is None else ProgressMonitorThread(progress)
 
         # start FFmpeg process
         exec(
@@ -313,7 +304,7 @@ def run(
     :rtype: subprocess.CompleteProcess
     """
 
-    with ProgressMonitor(progress) as progmon:
+    with ProgressMonitorThread(progress) as progmon:
         # run the FFmpeg
         ret = exec(
             move_global_options(ffmpeg_args),
