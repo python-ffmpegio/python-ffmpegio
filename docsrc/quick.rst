@@ -154,19 +154,18 @@ Another example, which uses read and write streams simultaneously:
 
 .. code-block:: python
 
-  >>> with ffmpegio.open('mytestvideo.mp4', 'rv') as f:
-  >>>     with ffmpegio.open('myoutput.avi', 'wv', f.frame_rate) as g:
-  >>>         for frame in f.readiter(): # iterates over all frames, one at a time
-  >>>             output = my_processor(frame) # function to process data
-  >>>             g.write(output) # send the processed frame to 'myoutput.avi' 
+  >>> with ffmpegio.open('mytestvideo.mp4', 'rv', blocksize=100) as f,
+  >>>      ffmpegio.open('myoutput.avi', 'wv', f.frame_rate) as g:
+  >>>         for frames in f: # iterates over all frames, 100 frames at a time
+  >>>             output = my_processor(frames) # function to process data
+  >>>             g.write(output) # send the processed frames to 'myoutput.avi' 
 
-By default, :code:`ffmpegio.open()` opens the first media stream availble to read.
+By default, :code:`ffmpegio.open()` opens the first media stream available to read.
 However, the operation mode can be specified via the :code:`mode` second argument.
 The above example, opens :code:`mytestvideo.mp4` file in :code:`'rv'` or "read 
 video" mode and :code:`myoutput.avi` in :code:`'wv'` or "write video" mode. The 
-file reader object :code:`f` is equipped with :code:`read()` method while the 
-write object comes with :code:`write()` method. The reader, in addition, has
-:code:`readiter()` generator to iterate as long as there are data to read. For more, 
+file reader object :code:`f` is an Iterable object, which returns the next set of
+frames (the number set by the :code:`blocksize` argument). For more, 
 see :py:func:`ffmpegio.open`.
 
 Specify Read Time Range
