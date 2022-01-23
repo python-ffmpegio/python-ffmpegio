@@ -20,6 +20,6 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules. 
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/tag/v0.1.1...HEAD
-[0.1.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/tag/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/tag/92d467...v0.1.0
+[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/92d467e...v0.1.0
