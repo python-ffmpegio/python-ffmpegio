@@ -35,7 +35,7 @@ def test_read_audio(caplog):
 
     fs, x = ffmpegio.audio.read(url)
 
-    with ffmpegio.open(url, "ra", show_log=True, blocksize=1024**2) as f:
+    with ffmpegio.open(url, "ra", show_log=True, blocksize=1024 ** 2) as f:
         # x = f.read(1024)
         # assert x.shape == (1024, f.ac)
         blks = [blk for blk in f]
@@ -48,7 +48,7 @@ def test_read_audio(caplog):
     t1 = n1 / fs
 
     with ffmpegio.open(
-        url, "ra", ss_in=t0, to_in=t1, show_log=True, blocksize=1024**2
+        url, "ra", ss_in=t0, to_in=t1, show_log=True, blocksize=1024 ** 2
     ) as f:
         blks = [blk for blk in f]
         log = f.readlog()
@@ -79,9 +79,17 @@ def test_read_write_audio():
             f.write(F[100:, ...])
 
 
-if __name__ == "__main__":
-    outext = ".flac"
+def test_read_write_video():
 
-    with ffmpegio.open(url, "ra") as f:
-        F = np.empty((10, *f.shape), f.dtype)
-        print(f.readinto(F))
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        out_url = path.join(tmpdirname, path.basename(url))
+        with ffmpegio.open(url, "vr", blocksize=1, t=30) as fin, ffmpegio.open(
+            out_url, "vw", rate=fin.frame_rate, show_log=True
+        ) as fout:
+            for frames in fin:
+                fout.write(frames)
+
+
+if __name__ == "__main__":
+    test_read_write_video()
+    
