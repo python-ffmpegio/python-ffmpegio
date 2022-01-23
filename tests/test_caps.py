@@ -49,4 +49,5 @@ def test_options():
     pprint(caps.options('per-file'))
 
 if __name__ == '__main__':
-    pass
+    caps.encoder_info('mpeg1video')
+

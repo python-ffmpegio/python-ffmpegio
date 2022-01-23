@@ -718,7 +718,7 @@ def filter_info(name):
     data = {
         "name": m[1],
         "description": m[2],
-        "threading": "slice" if m[3] else "",
+        "threading": ["slice"] if m[3] else [],
         "inputs": _getFilterPortInfo(m[4]),
         "outputs": _getFilterPortInfo(m[5]),
         "options": m[6],
