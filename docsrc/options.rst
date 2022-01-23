@@ -31,6 +31,28 @@ af          str        X        X  Audio filtergraph (leave output pad unlabeled
 crf         int        X        X  H.264 video encoding constant quality factor (0-51)
 ==========  =========  =  =  =  =  ============================================================
 
+Special handling of `s` output option
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+FFmpeg's :code:`-s` output option sets the output video frame size by using the scale video filter. However,
+it does not allow non-positive values for width and height which the scale filter accepts. 
+:py:mod:`ffmpegio` alters this behavior by checking the :code:`s` argument for <=0 width or height 
+and convert to :code:`vf` argument.
+
+============  ============================================================
+width/height  Description
+============  ============================================================
+n (n>0)       Specifying the output size to be n pixels
+0             Use the input size for the output
+-n            Scale the dimension proportional to the other dimension then
+              make sure that the calculated dimension is divisible by n 
+              and adjust the value if necessary. Only one of width or 
+              height can be negative valued.
+============  ============================================================
+
+Note that passing both :code:`s` with a non-positive value and :code:`vf` 
+will raise an exception.
+
 Video Pixel Formats :code:`pix_fmt`
 -----------------------------------
 

@@ -98,5 +98,12 @@ if __name__ == "__main__":
         transpose="clock",
     )
 
+    B = image.read(
+        url,
+        show_log=True,
+        s=(100,-2)
+    )
+    print(B.shape)
+
     plt.imshow(B)
     plt.show()

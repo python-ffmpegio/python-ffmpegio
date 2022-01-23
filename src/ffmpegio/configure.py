@@ -4,6 +4,7 @@ import numpy as np
 from . import utils
 from .utils.filter import video_basic_filter
 
+
 def empty():
     """create empty ffmpeg arg dict
 
@@ -150,29 +151,47 @@ def finalize_video_read_opts(
             remove_alpha = False
         else:
             _, ncomp, dtype, remove_alpha = utils.get_pixel_config(pix_fmt_in, pix_fmt)
-    if remove_alpha:
-        outopts["remove_alpha"] = True
 
     # set up basic video filter if specified
     fopts = {
         name: outopts.pop(name)
         for name in (
             "fill_color",
-            "remove_alpha",
             "crop",
             "flip",
             "transpose",
         )
         if name in outopts
     }
-    vf = video_basic_filter(**fopts)
-    if len(vf):
-        if "vf" not in outopts:
-            outopts["vf"] = vf
-        elif not ("remove_alpha" in fopts and len(fopts) == 1):
+
+    # check if output needs to be scaled
+    scale = outopts.get("s", None)
+    do_scale = scale is not None
+    if do_scale:
+        try:
+            m = re.match(r"(\d+)x(\d+)", scale)
+            scale = (int(m[1]), int(m[2]))
+        except:
+            pass
+        try:
+            do_scale = len(scale) > 2 or [scale[0] <= 0 or scale[1] <= 0]
+        except:
+            do_scale = False
+
+    if len(fopts) or remove_alpha or do_scale:
+        if do_scale:
+            fopts["scale"] = scale
+            del outopts["s"]
+
+        if remove_alpha:
+            fopts["remove_alpha"] = True
+
+        if "vf" in outopts:
             raise ValueError(
                 f"cannot specify `vf` and video basic filter options {tuple(fopts.keys())}"
             )
+
+        outopts["vf"] = video_basic_filter(**fopts)
 
     outopts["f"] = "rawvideo"
 

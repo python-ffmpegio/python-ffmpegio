@@ -1458,6 +1458,7 @@ def compose(expr, **kwargs):
 def video_basic_filter(
     fill_color=None,
     remove_alpha=None,
+    scale=None,
     crop=None,
     flip=None,
     transpose=None,
@@ -1467,9 +1468,7 @@ def video_basic_filter(
     bg_color = fill_color or "white"
 
     if remove_alpha:
-        vfilters.append(
-            f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay"
-        )
+        vfilters.append(f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay")
 
     if crop:
         try:
@@ -1494,5 +1493,16 @@ def video_basic_filter(
             vfilters.append(compose_filter("transpose", *transpose))
         except:
             vfilters.append(compose_filter("transpose", transpose))
+
+    if scale:
+        try:
+            scale = [int(s) for s in scale.split("x")]
+        except:
+            pass
+        try:
+            assert not isinstance(scale, str)
+            vfilters.append(compose_filter("scale", *scale))
+        except:
+            vfilters.append(compose_filter("scale", scale))
 
     return ",".join(vfilters)
