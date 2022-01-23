@@ -14,13 +14,15 @@ def empty():
     return dict(inputs=[], outputs=[], global_options=None)
 
 
-def check_url(url, nodata=True):
+def check_url(url, nodata=True, nofileobj=False):
     """Analyze url argument for non-url input
 
     :param url: url argument string or data or file
     :type url: str, bytes-like object, numpy.ndarray, or file-like object
     :param nodata: True to raise exception if url is a bytes-like object, default to True
     :type nodata: bool, optional
+    :param nofileobj: True to raise exception if url is a file-like object, default to False
+    :type nofileobj: bool, optional
     :return: url string, file object, and data object
     :rtype: tuple<str, file-like object or None, bytes-like object or None>
     """
@@ -38,6 +40,8 @@ def check_url(url, nodata=True):
             data = url
             url = "-"
         elif hasmethod(url, "fileno"):
+            if nofileobj:
+                raise ValueError("File-like object cannot be specified as url.")
             fileobj = url
             url = "-"
 

@@ -2,23 +2,16 @@ import re, fractions
 import numpy as np
 from .. import caps
 
-# fmt:off
-_filter_video_srcs = ("allrgb", "allyuv", "buffer", "cellauto", "color",
-    "coreimagesrc", "frei0r_src", "gradients", "haldclutsrc", "life", 
-    "mandelbrot", "mptestsrc", "nullsrc", "openclsrc", "pal100bars", 
-    "pal75bars",  "rgbtestsrc", "sierpinski", "smptebars", "smptehdbars",
-    "testsrc", "testsrc2", "yuvtestsrc",
-)
-_filter_video_snks = ("buffersink", "nullsink")
-_filter_audio_srcs = ("abuffer", "aevalsrc", "afirsrc", "anullsrc", 
-    "flite", "anoisesrc", "hilbert", "sinc", "sine")
-_filter_audio_snks = ("abuffersink", "anullsink")
-# fmt:on
 
-
-def parse_spec_stream(spec):
+def parse_spec_stream(spec,file_index=False):
     if isinstance(spec, str):
         out = {}
+        if file_index:
+            m = re.match(r'(\d+):')
+            if m:
+                out['file_index'] = int(m[1])
+                spec = spec[m.end():]
+                
         while len(spec):
             if spec.startswith("p:"):
                 _, v, *r = spec.split(":", 2)
@@ -359,9 +352,11 @@ def get_audio_format(fmt, return_format=False):
 
     # byteorder = "be" if sys.byteorder == "big" else "le"
     if isinstance(fmt, str):
-        out = formats.get(fmt, formats["s16"])
+        try:
+            out = formats[fmt]
+        except:
+            raise ValueError(f"{fmt} is not a valid raw audio sample_fmt")
         return (out[0][4:], out[1]) if return_format else out
-
     else:
         try:
             return next(((v[0], k) for k, v in formats.items() if v[1] == fmt))
@@ -651,12 +646,70 @@ def parse_time_duration(expr):
     return expr
 
 
+def find_stream_options(options, name):
+    """find option keys, which may be stream-specific
+
+    :param options: source option dict (content will be modified)
+    :type options: dict
+    :param suffix: matching suffix
+    :type suffix: str
+    :return: popped options
+    :rtype: dict
+    """
+
+    re_opt = re.compile( rf'{name}(?=\:|$)')
+    return [k for k in options if re_opt.match(k)]
+
 def pop_extra_options(options, suffix):
+    """pop matching keys from options dict
+
+    :param options: source option dict (content will be modified)
+    :type options: dict
+    :param suffix: matching suffix
+    :type suffix: str
+    :return: popped options
+    :rtype: dict
+    """
     n = len(suffix)
     return {
         k[:-n]: options.pop(k)
         for k in [k for k in options.keys() if k.endswith(suffix)]
     }
+
+
+def pop_extra_options_multi(options, suffix):
+    """pop regex matching keys from options dict and
+
+    :param options: source option dict (content will be modified)
+    :type options: dict
+    :param suffix: matching suffix regex expression with one group, capturing the (int) id
+    :type suffix: str
+    :return: dict of popped options with int id key
+    :rtype: str, dict(int, dict)
+
+    example:
+
+        pop_extra_options_multi({...},r'_in(\d+)$')
+
+    """
+
+    popped = {}
+
+    def match(name, v):
+        m = re.search(suffix, name)
+        if m:
+            k = name[: m.end()]
+            id = int(m[1])
+            if id in popped:
+                popped[id][k] = v
+            else:
+                popped[id] = {k: v}
+        return bool(m)
+
+    for o in (k for k, v in options.items() if match(k, v)):
+        options.pop(o)
+
+    return popped
 
 
 def bytes_to_ndarray(
