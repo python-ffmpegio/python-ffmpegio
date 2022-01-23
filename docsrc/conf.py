@@ -20,7 +20,7 @@ import ffmpegio
 
 project = "python-ffmpegio"
 copyright = (
-    "2021, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
+    "2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
 )
 author = "Takeshi (Kesh) Ikuma"
 release = ffmpegio.__version__

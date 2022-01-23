@@ -449,7 +449,16 @@ class ProgressMonitor(_Thread):
                             if not m:
                                 continue
                             if m[1] != "progress":
-                                d[m[1]] = m[2]
+                                val = m[2].lstrip()
+                                try:
+                                    val = int(val)
+                                except:
+                                    try:
+                                        val = float(val)
+                                    except:
+                                        pass
+
+                                d[m[1]] = val
                             else:
                                 done = m[2] == "end"
                                 try:

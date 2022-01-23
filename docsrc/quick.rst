@@ -235,7 +235,7 @@ filtergraph. For example,
 .. code-block:: python
 
   >>> # auto-scale video frame
-  >>> fs, F = ffmpegio.video.read('myvideo.mp4', t=1.0) # natively rgb24
+  >>> fs, F = ffmpegio.video.read('myvideo.mp4', t=1.0) # natively 320x240
   >>> F.shape
   (30, 240, 320, 3)
 
@@ -248,7 +248,7 @@ filtergraph. For example,
   
   >>> # auto-convert to mono
   >>> fs, x = ffmpegio.audio.read('myaudio.wav') # natively stereo
-  >>> _, y = ffmpegio.audio.read('myaudio.wav', ac=1) 
+  >>> _, y = ffmpegio.audio.read('myaudio.wav', ac=1) # to mono
   >>> x.shape
   (44100, 2)
   >>> y.shape
@@ -382,3 +382,43 @@ for the list of predefined color names.
 
         ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', 
             fill_color='#F0F0F0')
+
+Progress Callback
+-----------------
+
+FFmpeg has :code:`-progress` option, which sends program-friendly progress
+information to url. :py:mod:`ffmpegio` takes advantage of this option to
+let user monitor the transcoding progress with a callback, which could be 
+set with :code:`progress` argument of all media operations. The callback
+function must have the following signature:
+
+.. code-block:: python
+
+  progress_callback(status:dict, done:bool) -> None|bool
+
+The :code:`status` dict containing the information similar to what FFmpeg 
+displays on console. The second argument :code:`done` is only :code:`True` 
+on the last progress call. Here is an example of :code:`status` dict:
+
+.. code-block:: python
+
+  {'bitrate': '61.9kbits/s',
+  'drop_frames': 0,
+  'dup_frames': 0,
+  'fps': 336.18,
+  'frame': 1014,
+  'out_time': '00:00:33.877914',
+  'out_time_ms': 33877914,
+  'out_time_us': 33877914,
+  'speed': '11.2x',
+  'stream_0_0_q': 29.0,
+  'total_size': 262192}  
+
+While FFmpeg does not report percent progress, it is possible to compute it from
+:code:`frame` or :code:`out_time` if you know the total number of output frames
+or the output duration, respectively.
+
+If an FFmpeg media stream object is invoked by :py:func:`ffmpegio.open` 
+with :code:`progress` callback argument, the callback function can terminate
+the FFmpeg execution by returning :code:`True`. This feature is useful for GUI
+programming.
