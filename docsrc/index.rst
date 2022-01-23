@@ -96,6 +96,7 @@ High-level API reference
     basicio
     probe
     options
+    caps
 
 Advanced topics
 ---------------

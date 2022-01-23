@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
+    "sphinx.ext.todo",
     "sphinxcontrib.blockdiag",
     "matplotlib.sphinxext.plot_directive",
 ]
@@ -91,3 +92,5 @@ rst_prolog = """
     :language: python
     :class: highlight
 """
+
+todo_include_todos = True
