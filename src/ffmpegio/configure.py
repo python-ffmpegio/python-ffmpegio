@@ -178,7 +178,8 @@ def finalize_video_read_opts(
         except:
             do_scale = False
 
-    if len(fopts) or remove_alpha or do_scale:
+    nfo = len(fopts)
+    if (nfo and (nfo > 1 or "fill_color" not in fopts)) or remove_alpha or do_scale:
         if do_scale:
             fopts["scale"] = scale
             del outopts["s"]

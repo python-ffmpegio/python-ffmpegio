@@ -76,18 +76,10 @@ def test_read_write():
     # plt.show()
 
 
-# test_read_write()
-
-if __name__ == "__main__":
-    from matplotlib import pyplot as plt
-    import logging
-    from ffmpegio import utils, ffmpegprocess
-    from ffmpegio.utils import filter as filter_utils, log as log_utils
-
-    # logging.basicConfig(level=logging.DEBUG)
-
+def test_read_basic_filter():
+    
     url = "tests/assets/ffmpeg-logo.png"
-    outext = ".jpg"
+    
     B = image.read(
         url,
         show_log=True,
@@ -104,6 +96,29 @@ if __name__ == "__main__":
         s=(100,-2)
     )
     print(B.shape)
+
+    url = "tests/assets/ffmpeg-logo.png"
+    B = image.read(
+        url,
+        show_log=True,
+        fill_color="red",
+    )
+
+    B = image.read(
+        url,
+        show_log=True,
+        fill_color="red",
+        pix_fmt='rgb24'
+    )
+
+if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+    import logging
+    from ffmpegio import utils, ffmpegprocess
+    from ffmpegio.utils import filter as filter_utils, log as log_utils
+
+    # logging.basicConfig(level=logging.DEBUG)
+
 
     plt.imshow(B)
     plt.show()
