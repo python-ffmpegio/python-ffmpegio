@@ -580,10 +580,25 @@ def colors():
     return data
 
 
-#   // according to fftools/comdutils.c show_help_demuxer()
-
-
 def demuxer_info(name):
+    """get detailed info of a media demuxer
+
+    :return: list of features
+    :rtype: dict
+
+    The returned dict has following entries:
+
+    ==============  =========  ================================================
+    Key             type       description
+    ==============  =========  ================================================
+    names           list(str)  List of compatible short names
+    long_name       str        Common long name
+    extensions      list(str)  List of associated common extensions (w/out '.')
+    options         str        Unparsed string, listing supported options
+    ==============  =========  ================================================
+    """
+
+    #   // according to fftools/comdutils.c show_help_demuxer()
     stdout, data = __("demuxer", name)
     if data:
         return data
@@ -606,10 +621,30 @@ def demuxer_info(name):
     return data
 
 
-#   // according to fftools/comdutils.c show_help_muxer()
-
-
 def muxer_info(name):
+    """get detailed info of a media muxer
+
+    :return: list of features
+    :rtype: dict
+
+    The returned dict has following entries:
+
+    ===============  =========  ================================================
+    Key              type       description
+    ===============  =========  ================================================
+    names            list(str)  List of compatible short names
+    long_name        str        Common long name
+    extensions       list(str)  List of associated common extensions (w/out '.')
+    mime_types       list(str)  List of associated MIME types
+    video_codecs     list(str)  List of supported video codecs
+    audio_codecs     list(str)  List of supported audio codecs
+    subtitle_codecs  list(str)  List of supported subtitle codecs
+    options          str        Unparsed string, listing supported options
+    ===============  =========  ================================================
+    """
+
+    #   // according to fftools/comdutils.c show_help_muxer()
+
     stdout, data = __("muxer", name)
     if data:
         return data
@@ -635,14 +670,57 @@ def muxer_info(name):
     return data
 
 
-#   // according to fftools/comdutils.c show_help_codec()
-
-
 def encoder_info(name):
+    """get detailed info of an encoder
+
+    :return: list of features
+    :rtype: dict
+
+    The returned dict has following entries:
+
+    ======================  ==============  ================================================
+    Key                     type            description
+    ======================  ==============  ================================================
+    name                    list(str)       Short names
+    long_name               str             Long name
+    capabilities            list(str)       List of supported capabilities
+    threading               list(str)       List of threading capabilities
+    supported_hwdevices     list(str)       List of supported hardware accelerators
+    supported_framerates    list(Fraction)  List of supported video frame rates
+    supported_pix_fmts      list(str)       List of supported video pixel formats
+    supported_sample_rates  list(int)       List of supported audio sample rates
+    supported_sample_fmts   list(str)       List of supported audio sample formats
+    supported_layouts       list(str)       List of supported audio channel layouts
+    options                 str             Unparsed string, listing supported options
+    ======================  ==============  ================================================
+    """
     return _getCodecInfo(name, True)
 
 
 def decoder_info(name):
+    """get detailed info of a decoder
+
+    :return: list of features
+    :rtype: dict
+
+    The returned dict has following entries:
+
+    ======================  ==============  ================================================
+    Key                     type            description
+    ======================  ==============  ================================================
+    name                    list(str)       Short names
+    long_name               str             Long name
+    capabilities            list(str)       List of supported capabilities
+    threading               list(str)       List of threading capabilities
+    supported_hwdevices     list(str)       List of supported hardware accelerators
+    supported_framerates    list(Fraction)  List of supported video frame rates
+    supported_pix_fmts      list(str)       List of supported video pixel formats
+    supported_sample_rates  list(int)       List of supported audio sample rates
+    supported_sample_fmts   list(str)       List of supported audio sample formats
+    supported_layouts       list(str)       List of supported audio channel layouts
+    options                 str             Unparsed string, listing supported options
+    ======================  ==============  ================================================
+    """
     return _getCodecInfo(name, False)
 
 
@@ -653,6 +731,7 @@ _re_layouts = re.compile(
 
 
 def _getCodecInfo(name, encoder):
+    #   // according to fftools/comdutils.c show_help_codec()
     stdout, data = __("encoder" if encoder else "decoder", name)
     if data:
         return data
@@ -697,10 +776,31 @@ def _getCodecInfo(name, encoder):
     return data
 
 
-#   // according to fftools/comdutils.c show_help_filter()
-
-
 def filter_info(name):
+    """get detailed info of a filter
+
+    :return: list of features
+    :rtype: dict
+
+    The returned dict has following entries:
+
+    ===========  ==============  ================================================
+    Key          type            description
+    ===========  ==============  ================================================
+    name         str             Name
+    description  str             Description
+    threading    list(str)       List of threading capabilities
+    inputs       list(dict)|str  List of input pads or 'dynamic' if variable
+    outputs      list(dict)|str  List of output pads or 'dynamic' if variable
+    options      str             Unparsed string, listing supported options
+    ===========  ==============  ================================================
+
+    The dict iterms of 'inputs' and 'outputs' entries has two keys: 'name' and 'type'
+    defining the pad name and pad stream type ('audio' or 'video')
+
+    """
+
+    #   // according to fftools/comdutils.c show_help_filter()
     stdout, data = __("filter", name)
     if data:
         return data
@@ -730,10 +830,25 @@ def filter_info(name):
     return data
 
 
-#   // according to fftools/comdutils.c show_help_bsf()
-
-
 def bsfilter_info(name):
+    """get detailed info of a bitstream filter
+
+    :return: list of features
+    :rtype: dict
+
+    The returned dict has following entries:
+
+    ================  ==============  ================================================
+    Key               type            description
+    ================  ==============  ================================================
+    name              str             Name
+    supported_codecs  str             List of supported codecs
+    options           str             Unparsed string, listing supported options
+    ================  ==============  ================================================
+
+    """
+
+    #   // according to fftools/comdutils.c show_help_bsf()
     stdout, data = __("bsf", name)
     if data:
         return data
@@ -770,7 +885,7 @@ def _getFilterPortInfo(str):
         raise Exception("Failed to parse filter port info: %s" % str)
     return [{"name": m[1], "type": m[2]} for m in matches]
 
-
+#:dict: list of video size presets with their sizes
 video_size_presets = {
     "ntsc": (720, 480),
     "pal": (720, 576),
@@ -827,6 +942,7 @@ video_size_presets = {
     "uhd4320": (7680, 4320),
 }
 
+#:dict: list of video frame rate presets with their rates
 frame_rate_presets = {
     "ntsc": fractions.Fraction(30000, 1001),
     "pal": fractions.Fraction(25, 1),
