@@ -594,7 +594,7 @@ def demuxer_info(name):
     )
 
     data = dict(
-        name=m[1],
+        names=m[1].split(","),
         long_name=m[2],
         extensions=m[3].split(",") if m[3] else [],
         options=m[4],
@@ -620,13 +620,13 @@ def muxer_info(name):
     )
 
     data = {
-        "name": m[1],
+        "names": m[1].split(","),
         "long_name": m[2],
         "extensions": m[3].split(",") if m[3] else [],
-        "mime_type": m[4].split(",") if m[4] else [],
-        "video_codec": m[5].split(",") if m[5] else [],
-        "audio_codec": m[6].split(",") if m[6] else [],
-        "subtitle_codec": m[7].split(",") if m[7] else [],
+        "mime_types": m[4].split(",") if m[4] else [],
+        "video_codecs": m[5].split(",") if m[5] else [],
+        "audio_codecs": m[6].split(",") if m[6] else [],
+        "subtitle_codecs": m[7].split(",") if m[7] else [],
         "options": m[8],
     }
     if not "muxer" in _cache:
