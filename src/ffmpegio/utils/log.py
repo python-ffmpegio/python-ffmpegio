@@ -1,7 +1,7 @@
 import re
 import time
 from . import layout_to_channels
-from ..caps import samplefmts
+from ..caps import sample_fmts
 from fractions import Fraction
 
 
@@ -80,7 +80,7 @@ def parse_log_audio_stream(info):
     sample_fmt = items[i] if len(items) > i else None
     if sample_fmt is not None:
         sample_fmt = sample_fmt.split(" ", 1)[0]
-        if sample_fmt in samplefmts():
+        if sample_fmt in sample_fmts():
             d["sample_fmt"] = sample_fmt
     return d
 

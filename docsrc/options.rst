@@ -35,7 +35,7 @@ Video Pixel Formats :code:`pix_fmt`
 -----------------------------------
 
 There are many video pixel formats that FFmpeg support, which you can obtain with 
-:py:func:`caps.pixfmts()` function. For the I/O purpose, :py:mod:`ffmpegio` video/image
+:py:func:`caps.pix_fmts()` function. For the I/O purpose, :py:mod:`ffmpegio` video/image
 functions operate strictly with RGB or grayscale formats listed below.
 
 =====  ==============  =========  ===================================
@@ -60,7 +60,7 @@ Audio Sample Formats :code:`sample_fmt`
 ---------------------------------------
 
 FFmpeg offers its audio channels in both interleaved and planar sample formats (`sample_fmt`, 
-run :py:func:`caps.samplefmts()` to list available formats). For the I/O purpose, 
+run :py:func:`caps.sample_fmts()` to list available formats). For the I/O purpose, 
 :py:mod:`ffmpegio` audio functions always use the interleaved formats:
 
 ==============  ==========

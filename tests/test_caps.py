@@ -12,8 +12,8 @@ def test_all():
     muxes = caps.muxers()
     demuxes = caps.demuxers()
     caps.protocols()
-    caps.pixfmts()
-    caps.samplefmts()
+    caps.pix_fmts()
+    caps.sample_fmts()
     caps.layouts()
     caps.colors()
     for demux in demuxes.keys():

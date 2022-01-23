@@ -386,7 +386,7 @@ def protocols():
 #   // according to fftools/comdutils.c show_pix_fmts()
 
 
-def pixfmts():
+def pix_fmts():
     stdout, data = _("pix_fmts")
 
     if data:
@@ -414,7 +414,7 @@ def pixfmts():
 #   // according to fftools/comdutils.c show_sample_fmts()
 
 
-def samplefmts():
+def sample_fmts():
     stdout, data = _("sample_fmts")
     if not data:
         _cache["sample_fmts"] = data = {
@@ -728,8 +728,8 @@ __all__ = [
     "demuxers",
     "bsfilters",
     "protocols",
-    "pixfmts",
-    "samplefmts",
+    "pix_fmts",
+    "sample_fmts",
     "layouts",
     "colors",
     "demuxer_info",

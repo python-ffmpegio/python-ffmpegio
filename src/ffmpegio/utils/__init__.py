@@ -167,10 +167,10 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
     =====  ============  =========  ===================================
     """
     try:
-        fmt_info = caps.pixfmts()[input_pix_fmt]
+        fmt_info = caps.pix_fmts()[input_pix_fmt]
     except:
         raise Exception(
-            f"unknown pixel format '{input_pix_fmt}' specified. Run ffmpegio.caps.pixfmts() for supported formats."
+            f"unknown pixel format '{input_pix_fmt}' specified. Run ffmpegio.caps.pix_fmts() for supported formats."
         )
     n_in = fmt_info["nb_components"]
     bpp = fmt_info["bits_per_pixel"]
@@ -186,7 +186,7 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
             pix_fmt = "rgba" if bpp <= 32 else "rgba64le"
 
     if pix_fmt != input_pix_fmt:
-        fmt_info = caps.pixfmts()[pix_fmt]
+        fmt_info = caps.pix_fmts()[pix_fmt]
         n_out = fmt_info["nb_components"]
         bpp = fmt_info["bits_per_pixel"]
     else:

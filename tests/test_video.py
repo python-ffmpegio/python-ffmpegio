@@ -99,5 +99,5 @@ if __name__ == "__main__":
     from pprint import pprint
     import re
 
-    # pprint(ffmpegio.caps.samplefmts())
+    # pprint(ffmpegio.caps.sample_fmts())
     test_filter()
