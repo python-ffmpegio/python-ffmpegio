@@ -257,17 +257,13 @@ def codecs(type=None, stream_type=None):
 
     return {k: v for k, v in data.items() if pick(v)}
 
+def encoders(type=None):
+    """get summary of FFmpeg encoders
 
-def coders(type, stream_type=None):
-    """get summary of FFmpeg decoders or encoders
-
-    :param type: specify to list encoders or decoders
-    :type type: 'decoders'|'encoders'
-    :param stream_type: specify stream type, defaults to None
-    :type stream_type: 'audio'|'video'|'subtitle', optional
-    :return: list of decoders or encoders
+    :param type: specify stream type, defaults to None
+    :type type: 'audio'|'video'|'subtitle', optional
+    :return: list of encoders
     :rtype: dict
-
 
     Each key of the returned dict is a name of a decoder or encoder and its
     value is a dict with the following items:
@@ -284,6 +280,35 @@ def coders(type, stream_type=None):
     directRendering   bool  True if supports direct encoding method 1
     ================  ====  ===============================================
     """
+    return _coders('encoders',type)
+
+def decoders(type=None):
+    """get summary of FFmpeg decoders
+
+    :param stream_type: specify stream type, defaults to None
+    :type stream_type: 'audio'|'video'|'subtitle', optional
+    :return: list of decoders or encoders
+    :rtype: dict
+
+
+    Each key of the returned dict is a name of a decoder and its
+    value is a dict with the following items:
+
+    ================  ====  ===============================================
+    Key               type  description
+    ================  ====  ===============================================
+    type              str   Stream type: 'audio'|'video'|'subtitle'
+    description       str   Short description of the coder
+    frame_mt          bool  True if employs frame-level multithreading
+    slice_mt          bool  True if employs slice-level multithreading
+    experimental      bool  True if experimental encoder
+    draw_horiz_band   bool  True if supports draw_horiz_band
+    directRendering   bool  True if supports direct encoding method 1
+    ================  ====  ===============================================
+    """
+    return _coders('decoders',type)
+
+def _coders(type, stream_type=None):
 
     # reversed fftools/comdutils.c show_encoders()
 
