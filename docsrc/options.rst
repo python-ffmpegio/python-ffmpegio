@@ -98,10 +98,11 @@ run :py:func:`caps.sample_fmts()` to list available formats). For the I/O purpos
 Built-in Video Manipulation Options
 -----------------------------------
 
-FFmpeg can manipulate both video and audio streams by filtergraph 
-(`FFmpeg Documentation <https://ffmpeg.org/ffmpeg-filters.html#Description>`__).
-Video/image routines of :py:mod:`ffmpegio` adds addtional video options to
-perform simple video maninpulations without the need of setting up a filtergraph.
+While the use of the :code:`vf` or :code:`filter_complex` option enables the full spectrum 
+of FFmpeg's filtering capability (`FFmpeg Documentation <https://ffmpeg.org/ffmpeg-filters.html#Description>`__),
+:py:mod:`ffmpegio`'s video and image routines adds several convenience 
+video options to perform simple video maninpulations without the need of setting 
+up a filtergraph.
 
 
 .. list-table:: Options to manipulate video frames
@@ -129,12 +130,22 @@ perform simple video maninpulations without the need of setting up a filtergraph
     - `transpose <https://ffmpeg.org/ffmpeg-filters.html#transpose-1>`__
     - tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
       For the others, see the FFmpeg documentation.
-  * - :code:`fill_color`
+  * - :code:`square_pixels`
+    - {:code:`'upscale'`, :code:`'downscale'`, :code:`'upscale_even'`, 
+      :code:`'downscale_even'`}
+    - `scale <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__ and `setsar <https://ffmpeg.org/ffmpeg-filters.html#setsar-1>`__
+    - Resize video frames so that their pixels are square (i.e., SAR=1:1). 
+      :code:`'upscale'` stretches the short side
+      of the pixels while :code:`'downscale'` compresses the long side.
+      :code:`'even'` makes sure that the resulting frame size is even (required by some codecs).
+  * - :code:`fill_color` 
     - str
     - n/a
-    - This option is used to auto-convert transparent images to an 
-      opaque :code:`pix_fmt`. Its option value specifies a color according to
+    - This option is used for the auto-conversion of an image with transparency to
+      opaque by setting the output option :code:`pix_fmt`. The option value 
+      specifies a color according to
       `FFmpeg Color Specifications <https://ffmpeg.org/ffmpeg-utils.html#Color>`__.
+      Default color is :code:`'white'`.
 
 Note that the these operations are pre-wired to perform in a specific order:
 
@@ -142,7 +153,8 @@ Note that the these operations are pre-wired to perform in a specific order:
   :caption: Video Manipulation Order
 
   blockdiag {
-    crop -> flip -> transpose;
+    square_pixels -> crop -> flip -> transpose;
+    crop -> flip [folded]
   }
 
 Be aware of this ordering as these filters are non-commutative (i.e., a change in the 

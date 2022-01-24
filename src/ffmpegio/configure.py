@@ -155,12 +155,7 @@ def finalize_video_read_opts(
     # set up basic video filter if specified
     fopts = {
         name: outopts.pop(name)
-        for name in (
-            "fill_color",
-            "crop",
-            "flip",
-            "transpose",
-        )
+        for name in ("fill_color", "crop", "flip", "transpose", "square_pixels")
         if name in outopts
     }
 

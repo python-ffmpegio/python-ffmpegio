@@ -1,4 +1,4 @@
-from ffmpegio import image, probe
+from ffmpegio import image, probe, transcode
 import tempfile, re
 from os import path
 import numpy as np
@@ -77,9 +77,9 @@ def test_read_write():
 
 
 def test_read_basic_filter():
-    
+
     url = "tests/assets/ffmpeg-logo.png"
-    
+
     B = image.read(
         url,
         show_log=True,
@@ -90,11 +90,7 @@ def test_read_basic_filter():
         transpose="clock",
     )
 
-    B = image.read(
-        url,
-        show_log=True,
-        s=(100,-2)
-    )
+    B = image.read(url, show_log=True, s=(100, -2))
     print(B.shape)
 
     url = "tests/assets/ffmpeg-logo.png"
@@ -104,12 +100,27 @@ def test_read_basic_filter():
         fill_color="red",
     )
 
-    B = image.read(
-        url,
-        show_log=True,
-        fill_color="red",
-        pix_fmt='rgb24'
-    )
+    B = image.read(url, show_log=True, fill_color="red", pix_fmt="rgb24")
+
+
+def test_square_pixels():
+    url = "tests/assets/testvideo-1m.mp4"
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        out_url = path.join(tmpdirname, path.basename(url))
+        transcode(url, out_url, show_log=True, vf="setsar=11/13", t=0.5)
+
+        B = image.read(out_url)
+        Bu = image.read(out_url, square_pixels="upscale")
+        Bd = image.read(out_url, square_pixels="downscale")
+        Bue = image.read(out_url, square_pixels="upscale_even")
+        Bde = image.read(out_url, square_pixels="downscale_even")
+
+        print(B.shape)
+        print(Bu.shape)
+        print(Bd.shape)
+        print(Bue.shape)
+        print(Bde.shape)
+
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
@@ -119,6 +130,12 @@ if __name__ == "__main__":
 
     # logging.basicConfig(level=logging.DEBUG)
 
+    url = "tests/assets/ffmpeg-logo.png"
+    B = image.read(
+        url,
+        show_log=True,
+        fill_color="red",
+    )
 
     plt.imshow(B)
     plt.show()

@@ -1462,6 +1462,7 @@ def video_basic_filter(
     crop=None,
     flip=None,
     transpose=None,
+    square_pixels=None,
 ):
     vfilters = []
 
@@ -1469,6 +1470,17 @@ def video_basic_filter(
 
     if remove_alpha:
         vfilters.append(f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay")
+
+    if square_pixels == "upscale":
+        vfilters.append("scale='max(iw,ih*dar):max(iw/dar,ih):eval=init',setsar=1/1")
+    elif square_pixels == "downscale":
+        vfilters.append("scale='min(iw,ih*dar):min(iw/dar,ih):eval=init',setsar=1/1")
+    elif square_pixels == "upscale_even":
+        vfilters.append("scale='trunc(max(iw,ih*dar)/2)*2:trunc(max(iw/dar,ih)/2)*2:eval=init',setsar=1/1")
+    elif square_pixels == "downscale_even":
+        vfilters.append("scale='trunc(min(iw,ih*dar)/2)*2:trunc(min(iw/dar,ih)/2)*2:eval=init',setsar=1/1")
+    elif square_pixels is not None:
+        raise ValueError(f"unknown `square_pixels` option value given: {square_pixels}")
 
     if crop:
         try:
