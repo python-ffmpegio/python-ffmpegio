@@ -29,9 +29,12 @@ PIPE:    Special value that indicates a pipe should be created
 
 # PIPE_NONBLK = -4
 
+from os import path
 from threading import Thread as _Thread
 import subprocess as _sp
+from copy import deepcopy
 from subprocess import PIPE, DEVNULL
+from tempfile import TemporaryDirectory
 from .ffmpeg import exec, parse, ProgressMonitor
 from .configure import move_global_options
 from .utils import bytes_to_ndarray as _as_array
@@ -132,6 +135,7 @@ class Popen(_sp.Popen):
     def __init__(
         self,
         ffmpeg_args,
+        *,
         hide_banner=True,
         progress=None,
         overwrite=None,
@@ -260,6 +264,7 @@ class Popen(_sp.Popen):
 
 def run(
     ffmpeg_args,
+    *,
     hide_banner=True,
     progress=None,
     overwrite=None,
@@ -334,6 +339,143 @@ def run(
             ret.stdout = _as_array(ret.stdout, shape, dtype)
         if size > 0:
             ret.stdout = ret.stdout[:size]
+
+    # split log lines
+    if ret.stderr is not None:
+        ret.stderr = ret.stderr.decode("utf-8")
+
+    return ret
+
+
+def run_two_pass(
+    ffmpeg_args,
+    pass1_omits=None,
+    pass1_extras=None,
+    overwrite=None,
+    stdin=None,
+    **other_run_kwargs,
+):
+    """run FFmpeg subprocess with standard pipes with a single transaction twice for 2-pass encoding
+
+    :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: dict
+    :param pass1_omits: per-file list of output arguments to ignore in pass 1. If not applicable to every
+                        output file, use a nested dict with int keys to specify which output,
+                        defaults to None (remove 'c:a' or 'acodec').
+    :type pass1_omits: seq(seq(str)) or dict(int:seq(str)) optional
+    :param pass1_extras: per-file list of additional output arguments to include in pass 1. If it does
+                         not apply to every output files, use a nested dict with int keys to specify
+                         which output, defaults to None (add 'an' if `pass1_omits` also None)
+    :type pass1_extras: seq(dict(str)) or dict(int:dict(str)), optional
+    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+    :type hide_banner: bool, optional
+    :param progress: progress callback function, defaults to None. This function
+                     takes two arguments:
+
+                        progress(data:dict, done:bool) -> None
+
+    :type progress: callable object, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :type overwrite: bool, optional
+    :param capture_log: True to capture log messages on stderr, False to send
+                        logs to console, defaults to None (no show/capture)
+    :type capture_log: bool, optional
+    :param stdin: source file object, defaults to None
+    :type stdin: readable file-like object, optional
+    :param stderr: file to log ffmpeg messages, defaults to None
+    :type stderr: writable file-like object, optional
+    :param input: input data buffer must be given if FFmpeg is configured to receive
+                    data stream from Python. It must be bytes convertible to bytes.
+    :type input: bytes-convertible object, optional
+    :param \\**other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
+    :type \\**other_popen_kwargs: dict, optional
+    :rparam: completed process
+    :rtype: subprocess.CompleteProcess
+    """
+
+    # TODO allow multiple stream 2-pass encoding
+    # TODO add additional arguments to specify which output file
+    # TODO add additional arguments to control which output option to be added or dropped during 1st pass
+
+    from_stream = stdin is not None
+    if from_stream:
+        try:
+            assert stdin.seekable()
+        except:
+            raise ValueError("stdin must be seekable")
+
+    ffmpeg_args["outputs"] = list(ffmpeg_args["outputs"])
+
+    # ref: https://trac.ffmpeg.org/wiki/Encode/H.264#twopass
+    pass1_args = deepcopy(ffmpeg_args)
+
+    def mod_pass1_outopts(i, opts):
+        opts = opts or {}
+        opts["f"] = "null"
+        opts["pass"] = 1
+
+        def omit_opt(k):
+            try:
+                del opts[k]
+            except:
+                pass
+
+        if pass1_omits is None:
+            omit_opt("c:a")
+            omit_opt("acodec")
+        else:
+            try:
+                for k in pass1_omits[i]:
+                    omit_opt(k)
+            except:
+                pass
+
+        if pass1_extras is not None:
+            try:
+                for k, v in pass1_extras.items():
+                    opts[k] = v
+            except:
+                pass
+        elif pass1_omits is None:
+            opts["an"] = None
+
+        return None, opts
+
+    pass1_args["outputs"] = [
+        mod_pass1_outopts(i, o[1]) for i, o in enumerate(pass1_args["outputs"])
+    ]
+    pass1_opts = pass1_args["global_options"] = pass1_args["global_options"] or {}
+    pass1_opts["y"] = None
+    try:
+        del pass1_opts["n"]
+    except:
+        pass
+
+    def mod_pass2_outopts(url, opts):
+        try:
+            opts["pass"] = 2
+            return url, opts
+        except:
+            return (url, {"pass": 2})
+
+    ffmpeg_args["outputs"] = [mod_pass2_outopts(*o) for o in ffmpeg_args["outputs"]]
+
+    with TemporaryDirectory() as tmpdir:
+        if "passlogfile" not in ffmpeg_args["outputs"][0][1]:
+            ffmpeg_args["outputs"][0][1]["passlogfile"] = pass1_args["outputs"][0][1][
+                "passlogfile"
+            ] = path.join(tmpdir, "ffmpeg2pass")
+
+        if stdin is not None:
+            pos = stdin.tell()
+
+        run(pass1_args, **other_run_kwargs)
+
+        if stdin is not None:
+            stdin.seek(pos)
+
+        ret = run(ffmpeg_args, overwrite=overwrite, **other_run_kwargs)
 
     # split log lines
     if ret.stderr is not None:

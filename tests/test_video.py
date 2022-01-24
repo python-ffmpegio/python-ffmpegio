@@ -3,6 +3,7 @@ import tempfile, re
 from os import path
 import numpy as np
 
+
 def test_create():
     # make sure rgb channels are mapped properly
     A = video.create("mandelbrot", r=25, size="320x240", t_in=10)[1]
@@ -91,6 +92,21 @@ def test_filter():
     print(r, output.shape, output.dtype)
 
 
+def test_two_pass_write():
+    url = "tests/assets/testmulti-1m.mp4"
+    fs, A = video.read(url, vframes=100)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        out_url = path.join(tmpdirname, path.basename(url))
+        video.write(
+            out_url,
+            fs,
+            A,
+            two_pass=True,
+            **{"c:v": "libx264", "b:v": "500k"},
+            show_log=True
+        )
+
+
 if __name__ == "__main__":
     # test_create()
     from ffmpegio import configure, utils, ffmpegprocess
@@ -99,5 +115,11 @@ if __name__ == "__main__":
     from pprint import pprint
     import re
 
-    # pprint(ffmpegio.caps.sample_fmts())
-    test_filter()
+    # ffmpeg -y -i input -c:v libx264 -b:v 2600k -pass 1 -an -f null /dev/null && \
+    # ffmpeg -i input -c:v libx264 -b:v 2600k -pass 2 -c:a aac -b:a 128k output.mp4
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    test_two_pass_write()
+    

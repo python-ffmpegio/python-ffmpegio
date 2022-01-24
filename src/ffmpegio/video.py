@@ -1,3 +1,4 @@
+from copy import deepcopy
 import numpy as np
 
 from . import ffmpegprocess, utils, configure, FFmpegError, probe
@@ -196,7 +197,18 @@ def read(url, progress=None, show_log=None, **options):
     )
 
 
-def write(url, rate, data, progress=None, overwrite=None, show_log=None, **options):
+def write(
+    url,
+    rate,
+    data,
+    progress=None,
+    overwrite=None,
+    show_log=None,
+    two_pass=False,
+    pass1_omits=None,
+    pass1_extras=None,
+    **options,
+):
     """Write Numpy array to a video file
 
     :param url: URL of the video file to write.
@@ -213,6 +225,11 @@ def write(url, rate, data, progress=None, overwrite=None, show_log=None, **optio
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
+    :param two_pass: True to encode in 2-pass
+    :param pass1_omits: list of output arguments to ignore in pass 1, defaults to None
+    :type pass1_omits: seq(str), optional
+    :param pass1_extras: list of additional output arguments to include in pass 1, defaults to None
+    :type pass1_extras: dict(int:dict(str)), optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
@@ -229,12 +246,22 @@ def write(url, rate, data, progress=None, overwrite=None, show_log=None, **optio
     )
     configure.add_url(ffmpeg_args, "output", url, options)
 
-    ffmpegprocess.run(
+    kwargs = (
+        {
+            "pass1_omits": None if pass1_omits is None else [pass1_omits],
+            "pass1_extras": None if pass1_extras is None else [pass1_extras],
+        }
+        if two_pass
+        else {}
+    )
+
+    (ffmpegprocess.run_two_pass if two_pass else ffmpegprocess.run)(
         ffmpeg_args,
         input=data,
         stdout=stdout,
         progress=progress,
         overwrite=overwrite,
+        **kwargs,
         capture_log=False if show_log else None,
     )
 
