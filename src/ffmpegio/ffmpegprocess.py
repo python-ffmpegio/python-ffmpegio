@@ -164,7 +164,7 @@ class Popen(_sp.Popen):
             )
 
         #: dict: The FFmpeg args argument as it was passed to `Popen`
-        self.ffmpeg_args = (
+        self.ffmpeg_args = move_global_options(
             {**ffmpeg_args} if isinstance(ffmpeg_args, dict) else parse(ffmpeg_args)
         )
 
