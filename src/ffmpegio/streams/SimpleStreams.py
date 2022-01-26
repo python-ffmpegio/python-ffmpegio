@@ -249,6 +249,7 @@ class SimpleWriterBase:
         dtype=None,
         show_log=None,
         progress=None,
+        overwrite=None,
         **options,
     ) -> None:
 
@@ -275,6 +276,7 @@ class SimpleWriterBase:
             "ffmpeg_args": ffmpeg_args,
             "progress": progress,
             "capture_log": True,
+            "overwrite": overwrite,
             "stdout": stdout,
             "close_stdin": True,
             "close_stdout": True,
