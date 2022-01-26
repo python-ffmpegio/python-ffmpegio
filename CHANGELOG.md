@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Added
+
+- `square_pixels` options to video & image
+- `overwrite` option to video and image stream writers
+- `ffmpegprocess.Popen` to resolve misplaced global options
+
 ## [0.1.2] - 2022-01-23
 
 ### Added
@@ -46,7 +54,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules. 
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.2...HEAD
-[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.1...v0.1.2
+[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.2...v0.1.3
+[0.1.2]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/92d467e...v0.1.0
