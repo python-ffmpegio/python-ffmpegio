@@ -3,6 +3,8 @@ from .SimpleStreams import (
     SimpleVideoWriter,
     SimpleAudioReader,
     SimpleAudioWriter,
+    SimpleVideoFilter,
+    SimpleAudioFilter,
 )
 
 #TODO filter

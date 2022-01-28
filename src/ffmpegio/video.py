@@ -196,13 +196,13 @@ def read(url, progress=None, show_log=None, **options):
     )
 
 
-def write(url, rate, data, progress=None, overwrite=None, show_log=None, **options):
+def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **options):
     """Write Numpy array to a video file
 
     :param url: URL of the video file to write.
     :type url: str
-    :param rate: frame rate in frames/second
-    :type rate: `float`, `int`, or `fractions.Fraction`
+    :param rate_in: frame rate in frames/second
+    :type rate_in: `float`, `int`, or `fractions.Fraction`
     :param data: video frame data 4-D array (frame x rows x cols x components)
     :type data: `numpy.ndarray`
     :param progress: progress callback function, defaults to None
@@ -225,7 +225,7 @@ def write(url, rate, data, progress=None, overwrite=None, show_log=None, **optio
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_video_input(rate, data=data, **input_options),
+        *utils.array_to_video_input(rate_in, data=data, **input_options),
     )
     configure.add_url(ffmpeg_args, "output", url, options)
 

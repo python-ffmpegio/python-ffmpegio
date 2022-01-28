@@ -213,13 +213,13 @@ def read(url, progress=None, show_log=None, **options):
     )
 
 
-def write(url, rate, data, progress=None, overwrite=None, show_log=None, **options):
+def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **options):
     """Write a NumPy array to an audio file.
 
     :param url: URL of the audio file to write.
     :type url: str
-    :param rate: The sample rate in samples/second.
-    :type rate: int
+    :param rate_in: The sample rate in samples/second.
+    :type rate_in: int
     :param data: input audio data.
     :type data: numpy.ndarray
     :param progress: progress callback function, defaults to None
@@ -243,7 +243,7 @@ def write(url, rate, data, progress=None, overwrite=None, show_log=None, **optio
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_audio_input(rate, data=data, **input_options)[0],
+        *utils.array_to_audio_input(rate_in, data=data, **input_options)[0],
     )[1][1]
     configure.add_url(ffmpeg_args, "output", url, options)[1][1]
 
