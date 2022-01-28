@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Added
+-added threading.ReaderThread
+-added streams.SimpleStreams.SimpleFilterBase
+-added streams.SimpleStreams.SimpleAudioFilter
+-added streams.SimpleStreams.SimpleVideoFilter working
+-added 'f' mode support for open()
+
+### Changed
+
+- moved and renamed ffmpeg.ProgressMonitor to threading.ProgressMonitorThread
+- moved and renamed utils.log.Logger to threading.LoggerThread
+- changed writer argument names
+
+### Removed
+
+    -removed io.py and its dependencies
+
 ## [0.1.3]
 
 ### Added
