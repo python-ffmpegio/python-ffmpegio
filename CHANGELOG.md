@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 -added streams.SimpleStreams.SimpleAudioFilter
 -added streams.SimpleStreams.SimpleVideoFilter working
 -added 'f' mode support for open()
+-added ffmpegprocess.run_two_pass() for 2-pass encoding
+-added 'two_pass', 'pass1_omits' and 'pass1_extras' arguments
+ to video.write() and transcode()
 
 ### Changed
 
