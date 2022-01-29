@@ -172,7 +172,16 @@ def compose(args, command="", shell_command=False):
         for url, opts in inputs:
             if opts:
                 args.extend(opts2args(opts, finalize_input))
-            args.extend(["-i", url])
+            args.extend(
+                [
+                    "-i",
+                    url
+                    if url is not None
+                    else "/dev/null"
+                    if _os.name != "nt"
+                    else "NUL",
+                ]
+            )
         return args
 
     def outputs2args(outputs):
@@ -180,7 +189,9 @@ def compose(args, command="", shell_command=False):
         for url, opts in outputs:
             if opts:
                 args.extend(opts2args(opts, finalize_output))
-            args.append(url)
+            args.append(
+                url if url is not None else "/dev/null" if _os.name != "nt" else "NUL"
+            )
         return args
 
     args = [
