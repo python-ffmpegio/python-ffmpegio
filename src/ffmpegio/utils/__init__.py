@@ -212,6 +212,32 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
     )
 
 
+def alpha_change(input_pix_fmt, output_pix_fmt, dir=None):
+    """get best pixel configuration to read video data in specified pixel format
+
+    :param input_pix_fmt: input pixel format
+    :type input_pix_fmt: str
+    :param output_pix_fmt: output pixel format
+    :type output_pix_fmt: str, optional
+    :param dir: specify the change direction for boolean answer, defaults to None
+    :type dir: int, optional
+    :return: dir None: 0 if no change, 1 if alpha added, -1 if alpha removed, None if indeterminable
+             dir int: True if changes in the specified direction or False
+    :rtype: bool, int, None
+
+    """
+    if input_pix_fmt is None or output_pix_fmt is None:
+        return None if dir is None else False
+    n_in = caps.pix_fmts()[input_pix_fmt]["nb_components"]
+    n_out = caps.pix_fmts()[output_pix_fmt]["nb_components"]
+    d = (n_in % 2) - (n_out % 2)
+    return (
+        d
+        if dir is None
+        else (d > 0) == (dir > 0) or (d < 0) == (dir < 0) or (d == 0 and dir == 0)
+    )
+
+
 def get_video_format(fmt):
     """get video pixel format
 
