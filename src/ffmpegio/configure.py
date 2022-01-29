@@ -433,3 +433,81 @@ def clear_loglevel(args):
         logging.warn("loglevel option is cleared by ffmpegio")
     except:
         pass
+
+
+def finalize_media_read_opts(args, streams=None):
+    """finalize multiple-input media reader setup
+
+    :param args: FFmpeg dict
+    :type args: dict
+    :param streams: list of file + stream specifiers or filtergraph label to output, alias of `map` option,
+                    defaults to None, which outputs at most one video and one audio, selected by FFmpeg
+    :type streams: seq(str), optional
+    :return: use_ya8 flag - True to expect 16-bpc pixel to be ya8 pix_fmt instead of gray16le pix_fmt
+    :rtype: bool
+    """
+
+    # number of input files
+    ninputs = len(args["inputs"])
+
+    # get output options, create new
+    options = args["outputs"][0][1]
+    if options is None:
+        options = {}
+        args["outputs"][0] = ("-", options)
+
+    # check to make sure all pixel and sample formats are supported
+    gray16le = ya8 = 0
+    for k in utils.find_stream_options(options, "pix_fmt"):
+        v = options[k]
+        utils.get_video_format(v)
+        if v == "gray16le":
+            gray16le += 1
+        elif v == "ya8":
+            ya8 += 1
+    if gray16le and ya8:
+        raise ValueError("gray16le and ya8 pix_fmts cannot be mixed.")
+
+    # if pix_fmt and sample_fmt not specified, set defaults
+    # user can conditionally override these by stream-specific option
+    if "pix_fmt" not in options:
+        options["pix_fmt"] = "rgb24"
+    if "sample_fmt" not in options:
+        options["sample_fmt"] = "s16"
+
+    # add output formats and codecs
+    options["f"] = "avi"
+    options["c:v"] = "rawvideo"
+
+    # add audio codec
+    for k in utils.find_stream_options(options, "sample_fmt"):
+        options[f"c:a" + k[10:]] = utils.get_audio_format(options[k])[0]
+
+    # map
+    if streams is not None:
+        # separate file ids (if present)
+        def split_file_id(s):
+            try:
+                m = re.match(r"(\d+):", s)
+                s = s[m.end() :]
+                return (int(m[1]), s[m.end() :]) if m else (None, s)
+            except:
+                try:
+                    assert len(s) == 2
+                    return (int(s[0]), s[1])
+                except:
+                    return (None, s)
+
+        streams = [split_file_id(s) for s in streams]
+
+        if ninputs == 1:
+            streams = [(0, s[1]) if s[0] is None else s for s in streams]
+        elif any((s for s in streams if s[0] is None)):
+            raise ValueError(
+                'multi-url mode requires to specify the file associated with each stream. e.g., "0:v:0"'
+            )
+
+        # overrides map option if set
+        options["map"] = streams
+
+    return ya8 > 0

@@ -4,11 +4,22 @@ from io import BytesIO
 import numpy as np
 from matplotlib import pyplot as plt
 
-if __name__ == "__main__":
+
+def test_media_read():
     url = "tests/assets/testmulti-1m.mp4"
-    rates, data = media.read(url)
+    url1 = "tests/assets/testvideo-1m.mp4"
+    url2 = "tests/assets/testaudio-1m.mp3"
+    rates, data = media.read(url, t=1)
+    rates, data = media.read(url, streams=("v:0", "v:1", "a:1", "a:0"), t=1)
+    rates, data = media.read(url1, url2, t=1)
+    rates, data = media.read(url2, url, streams=("1:v:0", (0, "a:0")), t=1)
+
     print(rates)
     print([(k, x.shape, x.dtype) for k, x in data.items()])
+
+
+if __name__ == "__main__":
+    pass
     # out = ffmpegprocess.run(
     #     {
     #         "inputs": [(url, None)],

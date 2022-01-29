@@ -52,33 +52,6 @@ def read(*urls, streams=None, progress=None, show_log=None, **options):
     spec_inopts = utils.pop_extra_options_multi(options, r"_in(\d+)$")
     inopts = utils.pop_extra_options(options, "_in")
 
-    # check to make sure all pixel and sample formats are supported
-    gray16le = ya8 = 0
-    for k in utils.find_stream_options(options, "pix_fmt"):
-        v = options[k]
-        utils.get_video_format(v)
-        if v == "gray16le":
-            gray16le += 1
-        elif v == "ya8":
-            ya8 += 1
-    if gray16le and ya8:
-        raise ValueError("gray16le and ya8 pix_fmts cannot be mixed.")
-
-    # if pix_fmt and sample_fmt not specified, set defaults
-    # user can conditionally override these by stream-specific option
-    if "pix_fmt" not in options:
-        options["pix_fmt"] = "rgb24"
-    if "sample_fmt" not in options:
-        options["sample_fmt"] = "s16"
-
-    # add output formats and codecs
-    options["f"] = "avi"
-    options["c:v"] = "rawvideo"
-
-    # add audio codec
-    for k in utils.find_stream_options(options, "sample_fmt"):
-        options[f"c:a" + k[10:]] = utils.get_audio_format(options[k])[0]
-
     # create a new FFmpeg dict
     args = configure.empty()
     configure.add_url(args, "output", "-", options)  # add piped output
@@ -87,36 +60,10 @@ def read(*urls, streams=None, progress=None, show_log=None, **options):
         configure.check_url(url, nodata=True, nofileobj=True)
         configure.add_url(args, "input", url, {*inopts, *spec_inopts.get(i, {})})
 
-    # map
-    if streams is not None:
-        # separate file ids (if present)
-        def split_file_id(s):
-            try:
-                m = re.match(r"(\d+):", s)
-                s = s[m.end() :]
-                return (int(m[1]), s[m.end() :]) if m else (None, s)
-            except:
-                try:
-                    assert len(s) > 1
-                    fid = int(s[0])
-                    return (fid, s[1:])
-                except:
-                    return (None, s)
+    # configure output options
+    use_ya8 = configure.finalize_media_read_opts(args, streams)
 
-        streams = [split_file_id(s) for s in streams]
-
-        if ninputs == 1:
-            streams = [(0, s[1]) if s[0] is None else s for s in streams]
-        elif any((s for s in streams if s[0] is None)):
-            raise ValueError(
-                'multi-url mode requires to specify the file associated with each stream. e.g., "0:v:0"'
-            )
-
-        # overrides map option if set
-        args["outputs"][0]["map"] = [
-            (fid, *s) if isinstance(s, (str, int)) else (fid, s) for fid, s in streams
-        ]
-
+    # run FFmpeg
     out = ffmpegprocess.run(
         args,
         progress=progress,
@@ -126,7 +73,8 @@ def read(*urls, streams=None, progress=None, show_log=None, **options):
         raise FFmpegError(out.stderr)
 
     # fire up the AVI reader and process the stdout bytes
-    reader = avi.AviReader(BytesIO(out.stdout), ya8)
+    # TODO: Convert to use pipe/thread
+    reader = avi.AviReader(BytesIO(out.stdout), use_ya8)
     # get frame rates and sample rates of all media streams
     rates = {
         v["spec"]: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
