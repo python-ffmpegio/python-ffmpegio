@@ -153,6 +153,44 @@ def finalize_video_read_opts(
             _, ncomp, dtype, remove_alpha = utils.get_pixel_config(pix_fmt_in, pix_fmt)
 
     # set up basic video filter if specified
+    build_basic_vf(args, remove_alpha, ofile)
+
+    outopts["f"] = "rawvideo"
+
+    # if no filter and video shape and rate are known, all known
+    r = shape = None
+    if not has_filtergraph(args, "video", ofile) and ncomp is not None:
+        r = outopts.get("r", inopts.get("r", r_in))
+
+        s = outopts.get("s", inopts.get("s", s_in))
+        if s is not None:
+            if isinstance(s, str):
+                m = re.match(r"(\d+)x(\d+)", s)
+                s = [int(m[1]), int(m[2])]
+            shape = (*s[::-1], ncomp)
+
+    return dtype, shape, r
+
+
+def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
+    """convert basic VF options to vf option
+
+    :param args: FFmpeg dict
+    :type args: dict
+    :param remove_alpha: True to add overlay filter to add a background color, defaults to None
+    :type remove_alpha: bool, optional
+    :param ofile: output file id, defaults to 0
+    :type ofile: int, optional
+    :param force: True to chain basic vf to existing vf, defaults to False
+    :type force: bool, optional
+    """
+
+    # get output opts, nothing to do if no option set
+    outopts = args["outputs"][ofile][1]
+    if outopts is None:
+        return
+
+    # extract the options
     fopts = {
         name: outopts.pop(name)
         for name in ("fill_color", "crop", "flip", "transpose", "square_pixels")
@@ -182,28 +220,23 @@ def finalize_video_read_opts(
         if remove_alpha:
             fopts["remove_alpha"] = True
 
-        if "vf" in outopts:
-            raise ValueError(
-                f"cannot specify `vf` and video basic filter options {tuple(fopts.keys())}"
-            )
-
-        outopts["vf"] = video_basic_filter(**fopts)
-
-    outopts["f"] = "rawvideo"
-
-    # if no filter and video shape and rate are known, all known
-    r = shape = None
-    if not has_filtergraph(args, "video", ofile) and ncomp is not None:
-        r = outopts.get("r", inopts.get("r", r_in))
-
-        s = outopts.get("s", inopts.get("s", s_in))
-        if s is not None:
-            if isinstance(s, str):
-                m = re.match(r"(\d+)x(\d+)", s)
-                s = [int(m[1]), int(m[2])]
-            shape = (*s[::-1], ncomp)
-
-    return dtype, shape, r
+        bvf = video_basic_filter(**fopts)
+        vf = outopts.get("vf", None)
+        if vf:
+            if not force:
+                raise ValueError(
+                    f"cannot specify `vf` and video basic filter options {tuple(fopts.keys())}"
+                )
+            if isinstance(vf, str):
+                vf += f",{bvf}"
+            else:
+                # TODO support for FilterGraph
+                raise ValueError(
+                    f"only str filtergraph description is currently supported"
+                )
+            outopts["vf"] = vf
+        else:
+            outopts["vf"] = bvf
 
 
 def finalize_audio_read_opts(
