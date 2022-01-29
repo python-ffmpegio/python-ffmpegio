@@ -60,5 +60,21 @@ def test_transcode_vf():
         assert path.isfile(out_url)
 
 
+def test_transcode_image():
+    url = "tests/assets/ffmpeg-logo.png"
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # print(probe.audio_streams_basic(url))
+        out_url = path.join(tmpdirname, path.basename(url) + ".jpg")
+        transcode(
+            url,
+            out_url,
+            show_log=True,
+            remove_alpha=True,
+            s=[300, -1],
+            transpose=0,
+            vframes=1
+        )
+
+
 if __name__ == "__main__":
-    test_transcode_2pass()
+    test_transcode_image()

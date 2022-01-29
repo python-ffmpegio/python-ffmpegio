@@ -197,6 +197,11 @@ class SimpleVideoReader(SimpleReaderBase):
             self.frame_rate,
         ) = configure.finalize_video_read_opts(ffmpeg_args, pix_fmt_in, s_in, r_in)
 
+        # construct basic video filter if options specified
+        configure.build_basic_vf(
+            ffmpeg_args, utils.alpha_change(pix_fmt_in, pix_fmt, -1)
+        )
+
     def _finalize_array(self, info):
         # finalize array setup from FFmpeg log
 
@@ -378,7 +383,14 @@ class SimpleWriterBase:
 
 class SimpleVideoWriter(SimpleWriterBase):
     def __init__(
-        self, url, rate_in, shape_in=None, dtype_in=None, show_log=None, progress=None, **options
+        self,
+        url,
+        rate_in,
+        shape_in=None,
+        dtype_in=None,
+        show_log=None,
+        progress=None,
+        **options,
     ):
         options["r_in"] = rate_in
         super().__init__(url, shape_in, dtype_in, show_log, progress, **options)
@@ -391,20 +403,38 @@ class SimpleVideoWriter(SimpleWriterBase):
                 (self.shape_in, self.dtype_in)
             )
             return True
-        return "s" in inopts and "pix_fmt" in inopts
+
+        ready = "s" in inopts and "pix_fmt" in inopts
+        if ready:
+            configure.build_basic_vf(
+                ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
+            )
+        return
 
     def _finalize_with_data(self, data):
 
         ffmpeg_args = self._cfg["ffmpeg_args"]
         inopts = ffmpeg_args["inputs"][0][1]
         inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(data)
+
+        configure.build_basic_vf(
+            ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
+        )
+
         self.shape_in = data.shape
         self.dtype_in = data.dtype
 
 
 class SimpleAudioWriter(SimpleWriterBase):
     def __init__(
-        self, url, rate_in, shape_in=None, dtype_in=None, show_log=None, progress=None, **options
+        self,
+        url,
+        rate_in,
+        shape_in=None,
+        dtype_in=None,
+        show_log=None,
+        progress=None,
+        **options,
     ):
         options["ar_in"] = rate_in
         super().__init__(url, shape_in, dtype_in, show_log, progress, **options)
@@ -715,7 +745,7 @@ class SimpleFilterBase:
         :type timeout: float, optional
         :return: remaining output samples
         :rtype: numpy.ndarray
-        """        
+        """
 
         timeout = timeout or self.default_timeout
 
@@ -820,13 +850,23 @@ class SimpleVideoFilter(SimpleFilterBase):
                 (self.shape, self.dtype)
             )
 
-        return "s" in inopts and "pix_fmt" in inopts
+        ready = "s" in inopts and "pix_fmt" in inopts
+        if ready:
+            configure.build_basic_vf(
+                ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
+            )
+
+        return ready
 
     def _finalize_with_data(self, data):
 
         ffmpeg_args = self._cfg["ffmpeg_args"]
         inopts = ffmpeg_args["inputs"][0][1]
         inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(data)
+
+        configure.build_basic_vf(
+            ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
+        )
 
         # if output rate, shape, & dtype not known, it needs to be analyzed from the log
         return self.frame_rate is None or self.shape is None or self.dtype is None

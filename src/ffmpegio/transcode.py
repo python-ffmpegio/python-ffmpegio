@@ -1,5 +1,7 @@
-from . import ffmpegprocess, configure, utils
+from . import ffmpegprocess, configure, utils, probe
 from .utils.log import FFmpegError
+
+__all__ = ["transcode"]
 
 
 def transcode(
@@ -54,6 +56,16 @@ def transcode(
     args = configure.empty()
     configure.add_url(args, "input", input_url, input_options)[1][1]
     configure.add_url(args, "output", output_url, options)
+
+    # if output pix_fmt defined, get input pix_fmt to check for transparency change
+    # TODO : stream spec?
+    pix_fmt = options.get("pix_fmt", None)
+    pix_fmt_in = (
+        probe.video_streams_basic(input_url, 0)[0]["pix_fmt"] if pix_fmt else None
+    )
+
+    # convert basic VF options to vf option
+    configure.build_basic_vf(args, utils.alpha_change(pix_fmt_in, pix_fmt, -1))
 
     kwargs = (
         {

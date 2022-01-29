@@ -153,8 +153,6 @@ def read(url, show_log=None, **options):
     option which is an alias of `start` standard option.
     """
 
-    pix_fmt = options.get("pix_fmt", None)
-
     # get pix_fmt of the input file only if needed
     if "pix_fmt_in" not in options:
         info = probe.video_streams_basic(url, 0)[0]
@@ -212,6 +210,8 @@ def write(url, data, overwrite=None, show_log=None, **options):
     )
     outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
     outopts["frames:v"] = 1
+
+    configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
 
     ffmpegprocess.run(
         ffmpeg_args,
