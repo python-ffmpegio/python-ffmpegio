@@ -352,7 +352,7 @@ class AviReader:
             if frame is None:  # likely eof
                 raise StopIteration
             i, d = frame
-        return self.streams[i]["spec"], self.converters[i](d)
+        return i, self.converters[i](d)
 
     def __iter__(self):
         return self

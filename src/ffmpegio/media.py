@@ -132,10 +132,9 @@ def read(*urls, streams=None, progress=None, show_log=None, **options):
         v["spec"]: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
         for v in reader.streams.values()
     }
-    # get data first by accumulating all the AVI packets then concatenate to form the final arrays
-    data = {v["spec"]: [] for v in reader.streams.values()}
+    data = {k: [] for k in reader.streams}
     for st, frame in reader:
         data[st].append(frame)
-    data = {k: np.concatenate(v) for k, v in data.items()}
+    data = {reader.streams[k]["spec"]: np.concatenate(v) for k, v in data.items()}
 
     return rates, data
