@@ -172,12 +172,22 @@ def finalize_video_read_opts(
     return dtype, shape, r
 
 
+def check_alpha_change(args, dir=None, ifile=0, ofile=0):
+    # check removal of alpha channel
+    inopts = args["inputs"][ifile][1]
+    outopts = args["outputs"][ofile][1]
+    if inopts is None or outopts is None:
+        return None if dir is None else False  # indeterminable
+    return utils.alpha_change(inopts.get("pix_fmt", None), outopts.get("pix_fmt", None))
+
+
 def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
     """convert basic VF options to vf option
 
     :param args: FFmpeg dict
     :type args: dict
     :param remove_alpha: True to add overlay filter to add a background color, defaults to None
+    :                    This argument would be ignored if `'remove_alpha'` key is defined in `'args'`.
     :type remove_alpha: bool, optional
     :param ofile: output file id, defaults to 0
     :type ofile: int, optional
@@ -193,7 +203,14 @@ def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
     # extract the options
     fopts = {
         name: outopts.pop(name)
-        for name in ("fill_color", "crop", "flip", "transpose", "square_pixels")
+        for name in (
+            "fill_color",
+            "crop",
+            "flip",
+            "transpose",
+            "square_pixels",
+            "remove_alpha",
+        )
         if name in outopts
     }
 
@@ -207,7 +224,7 @@ def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
         except:
             pass
         try:
-            do_scale = len(scale) > 2 or [scale[0] <= 0 or scale[1] <= 0]
+            do_scale = len(scale) > 2 or (scale[0] <= 0 or scale[1] <= 0)
         except:
             do_scale = False
 
@@ -217,7 +234,7 @@ def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
             fopts["scale"] = scale
             del outopts["s"]
 
-        if remove_alpha:
+        if remove_alpha and "remove_alpha" not in fopts:
             fopts["remove_alpha"] = True
 
         bvf = video_basic_filter(**fopts)

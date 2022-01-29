@@ -138,6 +138,11 @@ up a filtergraph.
       :code:`'upscale'` stretches the short side
       of the pixels while :code:`'downscale'` compresses the long side.
       :code:`'even'` makes sure that the resulting frame size is even (required by some codecs).
+  * - :code:`remove_alpha`
+    - bool
+    - `overlay <https://ffmpeg.org/ffmpeg-filters.html#overlay-1>`__ and `color <https://ffmpeg.org/ffmpeg-filters.html#color-1>`__
+    - Fill transparent background with :code:`fill_color` color. This filter is automatically
+      inserted if input :code:`'pix_fmt'` has alpha but not the output.
   * - :code:`fill_color` 
     - str
     - n/a
