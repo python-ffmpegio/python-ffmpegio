@@ -27,6 +27,8 @@ class FFmpegError(RuntimeError):
         # [AVFilterGraph @ 000002108e25d040] No such filter: '...'
 
         # Invalid duration specification for ss: 1001/15000
+        
+        # Stream map '0:a:0' matches no streams.
 
         elif log_shown:
             super().__init__("FFmpeg failed. Check its log printed above.")

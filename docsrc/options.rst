@@ -31,8 +31,8 @@ af          str        X        X  Audio filtergraph (leave output pad unlabeled
 crf         int        X        X  H.264 video encoding constant quality factor (0-51)
 ==========  =========  =  =  =  =  ============================================================
 
-Special handling of `s` output option
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+`s` output option
+^^^^^^^^^^^^^^^^^
 
 FFmpeg's :code:`-s` output option sets the output video frame size by using the scale video filter. However,
 it does not allow non-positive values for width and height which the scale filter accepts. 
@@ -52,6 +52,16 @@ n (n>0)       Specifying the output size to be n pixels
 
 Note that passing both :code:`s` with a non-positive value and :code:`vf` 
 will raise an exception.
+
+`map` output options
+^^^^^^^^^^^^^^^^^^^^
+
+The output option `-map` is the (only?) FFmpeg option, which could be specified multiple times
+in command line input. This goes against :py:mod:`ffmpegio`'s FFmpeg dict structure, and so `map`
+argument is handled differently from the others. First, `map` argument must be a non-`str` sequence,
+and each of its element is converted to `-map` option. Furthermore, each element could be a str or
+else a sequence which items are then stringified and joined together with `':'`.
+
 
 Video Pixel Formats :code:`pix_fmt`
 -----------------------------------

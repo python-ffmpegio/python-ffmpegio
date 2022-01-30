@@ -13,7 +13,9 @@ from time import sleep as _sleep, time as _time
 from tempfile import TemporaryDirectory as _TemporaryDirectory
 from queue import Empty, Full, Queue as _Queue
 import numpy as _np
+from math import ceil
 
+from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream, FFmpegError
 from .utils import bytes_to_ndarray as _as_array, get_itemsize as _get_itemsize
 
@@ -361,7 +363,7 @@ class ReaderThread(_Thread):
         if not len(arrays):
             return _np.empty((0, *self.shape))
 
-        all_data = _np.concatenate(arrays)
+        all_data = _np.concatenate(arrays, self.dtype)
         if n <= 0:
             return all_data
         if all_data.shape[0] > n:
@@ -388,7 +390,7 @@ class ReaderThread(_Thread):
 
         # combine all the data and return requested amount
         if not len(arrays):
-            return _np.empty((0, *self.shape))
+            return _np.empty((0, *self.shape), self.dtype)
 
         return _np.concatenate(arrays)
 
@@ -450,3 +452,135 @@ class WriterThread(_Thread):
             raise ThreadNotActive("WriterThread is not running")
 
         data = self._queue.put(data, timeout)
+
+
+class AviReaderThread(_Thread):
+    def __init__(self, use_ya8=None, queuesize=None):
+
+        super().__init__()
+        self.reader = AviReader(use_ya8)  #:utils.avi.AviReader: AVI demuxer
+        self.streams_ready = _Event()  #:Event: Set when received stream header info
+        self.rates = None  # :dict(int:int|Fraction)
+        self._queue = _Queue(self._queuesize or 0)  # inter-thread data I/O
+        self._ids = None  #:dict(int:int): stream indices
+        self._nread = None  #:dict(int:int): number of samples read/stream
+        self._carryover = (
+            None  #:dict(int:ndarray) extra data that was not previously read by user
+        )
+
+    @property
+    def streams(self):
+        return self.reader.streams if self.streams_ready else None
+
+    def start(self, stdout):
+        self._args = (stdout,)
+        super().start()
+
+    def join(self, timeout=None):
+        # if queue is full,
+        super().join(timeout)
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *_):
+        self.join()  # will wait until stdout is closed
+        return self
+
+    def run(self):
+
+        reader = self.reader
+        reader.start(self._args[0])
+
+        self._ids = ids = [i for i in reader.streams]
+        self._nread = {k: 0 for k in ids}
+        self._rates = {
+            k: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
+            for k, v in ids.items()
+        }
+
+        self.streams_ready.set()
+
+        reader = self.reader
+        for id, data in reader:
+            self._queue.put((id, data))
+
+    def read(self, n=-1, ref_stream=0, timeout=None):
+
+        # wait till matching line is read by the thread
+        block = self.is_alive() and n != 0
+        if timeout is not None:
+            timeout = _time() + timeout
+
+        # if stream header not received in time, raise error
+        if not (self.is_alive() and self.streams_ready.wait(timeout)):
+            raise TimeoutError("timed out waiting for the stream headers")
+
+        # identify how many samples are needed for each stream
+        n_ref = max(n, -n)
+        t_ref = (self._nread[ref_stream] + n_ref) * self.rates[ref_stream]
+        n_new = {k: ceil(t_ref / self.rates[k] - self._nread[k]) for k in self._ids}
+
+        # initialize output arrays
+        arrays = {k: [] for k in self._ids}
+
+        # grab any leftover data from previous read
+        if self._carryover is not None:
+            for k, v in self._carryover.items():
+                if v is not None:
+                    arrays[k] = [v]
+                    n_new[k] -= v.shape[0]
+            self._carryover = None
+
+        # loop till enough data are collected
+        while any((v > 0 for v in n_new.values())):
+            try:
+                tout = timeout and timeout - _time()
+                if tout <= 0:
+                    break
+                k, data = self._queue.get(block, tout)
+                self._queue.task_done()
+                arrays[k].append(data)
+                n_new[k] -= data.shape[0]
+            except Empty:
+                break
+
+        def combine(id, array, n):
+            # combine all the data and return requested amount
+            if not len(array):
+                info = self.reader.streams[id]
+                return _np.empty((0, *info["shape"]), info["dtype"])
+
+            all_data = _np.concatenate(array)
+            n_read[id] += n_new[id]
+            return (
+                (all_data, None) if n >= 0 else (all_data[:n, ...], all_data[n:, ...])
+            )
+
+        data,excess = zip(*(combine(id, array, n_new[id]) for id, array in arrays))
+
+
+    def read_all(self, timeout=None):
+
+        # wait till matching line is read by the thread
+        if timeout is not None:
+            timeout = _time() + timeout
+
+        arrays = arrays = [self._carryover] if self._carryover else []
+        self._carryover = None
+
+        # loop till enough data are collected
+        while not self.is_alive() or timeout and timeout > _time():
+            try:
+                data = self._queue.get(self.is_alive(), timeout and timeout - _time())
+                self._queue.task_done()
+                arrays.append(data)
+            except Empty:
+                break
+
+        # combine all the data and return requested amount
+        if not len(arrays):
+            return _np.empty((0, *self.shape))
+
+        return _np.concatenate(arrays)

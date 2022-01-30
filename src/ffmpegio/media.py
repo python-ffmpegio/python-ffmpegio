@@ -6,14 +6,11 @@ from . import ffmpegprocess, utils, configure, FFmpegError, probe
 from .utils import avi
 
 
-def read(*urls, streams=None, progress=None, show_log=None, **options):
+def read(*urls, progress=None, show_log=None, **options):
     """Read video frames
 
     :param *urls: URLs of the media files to read.
     :type *urls: tuple(str)
-    :param streams: list of file + stream specifiers or filtergraph label to output, alias of `map` option,
-                    defaults to None, which outputs at most one video and one audio, selected by FFmpeg
-    :type streams: seq(str), optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -61,7 +58,7 @@ def read(*urls, streams=None, progress=None, show_log=None, **options):
         configure.add_url(args, "input", url, {*inopts, *spec_inopts.get(i, {})})
 
     # configure output options
-    use_ya8 = configure.finalize_media_read_opts(args, streams)
+    use_ya8 = configure.finalize_media_read_opts(args)
 
     # run FFmpeg
     out = ffmpegprocess.run(
