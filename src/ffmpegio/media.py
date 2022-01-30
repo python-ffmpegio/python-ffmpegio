@@ -74,7 +74,8 @@ def read(*urls, streams=None, progress=None, show_log=None, **options):
 
     # fire up the AVI reader and process the stdout bytes
     # TODO: Convert to use pipe/thread
-    reader = avi.AviReader(BytesIO(out.stdout), use_ya8)
+    reader = avi.AviReader(use_ya8)
+    reader.start(BytesIO(out.stdout))
     # get frame rates and sample rates of all media streams
     rates = {
         v["spec"]: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]

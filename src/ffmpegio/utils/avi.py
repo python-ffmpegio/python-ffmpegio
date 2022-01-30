@@ -319,9 +319,17 @@ def read_frame(f):
 
 
 class AviReader:
-    def __init__(self, f, use_ya8=None):
+    def __init__(self, use_ya8=False):
+        self._f = None
+        self.use_ya8 = use_ya8 #: bool: True to interpret 16-bit pixel as 'ya8' pix_fmt, False for 'gray16le'
+
+        self.ready = False #:bool: True if AVI headers has been processed
+        self.streams = None #:dict: Stream headers keyed by stream id (int key)
+        self.converters = None #:dict : Stream to numpy ndarray conversion functions keyed by stream id
+
+    def start(self, f):
         self._f = f
-        hdr = read_header(f, use_ya8)
+        hdr = read_header(self._f, self.use_ya8)
 
         cnt = {"v": 0, "a": 0, "s": 0}
 
@@ -344,6 +352,8 @@ class AviReader:
             return lambda b: np.frombuffer(b, dtype=dtype).reshape(-1, nch)
 
         self.converters = {v["index"]: get_converter(v) for v in hdr}
+
+        self.ready = True
 
     def __next__(self):
         i = d = None
