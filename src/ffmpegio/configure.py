@@ -442,13 +442,17 @@ def finalize_media_read_opts(args):
     :type args: dict
     :return: use_ya8 flag - True to expect 16-bpc pixel to be ya8 pix_fmt instead of gray16le pix_fmt
     :rtype: bool
+
+    - assumes options dict of the first output is already present
+    - insert `pix_fmt='rgb24'` and `sample_fmt='sa16le'` options if these options are not assigned
+    - check for the use of both 'gray16le' and 'ya8', and returns True if need to use 'ya8'
+    - set f=avi and vcodec=rawvideo 
+    - set acodecs according to sample_fmts
+
     """
 
     # get output options, create new
     options = args["outputs"][0][1]
-    if options is None:
-        options = {}
-        args["outputs"][0] = ("-", options)
 
     # check to make sure all pixel and sample formats are supported
     gray16le = ya8 = 0
