@@ -344,12 +344,12 @@ class AviReader:
         def get_converter(stream):
             if stream["type"] == "v":
                 _, ncomp, dtype, _ = utils.get_pixel_config(stream["pix_fmt"])
-                shape = (stream["height"], stream["width"], ncomp)
-                return lambda b: np.frombuffer(b, dtype=dtype).reshape((-1, *shape))
+                stream['shape'] = shape = (stream["height"], stream["width"], ncomp)
             elif stream["type"] == "a":
                 stream["codec"], dtype = utils.get_audio_format(stream["sample_fmt"])
-                nch = stream["channels"]
-            return lambda b: np.frombuffer(b, dtype=dtype).reshape(-1, nch)
+                stream['shape'] = shape = (stream["channels"],)
+            stream['dtype'] = dtype
+            return lambda b: np.frombuffer(b, dtype=dtype).reshape(-1, *shape)
 
         self.converters = {v["index"]: get_converter(v) for v in hdr}
 
