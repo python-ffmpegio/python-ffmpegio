@@ -452,42 +452,50 @@ def exec(
             gopts["progress"] = progress.url
 
     # configure stdin pipe (if needed)
+    def isreadable(f):
+        try:
+            return f.fileno() and f.readable()
+        except:
+            return False
+
     inpipe = (
         next(
             (
-                PIPE
+                stdin if isreadable(stdin) else PIPE
                 for inp in ffmpeg_args["inputs"]
                 if inp[0] in ("-", "pipe:", "pipe:0")  # or not isinstance(inp[0], str)
             ),
-            DEVNULL,
+            stdin,
         )
-        if "inputs" in ffmpeg_args
-        else DEVNULL
+        if "inputs" in ffmpeg_args and 'input' not in sp_kwargs
+        else stdin
     )
 
-    if inpipe == PIPE and stdin == DEVNULL:
-        raise ValueError("FFmpeg expects input pipe but no input given")
-    elif stdin is not None or "input" in sp_kwargs:
-        inpipe = stdin  # redirection
+    if stdin is not None and inpipe != stdin:
+        raise ValueError("FFmpeg expects to pipe in but stdin not specified")
 
     # configure stdout
+    def iswritable(f):
+        try:
+            return f.fileno() and f.writable()
+        except:
+            return False
+
     outpipe = (
         next(
             (
-                PIPE
+                stdout if iswritable(stdout) else PIPE
                 for outp in ffmpeg_args["outputs"]
                 if outp[0] in ("-", "pipe:", "pipe:1")  # or not isinstance(inp[0], str)
             ),
-            DEVNULL,
+            stdout,
         )
         if "outputs" in ffmpeg_args
-        else DEVNULL
+        else stdout
     )
 
-    if outpipe == PIPE and stdout == DEVNULL:
-        raise ValueError("FFmpeg expects output pipe but no input given")
-    elif stdout is not None:
-        outpipe = stdout
+    if stdout is not None and outpipe != stdout:
+        raise ValueError("FFmpeg expects to pipe out but stdin not specified")
 
     # set stderr for logging FFmpeg message
     if stderr == _sp.STDOUT and outpipe == PIPE:
