@@ -77,7 +77,9 @@ def parse(cmdline):
         if not is_gopt[i]:
             continue
         k = s[1:]
-        if all_gopts[k] is None:
+        if k in ('h','?','help','-help'): # special case take all args thereafter
+            gopts[k] = ' '.join(args[i+1:])
+        elif all_gopts[k] is None:
             gopts[k] = None
         else:
             gopts[k] = args[i + 1]
