@@ -364,7 +364,7 @@ class ReaderThread(_Thread):
         if not len(arrays):
             return _np.empty((0, *self.shape))
 
-        all_data = _np.concatenate(arrays, self.dtype)
+        all_data = _np.concatenate(arrays)
         if n <= 0:
             return all_data
         if all_data.shape[0] > n:

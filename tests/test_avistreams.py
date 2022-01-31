@@ -1,4 +1,12 @@
 from ffmpegio.streams import AviStreams
+from ffmpegio import open
+
+def test_open():
+    url1 = "tests/assets/testvideo-1m.mp4"
+    url2 = "tests/assets/testaudio-1m.mp3"
+    with open((url1, url2), 'rav', t=1, blocksize=0) as reader:
+        for st, data in reader:
+            print(st, data.shape, data.dtype)
 
 
 def test_avireadstream():

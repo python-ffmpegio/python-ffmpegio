@@ -170,6 +170,11 @@ class SimpleReaderBase:
 
 
 class SimpleVideoReader(SimpleReaderBase):
+    readable = True
+    writable = False
+    multi_read = False
+    multi_write = False
+
     def _finalize(self, ffmpeg_args):
         # finalize FFmpeg arguments and output array
 
@@ -211,6 +216,12 @@ class SimpleVideoReader(SimpleReaderBase):
 
 
 class SimpleAudioReader(SimpleReaderBase):
+
+    readable = True
+    writable = False
+    multi_read = False
+    multi_write = False
+
     def _finalize(self, ffmpeg_args):
         # finalize FFmpeg arguments and output array
 
@@ -382,6 +393,11 @@ class SimpleWriterBase:
 
 
 class SimpleVideoWriter(SimpleWriterBase):
+    readable = False
+    writable = True
+    multi_read = False
+    multi_write = False
+
     def __init__(
         self,
         url,
@@ -426,6 +442,11 @@ class SimpleVideoWriter(SimpleWriterBase):
 
 
 class SimpleAudioWriter(SimpleWriterBase):
+    readable = False
+    writable = True
+    multi_read = False
+    multi_write = False
+
     def __init__(
         self,
         url,
@@ -792,6 +813,11 @@ class SimpleVideoFilter(SimpleFilterBase):
     :type \\**options: dict, optional
     """
 
+    readable = True
+    writable = True
+    multi_read = False
+    multi_write = False
+
     def __init__(
         # fmt:off
         self, expr, rate_in, shape_in=None, dtype_in=None, rate=None, shape=None, dtype=None,
@@ -920,6 +946,11 @@ class SimpleAudioFilter(SimpleFilterBase):
     ..note::
         Use of larger `block_size` parameter could improve the processing speed
     """
+
+    readable = True
+    writable = True
+    multi_read = False
+    multi_write = False
 
     def _finalize(self, ffmpeg_args, expr, rate_in, rate):
 

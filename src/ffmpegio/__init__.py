@@ -67,7 +67,7 @@ def open(
 
     :param url_fg: URL of the media source/destination for file read/write or filtergraph definition
                    for filter operation.
-    :type url_fg: str
+    :type url_fg: str or seq(str)
     :param mode: specifies the mode in which the FFmpeg is used, defaults to None
     :type mode: str, optional
     :param rate: (filter specific) output frame rate (video write) or sample rate (audio
@@ -188,6 +188,9 @@ def open(
 
     """
 
+    if isinstance(url_fg, str):
+        url_fg = (url_fg,)
+
     audio = "a" in mode
     video = "v" in mode
     read = "r" in mode
@@ -205,11 +208,6 @@ def open(
             f"Invalid FFmpeg streaming mode: {mode}. Only 1 of 'rwf' may be specified."
         )
 
-    if audio + video > 1:
-        raise Exception(
-            f"Invalid FFmpeg streaming mode: {mode}. Current version does not support multimedia or multi-stream IO"
-        )
-
     # auto-detect operation
     if not (read or write or filter):
         if rate_in is None:
@@ -222,14 +220,20 @@ def open(
     # auto-detect type
     if not (audio or video):
         if read:
-            try:
-                info = probe.streams_basic(url_fg, entries=("codec_type",))
-            except:
-                raise ValueError(f"cannot be read url {url_fg}")
-            if info[0]["codec_type"] == "video":
-                video = True
-            else:
-                audio = True
+            for url in url_fg:
+                try:
+                    info = probe.streams_basic(url, entries=("codec_type",))
+                except:
+                    raise ValueError(f"cannot be read url {url}")
+                for inf in info:
+                    t = inf["codec_type"]
+                    if t == "video" and not video:
+                        video = True
+                    elif t == "audio" and not audio:
+                        audio = True
+                if video and audio:
+                    break
+
         else:
             if shape_in is not None:
                 audio = len(shape_in) < 2
@@ -240,21 +244,30 @@ def open(
                 raise ValueError("Unknown media type")
             video = not audio
 
-    StreamClass = {
-        0: {
-            0: _streams.SimpleAudioReader,
-            1: _streams.SimpleAudioWriter,
-            2: _streams.SimpleAudioFilter,
-        },
-        1: {
-            0: _streams.SimpleVideoReader,
-            1: _streams.SimpleVideoWriter,
-            2: _streams.SimpleVideoFilter,
-        },
-    }[video][write + 2 * filter]
+    try:
+        StreamClass = {
+            1: {
+                0: _streams.SimpleAudioReader,
+                1: _streams.SimpleAudioWriter,
+                2: _streams.SimpleAudioFilter,
+            },
+            2: {
+                0: _streams.SimpleVideoReader,
+                1: _streams.SimpleVideoWriter,
+                2: _streams.SimpleVideoFilter,
+            },
+            3: {
+                0: _streams.AviMediaReader,
+            },
+        }[audio + 2 * video][write + 2 * filter]
+    except:
+        raise Exception(f"Invalid FFmpeg streaming mode: {mode}.")
+
+    if len(url_fg) > 1 and not StreamClass.multi_read:
+        raise Exception(f'Multi-input streaming is not supported in "{mode}" mode')
 
     # add other info to the arguments
-    args = (url_fg,) if read else (url_fg, rate_in)
+    args = (*url_fg,) if read else (*url_fg, rate_in)
     for k, v in (
         ("rate", rate),
         ("shape", shape),

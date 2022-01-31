@@ -41,6 +41,11 @@ class AviMediaReader:
 
     """
 
+    readable = True
+    writable = False
+    multi_read = True
+    multi_write = False
+
     def __init__(
         self,
         *urls,
