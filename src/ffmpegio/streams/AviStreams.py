@@ -103,6 +103,11 @@ class AviMediaReader:
         self._logger.stderr = self._proc.stderr
         self._logger.start()
 
+    def specs(self):
+        """:list(str): list of specifiers of the streams"""
+        self._reader.wait()
+        return [v["spec"] for v in self._reader.streams.values()]
+
     def types(self):
         """:dict(str:str): media type associated with the streams (key)"""
         self._reader.wait()

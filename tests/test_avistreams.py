@@ -27,7 +27,7 @@ def test_avireadstream():
             print({k: (v.shape, v.dtype) for k, v in data.items()})
 
     with AviStreams.AviMediaReader(url1, url2, t=1) as reader:
-        print(reader.types)
+        print(reader.specs())
         print(reader.types())
         print(reader.rates())
         print(reader.dtypes())
