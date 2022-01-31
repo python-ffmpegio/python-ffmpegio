@@ -419,8 +419,8 @@ def exec(
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
     :type overwrite: bool, optional
-    :param capture_log: True to capture log messages on stderr, False to send
-                        logs to console, defaults to None (no show/capture)
+    :param capture_log: True to capture log messages on stderr, False to suppress
+                        console log messages, defaults to None (show on console)
     :type capture_log: bool or None, optional
     :param stdin: source file object, defaults to None
     :type stdin: readable file-like object, optional
@@ -503,7 +503,7 @@ def exec(
     if stderr == _sp.STDOUT and outpipe == PIPE:
         raise ValueError("stderr cannot be redirected to stdout, which is in use")
     errpipe = stderr or (
-        PIPE if capture_log else DEVNULL if capture_log is None else None
+        PIPE if capture_log else None if capture_log is None else DEVNULL
     )
 
     # set y or n flags (overwrite)

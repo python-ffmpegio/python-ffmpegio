@@ -48,7 +48,7 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
             *args,
             dtype=dtype,
             shape=shape,
-            capture_log=False if show_log else True,
+            capture_log=None if show_log else False,
             **kwargs,
         )
         if out.returncode:
@@ -218,7 +218,7 @@ def write(url, data, overwrite=None, show_log=None, **options):
         input=data,
         stdout=stdout,
         overwrite=overwrite,
-        capture_log=False if show_log else None,
+        capture_log=None if show_log else False,
     )
 
 

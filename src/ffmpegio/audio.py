@@ -63,7 +63,7 @@ def _run_read(
             *args,
             dtype=dtype,
             shape=ac,
-            capture_log=False if show_log else None,
+            capture_log=None if show_log else False,
             **kwargs,
         ).stdout
 
@@ -253,7 +253,7 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
         stdout=stdout,
         progress=progress,
         overwrite=overwrite,
-        capture_log=False if show_log else None,
+        capture_log=None if show_log else False,
     )
 
 

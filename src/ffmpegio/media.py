@@ -64,7 +64,7 @@ def read(*urls, progress=None, show_log=None, **options):
     out = ffmpegprocess.run(
         args,
         progress=progress,
-        capture_log=False if show_log else True,
+        capture_log=None if show_log else False,
     )
     if out.returncode:
         raise FFmpegError(out.stderr)

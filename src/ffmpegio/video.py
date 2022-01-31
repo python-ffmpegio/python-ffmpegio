@@ -51,7 +51,7 @@ def _run_read(
             *args,
             dtype=dtype,
             shape=shape,
-            capture_log=False if show_log else True,
+            capture_log=None if show_log else False,
             **kwargs,
         )
         if out.returncode:
@@ -264,7 +264,7 @@ def write(
         progress=progress,
         overwrite=overwrite,
         **kwargs,
-        capture_log=False if show_log else None,
+        capture_log=None if show_log else False,
     )
 
 

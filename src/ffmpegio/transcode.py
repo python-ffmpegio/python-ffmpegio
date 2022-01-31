@@ -80,7 +80,7 @@ def transcode(
         args,
         progress=progress,
         overwrite=overwrite,
-        capture_log=False if show_log else True,
+        capture_log=None if show_log else False,
         stdin=stdin,
         stdout=stdout,
         input=input,
