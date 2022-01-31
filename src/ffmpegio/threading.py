@@ -1,6 +1,7 @@
 """collection of thread classes for handling FFmpeg streams
 """
 
+from copy import deepcopy
 import re as _re, os as _os, logging as _logging
 from threading import (
     Thread as _Thread,
@@ -461,7 +462,7 @@ class AviReaderThread(_Thread):
         self.reader = AviReader(use_ya8)  #:utils.avi.AviReader: AVI demuxer
         self.streams_ready = _Event()  #:Event: Set when received stream header info
         self.rates = None  # :dict(int:int|Fraction)
-        self._queue = _Queue(self._queuesize or 0)  # inter-thread data I/O
+        self._queue = _Queue(queuesize or 0)  # inter-thread data I/O
         self._ids = None  #:dict(int:int): stream indices
         self._nread = None  #:dict(int:int): number of samples read/stream
         self._carryover = (
@@ -491,36 +492,124 @@ class AviReaderThread(_Thread):
     def run(self):
 
         reader = self.reader
-        reader.start(self._args[0])
 
-        self._ids = ids = [i for i in reader.streams]
-        self._nread = {k: 0 for k in ids}
-        self._rates = {
-            k: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
-            for k, v in ids.items()
-        }
+        try:
+            # start the AVI reader to process stdout byte stream
+            reader.start(self._args[0])
 
-        self.streams_ready.set()
+            # initialize the stream properties
+            self._ids = ids = [i for i in reader.streams]
+            self._nread = {k: 0 for k in ids}
+            self.rates = {
+                k: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
+                for k, v in reader.streams.items()
+            }
+        except:
+            return
+        finally:
+            self.streams_ready.set()
 
         reader = self.reader
         for id, data in reader:
             self._queue.put((id, data))
+        self._queue.put(None)  # end of stream
 
-    def read(self, n=-1, ref_stream=0, timeout=None):
+    def wait(self, timeout=None):
+        return self.is_alive() and self.streams_ready.wait(timeout)
+
+    def readchunk(self, timeout=None):
+        """read the next avi chunk
+
+        :param timeout: timeout in seconds, defaults to None (waits indefinitely)
+        :type timeout: float, optional
+        :raises TimeoutError: if terminated due to timeout
+        :return: tuple of stream specifier and data array
+        :rtype: (str, numpy.ndarray)
+        """
+
+        # wait till matching line is read by the thread
+        tend = timeout and _time() + timeout
+
+        # if stream header not received in time, raise error
+        if not self.wait(timeout):
+            raise TimeoutError("timed out waiting for the stream headers")
+
+        block = self.is_alive()
+
+        # if any leftover data available, return the first one
+        if self._carryover is not None:
+            (id, data) = next(
+                ((k, v) for k, v in self._carryover.items() if v is not None)
+            )
+            self._carryover[id] = None
+            if all((k for k, v in self._carryover.items() if v is None)):
+                self._carryover = None
+            return self.reader.streams[id]["spec"], data
+
+        # get next chunk
+        try:
+            if timeout is not None:
+                timeout = tend - _time()
+                assert timeout > 0
+            chunk = self._queue.get(block, timeout)
+            if chunk is None:
+                raise ThreadNotActive("reached end-of-stream")
+            id, data = chunk
+        except Empty:
+            raise TimeoutError("timed out waiting for next chunk")
+        self._queue.task_done()
+
+        return self.reader.streams[id]["spec"], data
+
+    def find_id(self, ref_stream):
+        self.wait()
+        try:
+            return next(
+                (k for k, v in self.reader.streams.items() if v["spec"] == ref_stream)
+            )
+        except:
+            ValueError(f"{ref_stream} is not a valid stream specifier")
+
+    def read(self, n=-1, ref_stream=None, timeout=None):
+        """read data from all streams
+
+        :param n: number of samples, negate to non-blocking, defaults to -1
+        :type n: int, optional
+        :param ref_stream: stream specifier to count the samples,
+                           defaults to None (first stream)
+        :type ref_stream: str, optional
+        :param timeout: timeout in seconds, defaults to None (waits indefinitely)
+        :type timeout: float, optional
+        :raises TimeoutError: if terminated due to timeout
+        :return: tuple of stream specifier and data array
+        :return: dict of data array keyed by stream specifier string
+        :rtype: dict(spec:str, data:numpy.ndarray)
+        """
 
         # wait till matching line is read by the thread
         block = self.is_alive() and n != 0
-        if timeout is not None:
-            timeout = _time() + timeout
+        tend = timeout and (_time() + timeout)
 
         # if stream header not received in time, raise error
-        if not (self.is_alive() and self.streams_ready.wait(timeout)):
+        if not self.wait(timeout):
             raise TimeoutError("timed out waiting for the stream headers")
+
+        # get the reference stream id
+        if ref_stream is None:
+            ref_stream = self._ids[0]
+        else:
+            ref_stream = self.find_id(ref_stream)
 
         # identify how many samples are needed for each stream
         n_ref = max(n, -n)
-        t_ref = (self._nread[ref_stream] + n_ref) * self.rates[ref_stream]
-        n_new = {k: ceil(t_ref / self.rates[k] - self._nread[k]) for k in self._ids}
+        t_ref = (self._nread[ref_stream] + n_ref) / self.rates[ref_stream]
+        n_need = {
+            k: ceil(t_ref * self.rates[k]) - self._nread[k]
+            if k != ref_stream
+            else n_ref
+            for k in self._ids
+        }
+        n_remain = deepcopy(n_need)
 
         # initialize output arrays
         arrays = {k: [] for k in self._ids}
@@ -530,57 +619,104 @@ class AviReaderThread(_Thread):
             for k, v in self._carryover.items():
                 if v is not None:
                     arrays[k] = [v]
-                    n_new[k] -= v.shape[0]
+                    n_remain[k] -= v.shape[0]
             self._carryover = None
 
         # loop till enough data are collected
-        while any((v > 0 for v in n_new.values())):
+        while any((v > 0 for k, v in n_remain.items() if n_need[k] > 0)):
             try:
-                tout = timeout and timeout - _time()
-                if tout <= 0:
+                if timeout:
+                    timeout = tend - _time()
+                    if timeout <= 0:
+                        break
+                chunk = self._queue.get(block, timeout)
+                if chunk is None:
                     break
-                k, data = self._queue.get(block, tout)
+                k, data = chunk
                 self._queue.task_done()
                 arrays[k].append(data)
-                n_new[k] -= data.shape[0]
+                n_remain[k] -= data.shape[0]
             except Empty:
                 break
 
-        def combine(id, array, n):
+        def combine(id, array, n, nr):
             # combine all the data and return requested amount
             if not len(array):
-                info = self.reader.streams[id]
-                return _np.empty((0, *info["shape"]), info["dtype"])
-
+                return (id, None, None)
             all_data = _np.concatenate(array)
-            n_read[id] += n_new[id]
             return (
-                (all_data, None) if n >= 0 else (all_data[:n, ...], all_data[n:, ...])
+                (id, all_data, None)
+                if nr >= 0
+                else (id, all_data[:n, ...], all_data[n:, ...])
             )
 
-        data,excess = zip(*(combine(id, array, n_new[id]) for id, array in arrays))
+        ids, data, excess = zip(
+            *(
+                combine(id, array, n_need[id], n_remain[id])
+                for id, array in arrays.items()
+            )
+        )
 
+        # any excess samples, store as a _carryover dict
+        if any((sdata is not None for sdata in excess)):
+            self._carryover = {id: sdata for id, sdata in zip(ids, excess)}
 
-    def read_all(self, timeout=None):
+        # final formatting of data
+        out = {}
+        for id, sdata in zip(ids, data):
+            info = self.reader.streams[id]
+            spec = info["spec"]
+            if sdata is None:
+                out[spec] = _np.empty((0, *info["shape"]), info["dtype"])
+            else:
+                self._nread[id] += sdata.shape[0]
+                out[spec] = sdata
+
+        return out
+
+    def readall(self, timeout=None):
 
         # wait till matching line is read by the thread
         if timeout is not None:
             timeout = _time() + timeout
 
-        arrays = arrays = [self._carryover] if self._carryover else []
-        self._carryover = None
+        # if stream header not received in time, raise error
+        if not self.wait(timeout):
+            raise TimeoutError("timed out waiting for the stream headers")
+
+        # initialize output arrays
+        arrays = {k: [] for k in self._ids}
+
+        # grab any leftover data from previous read
+        if self._carryover is not None:
+            for k, v in self._carryover.items():
+                if v is not None:
+                    arrays[k] = [v]
+                    self._nread[k] += v.shape[0]
+            self._carryover = None
 
         # loop till enough data are collected
-        while not self.is_alive() or timeout and timeout > _time():
+        while True:
             try:
-                data = self._queue.get(self.is_alive(), timeout and timeout - _time())
+                chunk = self._queue.get(self.is_alive(), timeout and timeout - _time())
+                if chunk is None:
+                    break  # end of stream
+                k, data = chunk
                 self._queue.task_done()
-                arrays.append(data)
+                arrays[k].append(data)
+                self._nread[k] += data.shape[0]
             except Empty:
                 break
 
-        # combine all the data and return requested amount
-        if not len(arrays):
-            return _np.empty((0, *self.shape))
+        # final formatting of data
+        out = {}
+        for id, sdata in arrays.items():
+            info = self.reader.streams[id]
+            spec = info["spec"]
+            out[spec] = (
+                _np.empty((0, *info["shape"]), info["dtype"])
+                if sdata is None
+                else _np.concatenate(sdata)
+            )
 
-        return _np.concatenate(arrays)
+        return out

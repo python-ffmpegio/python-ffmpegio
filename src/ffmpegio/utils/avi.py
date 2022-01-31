@@ -227,14 +227,14 @@ def next_chunk(f, resolve_sublist=False, prev_item=None):
             id = data
             data = items
     elif id == "JUNK":
-        f.seek(size, 1)
+        f.read(size)
         if size > datasize:
-            f.seek(size - datasize, 1)
+            f.read(size - datasize)
         data = None
     else:
         data = f.read(datasize)
         if size > datasize:
-            f.seek(size - datasize, 1)
+            f.read(size - datasize)
         decoder = decoders.get(id, None)
         if decoder:
             data = decoder(data, prev_item)
@@ -245,7 +245,7 @@ fcc_types = dict(vids="v", auds="a", txts="s")  # , mids="midi")
 
 
 def read_header(f, use_ya8):
-    f.seek(12, 1)  # ignore the 'RIFF SIZE AVI ' entry of the top level chunk
+    f.read(12)  # ignore the 'RIFF SIZE AVI ' entry of the top level chunk
     hdr = next_chunk(f, resolve_sublist=True)[1]
     ch = next_chunk(f)
     while ch and ch[0] != "LIST" and ch[1] != "movi":
@@ -321,11 +321,11 @@ def read_frame(f):
 class AviReader:
     def __init__(self, use_ya8=False):
         self._f = None
-        self.use_ya8 = use_ya8 #: bool: True to interpret 16-bit pixel as 'ya8' pix_fmt, False for 'gray16le'
+        self.use_ya8 = use_ya8  #: bool: True to interpret 16-bit pixel as 'ya8' pix_fmt, False for 'gray16le'
 
-        self.ready = False #:bool: True if AVI headers has been processed
-        self.streams = None #:dict: Stream headers keyed by stream id (int key)
-        self.converters = None #:dict : Stream to numpy ndarray conversion functions keyed by stream id
+        self.ready = False  #:bool: True if AVI headers has been processed
+        self.streams = None  #:dict: Stream headers keyed by stream id (int key)
+        self.converters = None  #:dict : Stream to numpy ndarray conversion functions keyed by stream id
 
     def start(self, f):
         self._f = f
@@ -337,21 +337,27 @@ class AviReader:
             st_type = hdr["type"]
             id = cnt[st_type]
             cnt[st_type] += 1
-            return {"spec": utils.spec_stream(id, st_type), **hdr}
+            if st_type == "v":
+                _, ncomp, dtype, _ = utils.get_pixel_config(hdr["pix_fmt"])
+                shape = (hdr["height"], hdr["width"], ncomp)
+            elif st_type == "a":
+                _, dtype = utils.get_audio_format(hdr["sample_fmt"])
+                shape = (hdr["channels"],)
+            return {
+                "spec": utils.spec_stream(id, st_type),
+                "shape": shape,
+                "dtype": dtype,
+                **hdr,
+            }
 
         self.streams = {v["index"]: set_stream_info(v) for v in hdr}
 
         def get_converter(stream):
-            if stream["type"] == "v":
-                _, ncomp, dtype, _ = utils.get_pixel_config(stream["pix_fmt"])
-                stream['shape'] = shape = (stream["height"], stream["width"], ncomp)
-            elif stream["type"] == "a":
-                stream["codec"], dtype = utils.get_audio_format(stream["sample_fmt"])
-                stream['shape'] = shape = (stream["channels"],)
-            stream['dtype'] = dtype
-            return lambda b: np.frombuffer(b, dtype=dtype).reshape(-1, *shape)
+            return lambda b: np.frombuffer(b, dtype=stream["dtype"]).reshape(
+                -1, *stream["shape"]
+            )
 
-        self.converters = {v["index"]: get_converter(v) for v in hdr}
+        self.converters = {k: get_converter(v) for k, v in self.streams.items()}
 
         self.ready = True
 

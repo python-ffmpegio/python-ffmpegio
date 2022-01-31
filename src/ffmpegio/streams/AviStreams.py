@@ -1,3 +1,7 @@
+from .. import configure, threading, utils, ffmpegprocess
+
+__all__ = ["AviMediaReader"]
+
 
 class AviMediaReader:
     """Read video frames
@@ -37,34 +41,49 @@ class AviMediaReader:
 
     """
 
-    def __init__(self, *urls, streams=None, progress=None, show_log=None, blocksize=None, **options):
+    def __init__(
+        self,
+        *urls,
+        ref_stream=None,
+        blocksize=None,
+        progress=None,
+        show_log=None,
+        queuesize=0,
+        **options
+    ):
 
-        self.dtype = None  # :numpy.dtype: output data type
-        self.shape = (
-            None  # :tuple of ints: dimension of each video frame or audio sample
-        )
-        self.itemsize = None  #:int: number of bytes of each video frame or audio sample
-        self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
+        self.ref_stream = ref_stream
+        #:str: specifier of reference output stream for iterator
+        self.blocksize = blocksize or 0
+        #:int: if >0 number of samples of reference stream to include in each read; <=0 one chunk per read
 
-        # get url/file stream
-        url, stdin, input = configure.check_url(url, False)
+        ninputs = len(urls)
+        if not ninputs:
+            raise ValueError("At least one URL must be given.")
 
-        input_options = utils.pop_extra_options(options, "_in")
+        # separate the options
+        spec_inopts = utils.pop_extra_options_multi(options, r"_in(\d+)$")
+        inopts = utils.pop_extra_options(options, "_in")
 
-        ffmpeg_args = configure.empty()
-        configure.add_url(ffmpeg_args, "input", url, input_options)
-        configure.add_url(ffmpeg_args, "output", "-", options)
+        # create a new FFmpeg dict
+        args = configure.empty()
+        configure.add_url(args, "output", "-", options)  # add piped output
+        for i, url in enumerate(urls):  # add inputs
+            # check url (must be url and not fileobj)
+            configure.check_url(url, nodata=True, nofileobj=True)
+            configure.add_url(args, "input", url, {*inopts, *spec_inopts.get(i, {})})
 
-        # abstract method to finalize the options => sets self.dtype and self.shape if known
-        self._finalize(ffmpeg_args)
+        # configure output options
+        use_ya8 = configure.finalize_media_read_opts(args)
+
+        self._reader = threading.AviReaderThread(use_ya8, queuesize)
 
         # create logger without assigning the source stream
-        self._logger = _LogerThread(None, show_log)
+        self._logger = threading.LoggerThread(None, show_log)
 
         # start FFmpeg
         self._proc = ffmpegprocess.Popen(
-            ffmpeg_args,
-            stdin=stdin,
+            args,
             progress=progress,
             capture_log=True,
             close_stdin=True,
@@ -72,30 +91,38 @@ class AviMediaReader:
             close_stderr=False,
         )
 
+        # start the reader thrad
+        self._reader.start(self._proc.stdout)
+
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
         self._logger.start()
 
-        # if byte data is given, feed it
-        if input is not None:
-            self._proc.stdin.write(input)
+    def types(self):
+        """:dict(str:str): media type associated with the streams (key)"""
+        self._reader.wait()
+        ts = {"v": "video", "a": "audio"}
+        return {v["spec"]: ts[v["type"]] for v in self._reader.streams.values()}
 
-        # wait until output stream log is captured if output format is unknown
-        try:
-            if self.dtype is None or self.shape is None:
-                info = self._logger.output_stream()
-                self._finalize_array(info)
-            else:
-                self._logger.index("Output")
-        except:
-            if self._proc.poll() is None:
-                raise self._logger.Exception
-            else:
-                raise ValueError("failed retrieve output data format")
+    def rates(self):
+        """:dict(str:int|Fraction): sample or frame rates associated with the streams (key)"""
+        self._reader.wait()
+        rates = self._reader.rates
+        return {v["spec"]: rates[k] for k, v in self._reader.streams.items()}
 
-        self.itemsize = utils.get_itemsize(self.shape, self.dtype)
+    def dtypes(self):
+        """:dict(str:str): numpy dtypes associated with the streams (key)"""
+        self._reader.wait()
+        return {v["spec"]: v["dtype"] for v in self._reader.streams.values()}
 
-        self.blocksize = blocksize or max(1024 ** 2 // self.itemsize, 1)
+    def shapes(self):
+        """:dict(str:tuple(int)): base array shape associated with the streams (key)"""
+        self._reader.wait()
+        return {v["spec"]: v["shape"] for v in self._reader.streams.values()}
+
+    def get_stream_info(self, spec):
+        id = self._reader.find_id(spec)
+        return self._reader.streams[id]
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -112,16 +139,17 @@ class AviMediaReader:
             self._proc.terminate()
         except:
             pass
+        self._reader.join()
         self._logger.join()
 
     @property
     def closed(self):
-        """:bool: True if the stream is closed."""
+        """:bool: True if the FFmpeg has been terminated."""
         return self._proc.poll() is not None
 
     @property
     def lasterror(self):
-        """:FFmpegError: Last error FFmpeg posted"""
+        """:FFmpegError: TODO Last error FFmpeg posted"""
         if self._proc.poll():
             return self._logger.Exception()
         else:
@@ -138,7 +166,11 @@ class AviMediaReader:
 
     def __next__(self):
         try:
-            return self.read(self.blocksize)
+            return (
+                self._reader.read(self.blocksize, self.ref_stream)
+                if self.blocksize > 0
+                else self._reader.readchunk()
+            )
         except:
             raise StopIteration
 
@@ -148,7 +180,10 @@ class AviMediaReader:
         with self._logger._newline_mutex:
             return "\n".join(self._logger.logs or self._logger.logs[:n])
 
-    def read(self, n=-1):
+    def readnext(self, timeout=None):
+        return self._reader.readchunk(timeout)
+
+    def read(self, n=-1, ref_stream=None, timeout=None):
         """Read and return numpy.ndarray with up to n frames/samples. If
         the argument is omitted, None, or negative, data is read and
         returned until EOF is reached. An empty bytes object is returned
@@ -163,60 +198,7 @@ class AviMediaReader:
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
 
-        b = self._proc.stdout.read(n * self.itemsize if n > 0 else n)
-        if not len(b):
-            self._proc.stdout.close()
-        return _as_array(b, self.shape, self.dtype)
+        return self._reader.read(n, ref_stream, timeout)
 
-    def readinto(self, array):
-        """Read bytes into a pre-allocated, writable bytes-like object array and
-        return the number of bytes read. For example, b might be a bytearray.
-
-        Like read(), multiple reads may be issued to the underlying raw stream,
-        unless the latter is interactive.
-
-        A BlockingIOError is raised if the underlying raw stream is in non
-        blocking-mode, and has no data available at the moment."""
-
-        return self._proc.stdout.readinto(memoryview(array).cast("b")) // self.itemsize
-
-
-class SimpleVideoReader(SimpleReaderBase):
-    def _finalize(self, ffmpeg_args):
-        # finalize FFmpeg arguments and output array
-
-        inurl, inopts = ffmpeg_args.get("inputs", [])[0]
-        outopts = ffmpeg_args.get("outputs", [])[0][1]
-        has_fg = configure.has_filtergraph(ffmpeg_args, "video")
-
-        pix_fmt = outopts.get("pix_fmt", None)
-        if pix_fmt is None or (
-            not has_fg
-            and inurl not in ("-", "pipe:", "pipe:0")
-            and not inopts.get("pix_fmt", None)
-        ):
-            # must assign output rgb/grayscale pixel format
-            info = probe.video_streams_basic(inurl, 0)[0]
-            pix_fmt_in = info["pix_fmt"]
-            s_in = (info["width"], info["height"])
-            r_in = info["frame_rate"]
-        else:
-            pix_fmt_in = s_in = r_in = None
-
-        (
-            self.dtype,
-            self.shape,
-            self.frame_rate,
-        ) = configure.finalize_video_read_opts(ffmpeg_args, pix_fmt_in, s_in, r_in)
-
-        # construct basic video filter if options specified
-        configure.build_basic_vf(
-            ffmpeg_args, utils.alpha_change(pix_fmt_in, pix_fmt, -1)
-        )
-
-    def _finalize_array(self, info):
-        # finalize array setup from FFmpeg log
-
-        self.frame_rate = info["r"]
-        self.dtype, ncomp, _ = utils.get_video_format(info["pix_fmt"])
-        self.shape = (*info["s"][::-1], ncomp)
+    def readall(self, timeout=None):
+        return self._reader.readall(timeout)

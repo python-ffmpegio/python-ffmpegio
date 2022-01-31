@@ -10,9 +10,9 @@ def test_media_read():
     url1 = "tests/assets/testvideo-1m.mp4"
     url2 = "tests/assets/testaudio-1m.mp3"
     rates, data = media.read(url, t=1)
-    rates, data = media.read(url, streams=("v:0", "v:1", "a:1", "a:0"), t=1)
+    rates, data = media.read(url, map=("v:0", "v:1", "a:1", "a:0"), t=1)
     rates, data = media.read(url1, url2, t=1)
-    rates, data = media.read(url2, url, streams=("1:v:0", (0, "a:0")), t=1)
+    rates, data = media.read(url2, url, map=("1:v:0", (0, "a:0")), t=1)
 
     print(rates)
     print([(k, x.shape, x.dtype) for k, x in data.items()])
