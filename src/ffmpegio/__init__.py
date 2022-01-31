@@ -45,7 +45,7 @@ __all__ = [
     "FFmpegError",
     "FilterGraph",
 ]
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 ffmpeg_info = _ffmpeg.versions
 set_path = _ffmpeg.find
