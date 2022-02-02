@@ -686,6 +686,7 @@ class SimpleFilterBase:
         :type n: int, optional
         :return: string containing the requested logs
         :rtype: str
+
         """
         if n is not None:
             self._logger.index(n)
@@ -699,37 +700,36 @@ class SimpleFilterBase:
         :type data: numpy.ndarray
         :param timeout: timeout for the operation in seconds, defaults to None
         :type timeout: float, optional
-        :raises TimeoutError if output format is not fully resolved yet
         :return: output data block
         :rtype: numpy.ndarray
-
+        
         The input `data` array is expected to have the datatype specified by
         Filter class' `dtype_in` property and the array shape to match Filter
         class' `shape_in` property or with an additional dimension prepended.
 
         .. important::
-           [audio only] For the first 2-seconds or 50000-samples, whichever
-           is smaller, TimeoutError may be raised because the necessary output
-           format information is not yet made available from FFmpeg. This
-           exception, however, only indicate the lack of output data and
-           the input data can be assumed properly enqueued to be sent to
-           FFmpeg process
+          [audio only] For the first 2-seconds or 50000-samples, whichever
+          is smaller, TimeoutError may be raised because the necessary output
+          format information is not yet made available from FFmpeg. This
+          exception, however, only indicate the lack of output data and
+          the input data can be assumed properly enqueued to be sent to
+          FFmpeg process
 
         .. important::
-            Once the output format is resolved, this method always return
-            numpy.ndarray object as output. However, the exact number of
-            samples is unknown, and it could be a properly shaped empty
-            array. Additional buffering may be required if the following
-            process requires a fixed number of samples.
+          Once the output format is resolved, this method always return
+          numpy.ndarray object as output. However, the exact number of
+          samples is unknown, and it could be a properly shaped empty
+          array. Additional buffering may be required if the following
+          process requires a fixed number of samples.
 
         .. important::
-            Filtering operation is always timed because the buffering
-            protocols used by various subsystems of FFmpeg are undeterminable
-            from Python. The operation timeout is controlled by `timeout`
-            argument if specified or else  by `default_timeout` property. The
-            default timeout duration is 10 ms, but it could be optimized for
-            each use case (`blocksize` property, I/O rate ratio, typical size of
-            `data` argument, etc.).
+          Filtering operation is always timed because the buffering
+          protocols used by various subsystems of FFmpeg are undeterminable
+          from Python. The operation timeout is controlled by `timeout`
+          argument if specified or else  by `default_timeout` property. The
+          default timeout duration is 10 ms, but it could be optimized for
+          each use case (`blocksize` property, I/O rate ratio, typical size of
+          `data` argument, etc.).
 
         """
 
@@ -811,6 +811,7 @@ class SimpleVideoFilter(SimpleFilterBase):
     :type show_log: bool, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
+
     """
 
     readable = True
@@ -945,6 +946,7 @@ class SimpleAudioFilter(SimpleFilterBase):
 
     ..note::
         Use of larger `block_size` parameter could improve the processing speed
+
     """
 
     readable = True
