@@ -40,7 +40,7 @@ Visit our `GitHub page here <https://python-ffmpegio.github.io/python-ffmpegio/>
 Examples
 --------
 
-To import :py:mod:`ffmpegio`
+To import `ffmpegio`
 
 .. code-block:: python
 
