@@ -126,15 +126,15 @@ def open(
 
     `mode` is an optional string that specifies the mode in which the FFmpeg is opened.
 
-    ====  ============================================
+    ====  ===================================================
     Mode  Description
-    ====  ============================================
+    ====  ===================================================
     'r'   read from url (default)
     'w'   write to url
     'f'   filter data defined by fg
-    'v'   operate on video stream (likely default)
-    'a'   operate on audio stream
-    ====  ============================================
+    'v'   operate on video stream, 'vv' if multi-video reader
+    'a'   operate on audio stream, 'aa' if multi-audio reader
+    ====  ===================================================
 
     The default operating mode is dictated by `rate` and `rate_in` arguments. The 'f' mode is selected
     if both `rate` and  `rate_in` are given while the 'w' mode is selected if only `rate_in` without
@@ -243,6 +243,12 @@ def open(
                 # TODO identify based on file extension
                 raise ValueError("Unknown media type")
             video = not audio
+    elif read:
+        # if audio or video is set multiple times, use avi reader
+        if audio and not video:
+            video = audio and sum((1 for m in mode if m == "a")) > 1
+        elif video and not audio:
+            audio = video and sum((1 for m in mode if m == "v")) > 1
 
     try:
         StreamClass = {
@@ -261,7 +267,7 @@ def open(
             },
         }[audio + 2 * video][write + 2 * filter]
     except:
-        raise Exception(f"Invalid FFmpeg streaming mode: {mode}.")
+        raise Exception(f"Invalid/unsupported FFmpeg streaming mode: {mode}.")
 
     if len(url_fg) > 1 and not StreamClass.multi_read:
         raise Exception(f'Multi-input streaming is not supported in "{mode}" mode')
