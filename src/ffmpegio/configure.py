@@ -185,7 +185,7 @@ def check_alpha_change(args, dir=None, ifile=0, ofile=0):
     return utils.alpha_change(inopts.get("pix_fmt", None), outopts.get("pix_fmt", None))
 
 
-def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
+def build_basic_vf(args, remove_alpha=None, ofile=0):
     """convert basic VF options to vf option
 
     :param args: FFmpeg dict
@@ -217,6 +217,8 @@ def build_basic_vf(args, remove_alpha=None, ofile=0, force=False):
         )
         if name in outopts
     }
+
+    force = outopts.pop("_force_basic_vf", False)
 
     # check if output needs to be scaled
     scale = outopts.get("s", None)
@@ -446,7 +448,7 @@ def finalize_media_read_opts(args):
     - assumes options dict of the first output is already present
     - insert `pix_fmt='rgb24'` and `sample_fmt='sa16le'` options if these options are not assigned
     - check for the use of both 'gray16le' and 'ya8', and returns True if need to use 'ya8'
-    - set f=avi and vcodec=rawvideo 
+    - set f=avi and vcodec=rawvideo
     - set acodecs according to sample_fmts
 
     """
