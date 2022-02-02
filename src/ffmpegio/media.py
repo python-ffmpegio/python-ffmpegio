@@ -1,9 +1,10 @@
 import numpy as np
-import re
 from io import BytesIO
 
-from . import ffmpegprocess, utils, configure, FFmpegError, probe
+from . import ffmpegprocess, utils, configure, FFmpegError
 from .utils import avi
+
+__all__ = ["read"]
 
 
 def read(*urls, progress=None, show_log=None, **options):

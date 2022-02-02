@@ -8,18 +8,22 @@ Transcode media file to another format/codecs
 
 Stream Read/Write
 -----------------
+
 ffmpegio.open()
 
-Block Read/Write Functions
---------------------------
+Block Read/Write/Filter Functions
+---------------------------------
+
 `ffmpegio.video.read()`
 `ffmpegio.video.write()`
+`ffmpegio.video.filter()`
 `ffmpegio.image.read()`
 `ffmpegio.image.write()`
+`ffmpegio.image.filter()`
 `ffmpegio.audio.read()`
 `ffmpegio.audio.write()`
+`ffmpegio.audio.filter()`
 `ffmpegio.media.read()`
-`ffmpegio.media.write()`
 """
 
 from contextlib import contextmanager
@@ -27,7 +31,7 @@ from contextlib import contextmanager
 from .utils.log import FFmpegError
 from .utils.filter import FilterGraph
 from .transcode import transcode
-from . import caps, probe, audio, image, video
+from . import caps, probe, audio, image, video, media
 from . import ffmpegprocess
 from . import ffmpeg as _ffmpeg
 from . import streams as _streams
@@ -40,6 +44,7 @@ __all__ = [
     "audio",
     "image",
     "video",
+    'media',
     "open",
     "ffmpegprocess",
     "FFmpegError",
@@ -179,7 +184,7 @@ def open(
     numpy.int32     s32
     numpy.single    flt
     numpy.double    dbl
-    =============  ==========
+    ==============  ==========
 
     If dtypes and sshapes are not specified at the time of opening, they will
     be set during the first write/filter operation using the input data.
