@@ -89,7 +89,7 @@ def test_popen():
             ],
         }
 
-        proc = ffmpegprocess.Popen(args, capture_log=True, stdin=f, close_stdin=True)
+        proc = ffmpegprocess.Popen(args, capture_log=True, stdin=f)
         x = proc.stdout.read()
         if proc.wait(50) is None:
             print("ffmpeg not stopping")

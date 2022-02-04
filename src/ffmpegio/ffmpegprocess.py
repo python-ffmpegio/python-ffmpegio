@@ -34,45 +34,28 @@ __all__ = ["run", "Popen", "PIPE", "DEVNULL"]
 
 
 def monitor_process(
-    proc, close_stdin=True, close_stdout=True, close_stderr=True, on_exit=None
+    proc, on_exit=None
 ):
     """thread function to monitor subprocess termination
 
     :param proc: subprocess to be monitored
     :type proc: subprocess.Popen
-    :param close_stdin: if True, auto-close stdin, defaults to True
-    :type close_stdin: bool, optional
-    :param close_stdout: if True, auto-close stdout, defaults to True
-    :type close_stdout: bool, optional
-    :param close_stderr: if True, auto-close stderr, defaults to True
-    :type close_stderr: bool, optional
     :param on_exit: callback function(s) to be called after process is terminated and
                     all auto-closing streams are closed
     :type on_exit: Callable or seq(Callables), optional
+
+        on_exit(returncode)
+
     """
 
     proc.wait()
-    if close_stdin and proc.stdin:
-        try:
-            proc.stdin.close()
-        except:
-            pass
-    if close_stdout and proc.stdout:
-        try:
-            proc.stdout.close()
-        except:
-            pass
-    if close_stderr and proc.stderr:
-        try:
-            proc.stderr.close()
-        except:
-            pass
     if on_exit is not None:
+        returncode = proc.returncode
         try:
-            on_exit()
+            on_exit(returncode)
         except:
             for fcn in on_exit:
-                fcn()
+                fcn(returncode)
 
 
 class Popen(_sp.Popen):
@@ -100,12 +83,6 @@ class Popen(_sp.Popen):
     :type stdout: writable file object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
     :type stderr: writable file object, optional
-    :param close_stdin: True to auto-close stdin, defaults to None (True only if stdin not given)
-    :type close_stdin: bool, optional
-    :param close_stdout: True to auto-close stdout, defaults to None (True only if stdout not given)
-    :type close_stdout: bool, optional
-    :param close_stderr: True to auto-close stderr, defaults to None (True only if stderr not given)
-    :type close_stderr: bool, optional
     :param on_exit: function(s) to execute when FFmpeg process terminates, defaults to None
     :type on_exit: Callable or seq(Callable), optional
     :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
@@ -134,9 +111,6 @@ class Popen(_sp.Popen):
         stdin=None,
         stdout=None,
         stderr=None,
-        close_stdin=None,
-        close_stdout=None,
-        close_stderr=None,
         on_exit=None,
         **other_popen_args,
     ):

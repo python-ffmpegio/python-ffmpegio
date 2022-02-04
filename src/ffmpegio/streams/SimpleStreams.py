@@ -51,13 +51,7 @@ class SimpleReaderBase:
 
         # start FFmpeg
         self._proc = ffmpegprocess.Popen(
-            ffmpeg_args,
-            stdin=stdin,
-            progress=progress,
-            capture_log=True,
-            close_stdin=True,
-            close_stdout=False,
-            close_stderr=False,
+            ffmpeg_args, stdin=stdin, progress=progress, capture_log=True
         )
 
         # set the log source and start the logger
@@ -94,12 +88,16 @@ class SimpleReaderBase:
         however, will have an effect.
 
         """
-        self._proc.stdout.close()
-        self._proc.stderr.close()
         try:
             self._proc.terminate()
         except:
             pass
+        try:
+            self._proc.stdin.close()
+        except:
+            pass
+        self._proc.stdout.close()
+        self._proc.stderr.close()
         self._logger.join()
 
     @property
@@ -303,9 +301,6 @@ class SimpleWriterBase:
             "capture_log": True,
             "overwrite": overwrite,
             "stdout": stdout,
-            "close_stdin": True,
-            "close_stdout": True,
-            "close_stderr": False,
         }
 
         if ready:
@@ -568,9 +563,6 @@ class SimpleFilterBase:
             "ffmpeg_args": ffmpeg_args,
             "progress": progress,
             "capture_log": True,
-            "close_stdin": True,
-            "close_stdout": False,
-            "close_stderr": False,
         }
 
         # if input is fully configured, start FFmpeg now
@@ -702,7 +694,7 @@ class SimpleFilterBase:
         :type timeout: float, optional
         :return: output data block
         :rtype: numpy.ndarray
-        
+
         The input `data` array is expected to have the datatype specified by
         Filter class' `dtype_in` property and the array shape to match Filter
         class' `shape_in` property or with an additional dimension prepended.

@@ -87,14 +87,7 @@ class AviMediaReader:
         self._logger = threading.LoggerThread(None, show_log)
 
         # start FFmpeg
-        self._proc = ffmpegprocess.Popen(
-            args,
-            progress=progress,
-            capture_log=True,
-            close_stdin=True,
-            close_stdout=False,
-            close_stderr=False,
-        )
+        self._proc = ffmpegprocess.Popen(args, progress=progress, capture_log=True)
 
         # start the reader thrad
         self._reader.start(self._proc.stdout)
@@ -143,12 +136,12 @@ class AviMediaReader:
         however, will have an effect.
 
         """
-        self._proc.stdout.close()
-        self._proc.stderr.close()
         try:
             self._proc.terminate()
         except:
             pass
+        self._proc.stdout.close()
+        self._proc.stderr.close()
         self._reader.join()
         self._logger.join()
 
