@@ -8,7 +8,7 @@ ffmpegio: Media I/O with FFmpeg in Python
 .. image:: https://img.shields.io/pypi/pyversions/ffmpegio
   :alt: PyPI - Python Version
 .. image:: https://img.shields.io/github/license/python-ffmpegio/python-ffmpegio
-  :alt: GitHub
+  :alt: GitHub License
 .. image:: https://img.shields.io/github/workflow/status/python-ffmpegio/python-ffmpegio/Run%20Tests
   :alt: GitHub Workflow Status
 
@@ -114,6 +114,10 @@ Read Image Files / Capture Video Frames
   >>> # capture 5 video frames and tile them on 3x2 grid with 7px between them, and 2px of initial margin
   >>> I = ffmpegio.image.read('myvideo.mp4', vf='tile=3x2:nb_frames=5:padding=7:margin=2')
 
+  >>> # create spectrogram of the audio input (must specify pix_fmt if input is audio)
+  >>> I = ffmpegio.image.read('myaudio.mp3', filter_complex='showspectrumpic=s=960x540', pix_fmt='rgb24')
+
+
 Read Video Files
 ^^^^^^^^^^^^^^^^
 
@@ -123,15 +127,28 @@ Read Video Files
   >>> fs, F = ffmpegio.video.read('myvideo.mp4', ss='00:32:40', vframes=50, pix_fmt='gray')
   >>> #  fs: frame rate in frames/second, F: [nframes x height x width x ncomp] numpy array
 
+  >>> # get running spectrogram of audio input (must specify pix_fmt if input is audio)
+  >>> fs, F = ffmpegio.video.read('myvideo.mp4', pix_fmt='rgb24', filter_complex='showspectrum=s=1280x480')
+  
+
 Read Multiple Files or Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
 
   >>> # read both video and audio streams (1 ea)
-  >>> rates, data = ffmpegio.media.read('myvideo.mp4')
-  >>> #  rates: dict of frame rate and sampling rate, keyed by stream specifiers
-  >>> #  data: dict of video frame array and audio sample array, keyed by stream specifiers
+  >>> rates, data = ffmpegio.media.read('mymedia.mp4')
+  >>> #  rates: dict of frame rate and sampling rate: keys="v:0" and "a:0"
+  >>> #  data: dict of video frame array and audio sample array: keys="v:0" and "a:0"
+
+  >>> # combine video and audio files
+  >>> rates, data = ffmpegio.media.read('myvideo.mp4','myaudio.mp3')
+
+  >>> # get output of complex filtergraph (can take multiple inputs)
+  >>> expr = "[v:0]split=2[out0][l1];[l1]edgedetect[out1]"
+  >>> rates, data = ffmpegio.media.read('myvideo.mp4',filter_complex=expr,map=['[out0]','[out1]'])
+  >>> #  rates: dict of frame rates: keys="v:0" and "v:1"
+  >>> #  data: dict of video frame arrays: keys="v:0" and "v:1"
 
 Write Audio, Image, & Video Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -174,6 +191,26 @@ Stream I/O
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
 
+Progress callback
+^^^^^^^^^^^^^^^^^
+
+  >>> import pprint
+
+  >>> # progress callback
+  >>> def progress(info, done):
+  >>>     pprint(info) # bunch of stats
+  >>>     if done:
+  >>>        print('video decoding completed')
+  >>>     else:
+  >>>        return check_cancel_command(): # return True to kill immediately
+  
+  >>> # can be used in any butch processing
+  >>> rate, F = ffmpegio.video.read('myvideo.mp4', progress=progress)
+
+  >>> # as well as for stream processing
+  >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100, progress=progress) as fin:
+  >>>     for frames in fin:
+  >>>         myprocess(frames)
 
 Introductory Info
 -----------------
