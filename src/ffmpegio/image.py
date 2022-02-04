@@ -57,15 +57,7 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
     return data[-1, ...]
 
 
-def create(
-    expr,
-    *args,
-    pix_fmt=None,
-    vf=None,
-    vframe=None,
-    show_log=None,
-    **kwargs
-):
+def create(expr, *args, pix_fmt=None, vf=None, vframe=None, show_log=None, **kwargs):
     """Create an image using a source video filter
 
     :param name: name of the source filter
@@ -154,7 +146,7 @@ def read(url, show_log=None, **options):
     """
 
     # get pix_fmt of the input file only if needed
-    if "pix_fmt_in" not in options:
+    if "pix_fmt" not in options and "pix_fmt_in" not in options:
         info = probe.video_streams_basic(url, 0)[0]
         pix_fmt_in = info["pix_fmt"]
         s_in = (info["width"], info["height"])
