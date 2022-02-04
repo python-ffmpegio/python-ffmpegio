@@ -165,6 +165,7 @@ class Popen(_sp.Popen):
 
         # run progress monitor
         self._progmon = None if progress is None else ProgressMonitorThread(progress)
+        self._monitor = None
 
         # start FFmpeg process
         exec(
@@ -185,27 +186,21 @@ class Popen(_sp.Popen):
             self._progmon.start()
 
         # start the process monitor to perform the cleanup when FFmpeg terminates
-        # if auto-close mode not set, audo-close only if stream handlers are not given
-        if close_stdin is None:
-            close_stdin = stdin is None
-        if close_stdout is None:
-            close_stdout = stdout is None
-        if close_stderr is None:
-            close_stderr = stderr is None
-        if self._progmon:
-            if on_exit:
-                try:
-                    on_exit = (self._progmon.join, *on_exit)
-                except:
-                    on_exit = (self._progmon.join, on_exit)
-            else:
-                on_exit = self._progmon.join
+        if self._progmon or on_exit:
+            if self._progmon:
+                if on_exit:
+                    try:
+                        on_exit = (self._progmon.join, *on_exit)
+                    except:
+                        on_exit = (self._progmon.join, on_exit)
+                else:
+                    on_exit = self._progmon.join
 
-        self._monitor = _Thread(
-            target=monitor_process,
-            args=(self, close_stdin, close_stdout, close_stderr, on_exit),
-        )
-        self._monitor.start()
+            self._monitor = _Thread(
+                target=monitor_process,
+                args=(self, on_exit),
+            )
+            self._monitor.start()
 
     def wait(self, timeout=None):
         """Wait for FFmpeg process to terminate; returns self.returncode
@@ -230,12 +225,18 @@ class Popen(_sp.Popen):
     def terminate(self):
         """Terminate the FFmpeg process"""
         super().terminate()
-        self._monitor.join()
+        try:
+            self._monitor.join()
+        except:
+            pass
 
     def kill(self):
         """Kill the FFmpeg process"""
         super().kill()
-        self._monitor.join()
+        try:
+            self._monitor.join()
+        except:
+            pass
 
     def send_signal(self, sig: int):
         """Sends the signal signal to the FFmpeg process
