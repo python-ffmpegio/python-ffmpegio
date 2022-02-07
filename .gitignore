@@ -150,3 +150,6 @@ cython_debug/
 # GitHub page
 docs/
 !docs/.nojekyll
+
+sandbox/*
+!sandbox/*.py

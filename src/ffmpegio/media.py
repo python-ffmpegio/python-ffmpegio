@@ -18,8 +18,8 @@ def read(*urls, progress=None, show_log=None, **options):
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param use_ya8: True if piped video streams uses `ya8` pix_fmt instead of `gray16le`, default to None
-    :type use_ya8: bool, optional
+    :param use_ya: True if piped video streams uses `ya8` pix_fmt instead of `gray16le`, default to None
+    :type use_ya: bool, optional
     :param \\**options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                         input url or '_in' to be applied to all inputs. The url-specific option gets the
                         preference (see :doc:`options` for custom options)
@@ -59,7 +59,7 @@ def read(*urls, progress=None, show_log=None, **options):
         configure.add_url(args, "input", url, {*inopts, *spec_inopts.get(i, {})})
 
     # configure output options
-    use_ya8 = configure.finalize_media_read_opts(args)
+    use_ya = configure.finalize_media_read_opts(args)
 
     # run FFmpeg
     out = ffmpegprocess.run(
@@ -72,8 +72,8 @@ def read(*urls, progress=None, show_log=None, **options):
 
     # fire up the AVI reader and process the stdout bytes
     # TODO: Convert to use pipe/thread
-    reader = avi.AviReader(use_ya8)
-    reader.start(BytesIO(out.stdout))
+    reader = avi.AviReader()
+    reader.start(BytesIO(out.stdout), use_ya)
     # get frame rates and sample rates of all media streams
     rates = {
         v["spec"]: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]

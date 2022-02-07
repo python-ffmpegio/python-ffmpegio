@@ -341,13 +341,7 @@ def get_audio_format(fmt, return_format=False):
         s32=("pcm_s32le", np.int32),
         s64=("pcm_s64le", np.int64),
         flt=("pcm_f32le", np.float32),
-        dbl=("pcm_f64le", np.float64),
-        u8p=("pcm_u8", np.uint8),
-        s16p=("pcm_s16le", np.int16),
-        s32p=("pcm_s32le", np.int32),
-        s64p=("pcm_s64le", np.int64),
-        fltp=("pcm_f32le", np.float32),
-        dblp=("pcm_f64le", np.float64),
+        dbl=("pcm_f64le", np.float64)
     )
 
     # byteorder = "be" if sys.byteorder == "big" else "le"

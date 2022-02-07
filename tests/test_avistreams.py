@@ -69,4 +69,18 @@ if __name__ == "__main__":
     url1 = "tests/assets/testvideo-1m.mp4"
     url2 = "tests/assets/testaudio-1m.mp3"
 
-    test_open()
+    from pprint import pprint
+
+    with AviStreams.AviMediaReader(url1, url2, t=1) as reader:
+        reader._reader.wait()
+        print(f'thread is running {reader._reader.is_alive()}')
+        pprint(reader.specs())
+        print(reader.types())
+        print(reader.rates())
+        print(reader.dtypes())
+        print(reader.shapes())
+        print(reader.get_stream_info("v:0"))
+        print(reader.get_stream_info("a:0"))
+
+        data = reader.readall()
+        print({k: (v.shape, v.dtype) for k, v in data.items()})

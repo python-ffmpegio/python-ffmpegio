@@ -456,10 +456,10 @@ class WriterThread(_Thread):
 
 
 class AviReaderThread(_Thread):
-    def __init__(self, use_ya8=None, queuesize=None):
+    def __init__(self, queuesize=None):
 
         super().__init__()
-        self.reader = AviReader(use_ya8)  #:utils.avi.AviReader: AVI demuxer
+        self.reader = AviReader()  #:utils.avi.AviReader: AVI demuxer
         self.streams_ready = _Event()  #:Event: Set when received stream header info
         self.rates = None  # :dict(int:int|Fraction)
         self._queue = _Queue(queuesize or 0)  # inter-thread data I/O
@@ -473,21 +473,21 @@ class AviReaderThread(_Thread):
     def streams(self):
         return self.reader.streams if self.streams_ready else None
 
-    def start(self, stdout):
-        self._args = (stdout,)
+    def start(self, stdout, use_ya=None):
+        self._args = (stdout, use_ya)
         super().start()
 
     def join(self, timeout=None):
         # if queue is full,
         super().join(timeout)
 
-    def __enter__(self):
-        self.start()
-        return self
+    # def __enter__(self):
+    #     self.start()
+    #     return self
 
-    def __exit__(self, *_):
-        self.join()  # will wait until stdout is closed
-        return self
+    # def __exit__(self, *_):
+    #     self.join()  # will wait until stdout is closed
+    #     return self
 
     def run(self):
 
@@ -495,7 +495,7 @@ class AviReaderThread(_Thread):
 
         try:
             # start the AVI reader to process stdout byte stream
-            reader.start(self._args[0])
+            reader.start(*self._args)
 
             # initialize the stream properties
             self._ids = ids = [i for i in reader.streams]
@@ -504,7 +504,8 @@ class AviReaderThread(_Thread):
                 k: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
                 for k, v in reader.streams.items()
             }
-        except:
+        except Exception as e:
+            _logging.critical(e)
             return
         finally:
             self.streams_ready.set()
