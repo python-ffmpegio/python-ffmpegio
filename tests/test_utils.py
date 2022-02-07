@@ -1,4 +1,4 @@
-from ffmpegio import utils, caps
+from ffmpegio import utils
 import pytest
 import numpy as np
 
@@ -40,7 +40,23 @@ def test_get_pixel_config():
     with pytest.raises(Exception):
         utils.get_pixel_config("yuv")  # unknown format
     cfg = utils.get_pixel_config("rgb24")  # unknown format
-    assert cfg[0] == "rgb24" and cfg[1] == 3 and cfg[2] == np.uint8
+    assert cfg[0] == "rgb24" and cfg[1] == 3 and cfg[2] == "|u1"
+
+
+def test_alpha_change():
+
+    cases = (("rgb24", "rgba", 1), ("rgb24", "rgb24", 0), ("ya8", "gray", -1))
+
+    for input_pix_fmt, output_pix_fmt, dir in cases:
+        dout = utils.alpha_change(input_pix_fmt, output_pix_fmt)
+        assert dir == dout
+        assert utils.alpha_change(input_pix_fmt, output_pix_fmt, dir) is True
+        if dir:
+            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, -dir) is False
+            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, 0) is False
+        else:
+            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, 1) is False
+            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, -1) is False
 
 
 def test_get_rotated_shape():
@@ -52,126 +68,49 @@ def test_get_rotated_shape():
     assert utils.get_rotated_shape(w, h, 90) == (h, w, np.pi / 2.0)
 
 
+def test_get_audio_codec():
+    cfg = utils.get_audio_codec("s16")
+    assert cfg[0] == "pcm_s16le" and cfg[1] == "s16le"
+
+
 def test_get_audio_format():
-    cfg = utils.get_audio_format("s16")
-    assert cfg[0] == "pcm_s16le" and cfg[1] == np.int16
-    cfg = utils.get_audio_format(np.int16)
-    assert cfg[0] == "pcm_s16le" and cfg[1] == "s16"
+    cfg = utils.get_audio_format("s16", 2)
+    assert cfg[0] == "<i2" and cfg[1] == (2,)
 
 
 def test_array_to_audio_input():
     fs = 44100
     N = 44100
     nchmax = 4
-    ii16 = np.iinfo(np.int16)
-    data = np.random.randint(ii16.min, high=ii16.max, size=(N, nchmax), dtype=np.int16)
-    sample = np.random.randint(ii16.min, high=ii16.max, size=(nchmax), dtype=np.int16)
-
-    cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 1, "ar": 44100, "sample_fmt": "s16"}
-    input = utils.array_to_audio_input(fs, sample)[0]
-    assert input[0] == "-" and input[1] == cfg
+    data = {"buffer": b"0" * N * nchmax * 2, "dtype": "<i2", "shape": (nchmax,)}
 
     cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
-    input = utils.array_to_audio_input(fs, data)[0]
+    input = utils.array_to_audio_input(fs, data)
     assert input[0] == "-" and input[1] == cfg
 
-    cfg = {
-        "f": "s16le",
-        "c:a:0": "pcm_s16le",
-        "ac:a:0": 4,
-        "ar:a:0": 44100,
-        "sample_fmt:a:0": "s16",
-    }
-    input = utils.array_to_audio_input(fs, data, 0)[0]
-    assert input[0] == "-" and input[1] == cfg
 
-    cfg = {
-        "f": "s16le",
-        "c:a:1": "pcm_s16le",
-        "ac:a:1": 4,
-        "ar:a:1": 44100,
-        "sample_fmt:a:1": "s16",
-    }
-    input = utils.array_to_audio_input(fs, data, 1)[0]
-    assert input[0] == "-" and input[1] == cfg
-
-    cfg = {
-        "f": "s16le",
-        "c:a:1": "pcm_s16le",
-        "ac:a:1": 4,
-        "ar:a:1": 44100,
-        "sample_fmt:a:1": "s16",
-    }
-    with pytest.raises(Exception):
-        # no sample_fmt or channels
-        input = utils.array_to_audio_input(fs, 1)
-
-
-@pytest.fixture(scope="module", params=["rgb24", "rgba", "gray", "ya8"])
-def image_spec(request):
-    return (1920, 1080), request.param
-
-
-@pytest.fixture(
-    scope="module",
-    params=[
-        (True, True, True),
-        (True, True, False),
-        (False, True, True),
-        (False, True, False),
-    ],
-)
-def video_data(request, image_spec):
-    size, pix_fmt = image_spec
-
-    dtype = np.uint8
-    ncomp = {"rgb24": 3, "rgba": 4, "gray": 1, "ya8": 2}[pix_fmt]
-
-    iiu8 = np.iinfo(dtype)
-    size = ((10,), size[::-1], (ncomp,))
-    picker = request.param
-    if ncomp == 1 or picker[2]:
-        shape = [s for i, ss in enumerate(size) if picker[i] for s in ss]
-        yield np.random.randint(iiu8.min, high=iiu8.max, size=shape, dtype=dtype)
-    else:
-        pytest.skip()
-
-
-def test_array_to_video_input(video_data, image_spec):
+def test_array_to_video_input():
     fs = 30
-    size, pix_fmt = image_spec
-
+    dtype = "|u1"
+    h = 360
+    w = 480
+    ncomp = 3
+    nframes = 10
+    data = {
+        "buffer": b"0" * nframes * h * w * ncomp,
+        "dtype": dtype,
+        "shape": (nframes, h, w, ncomp),
+    }
     cfg = {
         "f": "rawvideo",
         "c:v": "rawvideo",
-        "s": size,
+        "s": (w, h),
         "r": fs,
-        "pix_fmt": pix_fmt,
+        "pix_fmt": "rgb24",
     }
 
-    input = utils.array_to_video_input(fs, video_data)
-    assert input[0] == "-" and input[1] == cfg
-
-
-def test_array_to_video_input_nodata(image_spec):
-    fs = 30
-    size, pix_fmt = image_spec
-
-    dtype, ncomp, _ = utils.get_video_format(pix_fmt)
-    shape = (*size[::-1], ncomp)
-
-    cfg = {"f": "rawvideo", "c:v": "rawvideo", "s": size, "r": fs, "pix_fmt": pix_fmt}
-    input = utils.array_to_video_input(fs, dtype=dtype, shape=shape)
-    assert input[0] == "-" and input[1] == cfg
-
-    cfg = {
-        "f": "rawvideo",
-        "c:v:0": "rawvideo",
-        "s:v:0": size,
-        "r:v:0": fs,
-        "pix_fmt:v:0": pix_fmt,
-    }
-    input = utils.array_to_video_input(fs, stream_id=0, dtype=dtype, shape=shape)
+    input = utils.array_to_video_input(fs, data)
+    print(input)
     assert input[0] == "-" and input[1] == cfg
 
 

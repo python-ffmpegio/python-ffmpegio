@@ -13,12 +13,10 @@ from io import TextIOBase as _TextIOBase, TextIOWrapper as _TextIOWrapper
 from time import sleep as _sleep, time as _time
 from tempfile import TemporaryDirectory as _TemporaryDirectory
 from queue import Empty, Full, Queue as _Queue
-import numpy as _np
 from math import ceil
 
 from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream, FFmpegError
-from .utils import bytes_to_ndarray as _as_array, get_itemsize as _get_itemsize
 
 
 class ThreadNotActive(RuntimeError):
@@ -249,12 +247,10 @@ class LoggerThread(_Thread):
 
 
 class ReaderThread(_Thread):
-    def __init__(self, stdout, shape, dtype, nmin=None, queuesize=None):
+    def __init__(self, stdout, nmin=None, queuesize=None):
 
         super().__init__()
         self.stdout = stdout  #:readable stream: data source
-        self.shape = shape  #:tuple of ints: size of input item per sampled time
-        self.dtype = dtype  #:numpy.dtype: data type of input item
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
         self.itemsize = None  #:int: number of bytes per time sample
         self._queue = _Queue(queuesize or 0)  # inter-thread data I/O
@@ -262,10 +258,11 @@ class ReaderThread(_Thread):
         self._collect = True
 
     def start(self):
-        if self.shape is None or self.dtype is None:
-            raise ValueError("Thread object's shape and dtype properties must be set")
+        if self.itemsize is None:
+            raise ValueError(
+                "Thread object's must have its itemsize property set with the expected sample/frame size in bytes"
+            )
 
-        self.itemsize = _get_itemsize(self.shape, self.dtype)  # bytes/(frame-or-sample)
         super().start()
 
     def cool_down(self):
@@ -300,8 +297,6 @@ class ReaderThread(_Thread):
         return self
 
     def run(self):
-        shape = self.shape
-        dtype = self.dtype
         blocksize = (
             self.nmin if self.nmin is not None else 1 if self.itemsize > 1024 else 1024
         ) * self.itemsize
@@ -319,10 +314,19 @@ class ReaderThread(_Thread):
                     break
 
             if self._collect:  # True until self.cooloff
-                self._queue.put(_as_array(data, shape, dtype))
+                self._queue.put(data)
                 # print(f"reader thread: queued samples")
 
     def read(self, n=-1, timeout=None):
+        """read n samples
+
+        :param n: number of samples/frames to read, if non-positive, read all, defaults to -1
+        :type n: int, optional
+        :param timeout: timeout in seconds, defaults to None
+        :type timeout: float, optional
+        :return: n*itemsize bytes
+        :rtype: bytes
+        """
 
         # wait till matching line is read by the thread
         block = self.is_alive() and n != 0
@@ -336,7 +340,7 @@ class ReaderThread(_Thread):
         if self._carryover:
             arrays = [self._carryover]
             if n_new != 0:
-                n_new -= self._carryover.shape[0]
+                n_new -= len(self._carryover) // self.itemsize
             self._carryover = None
 
         # loop till enough data are collected
@@ -347,13 +351,13 @@ class ReaderThread(_Thread):
             if tout <= 0:
                 break
             try:
-                data = self._queue.get(block, tout)
+                b = self._queue.get(block, tout)
                 self._queue.task_done()
-                arrays.append(data)
+                arrays.append(b)
             except Empty:
                 break
 
-            nr += data.shape[0]
+            nr += len(b) // self.itemsize
             if nr >= nreads:  # enough read
                 if n < 0:
                     block = False  # keep reading until queue is empty
@@ -362,14 +366,15 @@ class ReaderThread(_Thread):
 
         # combine all the data and return requested amount
         if not len(arrays):
-            return _np.empty((0, *self.shape))
+            return b""
 
-        all_data = _np.concatenate(arrays)
+        all_data = b''.join(arrays)
         if n <= 0:
             return all_data
-        if all_data.shape[0] > n:
-            self._carryover = all_data[n:, ...]
-        return all_data[:n, ...]
+        nbytes = self.itemsize * n
+        if len(all_data) > nbytes:
+            self._carryover = all_data[nbytes:]
+        return all_data[:nbytes]
 
     def read_all(self, timeout=None):
 
@@ -391,9 +396,9 @@ class ReaderThread(_Thread):
 
         # combine all the data and return requested amount
         if not len(arrays):
-            return _np.empty((0, *self.shape), self.dtype)
+            return b""
 
-        return _np.concatenate(arrays)
+        return b''.join(arrays)
 
 
 class WriterThread(_Thread):
@@ -525,7 +530,7 @@ class AviReaderThread(_Thread):
         :type timeout: float, optional
         :raises TimeoutError: if terminated due to timeout
         :return: tuple of stream specifier and data array
-        :rtype: (str, numpy.ndarray)
+        :rtype: (str, object)
         """
 
         # wait till matching line is read by the thread
@@ -545,7 +550,7 @@ class AviReaderThread(_Thread):
             self._carryover[id] = None
             if all((k for k, v in self._carryover.items() if v is None)):
                 self._carryover = None
-            return self.reader.streams[id]["spec"], data
+            return self.reader.streams[id]["spec"], self.reader.from_bytes(id, data)
 
         # get next chunk
         try:
@@ -560,7 +565,7 @@ class AviReaderThread(_Thread):
             raise TimeoutError("timed out waiting for next chunk")
         self._queue.task_done()
 
-        return self.reader.streams[id]["spec"], data
+        return self.reader.streams[id]["spec"], self.reader.from_bytes(id, data)
 
     def find_id(self, ref_stream):
         self.wait()
@@ -583,8 +588,9 @@ class AviReaderThread(_Thread):
         :type timeout: float, optional
         :raises TimeoutError: if terminated due to timeout
         :return: tuple of stream specifier and data array
-        :return: dict of data array keyed by stream specifier string
-        :rtype: dict(spec:str, data:numpy.ndarray)
+        :return: dict of data object keyed by stream specifier string, each data object is
+                 created by `bytes_to_video` or `bytes_to_image` plugin hook
+        :rtype: dict(spec:str, object)
         """
 
         # wait till matching line is read by the thread
@@ -615,12 +621,14 @@ class AviReaderThread(_Thread):
         # initialize output arrays
         arrays = {k: [] for k in self._ids}
 
+        itemsizes = self.reader.itemsizes
+
         # grab any leftover data from previous read
         if self._carryover is not None:
             for k, v in self._carryover.items():
                 if v is not None:
                     arrays[k] = [v]
-                    n_remain[k] -= v.shape[0]
+                    n_remain[k] -= len(v) // itemsizes[k]
             self._carryover = None
 
         # loop till enough data are collected
@@ -636,7 +644,8 @@ class AviReaderThread(_Thread):
                 k, data = chunk
                 self._queue.task_done()
                 arrays[k].append(data)
-                n_remain[k] -= data.shape[0]
+                n_remain[k] -= len(data) // itemsizes[k]
+
             except Empty:
                 break
 
@@ -644,11 +653,12 @@ class AviReaderThread(_Thread):
             # combine all the data and return requested amount
             if not len(array):
                 return (id, None, None)
-            all_data = _np.concatenate(array)
+            all_data = b''.join(array)
+            nbytes = n * itemsizes[id]
             return (
                 (id, all_data, None)
                 if nr >= 0
-                else (id, all_data[:n, ...], all_data[n:, ...])
+                else (id, all_data[:nbytes, ...], all_data[nbytes:, ...])
             )
 
         ids, data, excess = zip(
@@ -668,10 +678,10 @@ class AviReaderThread(_Thread):
             info = self.reader.streams[id]
             spec = info["spec"]
             if sdata is None:
-                out[spec] = _np.empty((0, *info["shape"]), info["dtype"])
+                out[spec] = self.reader.from_bytes(id, b"")
             else:
-                self._nread[id] += sdata.shape[0]
-                out[spec] = sdata
+                self._nread[id] += len(sdata) // itemsizes[id]
+                out[spec] = self.reader.from_bytes(id, sdata)
 
         return out
 
@@ -688,12 +698,14 @@ class AviReaderThread(_Thread):
         # initialize output arrays
         arrays = {k: [] for k in self._ids}
 
+        itemsizes = self.reader.itemsizes
+
         # grab any leftover data from previous read
         if self._carryover is not None:
             for k, v in self._carryover.items():
                 if v is not None:
                     arrays[k] = [v]
-                    self._nread[k] += v.shape[0]
+                    self._nread[k] += len(v) // itemsizes[k]
             self._carryover = None
 
         # loop till enough data are collected
@@ -705,7 +717,7 @@ class AviReaderThread(_Thread):
                 k, data = chunk
                 self._queue.task_done()
                 arrays[k].append(data)
-                self._nread[k] += data.shape[0]
+                self._nread[k] += len(data) // itemsizes[k]
             except Empty:
                 break
 
@@ -714,10 +726,8 @@ class AviReaderThread(_Thread):
         for id, sdata in arrays.items():
             info = self.reader.streams[id]
             spec = info["spec"]
-            out[spec] = (
-                _np.empty((0, *info["shape"]), info["dtype"])
-                if sdata is None
-                else _np.concatenate(sdata)
+            out[spec] = self.reader.from_bytes(
+                id, b"" if sdata is None else b''.join(sdata)
             )
 
         return out

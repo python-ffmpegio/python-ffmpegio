@@ -1,9 +1,8 @@
 """Audio Read/Write Module
 """
-import numpy as np
 
-from . import ffmpegprocess, utils, configure, FFmpegError, probe
-from .utils import filter as filter_utils, get_audio_format, log as log_utils
+from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
+from .utils import filter as filter_utils, log as log_utils
 
 
 def _run_read(
@@ -13,7 +12,7 @@ def _run_read(
     :param *args ffmpegprocess.run arguments
     :type *args: tuple
     :param sample_fmt_in: input sample format if known but not specified in the ffmpeg arg dict, defaults to None
-    :type sample_fmt_in: numpy.dtype, optional
+    :type sample_fmt_in: str, optional
     :param ac_in: number of input channels if known but not specified in the ffmpeg arg dict, defaults to None
     :type ac_in: int, optional
     :param ar_in: input sampling rate if known but not specified in the ffmpeg arg dict, defaults to None
@@ -33,10 +32,10 @@ def _run_read(
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :rtype: (int, numpy.ndarray)
+    :rtype: (int, str)
     """
 
-    _, dtype, ac, rate = configure.finalize_audio_read_opts(
+    dtype, ac, rate = configure.finalize_audio_read_opts(
         args[0], sample_fmt_in, ac_in, ar_in
     )
 
@@ -51,23 +50,18 @@ def _run_read(
 
         info = log_utils.extract_output_stream(out.stderr)
 
-        _, dtype = get_audio_format(info["sample_fmt"])
-        data = np.frombuffer(out.stdout, dtype)
-
         ac = info.get("ac", None)
-        if ac is not None:
-            data = data.reshape(-1, ac)
         rate = info.get("ar", None)
     else:
-        data = ffmpegprocess.run(
+        out = ffmpegprocess.run(
             *args,
-            dtype=dtype,
-            shape=ac,
             capture_log=None if show_log else False,
             **kwargs,
-        ).stdout
+        )
 
-    return rate, data
+    return rate, plugins.get_hook().bytes_to_audio(
+        b=out.stdout, dtype=dtype, shape=(ac,)
+    )
 
 
 def create(
@@ -107,7 +101,7 @@ def create(
     :param \\**options: FFmpeg options (see :doc:`options`)
     :type \\**options: dict, optional
     :return: audio data
-    :rtype: numpy.ndarray
+    :rtype: object
 
     .. note:: Either `duration` or `nb_samples` filter options must be set.
 
@@ -123,6 +117,8 @@ def create(
     =============  ==============================================================================
 
     https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources
+
+    ouptut data object is determined by the selected `bytes_to_audio` hook
 
     """
 
@@ -172,8 +168,8 @@ def read(url, progress=None, show_log=None, **options):
     :type show_log: bool, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
-    :return: sample rate in samples/second and audio data matrix (timexchannel)
-    :rtype: tuple(`float`, :py:class:`numpy.ndarray`)
+    :return: sample rate in samples/second and audio data object specified by `bytes_to_audio` plugin hook
+    :rtype: tuple(float, object)
 
     .. note:: Even if :code:`start_time` option is set, all the prior samples will be read.
         The retrieved data will be truncated before returning it to the caller.
@@ -220,8 +216,8 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
     :type url: str
     :param rate_in: The sample rate in samples/second.
     :type rate_in: int
-    :param data: input audio data.
-    :type data: numpy.ndarray
+    :param data: input audio data object, converted to bytes by `audio_bytes` plugin hook .
+    :type data: object
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
@@ -232,8 +228,6 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
     :type show_log: bool, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
-    :param data: A 1-D or 2-D NumPy array of either integer or float data-type.
-    :type data: `numpy.ndarray`
     """
 
     url, stdout, _ = configure.check_url(url, True)
@@ -243,13 +237,13 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_audio_input(rate_in, data=data, **input_options)[0],
+        *utils.array_to_audio_input(rate_in, data=data, **input_options),
     )[1][1]
     configure.add_url(ffmpeg_args, "output", url, options)[1][1]
 
     ffmpegprocess.run(
         ffmpeg_args,
-        input=data,
+        input=plugins.get_hook().audio_bytes(obj=data),
         stdout=stdout,
         progress=progress,
         overwrite=overwrite,
@@ -264,14 +258,14 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
     :type expr: str
     :param input_rate: Input sample rate in samples/second
     :type input_rate: int
-    :param input: input audio data: if 2D, columns are channels.
-    :type input: 1D or 2D numpy.ndarray
+    :param input: input audio data, accessed by `audio_info()` and `audio_bytes()` plugin hooks.
+    :type input: object
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
-    :return: output sampling rate and data
-    :rtype: tuple(int, numpy.ndarray)
+    :return: output sampling rate and audio data object, created by `bytes_to_audio` plugin hook
+    :rtype: tuple(int, object)
 
     """
 
@@ -281,7 +275,7 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_audio_input(input_rate, data=input, **input_options)[0],
+        *utils.array_to_audio_input(input_rate, data=input, **input_options),
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
     outopts["sample_fmt"] = sample_fmt
@@ -289,6 +283,6 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
 
     return _run_read(
         ffmpeg_args,
-        input=input,
+        input=plugins.get_hook().audio_bytes(obj=input),
         progress=progress,
     )

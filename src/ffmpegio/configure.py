@@ -1,5 +1,4 @@
 import re, logging
-import numpy as np
 
 from . import utils
 from .utils.filter import video_basic_filter
@@ -18,7 +17,7 @@ def check_url(url, nodata=True, nofileobj=False):
     """Analyze url argument for non-url input
 
     :param url: url argument string or data or file
-    :type url: str, bytes-like object, numpy.ndarray, or file-like object
+    :type url: str, bytes-like object, audio or video data object, or file-like object
     :param nodata: True to raise exception if url is a bytes-like object, default to True
     :type nodata: bool, optional
     :param nofileobj: True to raise exception if url is a file-like object, default to False
@@ -33,13 +32,12 @@ def check_url(url, nodata=True, nofileobj=False):
     fileobj = None
     data = None
 
-    if not isinstance(url, str):
-        if isinstance(url, (bytes, bytearray, np.ndarray)) or hasmethod(
-            url, "__bytes__"
-        ):
-            data = url
-            url = "-"
-        elif hasmethod(url, "fileno"):
+    try:
+        memoryview(url)
+        data = url
+        url = "-"
+    except:
+        if hasmethod(url, "fileno"):
             if nofileobj:
                 raise ValueError("File-like object cannot be specified as url.")
             fileobj = url
@@ -149,7 +147,7 @@ def finalize_video_read_opts(
         # make sure assigned pix_fmt is valid
         if pix_fmt_in is None:
             try:
-                dtype, ncomp, _ = utils.get_video_format(pix_fmt)
+                dtype, ncomp = utils.get_pixel_format(pix_fmt)
             except:
                 ncomp = dtype = None
             remove_alpha = False
@@ -162,7 +160,7 @@ def finalize_video_read_opts(
     outopts["f"] = "rawvideo"
 
     # if no filter and video shape and rate are known, all known
-    r = shape = None
+    r = s = None
     if not has_filtergraph(args, "video", ofile) and ncomp is not None:
         r = outopts.get("r", inopts.get("r", r_in))
 
@@ -171,9 +169,8 @@ def finalize_video_read_opts(
             if isinstance(s, str):
                 m = re.match(r"(\d+)x(\d+)", s)
                 s = [int(m[1]), int(m[2])]
-            shape = (*s[::-1], ncomp)
 
-    return dtype, shape, r
+    return dtype, None if s is None else (*s[::-1], ncomp), r
 
 
 def check_alpha_change(args, dir=None, ifile=0, ofile=0):
@@ -195,8 +192,6 @@ def build_basic_vf(args, remove_alpha=None, ofile=0):
     :type remove_alpha: bool, optional
     :param ofile: output file id, defaults to 0
     :type ofile: int, optional
-    :param force: True to chain basic vf to existing vf, defaults to False
-    :type force: bool, optional
     """
 
     # get output opts, nothing to do if no option set
@@ -284,16 +279,16 @@ def finalize_audio_read_opts(
         outopts["sample_fmt"] = sample_fmt  # set the format
 
     # set output format and codec
-    acodec, dtype = utils.get_audio_format(sample_fmt)
-    outopts["c:a"] = acodec
-    outopts["f"] = acodec[4:]
+    outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
 
     ac = ar = None
     if not has_filter:
         ac = outopts.get("ac", inopts.get("ac", ac_in))
         ar = outopts.get("ar", inopts.get("ar", ar_in))
 
-    return sample_fmt, dtype, ac, ar
+    dtype, shape = utils.get_audio_format(sample_fmt, ac)
+
+    return dtype, ac, ar
 
 
 ################################################################################
@@ -384,7 +379,7 @@ def get_video_array_format(ffmpeg_args, type, file_id=0):
     except:
         raise ValueError(f"{type} file #{file_id} is not specified")
     try:
-        dtype, ncomp, _ = utils.get_video_format(opts["pix_fmt"])
+        dtype, ncomp = utils.get_pixel_format(opts["pix_fmt"])
         shape = [*opts["s"][::-1], ncomp]
     except:
         raise ValueError(f"{type} options must specify both `s` and `pix_fmt` options")
@@ -460,13 +455,14 @@ def finalize_media_read_opts(args):
     gray16le = ya8 = 0
     for k in utils.find_stream_options(options, "pix_fmt"):
         v = options[k]
-        utils.get_video_format(v)
         if v in ("gray16le", "grayf32le"):
             gray16le += 1
         elif v in ("ya8", "ya16le"):
             ya8 += 1
     if gray16le and ya8:
-        raise ValueError("pix_fmts: grayscale with and without transparency cannot be mixed.")
+        raise ValueError(
+            "pix_fmts: grayscale with and without transparency cannot be mixed."
+        )
 
     # if pix_fmt and sample_fmt not specified, set defaults
     # user can conditionally override these by stream-specific option
@@ -481,6 +477,6 @@ def finalize_media_read_opts(args):
 
     # add audio codec
     for k in utils.find_stream_options(options, "sample_fmt"):
-        options[f"c:a" + k[10:]] = utils.get_audio_format(options[k])[0]
+        options[f"c:a" + k[10:]] = utils.get_audio_codec(options[k])[0]
 
     return ya8 > 0

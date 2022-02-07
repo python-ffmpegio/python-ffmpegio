@@ -28,7 +28,6 @@ from tempfile import TemporaryDirectory
 from .ffmpeg import exec, parse
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
-from .utils import bytes_to_ndarray as _as_array
 
 __all__ = ["run", "Popen", "PIPE", "DEVNULL"]
 
@@ -51,11 +50,8 @@ def monitor_process(
     proc.wait()
     if on_exit is not None:
         returncode = proc.returncode
-        try:
-            on_exit(returncode)
-        except:
-            for fcn in on_exit:
-                fcn(returncode)
+        for fcn in on_exit:
+            fcn(returncode)
 
 
 class Popen(_sp.Popen):
@@ -160,15 +156,20 @@ class Popen(_sp.Popen):
             self._progmon.start()
 
         # start the process monitor to perform the cleanup when FFmpeg terminates
-        if self._progmon or on_exit:
+        if self._progmon or capture_log or on_exit:
+            if on_exit is None:
+                on_exit = []
+            else:
+                try:
+                    on_exit = [*on_exit]
+                except:
+                    on_exit = [on_exit]
+
+            if capture_log:
+                on_exit.append(lambda _: self.stderr.close())
+
             if self._progmon:
-                if on_exit:
-                    try:
-                        on_exit = (self._progmon.join, *on_exit)
-                    except:
-                        on_exit = (self._progmon.join, on_exit)
-                else:
-                    on_exit = self._progmon.join
+                on_exit.append(lambda _: self._progmon.join())
 
             self._monitor = _Thread(
                 target=monitor_process,
@@ -239,9 +240,6 @@ def run(
     stdout=None,
     stderr=None,
     input=None,
-    size=-1,
-    shape=None,
-    dtype=None,
     **other_popen_kwargs,
 ):
     """run FFmpeg subprocess with standard pipes with a single transaction
@@ -271,13 +269,6 @@ def run(
     :param input: input data buffer must be given if FFmpeg is configured to receive
                     data stream from Python. It must be bytes convertible to bytes.
     :type input: bytes-convertible object, optional
-    :param size: size of stdout items to read, default -1
-    :type size: int, optional
-    :param shape: shape of the output array elements,
-        defaults to None (results in 1d array)
-    :type shape: int or tuple of int, optional
-    :param dtype: output array data type, defaults to None
-    :type dtype: numpy data-type, optional
     :param \\**other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
     :type \\**other_popen_kwargs: dict, optional
     :rparam: completed process
@@ -295,18 +286,11 @@ def run(
             stdin if input is None else None,
             stdout,
             stderr,
-            input=input if input is None else memoryview(input).cast("b"),
+            input=input if input is None else memoryview(input),
             **other_popen_kwargs,
         )
 
-    # format output
-    if ret.stdout is not None:
-        if shape is not None or dtype is not None:
-            ret.stdout = _as_array(ret.stdout, shape, dtype)
-        if size > 0:
-            ret.stdout = ret.stdout[:size]
-
-    # split log lines
+    # return stderr as str 
     if ret.stderr is not None:
         ret.stderr = ret.stderr.decode("utf-8")
 

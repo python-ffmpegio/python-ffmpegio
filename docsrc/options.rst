@@ -70,22 +70,22 @@ There are many video pixel formats that FFmpeg support, which you can obtain wit
 :py:func:`caps.pix_fmts()` function. For the I/O purpose, :py:mod:`ffmpegio` video/image
 functions operate strictly with RGB or grayscale formats listed below.
 
-=====  ==============  =========  ===================================
-ncomp  `numpy.dtype`   pix_fmt    Description
-=====  ==============  =========  ===================================
-  1    `numpy.uint8`   gray       grayscale
-  1    `numpy.uint16`  gray16le   16-bit grayscale
-  1    `numpy.single`  grayf32le  floating-point grayscale
-  2    `numpy.uint8`   ya8        grayscale with alpha channel
-  2    `numpy.uint16`  ya16le     16-bit grayscale with alpha channel
-  3    `numpy.uint8`   rgb24      RGB
-  3    `numpy.uint16`  rgb48le    16-bit RGB
-  4    `numpy.uint8`   rgba       RGB with alpha transparency channel
-  4    `numpy.uint16`  rgba64le   16-bit RGB with alpha channel
-=====  ==============  =========  ===================================
+=====  =====  =========  ===================================
+ncomp  dtype  pix_fmt    Description
+=====  =====  =========  ===================================
+  1     |u8   gray       grayscale
+  1     <u2   gray16le   16-bit grayscale
+  1     <f4   grayf32le  floating-point grayscale
+  2     |u1   ya8        grayscale with alpha channel
+  2     <u2   ya16le     16-bit grayscale with alpha channel
+  3     |u1   rgb24      RGB
+  3     <u2   rgb48le    16-bit RGB
+  4     |u1   rgba       RGB with alpha transparency channel
+  4     <u2   rgba64le   16-bit RGB with alpha channel
+=====  =====  =========  ===================================
 
-This table defines how the Numpy array dimensions and dtypes are related to
-the video pixel formats.
+Note that each video pixel format has a specific `dtype` (or `dtype_in`) str argument, which 
+follows the NumPy array data type convention.
 
 
 Audio Sample Formats :code:`sample_fmt`
@@ -95,15 +95,17 @@ FFmpeg offers its audio channels in both interleaved and planar sample formats (
 run :py:func:`caps.sample_fmts()` to list available formats). For the I/O purpose, 
 :py:mod:`ffmpegio` audio functions always use the interleaved formats:
 
-==============  ==========
-`numpy.dtype`   sample_fmt
-==============  ==========
-`numpy.uint8`     u8      
-`numpy.int16`     s16     
-`numpy.int32`     s32     
-`numpy.single`    flt     
-`numpy.double`    dbl     
-==============  ==========
+======  ==========
+dtype   sample_fmt
+======  ==========
+  |u1     u8
+  <i2     s16
+  <i4     s32
+  <f4     flt
+  <f8     dbl
+======  ==========
+
+Like `pix_fmt`, `sample_fmt` also has concrete relationship to the `dtype` option
 
 Built-in Video Manipulation Options
 -----------------------------------

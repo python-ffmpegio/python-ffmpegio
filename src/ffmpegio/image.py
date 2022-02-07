@@ -1,6 +1,5 @@
-import numpy as np
-
-from . import ffmpegprocess, utils, configure, FFmpegError, probe
+from math import prod
+from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
 from .utils import filter as filter_utils, log as log_utils
 
 
@@ -20,14 +19,11 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
     :type show_log: bool, optional
     :param **kwargs ffmpegprocess.run keyword arguments
     :type **kwargs: tuple
-    :return: image data
-    :rtype: numpy.ndarray
+    :return: image data, created by `bytes_to_video` plugin hook
+    :rtype: object
     """
 
     dtype, shape, _ = configure.finalize_video_read_opts(args[0], pix_fmt_in, s_in)
-
-    if dtype == np.dtype("b"):
-        raise ValueError("pix_fmt must be one of gray*, ya*, rgb*, rgba*")
 
     if shape is None:
         configure.clear_loglevel(args[0])
@@ -39,22 +35,21 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
             raise FFmpegError(out.stderr)
 
         info = log_utils.extract_output_stream(out.stderr)
-        dtype, ncomp, _ = utils.get_video_format(info["pix_fmt"])
-        shape = (-1, *info["s"][::-1], ncomp)
-
-        data = np.frombuffer(out.stdout, dtype).reshape(*shape)
+        dtype, shape = utils.get_video_format(info["pix_fmt"], info["s"])
     else:
         out = ffmpegprocess.run(
             *args,
-            dtype=dtype,
-            shape=shape,
             capture_log=None if show_log else False,
             **kwargs,
         )
         if out.returncode:
             raise FFmpegError(out.stderr)
-        data = out.stdout
-    return data[-1, ...]
+
+    nbytes = utils.dtype_itemsize(dtype) * prod(shape)
+
+    return plugins.get_hook().bytes_to_video(
+        b=out.stdout[-nbytes:], dtype=dtype, shape=shape
+    )
 
 
 def create(expr, *args, pix_fmt=None, vf=None, vframe=None, show_log=None, **kwargs):
@@ -76,8 +71,8 @@ def create(expr, *args, pix_fmt=None, vf=None, vframe=None, show_log=None, **kwa
     :type show_log: bool, optional
     :param \\**options: filter keyword arguments
     :type \\**options: dict, optional
-    :return: image data
-    :rtype: numpy.ndarray
+    :return: image data, created by `bytes_to_video` plugin hook
+    :rtype: object
 
 
     Supported Video Source Filters
@@ -138,8 +133,8 @@ def read(url, show_log=None, **options):
     :type show_log: bool, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
-    :return: image data
-    :rtype: numpy.ndarray
+    :return: image data, created by `bytes_to_video` plugin hook
+    :rtype: object
 
     Note on \\**options: To specify the video frame capture time, use `time`
     option which is an alias of `start` standard option.
@@ -180,8 +175,8 @@ def write(url, data, overwrite=None, show_log=None, **options):
 
     :param url: URL of the image file to write.
     :type url: str
-    :param data: image data 3-D array (rowsxcolsxcomponents)
-    :type data: `numpy.ndarray`
+    :param data: image data, accessed by `video_info()` and `video_bytes()` plugin hooks
+    :type data: object
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
     :type overwrite: bool, optional
@@ -207,7 +202,7 @@ def write(url, data, overwrite=None, show_log=None, **options):
 
     ffmpegprocess.run(
         ffmpeg_args,
-        input=data,
+        input=plugins.get_hook().video_bytes(obj=data),
         stdout=stdout,
         overwrite=overwrite,
         capture_log=None if show_log else False,
@@ -219,12 +214,12 @@ def filter(expr, input, **options):
 
     :param expr: SISO filter graph.
     :type expr: str
-    :param input: input image data
-    :type input: 2D/3D numpy.ndarray
+    :param input: input image data, accessed by `video_info` and `video_bytes` plugin hooks
+    :type input: object
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
-    :return: output sampling rate and data
-    :rtype: numpy.ndarray
+    :return: output sampling rate and data, created by `bytes_to_video` plugin hook
+    :rtype: (int, object)
 
     """
 
@@ -242,7 +237,6 @@ def filter(expr, input, **options):
 
     return _run_read(
         ffmpeg_args,
-        input=input,
-        progress=progress,
+        input=plugins.get_hook().video_bytes(obj=input),
         show_log=True,
     )

@@ -7,7 +7,7 @@ def test_open():
     url2 = "tests/assets/testaudio-1m.mp3"
     with open((url1, url2), "rav", t=1, blocksize=0) as reader:
         for st, data in reader:
-            print(st, data.shape, data.dtype)
+            print(st, data['shape'], data['dtype'])
 
     print('testing "rvv"')
     with open(
@@ -19,7 +19,7 @@ def test_open():
         map=["[out1]", "[out2]"],
     ) as reader:
         for st, data in reader:
-            print(st, data.shape, data.dtype)
+            print(st, data['shape'], data['dtype'])
 
     print('testing "raa"')
     with open(
@@ -31,7 +31,7 @@ def test_open():
         map=["[out1]", "[out2]"],
     ) as reader:
         for st, data in reader:
-            print(st, data.shape, data.dtype)
+            print(st, data['shape'], data['dtype'])
         # print(reader.readlog())
         
 def test_avireadstream():
@@ -39,17 +39,17 @@ def test_avireadstream():
     url2 = "tests/assets/testaudio-1m.mp3"
     with AviStreams.AviMediaReader(url1, url2, t=1, blocksize=0) as reader:
         for st, data in reader:
-            print(st, data.shape, data.dtype)
+            print(st, data['shape'], data['dtype'])
 
     with AviStreams.AviMediaReader(url1, url2, t=1, blocksize=1) as reader:
         for data in reader:
-            print({k: (v.shape, v.dtype) for k, v in data.items()})
+            print({k: (v['shape'], v['dtype']) for k, v in data.items()})
 
     with AviStreams.AviMediaReader(
         url1, url2, t=1, blocksize=1000, ref_stream="a:0"
     ) as reader:
         for data in reader:
-            print({k: (v.shape, v.dtype) for k, v in data.items()})
+            print({k: (v['shape'], v['dtype']) for k, v in data.items()})
 
     with AviStreams.AviMediaReader(url1, url2, t=1) as reader:
         print(reader.specs())
@@ -61,7 +61,7 @@ def test_avireadstream():
         print(reader.get_stream_info("a:0"))
 
         data = reader.readall()
-        print({k: (v.shape, v.dtype) for k, v in data.items()})
+        print({k: (v['shape'], v['dtype']) for k, v in data.items()})
 
 
 if __name__ == "__main__":
@@ -83,4 +83,4 @@ if __name__ == "__main__":
         print(reader.get_stream_info("a:0"))
 
         data = reader.readall()
-        print({k: (v.shape, v.dtype) for k, v in data.items()})
+        print({k: (v['shape'], v['dtype']) for k, v in data.items()})

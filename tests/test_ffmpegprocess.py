@@ -14,8 +14,7 @@ def test_run_help():
 def test_run_from_stream():
     url = "tests/assets/testaudio-1m.mp3"
     sample_fmt = "s16"
-    out_codec, dtype = utils.get_audio_format(sample_fmt)
-    container = out_codec[4:]
+    out_codec, container = utils.get_audio_codec(sample_fmt)
 
     with open(url, "rb") as f:
         args = {
@@ -24,18 +23,16 @@ def test_run_from_stream():
                 ("-", {"f": container, "c:a": out_codec, "sample_fmt": sample_fmt})
             ],
         }
-        out = ffmpegprocess.run(args, dtype=dtype, capture_log=True, stdin=f)
-        x = out.stdout
-
-    print(f"FFmpeg output: {x.size} samples")
+        out = ffmpegprocess.run(args, capture_log=True, stdin=f)
+    
+    print(f"FFmpeg output: {len(out.stdout)} bytes")
     print(out.stderr)
 
 
 def test_run_bidir():
     url = "tests/assets/testaudio-1m.mp3"
     sample_fmt = "s16"
-    out_codec, dtype = utils.get_audio_format(sample_fmt)
-    container = out_codec[4:]
+    out_codec, container = utils.get_audio_codec(sample_fmt)
 
     with open(url, "rb") as f:
         bytes = f.read()  # byte array
@@ -47,19 +44,17 @@ def test_run_bidir():
         ],
     }
 
-    out = ffmpegprocess.run(args, input=bytes, dtype=dtype, capture_log=True)
-    x = out.stdout
+    out = ffmpegprocess.run(args, input=bytes, capture_log=True)
 
-    print(f"FFmpeg output: {x.size} samples")
+    print(f"FFmpeg output: {len(out.stdout)} bytes")
     print(out.stderr)
 
 
 def test_run_progress():
     url = "tests/assets/testaudio-1m.mp3"
     sample_fmt = "s16"
-    out_codec, dtype = utils.get_audio_format(sample_fmt)
-    container = out_codec[4:]
-
+    out_codec, container = utils.get_audio_codec(sample_fmt)
+    
     def progress(*args):
         print(args)
         return False
@@ -78,8 +73,7 @@ def test_run_progress():
 def test_popen():
     url = "tests/assets/testaudio-1m.mp3"
     sample_fmt = "s16"
-    out_codec, dtype = utils.get_audio_format(sample_fmt)
-    container = out_codec[4:]
+    out_codec, container = utils.get_audio_codec(sample_fmt)
 
     with open(url, "rb") as f:
         args = {

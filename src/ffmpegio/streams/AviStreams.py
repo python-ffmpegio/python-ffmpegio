@@ -22,8 +22,8 @@ class AviMediaReader:
                         preference (see :doc:`options` for custom options)
     :type \\**options: dict, optional
 
-    :return: frame rate and video frame data (dims: time x rows x cols x pix_comps)
-    :rtype: (`fractions.Fraction`, `numpy.ndarray`)
+    :return: frame rate and video frame data, created by `bytes_to_video` plugin hook
+    :rtype: (`fractions.Fraction`, object)
 
     Note: Only pass in multiple urls to implement complex filtergraph. It's significantly faster to run
           `ffmpegio.video.read()` for each url.
@@ -112,12 +112,12 @@ class AviMediaReader:
         return self._reader.streams and {v["spec"]: rates[k] for k, v in self._reader.streams.items()}
 
     def dtypes(self):
-        """:dict(str:str): numpy dtypes associated with the streams (key)"""
+        """:dict(str:str): frame/sample data type associated with the streams (key)"""
         self._reader.wait()
         return self._reader.streams and {v["spec"]: v["dtype"] for v in self._reader.streams.values()}
 
     def shapes(self):
-        """:dict(str:tuple(int)): base array shape associated with the streams (key)"""
+        """:dict(str:tuple(int)): frame/sample shape associated with the streams (key)"""
         self._reader.wait()
         return self._reader.streams and {v["spec"]: v["shape"] for v in self._reader.streams.values()}
 
@@ -185,7 +185,7 @@ class AviMediaReader:
         return self._reader.readchunk(timeout)
 
     def read(self, n=-1, ref_stream=None, timeout=None):
-        """Read and return numpy.ndarray with up to n frames/samples. If
+        """Read and return video or audio data objects up to n frames/samples. If
         the argument is omitted, None, or negative, data is read and
         returned until EOF is reached. An empty bytes object is returned
         if the stream is already at EOF.

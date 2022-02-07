@@ -1,7 +1,6 @@
-import numpy as np
 from io import BytesIO
 
-from . import ffmpegprocess, utils, configure, FFmpegError
+from . import ffmpegprocess, utils, configure, FFmpegError, plugins
 from .utils import avi
 
 __all__ = ["read"]
@@ -25,8 +24,8 @@ def read(*urls, progress=None, show_log=None, **options):
                         preference (see :doc:`options` for custom options)
     :type \\**options: dict, optional
 
-    :return: frame rate and video frame data (dims: time x rows x cols x pix_comps)
-    :rtype: (`fractions.Fraction`, `numpy.ndarray`)
+    :return: frame rate and video frame data, created by `bytes_to_video` plugin hook
+    :rtype: (`fractions.Fraction`, object)
 
     Note: Only pass in multiple urls to implement complex filtergraph. It's significantly faster to run
           `ffmpegio.video.read()` for each url.
@@ -82,6 +81,10 @@ def read(*urls, progress=None, show_log=None, **options):
     data = {k: [] for k in reader.streams}
     for st, frame in reader:
         data[st].append(frame)
-    data = {reader.streams[k]["spec"]: np.concatenate(v) for k, v in data.items()}
+
+    data = {
+        reader.streams[k]["spec"]: reader.from_bytes(k, b''.join(v))
+        for k, v in data.items()
+    }
 
     return rates, data
