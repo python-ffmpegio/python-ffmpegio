@@ -24,4 +24,38 @@ def test_log_popen():
 
 if __name__ == "__main__":
 
-    pass
+    url = "tests/assets/testmulti-1m.mp4"
+    url1 = "tests/assets/testvideo-1m.mp4"
+    url2 = "tests/assets/testaudio-1m.mp3"
+
+    from pprint import pprint
+
+    from ffmpegio import ffmpeg, configure
+    import io
+
+    args = {
+        "inputs": [(url1, None), (url2, None)],
+        "outputs": [
+            (
+                "-",
+                {
+                    "vframes": 16,
+                },
+            )
+        ],
+    }
+    use_ya = configure.finalize_media_read_opts(args)
+    pprint(args)
+
+    # create a short example with both audio & video
+    f = io.BytesIO(ffmpeg.exec(args).stdout)
+
+    reader = threading.AviReaderThread()
+    reader.start(f, use_ya)
+    try:
+        reader.wait()
+        print(f"thread is running {reader.is_alive()}")
+        pprint(reader.streams)
+        pprint(reader.rates)
+    except:
+        reader.join()

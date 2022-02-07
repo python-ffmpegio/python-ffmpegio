@@ -1,8 +1,4 @@
-from ffmpegio import ffmpegprocess, media
-from ffmpegio.utils import avi
-from io import BytesIO
-import numpy as np
-from matplotlib import pyplot as plt
+from ffmpegio import media
 
 
 def test_media_read():
@@ -19,6 +15,8 @@ def test_media_read():
 
 
 if __name__ == "__main__":
+    from matplotlib import pyplot as plt
+
     pass
     # out = ffmpegprocess.run(
     #     {

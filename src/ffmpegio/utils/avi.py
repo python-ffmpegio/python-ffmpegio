@@ -1,335 +1,474 @@
+from io import SEEK_CUR
 import numpy as np
 import fractions, re
-from .. import utils
+from ..utils import get_pixel_config, get_audio_format, spec_stream
+
+from struct import Struct
+from collections import namedtuple
 
 # https://docs.microsoft.com/en-us/previous-versions//dd183376(v=vs.85)?redirectedfrom=MSDN
 
 
-def decode_avih(data, prev_chunk):
-    AVIF_COPYRIGHTED = int("0x00020000", 0)
-    AVIF_HASINDEX = int("0x00000010", 0)
-    AVIF_ISINTERLEAVED = int("0x00000100", 0)
-    AVIF_MUSTUSEINDEX = int("0x00000020", 0)
-    AVIF_WASCAPTUREFILE = int("0x00010000", 0)
-    vals = np.frombuffer(data, dtype=np.uint32)
-    flags = vals[3]
-    return dict(
-        micro_sec_per_frame=vals[0],
-        max_bytes_per_sec=vals[1],
-        padding_granularity=vals[2],
-        flags=dict(
-            copyrighted=bool(flags & AVIF_COPYRIGHTED),
-            has_index=bool(flags & AVIF_HASINDEX),
-            is_interleaved=bool(flags & AVIF_ISINTERLEAVED),
-            must_use_index=bool(flags & AVIF_MUSTUSEINDEX),
-            was_capture_file=bool(flags & AVIF_WASCAPTUREFILE),
+class FlagProcessor:
+    def __init__(self, name, flags, masks, defaults):
+        self.template = namedtuple(
+            name,
+            flags,
+            defaults=defaults,
+        )
+        self.masks = self.template._make(masks)
+
+    def default(self):
+        return self.template()
+
+    def unpack(self, flags):
+        return self.template._make((bool(flags & mask) for mask in self.masks))
+
+    def pack(self, flags):
+        return sum((mask if flag else 0 for flag, mask in zip(flags, self.masks)))
+
+
+from itertools import accumulate
+
+
+class StructProcessor:
+    def __init__(self, name, format, fields, defaults=None, **flags):
+        if "S" in format or "C" in format:
+            # expand the format
+            m = re.match(r"([<>!=])?(.+)", format)
+            fmt_items = [
+                (int(m[1]) if m[1] else 1, m[2])
+                for m in re.finditer(r"(\d*)([xcCbB?hHiIlLqQnNefdsSpP])", m[2])
+            ]
+            fmt_counts = [1 if f in "sSp" else count for count, f in fmt_items]
+            fmt_offsets = list((0, *accumulate(fmt_counts)))
+            is_str = [False] * fmt_offsets[-1]
+            for itm, offset in zip(fmt_items, fmt_offsets[:-1]):
+                is_str[offset] = itm[1] in "SC"
+            self.is_str = [fields[i] for i, tf in enumerate(is_str) if tf]
+            format = format.replace("C", "c").replace("S", "s")
+        else:
+            self.is_str = ()
+
+        self.struct = Struct(format)
+        self.template = namedtuple(name, fields, defaults=defaults)
+        self.flags = ((k, FlagProcessor(*v)) for k, v in flags.items())
+
+    def default(self):
+        data = self.template()
+        return data._replace(**{k: proc.default() for k, proc in self.flags})
+
+    def _unpack(self, data):
+        data = self.template._make(data)
+        return data._replace(
+            **{field: getattr(data, field).decode("utf-8") for field in self.is_str},
+            **{k: proc.unpack(getattr(data, k)) for k, proc in self.flags},
+        )
+
+    def unpack(self, buffer):
+        return self._unpack(self.struct.unpack(buffer))
+
+    def unpack_from(self, buffer, offset=0):
+        return self._unpack(self.struct.unpack_from(buffer, offset))
+
+    def _pack(self, ntuple):
+        return ntuple._replace(
+            **{k: proc.pack(getattr(ntuple, k)) for k, proc in self.flags},
+            **{field: ntuple[field].encode("utf-8") for field in self.is_str},
+        )
+
+    def pack(self, ntuple):
+        return self.struct.pack(*self._pack(ntuple))
+
+    def pack_into(self, buffer, offset, ntuple):
+        self.struct.pack_into(buffer, offset, *self._pack(ntuple))
+
+    @property
+    def size(self):
+        return self.struct.size
+
+
+AVIMainHeader = StructProcessor(
+    "Avih",
+    "<10I",
+    (
+        "micro_sec_per_frame",
+        "max_bytes_per_sec",
+        "padding_granularity",
+        "flags",
+        "total_frames",
+        "initial_frames",
+        "streams",
+        "suggested_buffer_size",
+        "width",
+        "height",
+    ),
+    (0,) * 10,
+    flags=(
+        "AvihFlags",
+        (
+            "copyrighted",
+            "has_index",
+            "is_interleaved",
+            "must_use_index",
+            "was_capture_file",
         ),
-        total_frames=vals[4],
-        initial_frames=vals[5],
-        streams=vals[6],
-        suggested_buffer_size=vals[7],
-        width=vals[8],
-        height=vals[9],
-    )
-
-
-def decode_strh(data, prev_chunk):
-    AVISF_DISABLED = int("0x00000001", 0)
-    AVISF_VIDEO_PALCHANGES = int("0x00010000", 0)
-    flags = int.from_bytes(data[8:12], byteorder="little", signed=False)
-    vals = np.frombuffer(data[16:-8], dtype=np.uint32)
-    rect = np.frombuffer(data[-8:], dtype=np.int16)
-    return dict(
-        fcc_type=data[:4].decode("utf-8"),
-        fcc_handler=data[4:8].decode("utf-8"),
-        # fcc_handler=int.from_bytes(data[4:8], byteorder="little", signed=False),
-        flags=dict(
-            video_pal_changes=bool(flags & AVISF_VIDEO_PALCHANGES),
-            disabled=bool(flags & AVISF_DISABLED),
+        (
+            int("0x00020000", 0),
+            int("0x00000010", 0),
+            int("0x00000100", 0),
+            int("0x00000020", 0),
+            int("0x00010000", 0),
         ),
-        priority=int.from_bytes(data[12:14], byteorder="little", signed=False),
-        language=int.from_bytes(data[14:16], byteorder="little", signed=False),
-        initial_frames=vals[0],
-        scale=vals[1],
-        rate=vals[2],
-        start=vals[3],
-        length=vals[4],
-        suggested_buffer_size=vals[5],
-        quality=vals[6],
-        sample_size=vals[7],
-        frame_left=rect[0],
-        frame_top=rect[1],
-        frame_right=rect[2],
-        frame_bottom=rect[3],
-    )
+        (False,) * 5,
+    ),
+)
 
+
+AVIStreamHeader = StructProcessor(
+    "AVISTREAMHEADER",
+    "<4S4SI2H8I4h",
+    (
+        "fcc_type",  # 'auds','mids','txts','vids'
+        "fcc_handler",
+        "flags",
+        "priority",
+        "language",
+        "initial_frame",
+        "scale",
+        "rate",
+        "start",
+        "length",
+        "suggested_buffer_size",
+        "quality",
+        "sample_size",
+        "frame_left",
+        "frame_top",
+        "frame_right",
+        "frame_bottom",
+    ),
+    (b"\0" * 4, b"\0" * 4, *((0,) * 15)),
+    flags=(
+        "StrhFlags",
+        (
+            "video_pal_changes",
+            "disabled",
+        ),
+        (
+            int("0x00000001", 0),
+            int("0x00010000", 0),
+        ),
+        (False,) * 2,
+    ),
+)
 
 # PCM audio
 WAVE_FORMAT_PCM = 1
 # IEEE floating-point audio
 WAVE_FORMAT_IEEE_FLOAT = 3
-WAVE_FORMAT_EXTENSIBLE = int("FFFE", 16)  # /* Microsoft */
+WAVE_FORMAT_EXTENSIBLE = int("FFFE", 16)  # /* Microsoft, 65534 */
 
-
-def decode_strf(data, prev_chunk):
-    fcc_type = prev_chunk[1]["fcc_type"]
-    if fcc_type == "vids":  # BITMAPINFO
-        # fmt = data[16:20].decode("utf-8")
-        # fmt = int.from_bytes(data[16:20], byteorder="little", signed=False)
-        # if data[16] == 0:
-        #     fmt = "rgb24"
-        # else:
-        fmt = data[16]
-        return dict(
-            size=int.from_bytes(data[:4], byteorder="little", signed=False),
-            width=int.from_bytes(data[4:8], byteorder="little", signed=True),
-            height=int.from_bytes(data[8:12], byteorder="little", signed=True),
-            planes=int.from_bytes(data[12:14], byteorder="little", signed=False),
-            bit_count=int.from_bytes(data[14:16], byteorder="little", signed=False),
-            compression=data[16:20].decode("utf-8") if fmt >= 4 else fmt,
-            size_image=int.from_bytes(data[20:24], byteorder="little", signed=False),
-            x_pels_per_meter=int.from_bytes(
-                data[24:28], byteorder="little", signed=True
-            ),
-            y_pels_per_meter=int.from_bytes(
-                data[28:32], byteorder="little", signed=True
-            ),
-            clr_used=int.from_bytes(data[32:36], byteorder="little", signed=False),
-            clr_important=int.from_bytes(data[36:], byteorder="little", signed=False),
-        )
-    elif fcc_type == "auds":  # WAVEFORMATEX
-        d = dict(
-            format_tag=int.from_bytes(data[:2], byteorder="little", signed=False),
-            channels=int.from_bytes(data[2:4], byteorder="little", signed=False),
-            samples_per_sec=int.from_bytes(data[4:8], byteorder="little", signed=False),
-            avg_bytes_per_sec=int.from_bytes(
-                data[8:12], byteorder="little", signed=False
-            ),
-            block_align=int.from_bytes(data[12:14], byteorder="little", signed=False),
-            bits_per_sample=int.from_bytes(
-                data[14:16], byteorder="little", signed=False
-            ),
-        )
-        if d["format_tag"] == WAVE_FORMAT_EXTENSIBLE:
-            d["samples"] = int.from_bytes(data[16:18], byteorder="little", signed=False)
-            d["channel_mask"] = int.from_bytes(
-                data[18:20], byteorder="little", signed=False
-            )
-            d["subformat"] = int.from_bytes(
-                data[20:22], byteorder="little", signed=False
-            )
-            # print(int.from_bytes(data[16:18], byteorder="little", signed=False))
-            # print("strf-waveform", len(data))
-        return d
-    return data
-
-
-def decode_zstr(data, prev_chunk):
-    return data[:-1].decode("utf-8")
-
-
-def decode_vprp(data, prev_chunk):
-    vals = np.frombuffer(data, dtype=np.uint32)
-
-    def field_desc(vals):
-        return dict(
-            compressed_bm_height=vals[0],
-            compressed_bm_width=vals[1],
-            valid_bm_height=vals[2],
-            valid_bm_width=vals[3],
-            valid_bmx_offset=vals[4],
-            valid_bmy_offset=vals[5],
-            video_x_offset_in_t=vals[6],
-            video_y_valid_start_line=vals[7],
-        )
-
-    return dict(
-        video_format_token=vals[0],
-        video_standard=vals[1],
-        vertical_refresh_rate=vals[2],
-        h_total_in_t=vals[3],
-        v_total_in_lines=vals[4],
-        frame_aspect_ratio=fractions.Fraction(
-            int.from_bytes(data[22:24], byteorder="little", signed=False),
-            int.from_bytes(data[20:22], byteorder="little", signed=False),
-        ),
-        frame_width_in_pixels=vals[6],
-        frame_height_in_lines=vals[7],
-        field_per_frame=vals[8],
-        field_info=tuple(
-            (field_desc(vals[9 + i * 8 : 17 + i * 8]) for i in range(int(vals[8])))
-        ),
-    )
-
-
-def decode_dmlh(data, prev_chunk):
-    return dict(total_frames=int.from_bytes(data, byteorder="little", signed=False))
-
-
-decoders = dict(
-    avih=decode_avih,
-    strh=decode_strh,
-    strf=decode_strf,
-    strn=decode_zstr,
-    vprp=decode_vprp,
-    ISMP=decode_zstr,
-    IDIT=decode_zstr,
-    IARL=decode_zstr,
-    IART=decode_zstr,
-    ICMS=decode_zstr,
-    ICMT=decode_zstr,
-    ICOP=decode_zstr,
-    ICRD=decode_zstr,
-    ICRP=decode_zstr,
-    IDIM=decode_zstr,
-    IDPI=decode_zstr,
-    IENG=decode_zstr,
-    IGNR=decode_zstr,
-    IKEY=decode_zstr,
-    ILGT=decode_zstr,
-    IMED=decode_zstr,
-    INAM=decode_zstr,
-    IPLT=decode_zstr,
-    IPRD=decode_zstr,
-    ISBJ=decode_zstr,
-    ISFT=decode_zstr,
-    ISHP=decode_zstr,
-    ISRC=decode_zstr,
-    ISRF=decode_zstr,
-    ITCH=decode_zstr,
+BitmapInfoHeader = StructProcessor(
+    "BITMAPINFOHEADER",
+    "IiiHH4sIiiII",
+    (
+        "size",
+        "width",
+        "height",
+        "planes",
+        "bit_count",
+        "compression",  # convert to str if 1st byte is >=4
+        "size_image",
+        "x_pels_per_meter",
+        "y_pels_per_meter",
+        "clr_used",
+        "clr_important",
+    ),
+    (0,) * 11,
 )
 
-# tcdl
-# time
-# indx
+WaveFormatEx = StructProcessor(
+    "WAVEFORMATEX",
+    "HHIIHH",
+    (
+        "format_tag",
+        "channels",
+        "samples_per_sec",
+        "avg_bytes_per_sec",
+        "block_align",
+        "bits_per_sample",
+    ),
+    (0,) * 6,
+)
+
+WaveFormatExtensible = StructProcessor(
+    "WAVEFORMATEXTENSIBLE",
+    "HHIH14s",
+    (
+        "size",
+        "samples",
+        "channel_mask",
+        "sub_format_wave",
+        "sub_format_rest",
+    ),
+    (*((0,) * 3), 0, "\0" * 14),
+)
 
 
-def next_chunk(f, resolve_sublist=False, prev_item=None):
-    b = f.read(4)
-    if not len(b):
-        return None
+VideoPropHeader = StructProcessor(
+    "VPRP",
+    "5IHH3I",
+    (
+        "video_format_token",
+        "video_standard",
+        "vertical_refresh_rate",
+        "h_total_in_t",
+        "v_total_in_lines",
+        "frame_aspect_ratio_y",
+        "frame_aspect_ratio_x",
+        "frame_width_in_pixels",
+        "frame_height_in_lines",
+        "field_per_frame",
+    ),
+    ((0,) * 10),
+)
 
-    id = b.decode("utf-8")
-    datasize = int.from_bytes(f.read(4), byteorder="little", signed=False)
-    size = datasize + 1 if datasize % 2 else datasize
+VPRP_VideoField = StructProcessor(
+    "VPRP_VIDEO_FIELD_DESC",
+    "8I",
+    (
+        "compressed_bm_height",
+        "compressed_bm_width",
+        "valid_bm_height",
+        "valid_bm_width",
+        "valid_bm_x_offset",
+        "valid_bm_y_offset",
+        "video_x_offset_in_t",
+        "video_y_valid_start_line",
+    ),
+    ((0,) * 8),
+)
 
-    if id == "LIST":
-        data = f.read(4).decode("utf-8")
-        listsize = size - 4
-        if resolve_sublist or data == "INFO":
-            items = []
-            while listsize:
-                item = next_chunk(f, resolve_sublist, prev_item)
-                if item[0] != "JUNK":
-                    items.append(item[:-1])
-                    prev_item = item
-                listsize -= item[2] + 8
-            id = data
-            data = items
-    elif id == "JUNK":
-        f.read(size)
-        if size > datasize:
-            f.read(size - datasize)
-        data = None
-    else:
-        data = f.read(datasize)
-        if size > datasize:
-            f.read(size - datasize)
-        decoder = decoders.get(id, None)
-        if decoder:
-            data = decoder(data, prev_item)
-    return id, data, size
+
+ChunkHeader = StructProcessor("CHDR", "<4SI", ("id", "datasize"))
 
 
 fcc_types = dict(vids="v", auds="a", txts="s")  # , mids="midi")
 
 
-def read_header(f, use_ya8):
-    f.read(12)  # ignore the 'RIFF SIZE AVI ' entry of the top level chunk
-    hdr = next_chunk(f, resolve_sublist=True)[1]
-    ch = next_chunk(f)
-    while ch and ch[0] != "LIST" and ch[1] != "movi":
-        ch = next_chunk(f)
+def read_chunk_header(f):
+    b = f.read(ChunkHeader.size)
+    id, datasize = ChunkHeader.unpack(b)
+    list_type = None
+    if id in ("RIFF", "LIST"):
+        list_type = f.read(4).decode("utf-8")
+        datasize -= 4
+    chunksize = datasize + 1 if datasize % 2 else datasize
+    return id, datasize, chunksize, list_type
 
-    def get_stream_info(i, data, use_ya8):
-        strh = data[0][1]
-        strf = data[1][1]
-        type = fcc_types[strh["fcc_type"]]  # raises if not valid type
+
+def get_chunk_header(b, offset=0):
+    id, datasize = ChunkHeader.unpack_from(b, offset)
+    offset += ChunkHeader.size
+    list_type = None
+    if id in ("RIFF", "LIST"):
+        list_type = b[offset : offset + 4].decode("utf-8")
+        offset += 4
+        datasize -= 4
+    chunksize = datasize + 1 if datasize % 2 else datasize
+    return offset, chunksize, id, list_type
+
+
+def get_stream_header(b, offset, end):
+    data = {}
+
+    offset, chunksize, id, _ = get_chunk_header(b, offset)
+    data[id] = strh = AVIStreamHeader.unpack_from(b, offset)
+    offset += chunksize
+
+    offset, chunksize, id, _ = get_chunk_header(b, offset)
+    if strh.fcc_type == "vids":
+        data[id] = BitmapInfoHeader.unpack_from(b, offset)
+
+        # if 1st byte is a readable ascii char
+        compression = data[id].compression
+        comp_val = compression[0]
+        data[id] = data[id]._replace(
+            compression=comp_val if comp_val < 32 else compression.decode("utf-8")
+        )
+
+        offset += chunksize
+        while offset < end:
+            offset, chunksize, id, _ = get_chunk_header(b, offset)
+            if id == "vprp":
+                vprp = VideoPropHeader.unpack_from(b, offset)
+                offset += VideoPropHeader.size
+                ninfo = VPRP_VideoField.size
+                field_info = [
+                    VPRP_VideoField.unpack_from(b, i)
+                    for i in range(offset, offset + ninfo * vprp.field_per_frame, ninfo)
+                ]
+                data[id] = namedtuple(
+                    type(vprp).__name__, (*vprp._fields, "field_info")
+                )(*vprp, field_info)
+                break
+            else:
+                offset += chunksize
+
+    elif strh.fcc_type == "auds":
+        strf = WaveFormatEx.unpack_from(b, offset)
+        if strf.format_tag == WAVE_FORMAT_EXTENSIBLE:
+            strfext = WaveFormatExtensible.unpack_from(b, offset + WaveFormatEx.size)
+            strf = namedtuple(
+                type(strfext).__name__, (*strf._fields, *strfext._fields)
+            )(strfext.sub_format_wave, *strf[1:], *strfext)
+        data[id] = strf
+    else:
+        raise RuntimeError(f"Unsupported stream type: {strh.fcc_type}")
+
+    return data
+
+
+def _seek(f, n):
+    try:
+        f.seek(n, SEEK_CUR)
+    except:
+        f.read(n)
+
+
+def read_header(f, pix_fmt=None):
+
+    # read the RIFF header
+    id, datasize, chunksize, list_type = read_chunk_header(f)
+    if id != "RIFF" or list_type != "AVI ":
+        raise RuntimeError(f"File stream is not AVI")
+
+    # read the hdrl chunk
+    id, datasize, chunksize, list_type = read_chunk_header(f)
+    if id != "LIST" and list_type != "hdrl":
+        raise RuntimeError(f"AVI is missing header chunk")
+    b = f.read(datasize)
+    if chunksize > datasize:
+        _seek(f, 1)
+
+    # read until encountering the movi list
+    while True:
+        id, _, chunksize, list_type = read_chunk_header(f)
+        if list_type == "movi":
+            break
+        _seek(f, chunksize)
+
+    # parse hdrl LIST chunk
+    offset, chunksize, id, list_type = get_chunk_header(b)
+    if id != "avih":
+        raise RuntimeError("missing avi chunk")
+    avih = AVIMainHeader.unpack_from(b, offset)
+    offset += chunksize
+    streams = []
+    while True:
+        try:
+            offset, chunksize, id, list_type = get_chunk_header(b, offset)
+        except:
+            break
+        if list_type != "strl":
+            break
+
+        streams.append(get_stream_header(b, offset, offset + chunksize))
+        offset += chunksize
+
+    def get_stream_info(i, strl, use_ya):
+        strh = strl["strh"]
+        strf = strl["strf"]
+        type = fcc_types[strh.fcc_type]  # raises if not valid type
         info = dict(index=i, type=type)
         if type == fcc_types["vids"]:
-            info["frame_rate"] = fractions.Fraction(strh["rate"], strh["scale"])
-            info["width"] = strf["width"]
-            info["height"] = abs(strf["height"])
-            bpp = strf["bit_count"]
-            compression = strf["compression"]
+            info["frame_rate"] = fractions.Fraction(strh.rate, strh.scale)
+            info["width"] = strf.width
+            info["height"] = abs(strf.height)
+            bpp = strf.bit_count
+            compression = strf.compression
             # force unsupported pixel formats
             info["pix_fmt"] = (
                 {"Y800": "gray", "RGBA": "rgba"}.get(compression, None)
                 if isinstance(compression, str)
                 else (compression, bpp)
                 if compression
+                else "rgba64le"
+                if bpp == 64
                 else "rgb48le"
                 if bpp == 48
-                else "grayf32le"
+                else ("ya16le" if use_ya else "grayf32le")
                 if bpp == 32
                 else "rgb24"
                 if bpp == 24
-                else "ya8"
-                if use_ya8
-                else "gray16le"
+                else ("ya8" if use_ya else "gray16le")
                 if bpp == 16
                 else None
             )
-            vprp = next((d[1] for d in data[2:] if d[0] == "vprp"), None)
-            info["dar"] = vprp["frame_aspect_ratio"] if vprp else None
+            vprp = strl.get("vprp", None)
+            info["dar"] = (
+                fractions.Fraction(vprp.frame_aspect_ratio_x, vprp.frame_aspect_ratio_y)
+                if vprp
+                else None
+            )
         elif type == fcc_types["auds"]:  #'audio'
-            info["sample_rate"] = strf["samples_per_sec"]
-            info["channels"] = strf["channels"]
+            info["sample_rate"] = strf.samples_per_sec
+            info["channels"] = strf.channels
 
             strf_format = (
-                strf["format_tag"]
-                if strf["format_tag"] != WAVE_FORMAT_EXTENSIBLE
-                else strf["subformat"],
-                strf["bits_per_sample"],
+                strf.format_tag,
+                strf.bits_per_sample,
             )
 
             info["sample_fmt"] = {
                 (WAVE_FORMAT_PCM, 8): "u8",
                 (WAVE_FORMAT_PCM, 16): "s16",
                 (WAVE_FORMAT_PCM, 32): "s32",
+                (WAVE_FORMAT_PCM, 64): "s64",
                 (WAVE_FORMAT_IEEE_FLOAT, 32): "flt",
                 (WAVE_FORMAT_IEEE_FLOAT, 64): "dbl",
             }.get(strf_format, strf_format)
             # TODO: if need arises, resolve more formats, need to include codec names though
         return info
 
-    strl = [hdr[i][1] for i in range(len(hdr)) if hdr[i][0] == "strl"]
-    return [get_stream_info(i, strl[i], use_ya8) for i in range(len(strl))]
+    return [get_stream_info(i, strl, pix_fmt) for i, strl in enumerate(streams)], (
+        avih,
+        streams,
+    )
+
+
+re_movi = re.compile(r"\d{2}(?:wb|db|dc|tx)")
 
 
 def read_frame(f):
-    chunk = next_chunk(f)
-    if chunk is None or not re.match(r"ix..|\d{2}(?:wb|db|dc|tx|pc)", chunk[0]):
-        return None
-    hdr = chunk[0]
-    return (int(hdr[:2]) if hdr[2:] in ("wb", "db", "dc", "tx") else None), chunk[1]
+    while True:
+        id, datasize, chunksize, list_type = read_chunk_header(f)
+        if not list_type:
+            m = re_movi.match(id)
+            if m:  # data chunk found
+                b = f.read(datasize)
+                if chunksize > datasize:
+                    _seek(f, chunksize - datasize)
+                return int(id[:2]), b
+            else:
+                _seek(f, chunksize)
+
+        id, datasize, chunksize, list_type = read_chunk_header(f)
 
 
 #######################################################################################################
 
 
 class AviReader:
-    def __init__(self, use_ya8=False):
+    def __init__(self):
         self._f = None
-        self.use_ya8 = use_ya8  #: bool: True to interpret 16-bit pixel as 'ya8' pix_fmt, False for 'gray16le'
-
         self.ready = False  #:bool: True if AVI headers has been processed
         self.streams = None  #:dict: Stream headers keyed by stream id (int key)
         self.converters = None  #:dict : Stream to numpy ndarray conversion functions keyed by stream id
 
-    def start(self, f):
+    def start(self, f, pix_fmt=None):
         self._f = f
-        hdr = read_header(self._f, self.use_ya8)
+        hdr = read_header(self._f, pix_fmt)[0]
 
         cnt = {"v": 0, "a": 0, "s": 0}
 
@@ -338,13 +477,13 @@ class AviReader:
             id = cnt[st_type]
             cnt[st_type] += 1
             if st_type == "v":
-                _, ncomp, dtype, _ = utils.get_pixel_config(hdr["pix_fmt"])
+                _, ncomp, dtype, _ = get_pixel_config(hdr["pix_fmt"])
                 shape = (hdr["height"], hdr["width"], ncomp)
             elif st_type == "a":
-                _, dtype = utils.get_audio_format(hdr["sample_fmt"])
+                _, dtype = get_audio_format(hdr["sample_fmt"])
                 shape = (hdr["channels"],)
             return {
-                "spec": utils.spec_stream(id, st_type),
+                "spec": spec_stream(id, st_type),
                 "shape": shape,
                 "dtype": dtype,
                 **hdr,
@@ -364,10 +503,10 @@ class AviReader:
     def __next__(self):
         i = d = None
         while i is None:  # None if unknown frame format, skip
-            frame = read_frame(self._f)
-            if frame is None:  # likely eof
+            try:
+                i, d = read_frame(self._f)
+            except:
                 raise StopIteration
-            i, d = frame
         return i, self.converters[i](d)
 
     def __iter__(self):

@@ -440,13 +440,13 @@ def finalize_media_read_opts(args):
 
     :param args: FFmpeg dict
     :type args: dict
-    :return: use_ya8 flag - True to expect 16-bpc pixel to be ya8 pix_fmt instead of gray16le pix_fmt
+    :return: use_ya flag - True to expect grayscale+alpha pixel format rather than grayscale
     :rtype: bool
 
     - assumes options dict of the first output is already present
     - insert `pix_fmt='rgb24'` and `sample_fmt='sa16le'` options if these options are not assigned
     - check for the use of both 'gray16le' and 'ya8', and returns True if need to use 'ya8'
-    - set f=avi and vcodec=rawvideo 
+    - set f=avi and vcodec=rawvideo
     - set acodecs according to sample_fmts
 
     """
@@ -459,12 +459,12 @@ def finalize_media_read_opts(args):
     for k in utils.find_stream_options(options, "pix_fmt"):
         v = options[k]
         utils.get_video_format(v)
-        if v == "gray16le":
+        if v in ("gray16le", "grayf32le"):
             gray16le += 1
-        elif v == "ya8":
+        elif v in ("ya8", "ya16le"):
             ya8 += 1
     if gray16le and ya8:
-        raise ValueError("gray16le and ya8 pix_fmts cannot be mixed.")
+        raise ValueError("pix_fmts: grayscale with and without transparency cannot be mixed.")
 
     # if pix_fmt and sample_fmt not specified, set defaults
     # user can conditionally override these by stream-specific option

@@ -17,8 +17,6 @@ class AviMediaReader:
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param use_ya8: True if piped video streams uses `ya8` pix_fmt instead of `gray16le`, default to None
-    :type use_ya8: bool, optional
     :param \\**options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                         input url or '_in' to be applied to all inputs. The url-specific option gets the
                         preference (see :doc:`options` for custom options)
@@ -79,9 +77,9 @@ class AviMediaReader:
             configure.add_url(args, "input", url, {*inopts, *spec_inopts.get(i, {})})
 
         # configure output options
-        use_ya8 = configure.finalize_media_read_opts(args)
+        use_ya = configure.finalize_media_read_opts(args)
 
-        self._reader = threading.AviReaderThread(use_ya8, queuesize)
+        self._reader = threading.AviReaderThread(queuesize)
 
         # create logger without assigning the source stream
         self._logger = threading.LoggerThread(None, show_log)
@@ -97,7 +95,7 @@ class AviMediaReader:
         )
 
         # start the reader thrad
-        self._reader.start(self._proc.stdout)
+        self._reader.start(self._proc.stdout, use_ya)
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
@@ -106,29 +104,29 @@ class AviMediaReader:
     def specs(self):
         """:list(str): list of specifiers of the streams"""
         self._reader.wait()
-        return [v["spec"] for v in self._reader.streams.values()]
+        return self._reader.streams and [v["spec"] for v in self._reader.streams.values()] 
 
     def types(self):
         """:dict(str:str): media type associated with the streams (key)"""
         self._reader.wait()
         ts = {"v": "video", "a": "audio"}
-        return {v["spec"]: ts[v["type"]] for v in self._reader.streams.values()}
+        return self._reader.streams and {v["spec"]: ts[v["type"]] for v in self._reader.streams.values()}
 
     def rates(self):
         """:dict(str:int|Fraction): sample or frame rates associated with the streams (key)"""
         self._reader.wait()
         rates = self._reader.rates
-        return {v["spec"]: rates[k] for k, v in self._reader.streams.items()}
+        return self._reader.streams and {v["spec"]: rates[k] for k, v in self._reader.streams.items()}
 
     def dtypes(self):
         """:dict(str:str): numpy dtypes associated with the streams (key)"""
         self._reader.wait()
-        return {v["spec"]: v["dtype"] for v in self._reader.streams.values()}
+        return self._reader.streams and {v["spec"]: v["dtype"] for v in self._reader.streams.values()}
 
     def shapes(self):
         """:dict(str:tuple(int)): base array shape associated with the streams (key)"""
         self._reader.wait()
-        return {v["spec"]: v["shape"] for v in self._reader.streams.values()}
+        return self._reader.streams and {v["spec"]: v["shape"] for v in self._reader.streams.values()}
 
     def get_stream_info(self, spec):
         id = self._reader.find_id(spec)
