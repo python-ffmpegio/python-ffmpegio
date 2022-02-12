@@ -5,7 +5,7 @@ from ffmpegio import plugins
 def test_rawdata_bytes():
     hook = plugins.get_hook()
 
-    dtype = "|u8"
+    dtype = "|u1"
     shape = (2, 2, 3)
     b = b"\0" * prod(shape)
     data = hook.bytes_to_video(b=b, dtype=dtype, shape=shape)
