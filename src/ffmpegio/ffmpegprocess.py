@@ -33,9 +33,7 @@ from .utils import bytes_to_ndarray as _as_array
 __all__ = ["run", "Popen", "PIPE", "DEVNULL"]
 
 
-def monitor_process(
-    proc, on_exit=None
-):
+def monitor_process(proc, on_exit=None):
     """thread function to monitor subprocess termination
 
     :param proc: subprocess to be monitored
@@ -51,11 +49,8 @@ def monitor_process(
     proc.wait()
     if on_exit is not None:
         returncode = proc.returncode
-        try:
-            on_exit(returncode)
-        except:
-            for fcn in on_exit:
-                fcn(returncode)
+        for fcn in on_exit:
+            fcn(returncode)
 
 
 class Popen(_sp.Popen):
@@ -160,21 +155,26 @@ class Popen(_sp.Popen):
             self._progmon.start()
 
         # start the process monitor to perform the cleanup when FFmpeg terminates
-        if self._progmon or on_exit:
-            if self._progmon:
-                if on_exit:
-                    try:
-                        on_exit = (self._progmon.join, *on_exit)
-                    except:
-                        on_exit = (self._progmon.join, on_exit)
-                else:
-                    on_exit = self._progmon.join
+        if self._progmon or capture_log or on_exit:
+            if on_exit is None:
+                on_exit = []
+            else:
+                try:
+                    on_exit = [*on_exit]
+                except:
+                    on_exit = [on_exit]
 
-            self._monitor = _Thread(
-                target=monitor_process,
-                args=(self, on_exit),
-            )
-            self._monitor.start()
+            if capture_log:
+                on_exit.append(lambda _: self.stderr.close())
+
+            if self._progmon:
+                on_exit.append(lambda _: self._progmon.join())
+
+                self._monitor = _Thread(
+                    target=monitor_process,
+                    args=(self, on_exit),
+                )
+                self._monitor.start()
 
     def wait(self, timeout=None):
         """Wait for FFmpeg process to terminate; returns self.returncode
