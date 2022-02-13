@@ -150,6 +150,7 @@ class LoggerThread(_Thread):
         return self
 
     def run(self):
+        _logging.debug('[logger] starting')
         stderr = self.stderr
         if not isinstance(stderr, _TextIOBase):
             stderr = self.stderr = _TextIOWrapper(stderr, "utf-8")
@@ -178,6 +179,7 @@ class LoggerThread(_Thread):
         with self.newline:
             self.stderr = None
             self.newline.notify_all()
+        _logging.debug('[logger] exiting')
 
     def index(self, prefix, start=None, block=True, timeout=None):
         start = int(start or 0)

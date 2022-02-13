@@ -19,6 +19,7 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
+import logging
 from os import path
 from threading import Thread as _Thread
 import subprocess as _sp
@@ -45,11 +46,14 @@ def monitor_process(proc, on_exit=None):
 
     """
 
+    logging.debug('[monitor] waiting for FFmpeg to terminate...')
     proc.wait()
+    logging.debug('[monitor] FFmpeg terminated')
     if on_exit is not None:
         returncode = proc.returncode
         for fcn in on_exit:
             fcn(returncode)
+        logging.debug('[monitor] executed all on_exit callbacks')
 
 
 class Popen(_sp.Popen):

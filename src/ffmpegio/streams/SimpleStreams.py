@@ -3,7 +3,7 @@ from .. import utils, configure, ffmpegprocess, probe, plugins
 
 # from ..utils import bytes_to_ndarray as _as_array
 from ..threading import (
-    LoggerThread as _LogerThread,
+    LoggerThread as _LoggerThread,
     ReaderThread as _ReaderThread,
     WriterThread as _WriterThread,
 )
@@ -57,7 +57,7 @@ class SimpleReaderBase:
         self._finalize(ffmpeg_args)
 
         # create logger without assigning the source stream
-        self._logger = _LogerThread(None, show_log)
+        self._logger = _LoggerThread(None, show_log)
 
         # start FFmpeg
         self._proc = ffmpegprocess.Popen(
@@ -75,7 +75,11 @@ class SimpleReaderBase:
         # wait until output stream log is captured if output format is unknown
         try:
             if self.dtype is None or self.shape is None:
+                logging.debug(
+                    "[reader main] waiting for logger to provide output stream info"
+                )
                 info = self._logger.output_stream()
+                logging.debug(f"[reader main] received {info}")
                 self._finalize_array(info)
             else:
                 self._logger.index("Output")
@@ -88,6 +92,7 @@ class SimpleReaderBase:
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
         self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
+        logging.debug("[reader main] completed init")
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -98,18 +103,27 @@ class SimpleReaderBase:
         however, will have an effect.
 
         """
+
         if self._proc is None:
             return
+
+        self._proc.stdout.close()
+        self._proc.stderr.close()
+
         try:
             self._proc.terminate()
+            if self._proc.poll() is None:
+                self._proc.kill()
         except:
+            print("failed to terminate")
             pass
+
+        logging.debug(f"[reader main] FFmpeg closed? {self._proc.poll()}")
+
         try:
             self._proc.stdin.close()
         except:
             pass
-        self._proc.stdout.close()
-        self._proc.stderr.close()
         self._logger.join()
 
     @property
@@ -160,8 +174,9 @@ class SimpleReaderBase:
 
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
-
+        logging.debug(f"[reader main] reading {n} samples")
         b = self._proc.stdout.read(n * self.samplesize if n > 0 else n)
+        logging.debug(f"[reader main] read {len(b)} bytes")
         if not len(b):
             self._proc.stdout.close()
         return self._converter(b=b, shape=self.shape, dtype=self.dtype)
@@ -332,7 +347,7 @@ class SimpleWriterBase:
         ready = self._finalize(ffmpeg_args)
 
         # create logger without assigning the source stream
-        self._logger = _LogerThread(None, show_log)
+        self._logger = _LoggerThread(None, show_log)
 
         # FFmpeg Popen arguments
         self._cfg = {
@@ -364,13 +379,9 @@ class SimpleWriterBase:
         """close the output stream"""
         if self._proc is None:
             return
-        try:
-            self._proc.stdin.flush()
-        except:
-            pass
         self._proc.stdin.close()
-        self._proc.wait()
         self._proc.stderr.close()
+        self._proc.wait()
         self._logger.join()
 
     @property
@@ -416,6 +427,8 @@ class SimpleWriterBase:
             # if FFmpeg not yet started, finalize the configuration with
             # the data and start
             self._open(data)
+
+        logging.debug('[writer main] writing...')
 
         try:
             self._proc.stdin.write(self._viewer(obj=data))
@@ -656,7 +669,7 @@ class SimpleFilterBase:
         self._reader_needs_info = True
 
         # create logger without assigning the source stream
-        self._logger = _LogerThread(None, show_log)
+        self._logger = _LoggerThread(None, show_log)
 
         # FFmpeg Popen arguments
         self._cfg = {
@@ -742,6 +755,9 @@ class SimpleFilterBase:
         if self._proc is None:
             return
 
+        self._proc.stdout.close()
+        self._proc.stderr.close()
+
         # kill the process
         try:
             self._proc.terminate()
@@ -749,8 +765,7 @@ class SimpleFilterBase:
             pass
 
         self._proc.stdin.close()
-        self._proc.stdout.close()
-        self._proc.stderr.close()
+
         try:
             self._logger.join()
         except:

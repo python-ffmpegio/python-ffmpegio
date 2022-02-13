@@ -45,10 +45,11 @@ jobs:
 
       - name: Setup Python dependencies
         run: |
-          python -m pip install -U pip build pytest pytest-github-actions-annotate-failures 
+          python -m pip install -U pip 
+          # python -m pip install build pytest pytest-github-actions-annotate-failures 
 
       - name: Install ffmpegio package
         run: pip install -q .
 
       - name: Run tests
-        run: python tests/test_avistreams.py
+        run: python tests/test_simplestreams.py

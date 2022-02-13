@@ -1,10 +1,11 @@
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+
 import ffmpegio
 import tempfile, re
 from os import path
-import logging
 from ffmpegio import streams, utils
-
-logging.basicConfig(level=logging.DEBUG)
 
 url = "tests/assets/testmulti-1m.mp4"
 outext = ".mp4"
@@ -13,7 +14,9 @@ outext = ".mp4"
 def test_read_video():
     w = 420
     h = 360
-    with ffmpegio.open(url, "rv", vf="transpose", pix_fmt="gray", s=(w, h)) as f:
+    with ffmpegio.open(
+        url, "rv", vf="transpose", pix_fmt="gray", s=(w, h), show_log=True
+    ) as f:
         F = f.read(10)
         print(f.rate)
         assert f.shape == (h, w, 1)
@@ -156,6 +159,8 @@ def test_audio_filter():
 
 
 if __name__ == "__main__":
-    test_audio_filter()
+    print("starting test")
+    logging.debug("logging check")
+    test_video_filter()
 
     # python tests\test_simplestreams.py
