@@ -100,8 +100,8 @@ def create(
     :type af: FilterGraph or str, optional
     :param \\**options: FFmpeg options (see :doc:`options`)
     :type \\**options: dict, optional
-    :return: audio data
-    :rtype: object
+    :return: sampling rate and audio data
+    :rtype: tuple[int, object]
 
     .. note:: Either `duration` or `nb_samples` filter options must be set.
 
@@ -152,7 +152,7 @@ def create(
         ar_in=ar_in,
         show_log=show_log,
         progress=progress,
-    )[1]
+    )
 
 
 def read(url, progress=None, show_log=None, **options):

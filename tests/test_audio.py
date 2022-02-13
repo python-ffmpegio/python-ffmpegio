@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 def test_create():
     fs = 8000
-    x = audio.create(
+    fs, x = audio.create(
         "aevalsrc",
         "sin(420*2*PI*t)|cos(430*2*PI*t)",
         c="FC|BC",

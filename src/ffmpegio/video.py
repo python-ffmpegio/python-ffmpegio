@@ -81,8 +81,8 @@ def create(
     :type show_log: bool, optional
     :param \\**options: filter keyword arguments
     :type \\**options: dict, optional
-    :return: video data, created by `bytes_to_video` plugin hook
-    :rtype: object
+    :return: frame rate and video data, created by `bytes_to_video` plugin hook
+    :rtype: tuple[Fraction,object]
 
     Supported Video Source Filters
     ------------------------------
