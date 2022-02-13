@@ -1,6 +1,7 @@
 from distutils.debug import DEBUG
 import fractions
 import io
+from math import prod
 from time import sleep
 import ffmpegio
 import tempfile, re
@@ -16,33 +17,42 @@ outext = ".mp4"
 
 
 def test_read_video():
-    with ffmpegio.open(url, "rv", vf="transpose", pix_fmt="gray") as f:
+    w = 420
+    h = 360
+    with ffmpegio.open(url, "rv", vf="transpose", pix_fmt="gray", s=(w, h)) as f:
         F = f.read(10)
-        print(f.frame_rate)
-        print(F.shape)
+        print(f.rate)
+        assert f.shape == (h, w, 1)
+        assert f.samplesize == w * h
+        assert F["shape"] == (10, h, w, 1)
+        assert F["dtype"] == f.dtype
 
 
 def test_read_write_video():
     fs, F = ffmpegio.video.read(url, t=1)
+    bps = prod(F["shape"][1:]) * int(F["dtype"][-1])
+    F0 = {"buffer": F["buffer"][:bps], "shape": F["shape"], "dtype": F["dtype"]}
+    F1 = {"buffer": F["buffer"][bps:], "shape": F["shape"], "dtype": F["dtype"]}
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with ffmpegio.open(out_url, "wv", rate_in=fs) as f:
-            f.write(F[0, ...])
-            f.write(F[1:, ...])
+            f.write(F0)
+            f.write(F1)
 
 
 def test_read_audio(caplog):
     # caplog.set_level(logging.DEBUG)
 
     fs, x = ffmpegio.audio.read(url)
+    bps = prod(x["shape"][1:]) * int(x["dtype"][-1])
 
     with ffmpegio.open(url, "ra", show_log=True, blocksize=1024 ** 2) as f:
         # x = f.read(1024)
-        # assert x.shape == (1024, f.ac)
-        blks = [blk for blk in f]
-        x1 = np.concatenate(blks)
-        assert np.array_equal(x, x1)
+        # assert x['shape'] == (1024, f.ac)
+        blks = [blk["buffer"] for blk in f]
+    x1 = b"".join(blks)
+    assert x["buffer"] == x1
 
     n0 = int(0.5 * fs)
     n1 = int(1.2 * fs)
@@ -52,53 +62,56 @@ def test_read_audio(caplog):
     with ffmpegio.open(
         url, "ra", ss_in=t0, to_in=t1, show_log=True, blocksize=1024 ** 2
     ) as f:
-        blks = [blk for blk in f]
+        blks, shapes = zip(*[(blk["buffer"], blk["shape"][0]) for blk in f])
         log = f.readlog()
+        shape = sum(shapes)
 
     print(log)
 
-    x2 = np.concatenate(blks)
-    #     # print("# of blks: ", len(blks), x1.shape)
+    x2 = b"".join(blks)
+    #     # print("# of blks: ", len(blks), x1['shape'])
     # for i, xi in enumerate(x2):
     #     print(i, xi-x[n0 + i])
     #     assert np.array_equal(xi, x[n0 + i])
-    assert x2.shape == (n1 - n0, *f.shape)
-    assert np.array_equal(x[n0:n1, :], x2)
+    assert shape == n1 - n0
+    assert x["buffer"][n0 * bps : n1 * bps] == x2
 
 
 def test_read_write_audio():
     outext = ".flac"
 
     with ffmpegio.open(url, "ra") as f:
-        F = np.concatenate((f.read(100), f.read(-1)))
-        fs = f.sample_rate
-        print(F.shape, fs)
+        F = b"".join((f.read(100)["buffer"], f.read(-1)["buffer"]))
+        fs = f.rate
+        shape = f.shape
+        dtype = f.dtype
+        bps = f.samplesize
+
+    out = {"dtype": dtype, "shape": shape}
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with ffmpegio.open(out_url, "wa", rate_in=fs, show_log=True) as f:
-            f.write(F[:100, ...])
-            f.write(F[100:, ...])
+            f.write({**out, "buffer": F[: 100 * bps]})
+            f.write({**out, "buffer": F[100 * bps :]})
 
 
 def test_video_filter():
     url = "tests/assets/testvideo-1m.mp4"
 
     fps = 10  # fractions.Fraction(60000,1001)
-    out = io.BytesIO()
 
     with ffmpegio.open(url, "rv", blocksize=30, t=30) as src, ffmpegio.open(
-        "scale=200:100", "fv", rate_in=src.frame_rate, rate=fps, show_log=True
+        "scale=200:100", "fv", rate_in=src.rate, rate=fps, show_log=True
     ) as f:
 
         def process(i, frames):
-            print(f"{i} - output {len(frames)} frames ({f.nin},{f.nout})")
-            out.write(frames)
+            print(f"{i} - output {frames['shape'][0]} frames ({f.nin},{f.nout})")
 
         for i, frames in enumerate(src):
             process(i, f.filter(frames))
-        assert f.frame_rate_in == src.frame_rate
-        assert f.frame_rate == fps
+        assert f.rate_in == src.rate
+        assert f.rate == fps
         process("end", f.flush())
 
 
@@ -106,7 +119,6 @@ def test_audio_filter():
     url = "tests/assets/testaudio-1m.mp3"
 
     sps = 4000  # fractions.Fraction(60000,1001)
-    out = io.BytesIO()
 
     with streams.SimpleAudioReader(url, blocksize=1024 * 8, t=10, ar=32000) as src:
 
@@ -114,17 +126,18 @@ def test_audio_filter():
 
         with streams.SimpleAudioFilter(
             "lowpass",
-            rate_in=src.sample_rate,
+            rate_in=src.rate,
             rate=sps,
             show_log=True,
             # ac=src.channels,
-            # dtype=src.dtype,
+            # dtype=src['dtype'],
         ) as f:
 
             def process(i, samples):
                 if len(samples):
-                    print(f"{i} - output {len(samples)} samples ({f.nin-f.nout})")
-                out.write(samples)
+                    print(
+                        f"{i} - output {samples['shape'][0]} samples ({f.nin, f.nout})"
+                    )
 
             try:
                 process(-1, f.filter(samples))
@@ -135,8 +148,8 @@ def test_audio_filter():
                     process(i, f.filter(samples))
                 except TimeoutError:
                     pass
-            assert f.sample_rate_in == src.sample_rate
-            assert f.sample_rate == sps
+            assert f.rate_in == src.rate
+            assert f.rate == sps
             process("end", f.flush())
 
 

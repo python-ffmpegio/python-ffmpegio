@@ -78,16 +78,16 @@ def open(
     :param rate: (filter specific) output frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate: Fraction, float, int, optional
-    :param dtype: (read and filter specific) output data numpy dtype, defaults to None
-    :type dtype: numpy.dtype, optional
+    :param dtype: (read and filter specific) output data type, defaults to None
+    :type dtype: str, optional
     :param shape: (read and filter specific) output video frame size (height x width [x ncomponents]),
                   or audio sample size (channels,), defaults to None
     :type shape: seq of int, optional
     :param rate_in: (filter specific) input frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate_in: Fraction, float, int, optional
-    :param dtype_in: (write and filter specific) input data numpy dtype, defaults to None
-    :type dtype_in: numpy.dtype, optional
+    :param dtype_in: (write and filter specific) input data type, defaults to None
+    :type dtype_in: str, optional
     :param shape_in: (write and filter specific) input video frame size (height x width [x ncomponents]),
                   or audio sample size (channels,), defaults to None
     :type shape_in: seq of int, optional
@@ -158,35 +158,35 @@ def open(
     The number of components and other optional `dtype` (or `dtype_in`) implicitly
     define the pixel format (FFmpeg pix_fmt option):
 
-    =====  ============  =========  ===================================
-    ncomp  dtype         pix_fmt    Description
-    =====  ============  =========  ===================================
-      1    numpy.uint8   gray       grayscale
-      1    numpy.uint16  gray16le   16-bit grayscale
-      1    numpy.single  grayf32le  floating-point grayscale
-      2    numpy.uint8   ya8        grayscale with alpha channel
-      2    numpy.uint16  ya16le     16-bit grayscale with alpha channel
-      3    numpy.uint8   rgb24      RGB
-      3    numpy.uint16  rgb48le    16-bit RGB
-      4    numpy.uint8   rgba       RGB with alpha transparency channel
-      4    numpy.uint16  rgba64le   16-bit RGB with alpha channel
-    =====  ============  =========  ===================================
+    =====  =====  =========  ===================================
+    ncomp  dtype  pix_fmt    Description
+    =====  =====  =========  ===================================
+      1     |u8   gray       grayscale
+      1     <u2   gray16le   16-bit grayscale
+      1     <f4   grayf32le  floating-point grayscale
+      2     |u1   ya8        grayscale with alpha channel
+      2     <u2   ya16le     16-bit grayscale with alpha channel
+      3     |u1   rgb24      RGB
+      3     <u2   rgb48le    16-bit RGB
+      4     |u1   rgba       RGB with alpha transparency channel
+      4     <u2   rgba64le   16-bit RGB with alpha channel
+    =====  =====  =========  ===================================
 
     For audio stream, single-element seq argument, `shape` or `shape_in`,
     specifies the number of channels while `dtype` and `dtype_in` determines
     the sample format (FFmpeg sample_fmt option):
 
-    ==============  ==========
-    dtype           sample_fmt
-    ==============  ==========
-    numpy.uint8     u8
-    numpy.int16     s16
-    numpy.int32     s32
-    numpy.single    flt
-    numpy.double    dbl
-    ==============  ==========
+    ======  ==========
+    dtype   sample_fmt
+    ======  ==========
+     |u1     u8
+     <i2     s16
+     <i4     s32
+     <f4     flt
+     <f8     dbl
+    ======  ==========
 
-    If dtypes and sshapes are not specified at the time of opening, they will
+    If dtypes and shapes are not specified at the time of opening, they will
     be set during the first write/filter operation using the input data.
 
     In addition, `open()` accepts the standard option keyword arguments.

@@ -11,7 +11,7 @@ def test_media_read():
     rates, data = media.read(url2, url, map=("1:v:0", (0, "a:0")), t=1)
 
     print(rates)
-    print([(k, x.shape, x.dtype) for k, x in data.items()])
+    print([(k, x['shape'], x['dtype']) for k, x in data.items()])
 
 
 if __name__ == "__main__":

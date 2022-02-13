@@ -1,8 +1,8 @@
-from email.policy import default
 import logging
-import numpy as np
-from .. import utils, configure, ffmpegprocess, probe
-from ..utils import bytes_to_ndarray as _as_array
+from math import prod
+from .. import utils, configure, ffmpegprocess, probe, plugins
+
+# from ..utils import bytes_to_ndarray as _as_array
 from ..threading import (
     LoggerThread as _LogerThread,
     ReaderThread as _ReaderThread,
@@ -16,7 +16,7 @@ __all__ = [
     "SimpleVideoWriter",
     "SimpleAudioWriter",
     "SimpleVideoFilter",
-    # "SimpleAudioFilter", # FFmpeg does not support this operation
+    "SimpleAudioFilter",  # FFmpeg does not support this operation
 ]
 
 
@@ -24,14 +24,25 @@ class SimpleReaderBase:
     """base class for SISO media read stream classes"""
 
     def __init__(
-        self, url, show_log=None, progress=None, blocksize=None, **options
+        self,
+        converter,
+        viewer,
+        url,
+        show_log=None,
+        progress=None,
+        blocksize=None,
+        **options,
     ) -> None:
 
-        self.dtype = None  # :numpy.dtype: output data type
+        self._converter = converter  # :Callable: f(b,dtype,shape) -> data_object
+        self._memoryviewer = viewer  #:Callable: f(data_object)->bytes-like object
+        self.dtype = None  # :str: output data type
         self.shape = (
             None  # :tuple of ints: dimension of each video frame or audio sample
         )
-        self.itemsize = None  #:int: number of bytes of each video frame or audio sample
+        self.samplesize = (
+            None  #:int: number of bytes of each video frame or audio sample
+        )
         self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
 
         # get url/file stream
@@ -75,9 +86,9 @@ class SimpleReaderBase:
             else:
                 raise ValueError("failed retrieve output data format")
 
-        self.itemsize = utils.get_itemsize(self.shape, self.dtype)
+        self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024 ** 2 // self.itemsize, 1)
+        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -88,6 +99,8 @@ class SimpleReaderBase:
         however, will have an effect.
 
         """
+        if self._proc is None:
+            return
         try:
             self._proc.terminate()
         except:
@@ -149,10 +162,10 @@ class SimpleReaderBase:
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
 
-        b = self._proc.stdout.read(n * self.itemsize if n > 0 else n)
+        b = self._proc.stdout.read(n * self.samplesize if n > 0 else n)
         if not len(b):
             self._proc.stdout.close()
-        return _as_array(b, self.shape, self.dtype)
+        return self._converter(b=b, shape=self.shape, dtype=self.dtype)
 
     def readinto(self, array):
         """Read bytes into a pre-allocated, writable bytes-like object array and
@@ -164,7 +177,10 @@ class SimpleReaderBase:
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
 
-        return self._proc.stdout.readinto(memoryview(array).cast("b")) // self.itemsize
+        return (
+            self._proc.stdout.readinto(self._memoryviewer(array).cast("b"))
+            // self.samplesize
+        )
 
 
 class SimpleVideoReader(SimpleReaderBase):
@@ -172,6 +188,18 @@ class SimpleVideoReader(SimpleReaderBase):
     writable = False
     multi_read = False
     multi_write = False
+
+    def __init__(self, url, show_log=None, progress=None, blocksize=None, **options):
+        hook = plugins.get_hook()
+        super().__init__(
+            hook.bytes_to_video,
+            hook.video_bytes,
+            url,
+            show_log,
+            progress,
+            blocksize,
+            **options,
+        )
 
     def _finalize(self, ffmpeg_args):
         # finalize FFmpeg arguments and output array
@@ -197,7 +225,7 @@ class SimpleVideoReader(SimpleReaderBase):
         (
             self.dtype,
             self.shape,
-            self.frame_rate,
+            self.rate,
         ) = configure.finalize_video_read_opts(ffmpeg_args, pix_fmt_in, s_in, r_in)
 
         # construct basic video filter if options specified
@@ -208,9 +236,8 @@ class SimpleVideoReader(SimpleReaderBase):
     def _finalize_array(self, info):
         # finalize array setup from FFmpeg log
 
-        self.frame_rate = info["r"]
-        self.dtype, ncomp, _ = utils.get_video_format(info["pix_fmt"])
-        self.shape = (*info["s"][::-1], ncomp)
+        self.rate = info["r"]
+        self.dtype, self.shape = utils.get_video_format(info["pix_fmt"], info["s"])
 
 
 class SimpleAudioReader(SimpleReaderBase):
@@ -219,6 +246,18 @@ class SimpleAudioReader(SimpleReaderBase):
     writable = False
     multi_read = False
     multi_write = False
+
+    def __init__(self, url, show_log=None, progress=None, blocksize=None, **options):
+        hook = plugins.get_hook()
+        super().__init__(
+            hook.bytes_to_audio,
+            hook.audio_bytes,
+            url,
+            show_log,
+            progress,
+            blocksize,
+            **options,
+        )
 
     def _finalize(self, ffmpeg_args):
         # finalize FFmpeg arguments and output array
@@ -239,10 +278,9 @@ class SimpleAudioReader(SimpleReaderBase):
                 pass
 
         (
-            _,
             self.dtype,
             ac,
-            self.sample_rate,
+            self.rate,
         ) = configure.finalize_audio_read_opts(ffmpeg_args, sample_fmt_in, ac_in, ar_in)
 
         if ac is not None:
@@ -251,10 +289,10 @@ class SimpleAudioReader(SimpleReaderBase):
     def _finalize_array(self, info):
         # finalize array setup from FFmpeg log
 
-        self.sample_rate = info["ar"]
-        _, self.dtype = utils.get_audio_format(info["sample_fmt"])
-        ac = info.get("ac", 1)
-        self.shape = (ac,)
+        self.rate = info["ar"]
+        self.dtype, self.shape = utils.get_audio_format(
+            info["sample_fmt"], info.get("ac", 1)
+        )
 
     @property
     def channels(self):
@@ -267,6 +305,7 @@ class SimpleAudioReader(SimpleReaderBase):
 class SimpleWriterBase:
     def __init__(
         self,
+        viewer,
         url,
         shape_in=None,
         dtype_in=None,
@@ -276,8 +315,10 @@ class SimpleWriterBase:
         **options,
     ) -> None:
 
+        self._proc = None
+        self._viewer = viewer
         self.dtype_in = dtype_in
-        self.shape_in = shape_in and list(np.atleast_1d(shape_in))
+        self.shape_in = shape_in
 
         # get url/file stream
         url, stdout, _ = configure.check_url(url, True)
@@ -322,6 +363,8 @@ class SimpleWriterBase:
 
     def close(self):
         """close the output stream"""
+        if self._proc is None:
+            return
         try:
             self._proc.stdin.flush()
         except:
@@ -370,15 +413,13 @@ class SimpleWriterBase:
 
         """
 
-        data = np.asarray(data)
-
         if self._cfg:
             # if FFmpeg not yet started, finalize the configuration with
             # the data and start
             self._open(data)
 
         try:
-            self._proc.stdin.write(data)
+            self._proc.stdin.write(self._viewer(obj=data))
         except BrokenPipeError as e:
             # TODO check log for error in FFmpeg
             raise e
@@ -404,7 +445,15 @@ class SimpleVideoWriter(SimpleWriterBase):
         **options,
     ):
         options["r_in"] = rate_in
-        super().__init__(url, shape_in, dtype_in, show_log, progress, **options)
+        super().__init__(
+            plugins.get_hook().video_bytes,
+            url,
+            shape_in,
+            dtype_in,
+            show_log,
+            progress,
+            **options,
+        )
 
     def _finalize(self, ffmpeg_args) -> None:
         inopts = ffmpeg_args["inputs"][0][1]
@@ -426,14 +475,15 @@ class SimpleVideoWriter(SimpleWriterBase):
 
         ffmpeg_args = self._cfg["ffmpeg_args"]
         inopts = ffmpeg_args["inputs"][0][1]
-        inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(data)
+        shape, dtype = plugins.get_hook().video_info(obj=data)
+        inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(shape, dtype)
 
         configure.build_basic_vf(
             ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
         )
 
-        self.shape_in = data.shape
-        self.dtype_in = data.dtype
+        self.shape_in = shape
+        self.dtype_in = dtype
 
 
 class SimpleAudioWriter(SimpleWriterBase):
@@ -453,27 +503,35 @@ class SimpleAudioWriter(SimpleWriterBase):
         **options,
     ):
         options["ar_in"] = rate_in
-        super().__init__(url, shape_in, dtype_in, show_log, progress, **options)
+        super().__init__(
+            plugins.get_hook().audio_bytes,
+            url,
+            shape_in,
+            dtype_in,
+            show_log,
+            progress,
+            **options,
+        )
 
     def _finalize(self, ffmpeg_args):
         if self.dtype_in is not None or self.shape_in is not None:
             inopts = ffmpeg_args["inputs"][0][1]
-            codec, inopts["sample_fmt"] = utils.get_audio_format(self.dtype_in)
-            inopts["c:a"] = codec
-            inopts["f"] = codec[4:]
-            inopts["ac"] = self.shape_in[:-1]
+            inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
+                self.dtype_in, self.shape_in
+            )
+            inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])
             return True
         return False
 
     def _finalize_with_data(self, data):
 
+        self.shape_in, self.dtype_in = plugins.get_hook().audio_info(obj=data)
+
         inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
-        codec, inopts["sample_fmt"] = utils.get_audio_format(data.dtype)
-        self.shape_in = data.shape
-        self.dtype_in = data.dtype
-        inopts["c:a"] = codec
-        inopts["f"] = codec[4:]
-        inopts["ac"] = self.shape_in[-1]
+        inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
+            self.dtype_in, self.shape_in
+        )
+        inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])
 
 
 ###############################################################################
@@ -486,14 +544,14 @@ class SimpleFilterBase:
     :type rate_in: int, float, Fraction, str
     :param shape_in: input single-sample array shape, defaults to None
     :type shape_in: seq of ints, optional
-    :param dtype_in: input numpy data type, defaults to None
-    :type dtype_in: numpy.dtype, optional
+    :param dtype_in: input data type string, defaults to None
+    :type dtype_in: str, optional
     :param rate: output sample rate, defaults to None (auto-detect)
     :type rate: int, float, Fraction, str, optional
     :param shape: output single-sample array shape, defaults to None
     :type shape: seq of ints, optional
-    :param dtype: output numpy data type, defaults to None
-    :type dtype: numpy.dtype, optional
+    :param dtype: output data type string, defaults to None
+    :type dtype: str, optional
     :param block_size: read buffer block size in samples, defaults to None
     :type block_size: int, optional
     :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
@@ -509,50 +567,93 @@ class SimpleFilterBase:
 
     """
 
+    # fmt:off
+    def _set_options(self, options, shape, dtype, rate=None, expr=None): ...
+    def _pre_open(self, ffmpeg_args): ...
+    def _finalize_output(self, info): ...
+    # fmt:on
+
     def __init__(
         # fmt:off
-        self, expr, rate_in, shape_in=None, dtype_in=None, rate=None,
-        shape=None, dtype=None, block_size=None, default_timeout=None,
+        self, converter, data_viewer, info_viewer, expr, rate_in, shape_in=None, dtype_in=None, 
+        rate=None, shape=None, dtype=None, block_size=None, default_timeout=None,
         progress=None, show_log=None, **options,
         # fmt:on
     ) -> None:
 
+        if not rate_in:
+            if rate:
+                rate_in = rate
+            else:
+                raise ValueError("Either rate_in or rate must be defined.")
+
+        # :Callable: create a new data block object
+        self._converter = converter
+
+        # :Callable: get bytes-like object of the data block obj
+        self._memoryviewer = data_viewer
+
+        # :Callable: get bytes-like object of the data block obj
+        self._infoviewer = info_viewer
+
         #:float: default filter operation timeout in seconds
         self.default_timeout = default_timeout or 10e-3
 
-        #:numpy.dtype: input array dtype
-        self.dtype_in = dtype_in and np.dtype(dtype_in)
-        #:tuple(int): input array shape
-        self.shape_in = shape_in and tuple(np.atleast_1d(shape_in))
-        #:numpy.dtype: output array dtype
-        self.dtype = dtype and np.dtype(dtype)
-        #:tuple(int): output array shape
-        self.shape = shape and tuple(np.atleast_1d(shape))
+        #:int|Fraction: input sample rate
+        self.rate_in = rate_in
+        #:int|Fraction: output sample rate
+        self.rate = rate
 
-        self.nin = 0  #:int: total number of input frames sent to FFmpeg
-        self.nout = 0  #:int: total number of output frames frames received from FFmpeg
-        # # of output frames per 1 input frame
-        self._out2in = None if rate is None or rate_in is None else rate / rate_in
+        #:str: input array dtype
+        self.dtype_in = None
+        #:tuple(int): input array shape
+        self.shape_in = None
+        #:str: output array dtype
+        self.dtype = None
+        #:tuple(int): output array shape
+        self.shape = None
+
+        self.nin = 0  #:int: total number of input samples sent to FFmpeg
+        self.nout = 0  #:int: total number of output sampless received from FFmpeg
+        # :float: # of output samples per 1 input sample
+        self._out2in = None
 
         # set this to false in _finalize() if guaranteed for the logger to have output stream info
         self._logger_timeout = True
 
         self._proc = None
 
-        input_options = utils.pop_extra_options(options, "_in")
-
         ffmpeg_args = configure.empty()
-        configure.add_url(ffmpeg_args, "input", "-", input_options)
-        configure.add_url(ffmpeg_args, "output", "-", options)
+        inopts = configure.add_url(
+            ffmpeg_args, "input", "-", utils.pop_extra_options(options, "_in")
+        )[1][1]
+        outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
 
-        # abstract method to finalize the options only if self.dtype and self.shape are given
-        ready_to_open = self._finalize(ffmpeg_args, expr, rate_in, rate)
+        # configuration process
+        # 1. during __init__
+        # 1.0. set filter
+        # 1.1. if dtype_in or shape_in is given, deduce the input options
+        # 1.2. if dtype or shape is given, deduce the output options
+        # 1.3. if input options are incomplete, defer starting the FFmpeg until
+        #      the first data block is given
+        # 2. during _open
+        # 2.1. if data is given (i.e., input was not completely defined)
+        # 2.1.1. get dtype_in and shape_in from data
+        # 2.1.2. deduce the input ffmpeg options
+        # 2.2. start ffmpeg
+        # 2.3. start reader if dtype & shape are already set
+
+        self.shape_in, self.dtype_in = self._set_options(
+            inopts, shape_in, dtype_in, rate_in
+        )
+
+        self.shape, self.dtype = self._set_options(outopts, shape, dtype, rate, expr)
 
         # create the stdin writer without assigning the sink stream
         self._writer = _WriterThread(None, 0)
 
         # create the stdout reader without assigning the source stream
-        self._reader = _ReaderThread(None, None, None, block_size, 0)
+        self._reader = _ReaderThread(None, block_size, 0)
         self._reader_needs_info = True
 
         # create logger without assigning the source stream
@@ -566,17 +667,24 @@ class SimpleFilterBase:
         }
 
         # if input is fully configured, start FFmpeg now
-        if ready_to_open:
+        if self.shape_in is not None and self.dtype_in is not None:
             self._open()
 
     def _open(self, data=None):
 
+        ffmpeg_args = self._cfg["ffmpeg_args"]
+
         # if data array is given, finalize the FFmpeg configuration with it
-        self._reader_needs_info = data is not None and self._finalize_with_data(data)
+        if data is not None:
+            self.shape_in, self.dtype_in = self._set_options(
+                ffmpeg_args["inputs"][0][1], *self._infoviewer(obj=data)
+            )
+
+        # final argument tweak before opening the ffmpeg
+        self._pre_open(ffmpeg_args)
 
         # start FFmpeg
         self._proc = ffmpegprocess.Popen(**self._cfg)
-        self._cfg = False
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
@@ -586,33 +694,40 @@ class SimpleFilterBase:
         self._writer.stdin = self._proc.stdin
         self._writer.start()
 
-        if not self._reader_needs_info:
-            self._start_reader()
-
-    def _start_reader(self, timeout):
-
-        if self._reader_needs_info:
-            # run after the first input block is sent to FFmpeg
-            try:
-                info = self._logger.output_stream(
-                    timeout=timeout if self._logger_timeout else None
-                )
-            except TimeoutError as e:
-                raise e
-            except Exception as e:
-                if self._proc.poll() is None:
-                    raise self._logger.Exception
-                else:
-                    raise ValueError("failed retrieve output data format")
-
-            self._finalize_output(info)
+        if self.rate is not None and self.dtype is not None and self.shape is not None:
             self._reader_needs_info = False
+            self._start_reader()
+        self._cfg = False
+
+    def _get_output_info(self, timeout):
+
+        # run after the first input block is sent to FFmpeg
+        try:
+            info = self._logger.output_stream(
+                timeout=timeout if self._logger_timeout else None
+            )
+        except TimeoutError as e:
+            raise e
+        except Exception as e:
+            if self._proc.poll() is None:
+                raise self._logger.Exception
+            else:
+                raise ValueError("failed retrieve output data format")
+
+        self._finalize_output(info)
+        self._reader_needs_info = False
+
+    def _start_reader(self):
 
         # start the FFmpeg output reader
         self._reader.stdout = self._proc.stdout
-        self._reader.shape = self.shape
-        self._reader.dtype = self.dtype
+        self._reader.itemsize = utils.get_samplesize(self.shape, self.dtype)
         self._reader.start()
+
+        self._bps_out = prod(self.shape) * int(self.dtype[-1])
+        self._bps_in = prod(self.shape_in) * int(self.dtype_in[-1])
+        self._out2in = self.rate / self.rate_in
+        self._reader_needs_info = False
 
     def close(self):
         """Close the stream.
@@ -728,28 +843,30 @@ class SimpleFilterBase:
         timeout = timeout or self.default_timeout
 
         timeout += _time()
-        data = np.asarray(data)
 
         if self._cfg:
             # if FFmpeg not yet started, finalize the configuration with
             # the data and start
             self._open(data)
 
+        inbytes = self._memoryviewer(obj=data)
+
         try:
-            self._writer.write(data, timeout - _time())
+            self._writer.write(inbytes, timeout - _time())
         except BrokenPipeError as e:
             # TODO check log for error in FFmpeg
             raise e
-        self.nin += data.shape[0]
 
         if self._reader_needs_info:
             # with the data written, FFmpeg should inform the output setup
-            self._start_reader(timeout - _time())
+            self._get_output_info(timeout - _time())
+            self._start_reader()
 
-        nread = int(self.nin * self._out2in) - self.nout
+        self.nin += len(inbytes.cast("b")) // self._bps_in
+        nread = (int(self.nin * self._out2in) - self.nout) * self._bps_out
         y = self._reader.read(-nread, timeout - _time())
-        self.nout += y.shape[0]
-        return y
+        self.nout += len(y) // self._bps_out
+        return self._converter(b=y, dtype=self.dtype, shape=self.shape)
 
     def flush(self, timeout=None):
         """Close the stream input and retrieve the remaining output samples
@@ -766,9 +883,9 @@ class SimpleFilterBase:
         y = self._reader.read_all(timeout)
         self._proc.stdin.close()
         self._proc.wait()
-        y = np.concatenate((y, self._reader.read_all(None)))
-        self.nout += y.shape[0]
-        return y
+        y += self._reader.read_all(None)
+        self.nout += len(y) // self._bps_out
+        return self._converter(b=y, dtype=self.dtype, shape=self.shape)
 
 
 class SimpleVideoFilter(SimpleFilterBase):
@@ -785,13 +902,13 @@ class SimpleVideoFilter(SimpleFilterBase):
     :param shape_in: input single-frame array shape, defaults to None
     :type shape_in: seq of ints, optional
     :param dtype_in: input numpy data type, defaults to None
-    :type dtype_in: numpy.dtype, optional
+    :type dtype_in: str, optional
     :param rate: output frame rate, defaults to None (auto-detect)
     :type rate: int, float, Fraction, str, optional
     :param shape: output single-frame array shape, defaults to None
     :type shape: seq of ints, optional
     :param dtype: output numpy data type, defaults to None
-    :type dtype: numpy.dtype, optional
+    :type dtype: str, optional
     :param block_size: read buffer block size in frames, defaults to None (=1)
     :type block_size: int, optional
     :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
@@ -817,85 +934,51 @@ class SimpleVideoFilter(SimpleFilterBase):
         block_size=None, default_timeout=None, progress=None, show_log=None, **options,
         # fmt:on
     ) -> None:
-        self.frame_rate_in = None
-        self.frame_rate = None
+        hook = plugins.get_hook()
         # fmt:off
         super().__init__(
+            hook.bytes_to_video, hook.video_bytes, hook.video_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype,
             block_size, default_timeout, progress, show_log, **options,
         )
         # fmt:on
-
-    def _finalize(self, ffmpeg_args, expr, rate_in, rate) -> None:
-        inopts = ffmpeg_args["inputs"][0][1]
-        outopts = ffmpeg_args.get("outputs", [])[0][1]
-        inopts["f"] = "rawvideo"
-        outopts["f"] = "rawvideo"
-        if expr:
-            outopts["vf"] = expr
-
-        inopts["r"] = self.frame_rate_in = rate_in
-        self.frame_rate = rate if rate else None
-        if rate is not None:
-            outopts["r"] = rate
-
-        self._out2in = self.frame_rate and self.frame_rate / self.frame_rate_in
-
         self._logger_timeout = False
 
-        if self.dtype_in is None or self.shape_in is None:
-            s = inopts.get("s", None)
-            pix_fmt = inopts.get("pix_fmt", None)
-            if s and pix_fmt:
-                # if both s and pix_fmt are set, we are ready to roll
-                self.dtype_in, ncomp, _ = utils.get_video_format(pix_fmt)
-                s = utils.parse_video_size(s)
-                self.shape_in = (s[1], s[0], ncomp)
-        else:
-            # if both dtype and shape specified, override input options if needed
-            inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(
-                (self.shape_in, self.dtype_in)
-            )
-
-        if self.dtype is None or self.shape is None:
-            s = outopts.get("s", None)
-            pix_fmt = outopts.get("pix_fmt", None)
-            if s and pix_fmt:
-                self.dtype, ncomp, _ = utils.get_video_format(pix_fmt)
-                s = utils.parse_video_size(s)
-                self.shape = (s[1], s[0], ncomp)
-        else:
-            outopts["s"], outopts["pix_fmt"] = utils.guess_video_format(
-                (self.shape, self.dtype)
-            )
-
-        ready = "s" in inopts and "pix_fmt" in inopts
-        if ready:
-            configure.build_basic_vf(
-                ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
-            )
-
-        return ready
-
-    def _finalize_with_data(self, data):
-
-        ffmpeg_args = self._cfg["ffmpeg_args"]
-        inopts = ffmpeg_args["inputs"][0][1]
-        inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(data)
-
+    def _pre_open(self, ffmpeg_args):
+        # append basic video filter chain (only enabled with _force_basic_vf ffmpeg output option)
         configure.build_basic_vf(
             ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
         )
 
-        # if output rate, shape, & dtype not known, it needs to be analyzed from the log
-        return self.frame_rate is None or self.shape is None or self.dtype is None
+    def _set_options(self, options, shape, dtype, rate=None, expr=None):
+
+        if rate:
+            options["r"] = rate
+        if expr is not None:
+            options["vf"] = expr
+
+        options["f"] = "rawvideo"
+
+        if shape is None or dtype is None:
+            # deduce them from options
+            if shape is not None or dtype is not None:
+                logging.warn(
+                    "[SimpleVideoFilter] both dtype and shape must be defined for the arguments to take effect."
+                )
+
+            try:
+                dtype, shape = utils.get_video_format(options["pix_fmt"], options["s"])
+            except:
+                return None, None
+        else:
+            options["s"], options["pix_fmt"] = utils.guess_video_format(shape, dtype)
+
+        return shape, dtype
 
     def _finalize_output(self, info):
         # finalize array setup from FFmpeg log
-        self.frame_rate = info["r"]
-        self.dtype, ncomp, _ = utils.get_video_format(info["pix_fmt"])
-        self.shape = (*info["s"][::-1], ncomp)
-        self._out2in = self.frame_rate and self.frame_rate / self.frame_rate_in
+        self.rate = info["r"]
+        self.dtype, self.shape = utils.get_video_format(info["pix_fmt"], info["s"])
 
 
 class SimpleAudioFilter(SimpleFilterBase):
@@ -917,13 +1000,13 @@ class SimpleAudioFilter(SimpleFilterBase):
     :param shape_in: input single-sample array shape, defaults to None
     :type shape_in: seq of ints, optional
     :param dtype_in: input numpy data type, defaults to None
-    :type dtype_in: numpy.dtype, optional
+    :type dtype_in: str, optional
     :param rate: output sample rate, defaults to None (auto-detect)
     :type rate: int, float, Fraction, str, optional
     :param shape: output single-sample array shape, defaults to None
     :type shape: seq of ints, optional
     :param dtype: output numpy data type, defaults to None
-    :type dtype: numpy.dtype, optional
+    :type dtype: str, optional
     :param block_size: read buffer block size in samples, defaults to None (=>1024)
     :type block_size: int, optional
     :param default_timeout: default filter timeout in seconds, defaults to None (100 ms)
@@ -946,82 +1029,65 @@ class SimpleAudioFilter(SimpleFilterBase):
     multi_read = False
     multi_write = False
 
-    def _finalize(self, ffmpeg_args, expr, rate_in, rate):
+    def __init__(
+        self,
+        expr,
+        rate_in,
+        shape_in=None,
+        dtype_in=None,
+        rate=None,
+        shape=None,
+        dtype=None,
+        block_size=None,
+        default_timeout=None,
+        progress=None,
+        show_log=None,
+        **options,
+    ) -> None:
+        hook = plugins.get_hook()
+        # fmt: off
+        super().__init__(hook.bytes_to_audio, hook.audio_bytes, hook.audio_info,
+            expr, rate_in, shape_in, dtype_in, rate, shape, dtype, 
+            block_size, default_timeout, progress, show_log, **options)
+        # fmt: on
 
-        inopts = ffmpeg_args["inputs"][0][1]
-        outopts = ffmpeg_args.get("outputs", [])[0][1]
-        if expr:
-            outopts["af"] = expr
+    def _pre_open(self, ffmpeg_args):
+        if self.dtype is None:
+            inopts = ffmpeg_args["inputs"][0][1]
+            outopts = ffmpeg_args["outputs"][0][1]
+            sample_fmt = outopts["sample_fmt"] = inopts["sample_fmt"]
+            outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
 
-        #:int: input sampling rate in samples/second
-        self.sample_rate_in = rate_in
-        #:int: output sampling rate in samples/second
-        self.sample_rate = rate if rate else None
+    def _set_options(self, options, shape, dtype, rate=None, expr=None):
 
         if rate:
-            outopts["ar"] = self.sample_rate = rate
-        if rate_in:
-            inopts["ar"] = rate_in
-        elif "ar" not in inopts:
-            inopts["ar"] = rate
-        self._out2in = self.sample_rate and self.sample_rate / self.sample_rate_in
+            options["ar"] = rate
+        if expr is not None:
+            options["af"] = expr
 
-        if self.dtype_in is None or self.shape_in is None:
-            ac = inopts.get("ac", None)
-            sample_fmt = inopts.get("sample_fmt", None)
-            if ac and sample_fmt:
-                codec, self.dtype_in = utils.get_audio_format(sample_fmt)
-                inopts["f"] = codec[4:]
-                inopts["c:a"] = codec
-                self.shape_in = (ac,)
+        if shape is None:
+            try:
+                shape = (options["ac"],)
+            except:
+                shape = None
         else:
-            # if both dtype and shape specified, override input options if needed
-            self._set_input(self.shape_in, self.dtype_in)
+            options["ac"] = shape[-1]
 
-        if self.dtype is not None and self.shape is not None:
-            outopts["ac"], outopts["sample_fmt"] = utils.guess_audio_format(
-                (self.shape, self.dtype)
-            )
-        elif "ac" in outopts and "sample_fmt" in outopts:
-            self._finalize_output(outopts)
+        if dtype is None:
+            try:
+                dtype, _ = utils.get_audio_format(options["sample_fmt"])
+            except:
+                dtype = None
+        else:
+            options["sample_fmt"], _ = utils.guess_audio_format(dtype)
+            options["c:a"], options["f"] = utils.get_audio_codec(options["sample_fmt"])
 
-        return "ac" in inopts and "sample_fmt" in inopts
-
-    def _set_input(self, shape, dtype):
-        # finalize array setup from FFmpeg log
-
-        inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
-        codec, inopts["sample_fmt"] = utils.get_audio_format(dtype)
-        self.shape_in = shape and tuple(shape)
-        self.dtype_in = dtype and np.dtype(dtype)
-        inopts["c:a"] = codec
-        inopts["f"] = codec[4:]
-        inopts["ac"] = self.shape_in[-1]
-
-    def _finalize_with_data(self, data):
-        # finalize array setup from FFmpeg log
-        self._set_input(data.shape, data.dtype)
-
-        # finalize the output (use input sample_fmt if not set)
-        outopts = self._cfg["ffmpeg_args"]["outputs"][0][1]
-        sample_fmt = outopts.get("sample_fmt", None)
-        ac = outopts.get("ac", None)
-        if not sample_fmt:
-            inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
-            sample_fmt = outopts["sample_fmt"] = inopts["sample_fmt"]
-        codec, self.dtype = utils.get_audio_format(sample_fmt)
-        outopts["c:a"] = codec
-        outopts["f"] = codec[4:]
-        if ac:
-            self.shape = (ac,)
-
-        return self.sample_rate is None or self.shape is None or self.dtype is None
+        return shape, dtype
 
     def _finalize_output(self, info):
-        self.sample_rate = info["ar"]
-        ac = info.get("ac", 1)
-        self.shape = (ac,)
-        self._out2in = self.sample_rate and self.sample_rate / self.sample_rate_in
+        # finalize array setup from FFmpeg log
+        self.rate = info["ar"]
+        self.dtype, self.shape = utils.get_audio_format(info["sample_fmt"], info["ac"])
 
     @property
     def channels(self):

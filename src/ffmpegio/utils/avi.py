@@ -1,7 +1,7 @@
 from io import SEEK_CUR
-import numpy as np
 import fractions, re
-from ..utils import get_pixel_config, get_audio_format, spec_stream
+from ..utils import get_video_format, get_audio_format, spec_stream, get_samplesize
+from .. import plugins
 
 from struct import Struct
 from collections import namedtuple
@@ -297,23 +297,23 @@ def get_stream_header(b, offset, end):
             compression=comp_val if comp_val < 32 else compression.decode("utf-8")
         )
 
-        offset += chunksize
-        while offset < end:
-            offset, chunksize, id, _ = get_chunk_header(b, offset)
-            if id == "vprp":
-                vprp = VideoPropHeader.unpack_from(b, offset)
-                offset += VideoPropHeader.size
-                ninfo = VPRP_VideoField.size
-                field_info = [
-                    VPRP_VideoField.unpack_from(b, i)
-                    for i in range(offset, offset + ninfo * vprp.field_per_frame, ninfo)
-                ]
-                data[id] = namedtuple(
-                    type(vprp).__name__, (*vprp._fields, "field_info")
-                )(*vprp, field_info)
-                break
-            else:
-                offset += chunksize
+        # offset += chunksize
+        # while offset < end:
+        #     offset, chunksize, id, _ = get_chunk_header(b, offset)
+        #     if id == "vprp":
+        #         vprp = VideoPropHeader.unpack_from(b, offset)
+        #         offset += VideoPropHeader.size
+        #         ninfo = VPRP_VideoField.size
+        #         field_info = [
+        #             VPRP_VideoField.unpack_from(b, i)
+        #             for i in range(offset, offset + ninfo * vprp.field_per_frame, ninfo)
+        #         ]
+        #         data[id] = namedtuple(
+        #             type(vprp).__name__, (*vprp._fields, "field_info")
+        #         )(*vprp, field_info)
+        #         break
+        #     else:
+        #         offset += chunksize
 
     elif strh.fcc_type == "auds":
         strf = WaveFormatEx.unpack_from(b, offset)
@@ -405,11 +405,14 @@ def read_header(f, pix_fmt=None):
                 if bpp == 16
                 else None
             )
-            vprp = strl.get("vprp", None)
-            info["dar"] = (
-                fractions.Fraction(vprp.frame_aspect_ratio_x, vprp.frame_aspect_ratio_y)
-                if vprp
-                else None
+            # vprp = strl.get("vprp", None)
+            # info["dar"] = (
+            #     fractions.Fraction(vprp.frame_aspect_ratio_x, vprp.frame_aspect_ratio_y)
+            #     if vprp
+            #     else None
+            # )
+            info["dtype"], info["shape"] = get_video_format(
+                info["pix_fmt"], (info["width"], info["height"])
             )
         elif type == fcc_types["auds"]:  #'audio'
             info["sample_rate"] = strf.samples_per_sec
@@ -429,6 +432,9 @@ def read_header(f, pix_fmt=None):
                 (WAVE_FORMAT_IEEE_FLOAT, 64): "dbl",
             }.get(strf_format, strf_format)
             # TODO: if need arises, resolve more formats, need to include codec names though
+            info["dtype"], info["shape"] = get_audio_format(
+                info["sample_fmt"], info["channels"]
+            )
         return info
 
     return [get_stream_info(i, strl, pix_fmt) for i, strl in enumerate(streams)], (
@@ -464,7 +470,11 @@ class AviReader:
         self._f = None
         self.ready = False  #:bool: True if AVI headers has been processed
         self.streams = None  #:dict: Stream headers keyed by stream id (int key)
-        self.converters = None  #:dict : Stream to numpy ndarray conversion functions keyed by stream id
+        self.itemsizes = None  #:dict: sample size of each stream in bytes
+
+        hook = plugins.get_hook()
+        self.converters = {"v": hook.bytes_to_video, "a": hook.bytes_to_audio}
+        #:dict : bytes to media data object conversion functions keyed by stream type
 
     def start(self, f, pix_fmt=None):
         self._f = f
@@ -476,28 +486,13 @@ class AviReader:
             st_type = hdr["type"]
             id = cnt[st_type]
             cnt[st_type] += 1
-            if st_type == "v":
-                _, ncomp, dtype, _ = get_pixel_config(hdr["pix_fmt"])
-                shape = (hdr["height"], hdr["width"], ncomp)
-            elif st_type == "a":
-                _, dtype = get_audio_format(hdr["sample_fmt"])
-                shape = (hdr["channels"],)
             return {
                 "spec": spec_stream(id, st_type),
-                "shape": shape,
-                "dtype": dtype,
                 **hdr,
             }
 
         self.streams = {v["index"]: set_stream_info(v) for v in hdr}
-
-        def get_converter(stream):
-            return lambda b: np.frombuffer(b, dtype=stream["dtype"]).reshape(
-                -1, *stream["shape"]
-            )
-
-        self.converters = {k: get_converter(v) for k, v in self.streams.items()}
-
+        self.itemsizes = {v["index"]: get_samplesize(v["shape"], v["dtype"]) for v in hdr}
         self.ready = True
 
     def __next__(self):
@@ -507,10 +502,16 @@ class AviReader:
                 i, d = read_frame(self._f)
             except:
                 raise StopIteration
-        return i, self.converters[i](d)
+        return i, d
 
     def __iter__(self):
         return self
+
+    def from_bytes(self, id, b):
+        info = self.streams[id]
+        return self.converters[info["type"]](
+            b=b, dtype=info["dtype"], shape=info["shape"]
+        )
 
 
 # (

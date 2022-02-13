@@ -1,9 +1,4 @@
-import time
-from ffmpegio import ffmpeg, utils, audio, streams
-from ffmpegio.ffmpegprocess import run
-import subprocess as sp
-from ffmpegio import io
-import numpy as np
+from ffmpegio import utils, audio, streams
 
 import PyQt5
 from matplotlib import pyplot as plt
@@ -14,10 +9,11 @@ from matplotlib import pyplot as plt
 
 url = "tests/assets/testaudio-1m.mp3"
 sample_fmt = "s16"
-out_codec, dtype = utils.get_audio_format(sample_fmt)
-container = out_codec[4:]
+ac = 1
+out_codec, container = utils.get_audio_codec(sample_fmt)
+dtype, shape = utils.get_audio_format(sample_fmt, ac)
 
-fs, s = audio.read(url, sample_fmt=sample_fmt)
+fs, s = audio.read(url, sample_fmt=sample_fmt, ac=1)
 
 N = s.shape[0]
 print(f"N={N}")
@@ -54,11 +50,9 @@ reader.close()
 
 #     plt.plot(s[n0 : n0 + nread, :]- sout)
 #     plt.show()
-    
+
 #     try:
 #         assert np.allclose(s[n0 : n0 + nread], sout)
 #     except:
 #         nout = sout.size
 #         assert False
-
-    
