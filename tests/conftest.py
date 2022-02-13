@@ -1,7 +1,6 @@
 import pytest
 
 from ffmpegio.plugins import pm, rawdata_bytes
-from ffmpegio.plugins import rawdata_numpy
 
 # test only with the base plugins
 @pytest.fixture(scope="session", autouse=True)
