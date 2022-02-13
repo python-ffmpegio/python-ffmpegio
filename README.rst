@@ -21,7 +21,7 @@ multimedia framework, which can handle most of the multimedia formats available 
 Since v0.3.0, `ffmpegio` Python distribution package has been split into `ffmpegio-core` and `ffmpegio` to allow
 Numpy-independent installation.
 
-Install the full :py:mod:`ffmpegio` package via ``pip``:
+Install the full `ffmpegio` package via ``pip``:
 
 .. code-block:: bash
 
