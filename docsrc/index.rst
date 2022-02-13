@@ -47,6 +47,14 @@ Where to start
 
    pip install ffmpegio
 
+If `numpy.ndarray` I/O is not needed, use instead
+
+.. code-block:: bash
+
+   pip install ffmpegio-core
+
+See :ref:`Installation <install>` for more explanation.
+
 Examples
 --------
 

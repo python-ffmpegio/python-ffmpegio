@@ -7,11 +7,24 @@ Installation
 To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
 having the FFmpeg binary files at a location :py:mod:`ffmpegio` can find.
 
-Install the :py:mod:`ffmpegio` package via :code:`pip`:
+Install the :py:mod:`ffmpegio` package via :code:`pip`. There are two options: `ffmpegio` and `ffmpegio-core`.
 
 .. code-block::
 
    pip install ffmpegio
+
+This option installs the `ffmpegio` and `ffmpegio_plugin_numpy` packages so that the media data I/O are
+performed with `numpy.ndarray` objects. Naturally, `ffmpegio_plugin_numpy` requires `numpy` dependency. 
+For use cases in which media data I/O is not needed, it unnecessarily bloats the site-package install. 
+In such case, use the core-only install:
+
+.. code-block::
+
+   pip install ffmpegio-core
+
+This option only installs the `ffmpegio` package without `numpy` dependency. While media I/O functions
+(e.g., `open()`, `video.read()`, and `audio.write()`) are still available, the data are represented binary
+a `dict` object containing `bytes` data.
 
 Install FFmpeg program
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -57,4 +70,3 @@ For Windows, it is a bit more complicated.
    be placed in an arbitrary location and use :py:func:`ffmpegio.set_path` to
    specify the location. The latter feature is especially useful when `ffmpegio` is 
    bundled in a package (e.g., PyInstaller).
-

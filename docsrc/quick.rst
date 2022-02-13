@@ -10,11 +10,18 @@ Install
 To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
 having the FFmpeg binary files at a location :py:mod:`ffmpegio` can find.
 
-Install the :py:mod:`ffmpegio` package via ``pip``:
+Install the full :py:mod:`ffmpegio` package via ``pip``:
 
 .. code-block:: bash
 
    pip install ffmpegio
+
+If `numpy.ndarray` data I/O is not needed, instead use 
+
+.. code-block:: bash
+
+   pip install ffmpegio-core
+
 
 If FFmpeg is not installed on your system, please follow the instructions on
 :ref:`Installation page <install>`

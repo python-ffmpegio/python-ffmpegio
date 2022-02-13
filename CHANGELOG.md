@@ -5,36 +5,58 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.3.0]
+
+### Changed
+
+- Python distribution package name from `ffmpegio` to `ffmpegio-core`
+- All raw data I/O operations are performed *without* NumPy array (NumPy support
+  has been spun off to `python-ffmpegio-numpy` repo)
+- `audio.create()` to return sampling rate and samples
+- `ffmpegprocess.run()` to return its `stdout` output as `bytes`
+- Updated AVI processing
+- Cleaned up `SimpleStreams.py`
+- All stream classes returns `rate` or `rate_in` (instead of `sample_rate` or `frame_rate`)
+  
+### Added
+
+- Introduced plugin system (depending on `pluggy` package)
+
+### Removed
+
+- Removed acknowledging planar PCM `sample_fmt`'s
+
 ## [0.2.1]
 
 ### Added
 
--added 'rvv' & 'raa' open modes
--added secret bool option "_force_basic_vf"
+- added 'rvv' & 'raa' open modes
+- added secret bool option "_force_basic_vf"
 
 ### Fixed
 
--fixed: added media module to the root module
--fixed: exec() no longer sets stdin & stdout when unspecified
--fixed parse() handling of help options
+- fixed: added media module to the root module
+- fixed: exec() no longer sets stdin & stdout when unspecified
+- fixed parse() handling of help options
 
 ### Changed
 
--ffmpeg.exec() capture_log option: None = console display, False = DEVNULL
+- ffmpeg.exec() capture_log option: None = console display, False = DEVNULL
 
 ## [0.2.0]
 
 ### Added
--added media.read()
--added streams.SimpleStreams.SimpleFilterBase
--added streams.SimpleStreams.SimpleAudioFilter
--added streams.SimpleStreams.SimpleVideoFilter
--added streams.AviStreams.AviMediaReader
--added 'vaf' and 'f' mode support for open()
--added ffmpegprocess.run_two_pass() for 2-pass encoding
--added 'two_pass', 'pass1_omits' and 'pass1_extras' arguments
- to video.write() and transcode()
--added threading.ReaderThread
+
+- added media.read()
+- added streams.SimpleStreams.SimpleFilterBase
+- added streams.SimpleStreams.SimpleAudioFilter
+- added streams.SimpleStreams.SimpleVideoFilter
+- added streams.AviStreams.AviMediaReader
+- added 'vaf' and 'f' mode support for open()
+- added ffmpegprocess.run_two_pass() for 2-pass encoding
+- added 'two_pass', 'pass1_omits' and 'pass1_extras' arguments
+  to video.write() and transcode()
+- added threading.ReaderThread
 
 ### Changed
 
@@ -44,7 +66,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ### Removed
 
-    -removed io.py and its dependencies
+- removed io.py and its dependencies
 
 ## [0.1.3]
 
@@ -70,6 +92,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Renamed `caps.pixfmts()` and `caps.samplefmts()` to `pix_fmts()` and `sample_fmts()`, respectively
 - Split `caps.coders()` to `caps.decoders()` and `caps.encoders()`
 - Several output dict key names changed in `caps` functions
+- 
 ### Removed
 
 - Removed `progress` argument from all functions in `image` submodule
@@ -81,21 +104,27 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [0.1.1] - 2022-01-21
 ### Added
+
 - This file CHANGELOG
 - `SimpleStreams.SimpleReaderBase.blocksize` property to specify the number of blocks of media data to read as iterator
+- 
 ### Changed
+
 - Turned `SimpleStreams.SimpleReaderBase.readiter()` into `__iter__()` and `__next__()` to make the class Iterable
 - Moved Github repo from `tikuma-lsuhsc` to `python-ffmpegio`
 ### Fixed
+
 - Exception handling in `transcode.transcode()`
 
 ## [0.1.0] - 2022-01-20
 ### Added
+
 - First beta release.
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules. 
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
 [Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.2.1...HEAD
+[0.3.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.2...v0.1.3

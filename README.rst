@@ -21,14 +21,17 @@ multimedia framework, which can handle most of the multimedia formats available 
 Since v0.3.0, `ffmpegio` Python distribution package has been split into `ffmpegio-core` and `ffmpegio` to allow
 Numpy-independent installation.
 
-- `pip install ffmpegio-core` to install NumPy-independent core modules. All raw data I/O operations are performed with a dict
-  containing bytes data. Use this version to use FFmpeg as a pure transcoder.
-- `pip install ffmpegio` to install a plugin for NumPy array I/O along with the core package so that `numpy.ndarray` is used
-  to store video and audio data. Use this version to read/write data for audio/image/video processing application.
+Install the full :py:mod:`ffmpegio` package via ``pip``:
 
-Note: If `ffmpegio` distribution package is installed, `import ffmpegio` always uses the NumPy plugin, which is 
-automatically loaded via `setuptools`' entry point mechanism. Use virtual environments to isolate the operating mode
-of `ffmpegio` per each use case if necessary.
+.. code-block:: bash
+
+   pip install ffmpegio
+
+If `numpy.ndarray` data I/O is not needed, instead use 
+
+.. code-block:: bash
+
+   pip install ffmpegio-core
 
 Main Features
 -------------
