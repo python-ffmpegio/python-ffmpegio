@@ -233,7 +233,7 @@ def write(
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_video_input(rate_in, data=data, **input_options),
+        *configure.array_to_video_input(rate_in, data=data, **input_options),
     )
     configure.add_url(ffmpeg_args, "output", url, options)
 
@@ -286,7 +286,7 @@ def filter(expr, rate, input, progress=None, show_log=None, **options):
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_video_input(rate, data=input, **input_options),
+        *configure.array_to_video_input(rate, data=input, **input_options),
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
     outopts["filter:v"] = expr

@@ -1,6 +1,6 @@
 from math import cos, prod, radians, sin
 import re, fractions
-from .. import caps, plugins
+from .. import caps
 
 
 def parse_spec_stream(spec, file_index=False):
@@ -390,81 +390,6 @@ def guess_audio_format(dtype, shape=None):
         raise ValueError(f"Unsupported or invalid dtype ({dtype}) specified")
 
     return sample_fmt, (None if shape is None else shape[-1])
-
-
-def array_to_video_input(
-    rate,
-    data,
-    stream_id=None,
-    **opts,
-):
-    """create an stdin input with video stream
-
-    :param rate: input frame rate in frames/second
-    :type rate: int, float, or `fractions.Fraction`
-    :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)
-    :type data: object
-    :param stream_id: video stream id ('v:#'), defaults None to set the options to be file-wide ('v')
-    :type stream_id: int, optional
-    :param **opts: input options
-    :type **opts: dict
-    :return: tuple of input url and option dict
-    :rtype: tuple(str, dict)
-    """
-
-    spec = "" if stream_id is None else ":" + spec_stream(stream_id, "v")
-
-    s, pix_fmt = guess_video_format(*plugins.get_hook().video_info(obj=data))
-
-    return (
-        "-",
-        {
-            "f": "rawvideo",
-            f"c{spec or ':v'}": "rawvideo",
-            f"s{spec}": s,
-            f"r{spec}": rate,
-            f"pix_fmt{spec}": pix_fmt,
-            **opts,
-        },
-    )
-
-
-def array_to_audio_input(
-    rate,
-    data=None,
-    stream_id=None,
-    **opts,
-):
-    """create an stdin input with audio stream
-
-    :param rate: input sample rate in samples/second
-    :type rate: int
-    :param data: input audio data, accessed by `audio_info` plugin hook, defaults to None (manual config)
-    :type data: object
-    :param stream_id: audio stream id ('a:#'), defaults to None to set the options to be file-wide ('a')
-    :type stream_id: int, optional
-    :return: tuple of input url and option dict
-    :rtype: tuple(str, dict)
-    """
-
-    shape = dtype = None
-    shape, dtype = plugins.get_hook().audio_info(obj=data)
-    sample_fmt, ac = guess_audio_format(dtype, shape)
-    codec, f = get_audio_codec(sample_fmt)
-
-    spec = "" if stream_id is None else ":" + spec_stream(stream_id, "a")
-
-    return (
-        "-",
-        {
-            "f": f,
-            f"c{spec or ':a'}": codec,
-            f"ac{spec}": ac,
-            f"ar{spec}": rate,
-            f"sample_fmt{spec}": sample_fmt,
-            **opts,
-        },
-    )
 
 
 def parse_video_size(expr):

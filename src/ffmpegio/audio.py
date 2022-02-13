@@ -237,7 +237,7 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_audio_input(rate_in, data=data, **input_options),
+        *configure.array_to_audio_input(rate_in, data=data, **input_options),
     )[1][1]
     configure.add_url(ffmpeg_args, "output", url, options)[1][1]
 
@@ -275,7 +275,7 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_audio_input(input_rate, data=input, **input_options),
+        *configure.array_to_audio_input(input_rate, data=input, **input_options),
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
     outopts["sample_fmt"] = sample_fmt

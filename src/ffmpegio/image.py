@@ -1,4 +1,3 @@
-from math import prod
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
 from .utils import filter as filter_utils, log as log_utils
 
@@ -193,7 +192,7 @@ def write(url, data, overwrite=None, show_log=None, **options):
 
     ffmpeg_args = configure.empty()
     configure.add_url(
-        ffmpeg_args, "input", *utils.array_to_video_input(1, data=data, **input_options)
+        ffmpeg_args, "input", *configure.array_to_video_input(1, data=data, **input_options)
     )
     outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
     outopts["frames:v"] = 1
@@ -229,7 +228,7 @@ def filter(expr, input, **options):
     configure.add_url(
         ffmpeg_args,
         "input",
-        *utils.array_to_video_input(1, data=input, **input_options),
+        *configure.array_to_video_input(1, data=input, **input_options),
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
     outopts["f"] = "rawvideo"

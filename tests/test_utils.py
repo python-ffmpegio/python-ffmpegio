@@ -1,6 +1,6 @@
+import math
 from ffmpegio import utils
 import pytest
-import numpy as np
 
 
 def test_parse_spec_stream():
@@ -65,7 +65,7 @@ def test_get_rotated_shape():
     print(utils.get_rotated_shape(w, h, 30))
     print(utils.get_rotated_shape(w, h, 45))
     print(utils.get_rotated_shape(w, h, 60))
-    assert utils.get_rotated_shape(w, h, 90) == (h, w, np.pi / 2.0)
+    assert utils.get_rotated_shape(w, h, 90) == (h, w, math.pi / 2.0)
 
 
 def test_get_audio_codec():
@@ -76,42 +76,6 @@ def test_get_audio_codec():
 def test_get_audio_format():
     cfg = utils.get_audio_format("s16", 2)
     assert cfg[0] == "<i2" and cfg[1] == (2,)
-
-
-def test_array_to_audio_input():
-    fs = 44100
-    N = 44100
-    nchmax = 4
-    data = {"buffer": b"0" * N * nchmax * 2, "dtype": "<i2", "shape": (nchmax,)}
-
-    cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
-    input = utils.array_to_audio_input(fs, data)
-    assert input[0] == "-" and input[1] == cfg
-
-
-def test_array_to_video_input():
-    fs = 30
-    dtype = "|u1"
-    h = 360
-    w = 480
-    ncomp = 3
-    nframes = 10
-    data = {
-        "buffer": b"0" * nframes * h * w * ncomp,
-        "dtype": dtype,
-        "shape": (nframes, h, w, ncomp),
-    }
-    cfg = {
-        "f": "rawvideo",
-        "c:v": "rawvideo",
-        "s": (w, h),
-        "r": fs,
-        "pix_fmt": "rgb24",
-    }
-
-    input = utils.array_to_video_input(fs, data)
-    print(input)
-    assert input[0] == "-" and input[1] == cfg
 
 
 if __name__ == "__main__":

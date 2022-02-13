@@ -1,12 +1,44 @@
-from ffmpegio import configure, ffmpeg, probe, utils
-import pytest
-import numpy as np
-
-from ffmpegio.utils import filter as filter_utils
+from ffmpegio import configure
 
 vid_url = "tests/assets/testvideo-1m.mp4"
 img_url = "tests/assets/ffmpeg-logo.png"
 aud_url = "tests/assets/testaudio-1m.wav"
+
+def test_array_to_audio_input():
+    fs = 44100
+    N = 44100
+    nchmax = 4
+    data = {"buffer": b"0" * N * nchmax * 2, "dtype": "<i2", "shape": (nchmax,)}
+
+    cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
+    input = configure.array_to_audio_input(fs, data)
+    assert input[0] == "-" and input[1] == cfg
+
+
+def test_array_to_video_input():
+    fs = 30
+    dtype = "|u1"
+    h = 360
+    w = 480
+    ncomp = 3
+    nframes = 10
+    data = {
+        "buffer": b"0" * nframes * h * w * ncomp,
+        "dtype": dtype,
+        "shape": (nframes, h, w, ncomp),
+    }
+    cfg = {
+        "f": "rawvideo",
+        "c:v": "rawvideo",
+        "s": (w, h),
+        "r": fs,
+        "pix_fmt": "rgb24",
+    }
+
+    input = configure.array_to_video_input(fs, data)
+    print(input)
+    assert input[0] == "-" and input[1] == cfg
+
 
 
 def test_add_url():
