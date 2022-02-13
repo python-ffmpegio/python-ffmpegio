@@ -26,11 +26,11 @@ def test_create():
     # )
     # assert x['shape'] == (1024 * 8, 1)
 
-    x = audio.create("anoisesrc", d=60, c="pink", r=44100, a=0.5)
+    fs, x = audio.create("anoisesrc", d=60, c="pink", r=44100, a=0.5)
     print(x["shape"], 60 * 44100)
     assert x["shape"] == (60 * 44100, 1)
 
-    x = audio.create("sine", f=220, b=4, d=5)
+    fs, x = audio.create("sine", f=220, b=4, d=5)
     print(x["shape"], 5 * 44100)
     assert x["shape"] == (5 * 44100, 1)
 
