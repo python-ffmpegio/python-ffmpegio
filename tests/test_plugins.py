@@ -1,4 +1,4 @@
-from math import prod
+from ffmpegio.utils import prod
 from ffmpegio import plugins
 
 

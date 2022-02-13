@@ -1,5 +1,4 @@
 import logging
-from math import prod
 from .. import utils, configure, ffmpegprocess, probe, plugins
 
 # from ..utils import bytes_to_ndarray as _as_array
@@ -719,14 +718,15 @@ class SimpleFilterBase:
 
     def _start_reader(self):
 
+        self._bps_out = utils.get_samplesize(self.shape, self.dtype)
+        self._bps_in = utils.get_samplesize(self.shape_in, self.dtype_in)
+        self._out2in = self.rate / self.rate_in
+
         # start the FFmpeg output reader
+        self._reader.itemsize = self._bps_out
         self._reader.stdout = self._proc.stdout
-        self._reader.itemsize = utils.get_samplesize(self.shape, self.dtype)
         self._reader.start()
 
-        self._bps_out = prod(self.shape) * int(self.dtype[-1])
-        self._bps_in = prod(self.shape_in) * int(self.dtype_in[-1])
-        self._out2in = self.rate / self.rate_in
         self._reader_needs_info = False
 
     def close(self):

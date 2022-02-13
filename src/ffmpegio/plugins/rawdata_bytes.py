@@ -1,4 +1,4 @@
-from math import prod
+from ..utils import get_samplesize
 from pluggy import HookimplMarker
 
 hookimpl = HookimplMarker("ffmpegio")
@@ -71,7 +71,7 @@ def bytes_to_video(b: bytes, dtype: str, shape: tuple[int, int, int]) -> object:
     return {
         "buffer": b,
         "dtype": dtype,
-        "shape": (len(b) // (prod(shape) * int(dtype[-1])), *shape),
+        "shape": (len(b) // get_samplesize(shape, dtype), *shape),
     }
 
 
@@ -92,5 +92,5 @@ def bytes_to_audio(b: bytes, dtype: str, shape: tuple[int]) -> object:
     return {
         "buffer": b,
         "dtype": dtype,
-        "shape": (len(b) // (prod(shape) * int(dtype[-1])), *shape),
+        "shape": (len(b) // get_samplesize(shape, dtype), *shape),
     }

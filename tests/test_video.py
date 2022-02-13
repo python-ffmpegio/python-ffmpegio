@@ -1,8 +1,6 @@
-from math import prod
-from ffmpegio import video, probe
+from ffmpegio import video, probe, utils
 import tempfile, re
 from os import path
-import numpy as np
 
 
 def test_create():
@@ -50,7 +48,6 @@ def test_read_write():
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         print(out_url)
-        print(prod(A["shape"]))
         video.write(out_url, fs, A)
         print(probe.video_streams_basic(out_url))
         fs, A = video.read(out_url, vframes=10)
@@ -73,14 +70,14 @@ def test_read():
     N = 5
     fs, B = video.read(url, vframes=10, ss_in=float(n0 / fs))
     print(B["shape"], A["shape"])
-    nbytes = prod(A["shape"][1:]) * int(A["dtype"][-1])
-    assert A["buffer"][n0 * nbytes :] == B['buffer'][: (10 - n0) * nbytes]
+    nbytes = utils.get_samplesize(A["shape"][-3:], A["dtype"])
+    assert A["buffer"][n0 * nbytes :] == B["buffer"][: (10 - n0) * nbytes]
 
     fs, C = video.read(url, ss_in=float(n0 / fs), t_in=float(N / fs))
 
     print(C["shape"])
-    assert A["buffer"][n0 * nbytes :(n0+N)*nbytes] == C['buffer']
-    
+    assert A["buffer"][n0 * nbytes : (n0 + N) * nbytes] == C["buffer"]
+
     # fs, D = video.read(url, ss_in=n0, t_in=N, units='frames')
     # assert np.array_equal(D, C)
 
@@ -113,7 +110,6 @@ if __name__ == "__main__":
     # test_create()
     from ffmpegio import configure, utils, ffmpegprocess
     from ffmpegio.utils import log as log_utils
-    import numpy as np
     from pprint import pprint
     import re
 

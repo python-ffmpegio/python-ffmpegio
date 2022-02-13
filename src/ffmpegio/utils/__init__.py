@@ -1,4 +1,12 @@
-from math import cos, prod, radians, sin
+try:
+    from math import prod
+except:
+    from functools import reduce
+    from operator import mul
+
+    prod = lambda seq: reduce(mul, seq, 1)
+
+from math import cos, radians, sin
 import re, fractions
 from .. import caps
 

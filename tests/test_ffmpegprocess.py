@@ -1,8 +1,5 @@
-import pytest
-
-import logging, time
+import logging
 from ffmpegio import probe, configure, ffmpegprocess, utils
-import numpy as np
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -115,8 +112,7 @@ def test_popen_progress():
         ffmpeg_args, pix_fmt_in, s_in, r_in
     )
 
-    out = np.empty(shape, dtype)
-    blksize = out.itemsize * np.prod(shape)  # 1 element
+    samplesize = utils.get_samplesize(shape,dtype)
 
     with ffmpegprocess.Popen(
         ffmpeg_args,
@@ -126,10 +122,8 @@ def test_popen_progress():
         for k in range(15):
             print(proc.stderr.readline())
         for j in range(10):
-            memoryview(out).cast("b")[:] = memoryview(proc.stdout.read(blksize)).cast(
-                "b"
-            )
-            print(j, out.shape, out.dtype)
+            out = proc.stdout.read(samplesize)
+            assert len(out)==samplesize
 
 
 if __name__ == "__main__":

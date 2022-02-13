@@ -44,7 +44,7 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
         if out.returncode:
             raise FFmpegError(out.stderr)
 
-    nbytes = utils.dtype_itemsize(dtype) * prod(shape)
+    nbytes = utils.get_samplesize(shape, dtype)
 
     return plugins.get_hook().bytes_to_video(
         b=out.stdout[-nbytes:], dtype=dtype, shape=shape

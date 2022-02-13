@@ -1,14 +1,8 @@
-from distutils.debug import DEBUG
-import fractions
-import io
-from math import prod
-from time import sleep
 import ffmpegio
 import tempfile, re
 from os import path
-import numpy as np
 import logging
-from ffmpegio import streams
+from ffmpegio import streams, utils
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -30,9 +24,17 @@ def test_read_video():
 
 def test_read_write_video():
     fs, F = ffmpegio.video.read(url, t=1)
-    bps = prod(F["shape"][1:]) * int(F["dtype"][-1])
-    F0 = {"buffer": F["buffer"][:bps], "shape": F["shape"], "dtype": F["dtype"]}
-    F1 = {"buffer": F["buffer"][bps:], "shape": F["shape"], "dtype": F["dtype"]}
+    bps = utils.get_samplesize(F["shape"][-3:], F["dtype"])
+    F0 = {
+        "buffer": F["buffer"][:bps],
+        "shape": (1, *F["shape"][1:]),
+        "dtype": F["dtype"],
+    }
+    F1 = {
+        "buffer": F["buffer"][bps:],
+        "shape": (F["shape"][0] - 1, *F["shape"][1:]),
+        "dtype": F["dtype"],
+    }
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
@@ -45,7 +47,7 @@ def test_read_audio(caplog):
     # caplog.set_level(logging.DEBUG)
 
     fs, x = ffmpegio.audio.read(url)
-    bps = prod(x["shape"][1:]) * int(x["dtype"][-1])
+    bps = utils.get_samplesize(x["shape"][-1:], x["dtype"])
 
     with ffmpegio.open(url, "ra", show_log=True, blocksize=1024 ** 2) as f:
         # x = f.read(1024)
