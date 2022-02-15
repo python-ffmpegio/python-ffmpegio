@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.3.1]
+
+### Fixed
+
+- Output `image` dimension (v0.3.0 introduced a bug to return image as video frames)
+
+### Changed
+
+- `bytes_to_video` and `bytes_to_audio` plugin hooks to take additional argument `squeeze`
+
 ## [0.3.0]
 
 ### Changed
@@ -123,7 +133,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules. 
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.1.3...v0.2.0
