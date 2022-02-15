@@ -48,7 +48,7 @@ def _run_read(
         )
         if out.returncode:
             raise FFmpegError(out.stderr)
-    return r, plugins.get_hook().bytes_to_video(b=out.stdout, dtype=dtype, shape=shape)
+    return r, plugins.get_hook().bytes_to_video(b=out.stdout, dtype=dtype, shape=shape, squeeze=False)
 
 
 def create(

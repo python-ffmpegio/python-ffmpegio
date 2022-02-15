@@ -47,7 +47,7 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
     nbytes = utils.get_samplesize(shape, dtype)
 
     return plugins.get_hook().bytes_to_video(
-        b=out.stdout[-nbytes:], dtype=dtype, shape=shape
+        b=out.stdout[-nbytes:], dtype=dtype, shape=shape, squeeze=True
     )
 
 
@@ -192,7 +192,9 @@ def write(url, data, overwrite=None, show_log=None, **options):
 
     ffmpeg_args = configure.empty()
     configure.add_url(
-        ffmpeg_args, "input", *configure.array_to_video_input(1, data=data, **input_options)
+        ffmpeg_args,
+        "input",
+        *configure.array_to_video_input(1, data=data, **input_options),
     )
     outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
     outopts["frames:v"] = 1

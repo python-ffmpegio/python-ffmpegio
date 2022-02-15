@@ -91,7 +91,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -179,7 +179,7 @@ class SimpleReaderBase:
         logging.debug(f"[reader main] read {len(b)} bytes")
         if not len(b):
             self._proc.stdout.close()
-        return self._converter(b=b, shape=self.shape, dtype=self.dtype)
+        return self._converter(b=b, shape=self.shape, dtype=self.dtype, squeeze=False)
 
     def readinto(self, array):
         """Read bytes into a pre-allocated, writable bytes-like object array and
@@ -428,7 +428,7 @@ class SimpleWriterBase:
             # the data and start
             self._open(data)
 
-        logging.debug('[writer main] writing...')
+        logging.debug("[writer main] writing...")
 
         try:
             self._proc.stdin.write(self._viewer(obj=data))
@@ -881,7 +881,7 @@ class SimpleFilterBase:
         nread = (int(self.nin * self._out2in) - self.nout) * self._bps_out
         y = self._reader.read(-nread, timeout - _time())
         self.nout += len(y) // self._bps_out
-        return self._converter(b=y, dtype=self.dtype, shape=self.shape)
+        return self._converter(b=y, dtype=self.dtype, shape=self.shape, squeeze=False)
 
     def flush(self, timeout=None):
         """Close the stream input and retrieve the remaining output samples
@@ -900,7 +900,7 @@ class SimpleFilterBase:
         self._proc.wait()
         y += self._reader.read_all(None)
         self.nout += len(y) // self._bps_out
-        return self._converter(b=y, dtype=self.dtype, shape=self.shape)
+        return self._converter(b=y, dtype=self.dtype, shape=self.shape, squeeze=False)
 
 
 class SimpleVideoFilter(SimpleFilterBase):

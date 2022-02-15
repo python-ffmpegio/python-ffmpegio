@@ -11,7 +11,7 @@ def test_create():
 
     # make sure rgb channels are mapped properly
     A = image.create("color", c="red", s="100x100", d=1)
-    assert A["shape"][1:] == (100, 100, 3)
+    assert A["shape"] == (100, 100, 3)
     assert A["dtype"] == ("|u1")
     # A = image.create("color", c="green", s="100x100", d=1)
     # A = image.create("color", c="blue", s="100x100", d=1)

@@ -60,7 +60,7 @@ def _run_read(
         )
 
     return rate, plugins.get_hook().bytes_to_audio(
-        b=out.stdout, dtype=dtype, shape=(ac,)
+        b=out.stdout, dtype=dtype, shape=(ac,), squeeze=False
     )
 
 

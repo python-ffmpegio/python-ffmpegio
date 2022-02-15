@@ -49,7 +49,7 @@ def audio_bytes(obj: object) -> memoryview:
 
 
 @hookspec(firstresult=True)
-def bytes_to_video(b: bytes, dtype: str, shape: Tuple[int, int, int]) -> object:
+def bytes_to_video(b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool) -> object:
     """convert bytes to rawvideo object
 
     :param b: byte data of arbitrary number of video frames
@@ -58,13 +58,15 @@ def bytes_to_video(b: bytes, dtype: str, shape: Tuple[int, int, int]) -> object:
     :type dtype: str
     :param size: frame dimension in pixels and number of color components (height, width, components)
     :type size: Tuple[int, int, int]
+    :param squeeze: True to remove all the singular dimensions
+    :type squeeze: bool
     :return: python object holding the rawvideo frames
     :rtype: object
     """
 
 
 @hookspec(firstresult=True)
-def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int]) -> object:
+def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> object:
     """convert bytes to rawaudio object
 
     :param b: byte data of arbitrary number of video frames
@@ -73,6 +75,8 @@ def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int]) -> object:
     :type dtype: str
     :param shape: number of interleaved audio channels (1-element tuple)
     :type shape: Tuple[int]
+    :param squeeze: True to remove all the singular dimensions
+    :type squeeze: bool
     :return: python object to hold the raw audio samples
     :rtype: object
     """

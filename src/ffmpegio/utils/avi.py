@@ -492,7 +492,9 @@ class AviReader:
             }
 
         self.streams = {v["index"]: set_stream_info(v) for v in hdr}
-        self.itemsizes = {v["index"]: get_samplesize(v["shape"], v["dtype"]) for v in hdr}
+        self.itemsizes = {
+            v["index"]: get_samplesize(v["shape"], v["dtype"]) for v in hdr
+        }
         self.ready = True
 
     def __next__(self):
@@ -510,7 +512,7 @@ class AviReader:
     def from_bytes(self, id, b):
         info = self.streams[id]
         return self.converters[info["type"]](
-            b=b, dtype=info["dtype"], shape=info["shape"]
+            b=b, dtype=info["dtype"], shape=info["shape"], squeeze=False
         )
 
 
