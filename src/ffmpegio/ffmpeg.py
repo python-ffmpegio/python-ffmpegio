@@ -4,6 +4,7 @@ from .utils import filter as filter_utils
 
 import subprocess as _sp
 from subprocess import DEVNULL, PIPE
+from os import devnull
 
 import re as _re, os as _os, logging as _logging
 
@@ -77,8 +78,8 @@ def parse(cmdline):
         if not is_gopt[i]:
             continue
         k = s[1:]
-        if k in ('h','?','help','-help'): # special case take all args thereafter
-            gopts[k] = ' '.join(args[i+1:])
+        if k in ("h", "?", "help", "-help"):  # special case take all args thereafter
+            gopts[k] = " ".join(args[i + 1 :])
         elif all_gopts[k] is None:
             gopts[k] = None
         else:
@@ -469,7 +470,7 @@ def exec(
             ),
             stdin,
         )
-        if "inputs" in ffmpeg_args and 'input' not in sp_kwargs
+        if "inputs" in ffmpeg_args and "input" not in sp_kwargs
         else stdin
     )
 
@@ -479,7 +480,7 @@ def exec(
     # configure stdout
     def iswritable(f):
         try:
-            return f.fileno() and f.writable()
+            return f == DEVNULL or (f.fileno() and f.writable())
         except:
             return False
 
@@ -497,7 +498,7 @@ def exec(
     )
 
     if stdout is not None and outpipe != stdout:
-        raise ValueError("FFmpeg expects to pipe out but stdin not specified")
+        raise ValueError("FFmpeg expects to pipe out but stdout not specified")
 
     # set stderr for logging FFmpeg message
     if stderr == _sp.STDOUT and outpipe == PIPE:
@@ -511,7 +512,9 @@ def exec(
     if not (gopts and ("y" in gopts or "n" in gopts)):
         if gopts is None:
             gopts = ffmpeg_args["global_options"] = {}
-        if overwrite is not None:
+        if any((True for url, _ in ffmpeg_args.get("outputs", []) if url == devnull)):
+            gopts["y"] = None  # output to null, need to overwrite
+        elif overwrite is not None:
             gopts["y" if overwrite else "n"] = None
         elif inpipe == PIPE:
             gopts["n"] = None
