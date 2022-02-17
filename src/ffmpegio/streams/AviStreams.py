@@ -74,7 +74,7 @@ class AviMediaReader:
         for i, url in enumerate(urls):  # add inputs
             # check url (must be url and not fileobj)
             configure.check_url(url, nodata=True, nofileobj=True)
-            configure.add_url(args, "input", url, {*inopts, *spec_inopts.get(i, {})})
+            configure.add_url(args, "input", url, {**inopts, **spec_inopts.get(i, {})})
 
         # configure output options
         use_ya = configure.finalize_media_read_opts(args)
