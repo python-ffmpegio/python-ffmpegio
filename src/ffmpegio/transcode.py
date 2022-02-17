@@ -62,9 +62,12 @@ def transcode(
     # if output pix_fmt defined, get input pix_fmt to check for transparency change
     # TODO : stream spec?
     pix_fmt = options.get("pix_fmt", None)
-    pix_fmt_in = (
-        probe.video_streams_basic(input_url, 0)[0]["pix_fmt"] if pix_fmt else None
-    )
+    pix_fmt_in = input_options.get("pix_fmt", None)
+    if pix_fmt is not None and pix_fmt_in is None:
+        try:
+            pix_fmt = probe.video_streams_basic(input_url, 0)[0]["pix_fmt"]
+        except:
+            pass  # filter or invalid url, let ffmpeg complain if there is a problem
 
     # convert basic VF options to vf option
     configure.build_basic_vf(args, utils.alpha_change(pix_fmt_in, pix_fmt, -1))

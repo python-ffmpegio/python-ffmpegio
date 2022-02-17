@@ -1,6 +1,7 @@
 from ffmpegio import transcode, probe, FFmpegError, FilterGraph
 import tempfile, re
 from os import path
+from pprint import pprint
 
 
 def test_transcode():
@@ -28,14 +29,22 @@ def test_transcode_from_filter():
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, "test.png")
         transcode("color=r=1:d=1", out_url, f_in="lavfi", vframes=1, show_log=True)
-
-        out_url = path.join(tmpdirname, "test2.png")
         transcode(
             FilterGraph([[("color", {"r": 1, "d": 1})]]),
             out_url,
             f_in="lavfi",
             vframes=1,
             show_log=True,
+            overwrite=True,
+        )
+        transcode(
+            FilterGraph([[("color", {"r": 1, "d": 1})]]),
+            out_url,
+            f_in="lavfi",
+            pix_fmt="rgba",
+            vframes=1,
+            show_log=True,
+            overwrite=True,
         )
 
 
