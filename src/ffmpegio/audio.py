@@ -189,9 +189,10 @@ def read(url, progress=None, show_log=None, **options):
         ac_in = info.get("ac", None)
         ar_in = info.get("ar", None)
 
-    url, stdin, input = configure.check_url(url, False)
-
     input_options = utils.pop_extra_options(options, "_in")
+    url, stdin, input = configure.check_url(
+        url, False, format=input_options.get("f", None)
+    )
 
     ffmpeg_args = configure.empty()
     configure.add_url(ffmpeg_args, "input", url, input_options)[1][1]
@@ -238,8 +239,8 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
         ffmpeg_args,
         "input",
         *configure.array_to_audio_input(rate_in, data=data, **input_options),
-    )[1][1]
-    configure.add_url(ffmpeg_args, "output", url, options)[1][1]
+    )
+    configure.add_url(ffmpeg_args, "output", url, options)
 
     ffmpegprocess.run(
         ffmpeg_args,

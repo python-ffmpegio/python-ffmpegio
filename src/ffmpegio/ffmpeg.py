@@ -185,10 +185,10 @@ def compose(args, command="", shell_command=False):
                 [
                     "-i",
                     url
+                    if opts is not None and opts.get("f", None) != "lavfi"
+                    else str(filter_utils.compose(url))
                     if url is not None
-                    else "/dev/null"
-                    if _os.name != "nt"
-                    else "NUL",
+                    else _os.devnull,
                 ]
             )
         return args

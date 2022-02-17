@@ -48,13 +48,15 @@ def transcode(
 
     """
 
-    input_url, stdin, input = configure.check_url(input_url, False)
-    output_url, stdout, _ = configure.check_url(output_url, True)
-
     input_options = utils.pop_extra_options(options, "_in")
 
+    input_url, stdin, input = configure.check_url(
+        input_url, False, input_options.get("f", None)
+    )
+    output_url, stdout, _ = configure.check_url(output_url, True)
+
     args = configure.empty()
-    configure.add_url(args, "input", input_url, input_options)[1][1]
+    configure.add_url(args, "input", input_url, input_options)
     configure.add_url(args, "output", output_url, options)
 
     # if output pix_fmt defined, get input pix_fmt to check for transparency change

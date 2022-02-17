@@ -72,9 +72,12 @@ class AviMediaReader:
         args = configure.empty()
         configure.add_url(args, "output", "-", options)  # add piped output
         for i, url in enumerate(urls):  # add inputs
+            opts = {**inopts, **spec_inopts.get(i, {})}
             # check url (must be url and not fileobj)
-            configure.check_url(url, nodata=True, nofileobj=True)
-            configure.add_url(args, "input", url, {**inopts, **spec_inopts.get(i, {})})
+            configure.check_url(
+                url, nodata=True, nofileobj=True, format=opts.get("f", None)
+            )
+            configure.add_url(args, "input", url, opts)
 
         # configure output options
         use_ya = configure.finalize_media_read_opts(args)
@@ -97,29 +100,39 @@ class AviMediaReader:
     def specs(self):
         """:list(str): list of specifiers of the streams"""
         self._reader.wait()
-        return self._reader.streams and [v["spec"] for v in self._reader.streams.values()] 
+        return self._reader.streams and [
+            v["spec"] for v in self._reader.streams.values()
+        ]
 
     def types(self):
         """:dict(str:str): media type associated with the streams (key)"""
         self._reader.wait()
         ts = {"v": "video", "a": "audio"}
-        return self._reader.streams and {v["spec"]: ts[v["type"]] for v in self._reader.streams.values()}
+        return self._reader.streams and {
+            v["spec"]: ts[v["type"]] for v in self._reader.streams.values()
+        }
 
     def rates(self):
         """:dict(str:int|Fraction): sample or frame rates associated with the streams (key)"""
         self._reader.wait()
         rates = self._reader.rates
-        return self._reader.streams and {v["spec"]: rates[k] for k, v in self._reader.streams.items()}
+        return self._reader.streams and {
+            v["spec"]: rates[k] for k, v in self._reader.streams.items()
+        }
 
     def dtypes(self):
         """:dict(str:str): frame/sample data type associated with the streams (key)"""
         self._reader.wait()
-        return self._reader.streams and {v["spec"]: v["dtype"] for v in self._reader.streams.values()}
+        return self._reader.streams and {
+            v["spec"]: v["dtype"] for v in self._reader.streams.values()
+        }
 
     def shapes(self):
         """:dict(str:tuple(int)): frame/sample shape associated with the streams (key)"""
         self._reader.wait()
-        return self._reader.streams and {v["spec"]: v["shape"] for v in self._reader.streams.values()}
+        return self._reader.streams and {
+            v["spec"]: v["shape"] for v in self._reader.streams.values()
+        }
 
     def get_stream_info(self, spec):
         id = self._reader.find_id(spec)

@@ -45,9 +45,10 @@ class SimpleReaderBase:
         self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
 
         # get url/file stream
-        url, stdin, input = configure.check_url(url, False)
-
         input_options = utils.pop_extra_options(options, "_in")
+        url, stdin, input = configure.check_url(
+            url, False, format=input_options.get("f", None)
+        )
 
         ffmpeg_args = configure.empty()
         configure.add_url(ffmpeg_args, "input", url, input_options)

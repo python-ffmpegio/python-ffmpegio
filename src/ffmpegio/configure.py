@@ -88,7 +88,7 @@ def empty():
     return dict(inputs=[], outputs=[], global_options=None)
 
 
-def check_url(url, nodata=True, nofileobj=False):
+def check_url(url, nodata=True, nofileobj=False, format=None):
     """Analyze url argument for non-url input
 
     :param url: url argument string or data or file
@@ -107,19 +107,20 @@ def check_url(url, nodata=True, nofileobj=False):
     fileobj = None
     data = None
 
-    try:
-        memoryview(url)
-        data = url
-        url = "-"
-    except:
-        if hasmethod(url, "fileno"):
-            if nofileobj:
-                raise ValueError("File-like object cannot be specified as url.")
-            fileobj = url
+    if format != "lavfi":
+        try:
+            memoryview(url)
+            data = url
             url = "-"
+        except:
+            if hasmethod(url, "fileno"):
+                if nofileobj:
+                    raise ValueError("File-like object cannot be specified as url.")
+                fileobj = url
+                url = "-"
 
-    if nodata and data is not None:
-        raise ValueError("Bytes-like object cannot be specified as url.")
+        if nodata and data is not None:
+            raise ValueError("Bytes-like object cannot be specified as url.")
 
     return url, fileobj, data
 
@@ -138,11 +139,6 @@ def add_url(args, type, url, opts=None):
     :return: file index and its entry
     :rtype: tuple(int, tuple(str, dict or None))
     """
-
-    # instead of url, input tuple (url, opts) is given
-    if not isinstance(url, str):
-        opts = url[1] if opts is None else {**url[1], **opts}
-        url = url[0]
 
     type = f"{type}s"
     filelist = args.get(type, None)

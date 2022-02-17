@@ -48,7 +48,9 @@ def _run_read(
         )
         if out.returncode:
             raise FFmpegError(out.stderr)
-    return r, plugins.get_hook().bytes_to_video(b=out.stdout, dtype=dtype, shape=shape, squeeze=False)
+    return r, plugins.get_hook().bytes_to_video(
+        b=out.stdout, dtype=dtype, shape=shape, squeeze=False
+    )
 
 
 def create(
@@ -167,10 +169,12 @@ def read(url, progress=None, show_log=None, **options):
     else:
         pix_fmt_in = s_in = r_in = None
 
-    # get url/file stream
-    url, stdin, input = configure.check_url(url, False)
-
     input_options = utils.pop_extra_options(options, "_in")
+
+    # get url/file stream
+    url, stdin, input = configure.check_url(
+        url, False, format=input_options.get("f", None)
+    )
 
     ffmpeg_args = configure.empty()
     configure.add_url(ffmpeg_args, "input", url, input_options)

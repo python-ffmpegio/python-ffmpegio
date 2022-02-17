@@ -1,4 +1,4 @@
-from ffmpegio import transcode, probe, FFmpegError
+from ffmpegio import transcode, probe, FFmpegError, FilterGraph
 import tempfile, re
 from os import path
 
@@ -22,6 +22,21 @@ def test_transcode():
         except FFmpegError:
             pass
         transcode(url, out_url, overwrite=True, show_log=True, progress=progress)
+
+
+def test_transcode_from_filter():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        out_url = path.join(tmpdirname, "test.png")
+        transcode("color=r=1:d=1", out_url, f_in="lavfi", vframes=1, show_log=True)
+
+        out_url = path.join(tmpdirname, "test2.png")
+        transcode(
+            FilterGraph([[("color", {"r": 1, "d": 1})]]),
+            out_url,
+            f_in="lavfi",
+            vframes=1,
+            show_log=True,
+        )
 
 
 def test_transcode_2pass():
@@ -72,9 +87,9 @@ def test_transcode_image():
             remove_alpha=True,
             s=[300, -1],
             transpose=0,
-            vframes=1
+            vframes=1,
         )
 
 
 if __name__ == "__main__":
-    test_transcode_image()
+    test_transcode_from_filter()
