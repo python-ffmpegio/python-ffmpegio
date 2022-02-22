@@ -5,6 +5,11 @@ hookspec = pluggy.HookspecMarker("ffmpegio")
 
 
 @hookspec(firstresult=True)
+def finder() -> Tuple[str, str]:
+    """find ffmpeg and ffprobe executable"""
+
+
+@hookspec(firstresult=True)
 def video_info(obj: object) -> Tuple[Tuple[int, int, int], str]:
     """get video frame info
 
@@ -49,7 +54,9 @@ def audio_bytes(obj: object) -> memoryview:
 
 
 @hookspec(firstresult=True)
-def bytes_to_video(b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool) -> object:
+def bytes_to_video(
+    b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool
+) -> object:
     """convert bytes to rawvideo object
 
     :param b: byte data of arbitrary number of video frames

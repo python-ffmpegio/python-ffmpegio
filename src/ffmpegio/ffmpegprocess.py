@@ -19,18 +19,186 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
-import logging
-from os import path
+import logging, re
+from os import path, devnull
 from threading import Thread as _Thread
-import subprocess as _sp
+import subprocess as sp
+from subprocess import DEVNULL, PIPE
 from copy import deepcopy
-from subprocess import PIPE, DEVNULL
 from tempfile import TemporaryDirectory
-from .ffmpeg import exec, parse
+
+from .ffmpeg import parse, compose
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
+from .path import get_ffmpeg
 
-__all__ = ["run", "Popen", "PIPE", "DEVNULL"]
+__all__ = ["versions", "run", "Popen", "PIPE", "DEVNULL", "devnull"]
+
+
+def exec(
+    ffmpeg_args,
+    hide_banner=True,
+    progress=None,
+    overwrite=None,
+    capture_log=None,
+    stdin=None,
+    stdout=None,
+    stderr=None,
+    sp_run=sp.run,
+    **sp_kwargs,
+):
+    """run ffmpeg command
+
+    :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: dict, seq(str), or str
+    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+    :type hide_banner: bool, optional
+    :param progress: progress monitor object, defaults to None
+    :type progress: ProgressMonitorThread, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :type overwrite: bool, optional
+    :param capture_log: True to capture log messages on stderr, False to suppress
+                        console log messages, defaults to None (show on console)
+    :type capture_log: bool or None, optional
+    :param stdin: source file object, defaults to None
+    :type stdin: readable file-like object, optional
+    :param stdout: sink file object, defaults to None
+    :type stdout: writable file-like object, optional
+    :param stderr: file to log ffmpeg messages, defaults to None
+    :type stderr: writable file-like object, optional
+    :param sp_run: function to run FFmpeg as a subprocess, defaults to subprocess.run
+    :type sp_run: Callable, optional
+    :param **sp_kwargs: additional keyword arguments for sp_run, optional
+    :type **sp_kwargs: dict
+    :return: depends on sp_run
+    :rtype: depends on sp_run
+    """
+
+    # convert to FFmpeg argument dict if str or seq(str) given
+    if not isinstance(ffmpeg_args, dict):
+        ffmpeg_args = parse(ffmpeg_args)
+
+    gopts = ffmpeg_args.get("global_options", None)
+    if hide_banner:
+        if gopts is None:
+            gopts = ffmpeg_args["global_options"] = {"hide_banner": None}
+        else:
+            gopts["hide_banner"] = None
+
+    if progress and progress.url:
+        if gopts is None:
+            ffmpeg_args["global_options"] = {"progress": progress.url}
+        else:
+            gopts["progress"] = progress.url
+
+    # configure stdin pipe (if needed)
+    def isreadable(f):
+        try:
+            return f.fileno() and f.readable()
+        except:
+            return False
+
+    inpipe = (
+        next(
+            (
+                stdin if isreadable(stdin) else PIPE
+                for inp in ffmpeg_args["inputs"]
+                if inp[0] in ("-", "pipe:", "pipe:0")  # or not isinstance(inp[0], str)
+            ),
+            stdin,
+        )
+        if "inputs" in ffmpeg_args and "input" not in sp_kwargs
+        else stdin
+    )
+
+    if stdin is not None and inpipe != stdin:
+        raise ValueError("FFmpeg expects to pipe in but stdin not specified")
+
+    # configure stdout
+    def iswritable(f):
+        try:
+            return f == DEVNULL or (f.fileno() and f.writable())
+        except:
+            return False
+
+    outpipe = (
+        next(
+            (
+                stdout if iswritable(stdout) else PIPE
+                for outp in ffmpeg_args["outputs"]
+                if outp[0] in ("-", "pipe:", "pipe:1")  # or not isinstance(inp[0], str)
+            ),
+            stdout,
+        )
+        if "outputs" in ffmpeg_args
+        else stdout
+    )
+
+    if stdout is not None and outpipe != stdout:
+        raise ValueError("FFmpeg expects to pipe out but stdout not specified")
+
+    # set stderr for logging FFmpeg message
+    if stderr == sp.STDOUT and outpipe == PIPE:
+        raise ValueError("stderr cannot be redirected to stdout, which is in use")
+    errpipe = stderr or (
+        PIPE if capture_log else None if capture_log is None else DEVNULL
+    )
+
+    # set y or n flags (overwrite)
+    gopts = ffmpeg_args["global_options"]
+    if not (gopts and ("y" in gopts or "n" in gopts)):
+        if gopts is None:
+            gopts = ffmpeg_args["global_options"] = {}
+        if any((True for url, _ in ffmpeg_args.get("outputs", []) if url == devnull)):
+            gopts["y"] = None  # output to null, need to overwrite
+        elif overwrite is not None:
+            gopts["y" if overwrite else "n"] = None
+        elif inpipe == PIPE:
+            gopts["n"] = None
+
+    args = compose(ffmpeg_args, command=get_ffmpeg())
+    logging.debug(args)
+
+    # run the FFmpeg
+    return sp_run(args, stdin=inpipe, stdout=outpipe, stderr=errpipe, **sp_kwargs)
+
+
+def versions():
+    """Get FFmpeg version and configuration information
+
+    :return: versions of ffmpeg and its av libraries as well as build configuration
+    :rtype: dict
+
+    ==================  ====  =========================================
+    key                 type  description
+    ==================  ====  =========================================
+    'version'           str   FFmpeg version
+    'configuration'     list  list of build configuration options
+    'library_versions'  dict  version numbers of dependent av libraries
+    ==================  ====  =========================================
+
+    """
+    s = exec(
+        ["-version"],
+        hide_banner=False,
+        stdout=PIPE,
+        universal_newlines=True,
+        encoding="utf-8",
+    ).stdout.splitlines()
+    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    i = 2 if s[1].startswith("built with") else 1
+    if s[i].startswith("configuration:"):
+        v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
+        i += 1
+    lv = None
+    for l in s[i:]:
+        m = re.match(r"(\S+)\s+(.+?) /", l)
+        if m:
+            if lv is None:
+                lv = v["library_versions"] = {}
+            lv[m[1]] = m[2].replace(" ", "")
+    return v
 
 
 def monitor_process(proc, on_exit=None):
@@ -46,17 +214,17 @@ def monitor_process(proc, on_exit=None):
 
     """
 
-    logging.debug('[monitor] waiting for FFmpeg to terminate...')
+    logging.debug("[monitor] waiting for FFmpeg to terminate...")
     proc.wait()
-    logging.debug('[monitor] FFmpeg terminated')
+    logging.debug("[monitor] FFmpeg terminated")
     if on_exit is not None:
         returncode = proc.returncode
         for fcn in on_exit:
             fcn(returncode)
-        logging.debug('[monitor] executed all on_exit callbacks')
+        logging.debug("[monitor] executed all on_exit callbacks")
 
 
-class Popen(_sp.Popen):
+class Popen(sp.Popen):
     """Execute FFmpeg in a new process.
 
     :param ffmpeg_args: FFmpeg arguments
@@ -292,7 +460,7 @@ def run(
             **other_popen_kwargs,
         )
 
-    # return stderr as str 
+    # return stderr as str
     if ret.stderr is not None:
         ret.stderr = ret.stderr.decode("utf-8")
 

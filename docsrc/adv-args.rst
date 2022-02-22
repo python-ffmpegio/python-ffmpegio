@@ -8,8 +8,7 @@ FFmpeg command can be invoked directly with :py:func:`ffmpegio.ffmpegprocess.run
 for the details). Both of them fully support the FFmpeg command line option
 arguments, which can be specified via  as :py:mod:`subprocess` via :code:`ffmpeg_args` 
 argument, which may be supplied as a string or a list of strings to be compatible
-with :py:mod:`subprocess`
-in a plain dict object. 
+with :py:mod:`subprocess` in a plain dict object. 
 
 The FFmpeg command line options structure:
 
@@ -107,7 +106,7 @@ for the :py:mod:`ffmpegio`:
       "global_options": {"filter_complex": "[1:v]hue=s=0[outv];overlay;aresample"}
   }
 
-FFmpeg filter dict Specification
---------------------------------
+FFmpeg FilterGraph Class Specification
+--------------------------------------
 
 TBD

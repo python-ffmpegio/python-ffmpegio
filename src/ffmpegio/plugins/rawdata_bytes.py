@@ -1,4 +1,4 @@
-from ..utils import get_samplesize
+from .._utils import get_samplesize
 from pluggy import HookimplMarker
 from typing import Tuple
 

@@ -1,4 +1,4 @@
-from ffmpegio import ffmpeg
+from ffmpegio import ffmpegprocess
 from ffmpegio.utils import avi as aviutils
 import io
 from pprint import pprint
@@ -32,7 +32,7 @@ def avi_stream(request):
     )
     vframes = 16
     f = io.BytesIO(
-        ffmpeg.exec(
+        ffmpegprocess.run(
             {
                 "inputs": [(url, None)],
                 "outputs": [
@@ -100,9 +100,9 @@ if __name__ == "__main__":
 
     # create a short example with both audio & video
     f = io.BytesIO(
-        ffmpeg.exec(
+        ffmpegprocess.run(
             {
-                "inputs": [(url1, None),(url2, None)],
+                "inputs": [(url1, None), (url2, None)],
                 "outputs": [
                     (
                         "-",

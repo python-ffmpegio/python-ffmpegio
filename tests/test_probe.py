@@ -1,5 +1,4 @@
 import pytest
-import pytest
 
 import ffmpegio.probe as probe
 
@@ -12,6 +11,10 @@ import ffmpegio.probe as probe
 #     )
 # )
 
+
+
+def test_probe():
+    probe.ffprobe("-help")
 
 def test_all():
     url = "tests/assets/testmulti-1m.mp4"

@@ -4,6 +4,10 @@ from ffmpegio import probe, configure, ffmpegprocess, utils
 # logging.basicConfig(level=logging.DEBUG)
 
 
+def test_versions():
+    assert "version" in ffmpegprocess.versions()
+
+
 def test_run_help():
     ffmpegprocess.run({"global_options": {"help": None}})
 
@@ -21,7 +25,7 @@ def test_run_from_stream():
             ],
         }
         out = ffmpegprocess.run(args, capture_log=True, stdin=f)
-    
+
     print(f"FFmpeg output: {len(out.stdout)} bytes")
     print(out.stderr)
 
@@ -51,7 +55,7 @@ def test_run_progress():
     url = "tests/assets/testaudio-1m.mp3"
     sample_fmt = "s16"
     out_codec, container = utils.get_audio_codec(sample_fmt)
-    
+
     def progress(*args):
         print(args)
         return False
@@ -112,7 +116,7 @@ def test_popen_progress():
         ffmpeg_args, pix_fmt_in, s_in, r_in
     )
 
-    samplesize = utils.get_samplesize(shape,dtype)
+    samplesize = utils.get_samplesize(shape, dtype)
 
     with ffmpegprocess.Popen(
         ffmpeg_args,
@@ -123,7 +127,7 @@ def test_popen_progress():
             print(proc.stderr.readline())
         for j in range(10):
             out = proc.stdout.read(samplesize)
-            assert len(out)==samplesize
+            assert len(out) == samplesize
 
 
 if __name__ == "__main__":

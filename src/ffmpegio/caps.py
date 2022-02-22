@@ -1,7 +1,10 @@
 # TODO add function to guess media type given extension
 
-from .ffmpeg import ffprobe, exec as ffmpeg, PIPE
+from .path import get_ffmpeg
+import subprocess as sp
 import re, fractions
+
+# __all__ = [""]
 
 _ffCodecRegexp = re.compile(
     r"([D.])([E.])([VAS])([I.])([L.])([S.])\s+([^=\s][\S]*)\s+(.*)"
@@ -19,19 +22,19 @@ _filterRegexp = re.compile(
 _cache = dict()
 
 
+def ffmpeg(gopts):
+    return sp.run([get_ffmpeg(), *gopts], stdout=sp.PIPE, encoding="utf-8").stdout
+
+
 def _(cap):
-    return (
-        (None, _cache[cap])
-        if (cap in _cache)
-        else (ffprobe([f"-{cap}"], stderr=None), None)
-    )
+    return (None, _cache[cap]) if (cap in _cache) else (ffmpeg([f"-{cap}"]), None)
 
 
 def __(type, name):
     return (
         (None, _cache[type][name])
         if (type in _cache and name in _cache[type])
-        else (ffprobe(["--help", f"{type}={name}"], stderr=None), None)
+        else (ffmpeg(["-help", f"{type}={name}"]), None)
     )
 
 
@@ -50,10 +53,7 @@ def options(type=None, name_only=False, return_desc=False):
     try:
         opts = _cache["options"]
     except:
-        ret = ffmpeg(
-            {"global_options": {"help": "long"}}, stdout=PIPE, encoding="utf-8"
-        )
-        lines = ret.stdout.split("\n")
+        lines = ffmpeg(["-help", "long"]).split("\n")
         ginds = [
             (i + 1, l[:-1].lower())
             for i, l in enumerate(lines)
@@ -257,6 +257,7 @@ def codecs(type=None, stream_type=None):
 
     return {k: v for k, v in data.items() if pick(v)}
 
+
 def encoders(type=None):
     """get summary of FFmpeg encoders
 
@@ -280,7 +281,8 @@ def encoders(type=None):
     directRendering   bool  True if supports direct encoding method 1
     ================  ====  ===============================================
     """
-    return _coders('encoders',type)
+    return _coders("encoders", type)
+
 
 def decoders(type=None):
     """get summary of FFmpeg decoders
@@ -306,7 +308,8 @@ def decoders(type=None):
     directRendering   bool  True if supports direct encoding method 1
     ================  ====  ===============================================
     """
-    return _coders('decoders',type)
+    return _coders("decoders", type)
+
 
 def _coders(type, stream_type=None):
 
@@ -779,7 +782,7 @@ def _getCodecInfo(name, encoder):
 
     def resolveFs(s):
         m = re.match(r"(\d+)\/(\d+)", s)
-        return fractions.Fraction(int(m[1]),int(m[2]))
+        return fractions.Fraction(int(m[1]), int(m[2]))
 
     data = {
         "name": m[1],
@@ -909,6 +912,7 @@ def _getFilterPortInfo(str):
     if not matches:
         raise Exception("Failed to parse filter port info: %s" % str)
     return [{"name": m[1], "type": m[2]} for m in matches]
+
 
 #:dict: list of video size presets with their sizes
 video_size_presets = {

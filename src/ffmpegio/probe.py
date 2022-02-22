@@ -1,6 +1,58 @@
+import logging as _logging
+import shlex as _shlex
 import json, fractions, os, pickle, re
 from collections import OrderedDict
-from . import ffmpeg
+import subprocess as _sp
+from . import path
+
+form_shell_cmd = (
+    _shlex.join
+    if hasattr(_shlex, "join")
+    else lambda args: " ".join(_shlex.quote(arg) for arg in args)
+)
+
+
+def ffprobe(
+    args,
+    *sp_arg,
+    stdout=_sp.PIPE,
+    stderr=_sp.PIPE,
+    universal_newlines=True,
+    encoding="utf8",
+    hide_banner=True,
+    **sp_kwargs,
+):
+    """run ffprobe command as a subprocess (blocking)
+
+    :param args: ffprobe argument options
+    :type args: seq or str
+    :param hide_banner: False to output ffmpeg banner, defaults to True
+    :type hide_banner: bool, optional
+    :return: ffprobe stdout output
+    :rtype: str
+    """
+    args = [
+        path.get_ffmpeg(probe=True),
+        *(["-hide_banner"] if hide_banner else []),
+        *(_shlex.split(args) if isinstance(args, str) else args),
+    ]
+
+    _logging.debug(form_shell_cmd(args))
+
+    ret = _sp.run(
+        args,
+        *sp_arg,
+        stdout=stdout,
+        stderr=stderr,
+        universal_newlines=universal_newlines,
+        encoding=encoding,
+        **sp_kwargs,
+    )
+
+    if ret.returncode != 0:
+        raise Exception(f"execution failed\n   {form_shell_cmd(args)}\n\n{ret.stderr}")
+    return ret.stdout
+
 
 # stores all the local queries during the session
 # - key: path
@@ -79,16 +131,16 @@ def _full_details(
     args.append(":".join(entries))
 
     pipe = not isinstance(url, str)
-    args.append('-' if pipe else url)
+    args.append("-" if pipe else url)
 
     if pipe:
         try:
             assert not url.seekable
             pos0 = url.tell()
         except:
-            raise ValueError('url must be str or seekable io object')
+            raise ValueError("url must be str or seekable io object")
 
-    results = json.loads(ffmpeg.ffprobe(args))
+    results = json.loads(ffprobe(args))
 
     if pipe:
         url.seek(pos0)
@@ -481,8 +533,8 @@ def query(url, stream=None, fields=None, return_none=False):
              stream/format if fields not specified
     :rtype: list or dict
 
-    Note: Unlike :py:func:`video_stream_basic()` and :py:func:`audio_stream_basic()`, 
-          :py:func:`query()` does not process ffprobe output except for the conversion 
+    Note: Unlike :py:func:`video_stream_basic()` and :py:func:`audio_stream_basic()`,
+          :py:func:`query()` does not process ffprobe output except for the conversion
           from str to float/int.
 
     """

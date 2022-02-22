@@ -1,6 +1,6 @@
 from ffmpegio import threading
-from ffmpegio.ffmpeg import exec
-from ffmpegio.ffmpegprocess import Popen
+from ffmpegio import ffmpegprocess
+from ffmpegio.ffmpegprocess import Popen, run
 from tempfile import TemporaryDirectory
 from os import path
 import re
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     pprint(args)
 
     # create a short example with both audio & video
-    f = io.BytesIO(ffmpeg.exec(args).stdout)
+    f = io.BytesIO(ffmpegprocess.run(args).stdout)
 
     reader = threading.AviReaderThread()
     reader.start(f, use_ya)

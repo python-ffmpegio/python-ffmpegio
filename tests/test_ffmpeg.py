@@ -102,25 +102,3 @@ def test_compose():
         )
         == "ffmpeg -i /tmp/a.wav -map 0:a -b:a 64k '/tmp/a test.mp2' -map 0:a -b:a 128k /tmp/b.mp2"
     )
-
-
-def test_find():
-    print(ffmpeg.find())  # gotta have ffmpeg to run the tests
-    with pytest.raises(Exception):
-        ffmpeg.find("wrong_dir")
-
-
-def test_found():
-    assert ffmpeg.found()  # assuming ffmpeg is found in a default place
-
-
-def test_where():
-    assert ffmpeg.where() is not None  # assuming ffmpeg is found
-
-
-def test_versions():
-    assert "version" in ffmpeg.versions()
-
-
-def test_probe():
-    ffmpeg.ffprobe("-help")

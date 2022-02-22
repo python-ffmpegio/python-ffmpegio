@@ -1,14 +1,7 @@
-try:
-    from math import prod
-except:
-    from functools import reduce
-    from operator import mul
-
-    prod = lambda seq: reduce(mul, seq, 1)
-
 from math import cos, radians, sin
 import re, fractions
 from .. import caps
+from .._utils import *
 
 
 def parse_spec_stream(spec, file_index=False):
@@ -587,11 +580,3 @@ def pop_extra_options_multi(options, suffix):
         options.pop(o)
 
     return popped
-
-
-def dtype_itemsize(dtype):
-    return int(dtype[-1])
-
-
-def get_samplesize(shape, dtype):
-    return prod(shape) * dtype_itemsize(dtype)

@@ -27,13 +27,24 @@ Block Read/Write/Filter Functions
 """
 
 from contextlib import contextmanager
+import logging
+
+from . import path
+
+# initialize the paths
+try:
+    path.find()
+except Exception as e:
+    logging.warn(str(e))
+
+
+from . import ffmpeg
+from . import ffmpegprocess
 
 from .utils.log import FFmpegError
 from .utils.filter import FilterGraph
 from .transcode import transcode
 from . import caps, probe, audio, image, video, media
-from . import ffmpegprocess
-from . import ffmpeg as _ffmpeg
 from . import streams as _streams
 
 __all__ = [
@@ -44,7 +55,7 @@ __all__ = [
     "audio",
     "image",
     "video",
-    'media',
+    "media",
     "open",
     "ffmpegprocess",
     "FFmpegError",
@@ -52,10 +63,10 @@ __all__ = [
 ]
 __version__ = "0.3.3"
 
-ffmpeg_info = _ffmpeg.versions
-set_path = _ffmpeg.find
-get_path = _ffmpeg.where
-is_ready = _ffmpeg.found
+ffmpeg_info = ffmpegprocess.versions
+set_path = path.find
+get_path = path.where
+is_ready = path.found
 
 
 @contextmanager

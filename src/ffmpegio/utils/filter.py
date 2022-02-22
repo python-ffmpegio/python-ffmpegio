@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-import re, itertools, inspect, logging
+import re, itertools
 from .. import utils
 from copy import deepcopy
 
