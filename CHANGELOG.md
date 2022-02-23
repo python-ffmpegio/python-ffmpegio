@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.4.1] - 2022-02-22
+
+### Fixed
+
+- Fixed `caps` `ffmpeg` calls to print the banner 
+
 ## [0.4.0] - 2022-02-22
 
 ### Added
@@ -167,7 +173,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules. 
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.1...v0.3.2
