@@ -154,8 +154,11 @@ def exec(
             gopts["y"] = None  # output to null, need to overwrite
         elif overwrite is not None:
             gopts["y" if overwrite else "n"] = None
-        elif inpipe == PIPE:
+        else:
+            # set to no-overwrite by default to avoid hanging
             gopts["n"] = None
+    elif overwrite is not None:
+        raise ValueError('Cannot set both the y/n global flag and the overwrite argument.')
 
     args = compose(ffmpeg_args, command=get_ffmpeg())
     logging.debug(args)
