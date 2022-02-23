@@ -5,7 +5,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
-## [0.4.0]
+## [0.4.0] - 2022-02-22
 
 ### Added
 
@@ -20,13 +20,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - `-n` (no overwrite) global option is now used by default. Not having this caused
   the subprocess to hang, waiting for user input.
 
-## [0.3.3]
+## [0.3.3] - 2022-02-17
 
 ### Fixed
 
 - Fixed `pix_fmt` and `pix_fmt_in` check in `transcode` function
 
-## [0.3.2]
+## [0.3.2] - 2022-02-17
 
 ### Fixed
 
@@ -36,7 +36,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - All readers to support `lavfi` source filter inputs
 
-## [0.3.1]
+## [0.3.1] - 2022-02-15
 
 ### Fixed
 
@@ -46,7 +46,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - `bytes_to_video` and `bytes_to_audio` plugin hooks to take additional argument `squeeze`
 
-## [0.3.0]
+## [0.3.0] - 2022-02-13
 
 ### Changed
 
@@ -67,7 +67,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - Removed acknowledging planar PCM `sample_fmt`'s
 
-## [0.2.1]
+## [0.2.1] - 2022-02-01
 
 ### Added
 
@@ -84,7 +84,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - ffmpeg.exec() capture_log option: None = console display, False = DEVNULL
 
-## [0.2.0]
+## [0.2.0] - 2022-01-30
 
 ### Added
 
@@ -109,7 +109,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - removed io.py and its dependencies
 
-## [0.1.3]
+## [0.1.3] - 2022-01-26
 
 ### Added
 
