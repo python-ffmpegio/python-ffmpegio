@@ -1,10 +1,15 @@
 # TODO add function to guess media type given extension
 
+import re, fractions, subprocess as sp
 from .path import get_ffmpeg
-import subprocess as sp
-import re, fractions
 
-# __all__ = [""]
+# fmt:off
+__all__ = ["options", "filters", "codecs", "coders", "formats", "devices",
+    "muxers", "demuxers", "bsfilters", "protocols", "pix_fmts", "sample_fmts",
+    "layouts", "colors", "demuxer_info", "muxer_info", "encoder_info",
+    "decoder_info", "filter_info", "bsfilter_info", "frame_rate_presets",
+    "video_size_presets"]
+# fmt:on
 
 _ffCodecRegexp = re.compile(
     r"([D.])([E.])([VAS])([I.])([L.])([S.])\s+([^=\s][\S]*)\s+(.*)"
@@ -982,28 +987,3 @@ frame_rate_presets = {
     "film": fractions.Fraction(24, 1),
     "ntsc-film": fractions.Fraction(24000, 1001),
 }
-
-__all__ = [
-    "options",
-    "filters",
-    "codecs",
-    "coders",
-    "formats",
-    "devices",
-    "muxers",
-    "demuxers",
-    "bsfilters",
-    "protocols",
-    "pix_fmts",
-    "sample_fmts",
-    "layouts",
-    "colors",
-    "demuxer_info",
-    "muxer_info",
-    "encoder_info",
-    "decoder_info",
-    "filter_info",
-    "bsfilter_info",
-    "frame_rate_presets",
-    "video_size_presets",
-]

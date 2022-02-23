@@ -1,7 +1,8 @@
 import re
+from fractions import Fraction
+
 from . import layout_to_channels
 from ..caps import sample_fmts
-from fractions import Fraction
 
 
 class FFmpegError(RuntimeError):
@@ -27,7 +28,7 @@ class FFmpegError(RuntimeError):
         # [AVFilterGraph @ 000002108e25d040] No such filter: '...'
 
         # Invalid duration specification for ss: 1001/15000
-        
+
         # Stream map '0:a:0' matches no streams.
 
         elif log_shown:

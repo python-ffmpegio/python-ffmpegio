@@ -2,28 +2,28 @@
 """
 
 from copy import deepcopy
-import re as _re, os as _os, logging as _logging
-from threading import (
-    Thread as _Thread,
-    Condition as _Condition,
-    Lock as _Lock,
-    Event as _Event,
-)
-from io import TextIOBase as _TextIOBase, TextIOWrapper as _TextIOWrapper
-from time import sleep as _sleep, time as _time
-from tempfile import TemporaryDirectory as _TemporaryDirectory
-from queue import Empty, Full, Queue as _Queue
+import re, os, logging
+from threading import Thread, Condition, Lock, Event
+from io import TextIOBase, TextIOWrapper
+from time import sleep, time
+from tempfile import TemporaryDirectory
+from queue import Empty, Full, Queue
 from math import ceil
 
 from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream, FFmpegError
+
+# fmt:off
+__all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',
+ 'LoggerThread', 'ReaderThread', 'WriterThread', 'AviReaderThread', 'Empty', 'Full']
+# fmt:on
 
 
 class ThreadNotActive(RuntimeError):
     pass
 
 
-class ProgressMonitorThread(_Thread):
+class ProgressMonitorThread(Thread):
     """FFmpeg progress monitor class
 
     :param callback: [description]
@@ -40,11 +40,11 @@ class ProgressMonitorThread(_Thread):
         if callback is None:
             self.url = self.cancelfun = self._thread = None
         else:
-            tempdir = None if url else _TemporaryDirectory()
-            self.url = url or _os.path.join(tempdir.name, "progress.txt")
+            tempdir = None if url else TemporaryDirectory()
+            self.url = url or os.path.join(tempdir.name, "progress.txt")
             self.cancelfun = cancelfun
             super().__init__(args=(callback, tempdir, timeout))
-            self._stop_monitor = _Event()
+            self._stop_monitor = Event()
 
     def start(self):
         if self.url:
@@ -66,13 +66,13 @@ class ProgressMonitorThread(_Thread):
         callback, tempdir, timeout = self._args
         url = self.url
 
-        pattern = _re.compile(r"(.+)?=(.+)")
-        _logging.debug(f'[progress_monitor] monitoring "{url}"')
+        pattern = re.compile(r"(.+)?=(.+)")
+        logging.debug(f'[progress_monitor] monitoring "{url}"')
 
-        while not (self._stop_monitor.is_set() or _os.path.isfile(url)):
-            _sleep(timeout)
+        while not (self._stop_monitor.is_set() or os.path.isfile(url)):
+            sleep(timeout)
 
-        _logging.debug("[progress_monitor] file found")
+        logging.debug("[progress_monitor] file found")
 
         if not self._stop_monitor.is_set():
 
@@ -82,7 +82,7 @@ class ProgressMonitorThread(_Thread):
 
                 def update(sleep=True):
                     d = {}
-                    mtime = _os.fstat(f.fileno()).st_mtime
+                    mtime = os.fstat(f.fileno()).st_mtime
                     new_data = mtime != last_mtime
                     if new_data:
                         lines = f.readlines()
@@ -105,16 +105,16 @@ class ProgressMonitorThread(_Thread):
                                 done = m[2] == "end"
                                 try:
                                     if callback(d, done) and self.cancelfun:
-                                        _logging.debug(
+                                        logging.debug(
                                             "[progress_monitor] operation canceled by user agent"
                                         )
                                         self.cancelfun()
                                 except Exception as e:
-                                    _logging.critical(
+                                    logging.critical(
                                         f"[progress_monitor] user callback error:\n\n{e}"
                                     )
                     elif sleep:
-                        _sleep(timeout)
+                        sleep(timeout)
 
                 while not self._stop_monitor.is_set():
                     last_mtime = update()
@@ -128,15 +128,15 @@ class ProgressMonitorThread(_Thread):
             except:
                 pass
 
-        _logging.debug("[progress_monitor] terminated")
+        logging.debug("[progress_monitor] terminated")
 
 
-class LoggerThread(_Thread):
+class LoggerThread(Thread):
     def __init__(self, stderr, echo=False) -> None:
         self.stderr = stderr
         self.logs = []
-        self._newline_mutex = _Lock()
-        self.newline = _Condition(self._newline_mutex)
+        self._newline_mutex = Lock()
+        self.newline = Condition(self._newline_mutex)
         self.echo = echo
         super().__init__()
 
@@ -150,10 +150,10 @@ class LoggerThread(_Thread):
         return self
 
     def run(self):
-        _logging.debug('[logger] starting')
+        logging.debug("[logger] starting")
         stderr = self.stderr
-        if not isinstance(stderr, _TextIOBase):
-            stderr = self.stderr = _TextIOWrapper(stderr, "utf-8")
+        if not isinstance(stderr, TextIOBase):
+            stderr = self.stderr = TextIOWrapper(stderr, "utf-8")
         while True:
             try:
                 log = stderr.readline()
@@ -166,7 +166,7 @@ class LoggerThread(_Thread):
             log = log[:-1]  # remove the newline
 
             if not log:
-                _sleep(0.001)
+                sleep(0.001)
                 continue
 
             if self.echo:
@@ -179,7 +179,7 @@ class LoggerThread(_Thread):
         with self.newline:
             self.stderr = None
             self.newline.notify_all()
-        _logging.debug('[logger] exiting')
+        logging.debug("[logger] exiting")
 
     def index(self, prefix, start=None, block=True, timeout=None):
         start = int(start or 0)
@@ -201,10 +201,10 @@ class LoggerThread(_Thread):
 
                 # wait till matching line is read by the thread
                 if timeout is not None:
-                    timeout = _time() + timeout
+                    timeout = time() + timeout
                 start = len(self.logs)
                 while True:
-                    tout = timeout and timeout - _time()
+                    tout = timeout and timeout - time()
                     # wait till the next log update
                     if (tout is not None and tout < 0) or not self.newline.wait(tout):
                         raise TimeoutError("Specified line not found")
@@ -248,14 +248,14 @@ class LoggerThread(_Thread):
         return FFmpegError(self.logs)
 
 
-class ReaderThread(_Thread):
+class ReaderThread(Thread):
     def __init__(self, stdout, nmin=None, queuesize=None):
 
         super().__init__()
         self.stdout = stdout  #:readable stream: data source
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
         self.itemsize = None  #:int: number of bytes per time sample
-        self._queue = _Queue(queuesize or 0)  # inter-thread data I/O
+        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
         self._carryover = None  # extra data that was not previously read by user
         self._collect = True
 
@@ -333,7 +333,7 @@ class ReaderThread(_Thread):
         # wait till matching line is read by the thread
         block = self.is_alive() and n != 0
         if timeout is not None:
-            timeout = _time() + timeout
+            timeout = time() + timeout
 
         arrays = []
         n_new = max(n, -n)
@@ -349,7 +349,7 @@ class ReaderThread(_Thread):
         nreads = 1 if n <= 0 else max(n_new, 0)
         nr = 0
         while True:
-            tout = timeout and timeout - _time()
+            tout = timeout and timeout - time()
             if tout <= 0:
                 break
             try:
@@ -370,7 +370,7 @@ class ReaderThread(_Thread):
         if not len(arrays):
             return b""
 
-        all_data = b''.join(arrays)
+        all_data = b"".join(arrays)
         if n <= 0:
             return all_data
         nbytes = self.itemsize * n
@@ -382,15 +382,15 @@ class ReaderThread(_Thread):
 
         # wait till matching line is read by the thread
         if timeout is not None:
-            timeout = _time() + timeout
+            timeout = time() + timeout
 
         arrays = arrays = [self._carryover] if self._carryover else []
         self._carryover = None
 
         # loop till enough data are collected
-        while not self.is_alive() or timeout and timeout > _time():
+        while not self.is_alive() or timeout and timeout > time():
             try:
-                data = self._queue.get(self.is_alive(), timeout and timeout - _time())
+                data = self._queue.get(self.is_alive(), timeout and timeout - time())
                 self._queue.task_done()
                 arrays.append(data)
             except Empty:
@@ -400,10 +400,10 @@ class ReaderThread(_Thread):
         if not len(arrays):
             return b""
 
-        return b''.join(arrays)
+        return b"".join(arrays)
 
 
-class WriterThread(_Thread):
+class WriterThread(Thread):
     """a thread to write byte data to a writable stream
 
     :param stdin: stream to write data to
@@ -415,7 +415,7 @@ class WriterThread(_Thread):
     def __init__(self, stdin, queuesize=None):
         super().__init__()
         self.stdin = stdin  #:writable stream: data sink
-        self._queue = _Queue(queuesize or 0)  # inter-thread data I/O
+        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
 
     def join(self, timeout=None):
 
@@ -462,14 +462,14 @@ class WriterThread(_Thread):
         data = self._queue.put(data, timeout)
 
 
-class AviReaderThread(_Thread):
+class AviReaderThread(Thread):
     def __init__(self, queuesize=None):
 
         super().__init__()
         self.reader = AviReader()  #:utils.avi.AviReader: AVI demuxer
-        self.streams_ready = _Event()  #:Event: Set when received stream header info
+        self.streamsready = Event()  #:Event: Set when received stream header info
         self.rates = None  # :dict(int:int|Fraction)
-        self._queue = _Queue(queuesize or 0)  # inter-thread data I/O
+        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
         self._ids = None  #:dict(int:int): stream indices
         self._nread = None  #:dict(int:int): number of samples read/stream
         self._carryover = (
@@ -478,7 +478,7 @@ class AviReaderThread(_Thread):
 
     @property
     def streams(self):
-        return self.reader.streams if self.streams_ready else None
+        return self.reader.streams if self.streamsready else None
 
     def start(self, stdout, use_ya=None):
         self._args = (stdout, use_ya)
@@ -512,10 +512,10 @@ class AviReaderThread(_Thread):
                 for k, v in reader.streams.items()
             }
         except Exception as e:
-            _logging.critical(e)
+            logging.critical(e)
             return
         finally:
-            self.streams_ready.set()
+            self.streamsready.set()
 
         reader = self.reader
         for id, data in reader:
@@ -523,7 +523,7 @@ class AviReaderThread(_Thread):
         self._queue.put(None)  # end of stream
 
     def wait(self, timeout=None):
-        return self.is_alive() and self.streams_ready.wait(timeout)
+        return self.is_alive() and self.streamsready.wait(timeout)
 
     def readchunk(self, timeout=None):
         """read the next avi chunk
@@ -536,7 +536,7 @@ class AviReaderThread(_Thread):
         """
 
         # wait till matching line is read by the thread
-        tend = timeout and _time() + timeout
+        tend = timeout and time() + timeout
 
         # if stream header not received in time, raise error
         if not self.wait(timeout):
@@ -557,7 +557,7 @@ class AviReaderThread(_Thread):
         # get next chunk
         try:
             if timeout is not None:
-                timeout = tend - _time()
+                timeout = tend - time()
                 assert timeout > 0
             chunk = self._queue.get(block, timeout)
             if chunk is None:
@@ -597,7 +597,7 @@ class AviReaderThread(_Thread):
 
         # wait till matching line is read by the thread
         block = self.is_alive() and n != 0
-        tend = timeout and (_time() + timeout)
+        tend = timeout and (time() + timeout)
 
         # if stream header not received in time, raise error
         if not self.wait(timeout):
@@ -610,15 +610,13 @@ class AviReaderThread(_Thread):
             ref_stream = self.find_id(ref_stream)
 
         # identify how many samples are needed for each stream
-        n_ref = max(n, -n)
-        t_ref = (self._nread[ref_stream] + n_ref) / self.rates[ref_stream]
+        nref = max(n, -n)
+        tref = (self._nread[ref_stream] + nref) / self.rates[ref_stream]
         n_need = {
-            k: ceil(t_ref * self.rates[k]) - self._nread[k]
-            if k != ref_stream
-            else n_ref
+            k: ceil(tref * self.rates[k]) - self._nread[k] if k != ref_stream else nref
             for k in self._ids
         }
-        n_remain = deepcopy(n_need)
+        nremain = deepcopy(n_need)
 
         # initialize output arrays
         arrays = {k: [] for k in self._ids}
@@ -630,14 +628,14 @@ class AviReaderThread(_Thread):
             for k, v in self._carryover.items():
                 if v is not None:
                     arrays[k] = [v]
-                    n_remain[k] -= len(v) // itemsizes[k]
+                    nremain[k] -= len(v) // itemsizes[k]
             self._carryover = None
 
         # loop till enough data are collected
-        while any((v > 0 for k, v in n_remain.items() if n_need[k] > 0)):
+        while any((v > 0 for k, v in nremain.items() if n_need[k] > 0)):
             try:
                 if timeout:
-                    timeout = tend - _time()
+                    timeout = tend - time()
                     if timeout <= 0:
                         break
                 chunk = self._queue.get(block, timeout)
@@ -646,7 +644,7 @@ class AviReaderThread(_Thread):
                 k, data = chunk
                 self._queue.task_done()
                 arrays[k].append(data)
-                n_remain[k] -= len(data) // itemsizes[k]
+                nremain[k] -= len(data) // itemsizes[k]
 
             except Empty:
                 break
@@ -655,7 +653,7 @@ class AviReaderThread(_Thread):
             # combine all the data and return requested amount
             if not len(array):
                 return (id, None, None)
-            all_data = b''.join(array)
+            all_data = b"".join(array)
             nbytes = n * itemsizes[id]
             return (
                 (id, all_data, None)
@@ -665,7 +663,7 @@ class AviReaderThread(_Thread):
 
         ids, data, excess = zip(
             *(
-                combine(id, array, n_need[id], n_remain[id])
+                combine(id, array, n_need[id], nremain[id])
                 for id, array in arrays.items()
             )
         )
@@ -691,7 +689,7 @@ class AviReaderThread(_Thread):
 
         # wait till matching line is read by the thread
         if timeout is not None:
-            timeout = _time() + timeout
+            timeout = time() + timeout
 
         # if stream header not received in time, raise error
         if not self.wait(timeout):
@@ -713,7 +711,7 @@ class AviReaderThread(_Thread):
         # loop till enough data are collected
         while True:
             try:
-                chunk = self._queue.get(self.is_alive(), timeout and timeout - _time())
+                chunk = self._queue.get(self.is_alive(), timeout and timeout - time())
                 if chunk is None:
                     break  # end of stream
                 k, data = chunk
@@ -729,7 +727,7 @@ class AviReaderThread(_Thread):
             info = self.reader.streams[id]
             spec = info["spec"]
             out[spec] = self.reader.from_bytes(
-                id, b"" if sdata is None else b''.join(sdata)
+                id, b"" if sdata is None else b"".join(sdata)
             )
 
         return out

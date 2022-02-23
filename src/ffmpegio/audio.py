@@ -4,6 +4,8 @@
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
 from .utils import filter as filter_utils, log as log_utils
 
+__all__ = ["create", "read", "write", "filter"]
+
 
 def _run_read(
     *args, sample_fmt_in=None, ac_in=None, ar_in=None, show_log=None, **kwargs

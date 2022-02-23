@@ -38,7 +38,6 @@ except Exception as e:
     logging.warn(str(e))
 
 
-from . import ffmpeg
 from . import ffmpegprocess
 
 from .utils.log import FFmpegError
@@ -48,10 +47,13 @@ from . import caps, probe, audio, image, video, media
 from . import streams as _streams
 
 __all__ = [
+    "ffmpeg_info",
+    "get_path",
+    "set_path",
+    "is_ready",
     "transcode",
     "caps",
     "probe",
-    "set_path",
     "audio",
     "image",
     "video",

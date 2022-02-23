@@ -1,10 +1,11 @@
 from io import SEEK_CUR
 import fractions, re
-from ..utils import get_video_format, get_audio_format, spec_stream, get_samplesize
-from .. import plugins
-
 from struct import Struct
 from collections import namedtuple
+from itertools import accumulate
+
+from ..utils import get_video_format, get_audio_format, spec_stream, get_samplesize
+from .. import plugins
 
 # https://docs.microsoft.com/en-us/previous-versions//dd183376(v=vs.85)?redirectedfrom=MSDN
 
@@ -26,9 +27,6 @@ class FlagProcessor:
 
     def pack(self, flags):
         return sum((mask if flag else 0 for flag, mask in zip(flags, self.masks)))
-
-
-from itertools import accumulate
 
 
 class StructProcessor:

@@ -1,6 +1,8 @@
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
 from .utils import filter as filter_utils, log as log_utils
 
+__all__ = ["create", "read", "write", "filter"]
+
 
 def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kwargs):
     """run FFmpeg and retrieve audio stream data

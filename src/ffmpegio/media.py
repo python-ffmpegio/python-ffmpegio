@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from . import ffmpegprocess, utils, configure, FFmpegError, plugins
+from . import ffmpegprocess, utils, configure, FFmpegError
 from .utils import avi
 
 __all__ = ["read"]

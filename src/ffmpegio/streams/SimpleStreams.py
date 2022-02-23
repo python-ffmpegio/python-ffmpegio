@@ -1,22 +1,13 @@
 import logging
+from time import time
+
 from .. import utils, configure, ffmpegprocess, probe, plugins
+from ..threading import LoggerThread, ReaderThread, WriterThread
 
-# from ..utils import bytes_to_ndarray as _as_array
-from ..threading import (
-    LoggerThread as _LoggerThread,
-    ReaderThread as _ReaderThread,
-    WriterThread as _WriterThread,
-)
-from time import time as _time
-
-__all__ = [
-    "SimpleVideoReader",
-    "SimpleAudioReader",
-    "SimpleVideoWriter",
-    "SimpleAudioWriter",
-    "SimpleVideoFilter",
-    "SimpleAudioFilter",  # FFmpeg does not support this operation
-]
+# fmt:off
+__all__ = [ "SimpleVideoReader", "SimpleAudioReader", "SimpleVideoWriter",
+    "SimpleAudioWriter", "SimpleVideoFilter", "SimpleAudioFilter"]
+# fmt:on
 
 
 class SimpleReaderBase:
@@ -58,7 +49,7 @@ class SimpleReaderBase:
         self._finalize(ffmpeg_args)
 
         # create logger without assigning the source stream
-        self._logger = _LoggerThread(None, show_log)
+        self._logger = LoggerThread(None, show_log)
 
         # start FFmpeg
         self._proc = ffmpegprocess.Popen(
@@ -92,7 +83,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -348,7 +339,7 @@ class SimpleWriterBase:
         ready = self._finalize(ffmpeg_args)
 
         # create logger without assigning the source stream
-        self._logger = _LoggerThread(None, show_log)
+        self._logger = LoggerThread(None, show_log)
 
         # FFmpeg Popen arguments
         self._cfg = {
@@ -567,8 +558,8 @@ class SimpleFilterBase:
     :type dtype: str, optional
     :param block_size: read buffer block size in samples, defaults to None
     :type block_size: int, optional
-    :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
-    :type default_timeout: float, optional
+    :param defaulttimeout: default filter timeout in seconds, defaults to None (10 ms)
+    :type defaulttimeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -589,7 +580,7 @@ class SimpleFilterBase:
     def __init__(
         # fmt:off
         self, converter, data_viewer, info_viewer, expr, rate_in, shape_in=None, dtype_in=None, 
-        rate=None, shape=None, dtype=None, block_size=None, default_timeout=None,
+        rate=None, shape=None, dtype=None, block_size=None, defaulttimeout=None,
         progress=None, show_log=None, **options,
         # fmt:on
     ) -> None:
@@ -610,7 +601,7 @@ class SimpleFilterBase:
         self._infoviewer = info_viewer
 
         #:float: default filter operation timeout in seconds
-        self.default_timeout = default_timeout or 10e-3
+        self.defaulttimeout = defaulttimeout or 10e-3
 
         #:int|Fraction: input sample rate
         self.rate_in = rate_in
@@ -632,7 +623,7 @@ class SimpleFilterBase:
         self._out2in = None
 
         # set this to false in _finalize() if guaranteed for the logger to have output stream info
-        self._logger_timeout = True
+        self._loggertimeout = True
 
         self._proc = None
 
@@ -663,14 +654,14 @@ class SimpleFilterBase:
         self.shape, self.dtype = self._set_options(outopts, shape, dtype, rate, expr)
 
         # create the stdin writer without assigning the sink stream
-        self._writer = _WriterThread(None, 0)
+        self._writer = WriterThread(None, 0)
 
         # create the stdout reader without assigning the source stream
-        self._reader = _ReaderThread(None, block_size, 0)
+        self._reader = ReaderThread(None, block_size, 0)
         self._reader_needs_info = True
 
         # create logger without assigning the source stream
-        self._logger = _LoggerThread(None, show_log)
+        self._logger = LoggerThread(None, show_log)
 
         # FFmpeg Popen arguments
         self._cfg = {
@@ -717,7 +708,7 @@ class SimpleFilterBase:
         # run after the first input block is sent to FFmpeg
         try:
             info = self._logger.output_stream(
-                timeout=timeout if self._logger_timeout else None
+                timeout=timeout if self._loggertimeout else None
             )
         except TimeoutError as e:
             raise e
@@ -849,16 +840,16 @@ class SimpleFilterBase:
           Filtering operation is always timed because the buffering
           protocols used by various subsystems of FFmpeg are undeterminable
           from Python. The operation timeout is controlled by `timeout`
-          argument if specified or else  by `default_timeout` property. The
+          argument if specified or else  by `defaulttimeout` property. The
           default timeout duration is 10 ms, but it could be optimized for
           each use case (`blocksize` property, I/O rate ratio, typical size of
           `data` argument, etc.).
 
         """
 
-        timeout = timeout or self.default_timeout
+        timeout = timeout or self.defaulttimeout
 
-        timeout += _time()
+        timeout += time()
 
         if self._cfg:
             # if FFmpeg not yet started, finalize the configuration with
@@ -868,19 +859,19 @@ class SimpleFilterBase:
         inbytes = self._memoryviewer(obj=data)
 
         try:
-            self._writer.write(inbytes, timeout - _time())
+            self._writer.write(inbytes, timeout - time())
         except BrokenPipeError as e:
             # TODO check log for error in FFmpeg
             raise e
 
         if self._reader_needs_info:
             # with the data written, FFmpeg should inform the output setup
-            self._get_output_info(timeout - _time())
+            self._get_output_info(timeout - time())
             self._start_reader()
 
         self.nin += len(inbytes.cast("b")) // self._bps_in
         nread = (int(self.nin * self._out2in) - self.nout) * self._bps_out
-        y = self._reader.read(-nread, timeout - _time())
+        y = self._reader.read(-nread, timeout - time())
         self.nout += len(y) // self._bps_out
         return self._converter(b=y, dtype=self.dtype, shape=self.shape, squeeze=False)
 
@@ -893,7 +884,7 @@ class SimpleFilterBase:
         :rtype: numpy.ndarray
         """
 
-        timeout = timeout or self.default_timeout
+        timeout = timeout or self.defaulttimeout
 
         # If no input, close stdin and read all remaining frames
         y = self._reader.read_all(timeout)
@@ -927,8 +918,8 @@ class SimpleVideoFilter(SimpleFilterBase):
     :type dtype: str, optional
     :param block_size: read buffer block size in frames, defaults to None (=1)
     :type block_size: int, optional
-    :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
-    :type default_timeout: float, optional
+    :param defaulttimeout: default filter timeout in seconds, defaults to None (10 ms)
+    :type defaulttimeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -947,7 +938,7 @@ class SimpleVideoFilter(SimpleFilterBase):
     def __init__(
         # fmt:off
         self, expr, rate_in, shape_in=None, dtype_in=None, rate=None, shape=None, dtype=None,
-        block_size=None, default_timeout=None, progress=None, show_log=None, **options,
+        block_size=None, defaulttimeout=None, progress=None, show_log=None, **options,
         # fmt:on
     ) -> None:
         hook = plugins.get_hook()
@@ -955,10 +946,10 @@ class SimpleVideoFilter(SimpleFilterBase):
         super().__init__(
             hook.bytes_to_video, hook.video_bytes, hook.video_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype,
-            block_size, default_timeout, progress, show_log, **options,
+            block_size, defaulttimeout, progress, show_log, **options,
         )
         # fmt:on
-        self._logger_timeout = False
+        self._loggertimeout = False
 
     def _pre_open(self, ffmpeg_args):
         # append basic video filter chain (only enabled with _force_basic_vf ffmpeg output option)
@@ -1025,8 +1016,8 @@ class SimpleAudioFilter(SimpleFilterBase):
     :type dtype: str, optional
     :param block_size: read buffer block size in samples, defaults to None (=>1024)
     :type block_size: int, optional
-    :param default_timeout: default filter timeout in seconds, defaults to None (100 ms)
-    :type default_timeout: float, optional
+    :param defaulttimeout: default filter timeout in seconds, defaults to None (100 ms)
+    :type defaulttimeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -1055,7 +1046,7 @@ class SimpleAudioFilter(SimpleFilterBase):
         shape=None,
         dtype=None,
         block_size=None,
-        default_timeout=None,
+        defaulttimeout=None,
         progress=None,
         show_log=None,
         **options,
@@ -1064,7 +1055,7 @@ class SimpleAudioFilter(SimpleFilterBase):
         # fmt: off
         super().__init__(hook.bytes_to_audio, hook.audio_bytes, hook.audio_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype, 
-            block_size, default_timeout, progress, show_log, **options)
+            block_size, defaulttimeout, progress, show_log, **options)
         # fmt: on
 
     def _pre_open(self, ffmpeg_args):

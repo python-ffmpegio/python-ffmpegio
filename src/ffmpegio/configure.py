@@ -4,12 +4,7 @@ from . import utils, plugins
 from .utils.filter import video_basic_filter
 
 
-def array_to_video_input(
-    rate,
-    data,
-    stream_id=None,
-    **opts,
-):
+def array_to_video_input(rate, data, stream_id=None, **opts):
     """create an stdin input with video stream
 
     :param rate: input frame rate in frames/second

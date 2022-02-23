@@ -21,7 +21,7 @@ PIPE:    Special value that indicates a pipe should be created
 
 import logging, re
 from os import path, devnull
-from threading import Thread as _Thread
+from threading import Thread
 import subprocess as sp
 from subprocess import DEVNULL, PIPE
 from copy import deepcopy
@@ -344,7 +344,7 @@ class Popen(sp.Popen):
             if self._progmon:
                 on_exit.append(lambda _: self._progmon.join())
 
-            self._monitor = _Thread(
+            self._monitor = Thread(
                 target=monitor_process,
                 args=(self, on_exit),
             )

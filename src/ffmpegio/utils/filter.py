@@ -1,7 +1,8 @@
-from collections.abc import Sequence
 import re, itertools
-from .. import utils
+from collections.abc import Sequence
 from copy import deepcopy
+
+from .. import utils
 
 
 # various regexp objects used in the module

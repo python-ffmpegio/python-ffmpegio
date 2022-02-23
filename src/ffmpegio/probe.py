@@ -1,22 +1,25 @@
-import logging as _logging
-import shlex as _shlex
-import json, fractions, os, pickle, re
+import logging, shlex, json, fractions, os, pickle, re
 from collections import OrderedDict
-import subprocess as _sp
+import subprocess as sp
 from . import path
 
+# fmt:off
+__all__ = ['ffprobe', 'full_details', 'format_basic', 'streams_basic',
+'video_streams_basic', 'audio_streams_basic', 'query']
+# fmt:on
+
 form_shell_cmd = (
-    _shlex.join
-    if hasattr(_shlex, "join")
-    else lambda args: " ".join(_shlex.quote(arg) for arg in args)
+    shlex.join
+    if hasattr(shlex, "join")
+    else lambda args: " ".join(shlex.quote(arg) for arg in args)
 )
 
 
 def ffprobe(
     args,
     *sp_arg,
-    stdout=_sp.PIPE,
-    stderr=_sp.PIPE,
+    stdout=sp.PIPE,
+    stderr=sp.PIPE,
     universal_newlines=True,
     encoding="utf8",
     hide_banner=True,
@@ -34,12 +37,12 @@ def ffprobe(
     args = [
         path.get_ffmpeg(probe=True),
         *(["-hide_banner"] if hide_banner else []),
-        *(_shlex.split(args) if isinstance(args, str) else args),
+        *(shlex.split(args) if isinstance(args, str) else args),
     ]
 
-    _logging.debug(form_shell_cmd(args))
+    logging.debug(form_shell_cmd(args))
 
-    ret = _sp.run(
+    ret = sp.run(
         args,
         *sp_arg,
         stdout=stdout,
