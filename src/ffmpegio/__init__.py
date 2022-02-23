@@ -46,24 +46,13 @@ from .transcode import transcode
 from . import caps, probe, audio, image, video, media
 from . import streams as _streams
 
-__all__ = [
-    "ffmpeg_info",
-    "get_path",
-    "set_path",
-    "is_ready",
-    "transcode",
-    "caps",
-    "probe",
-    "audio",
-    "image",
-    "video",
-    "media",
-    "open",
-    "ffmpegprocess",
-    "FFmpegError",
-    "FilterGraph",
-]
-__version__ = "0.3.3"
+# fmt:off
+__all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "transcode", "caps",
+    "probe", "audio", "image", "video", "media", "open", "ffmpegprocess",
+    "FFmpegError", "FilterGraph"]
+# fmt:on
+
+__version__ = "0.4.0"
 
 ffmpeg_info = ffmpegprocess.versions
 set_path = path.find
