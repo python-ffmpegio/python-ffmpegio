@@ -757,12 +757,6 @@ def decoder_info(name):
     return _getCodecInfo(name, False)
 
 
-_re_layouts = re.compile(
-    re.sub(r"([().])", r"\\\1", "|".join(layouts()["layouts"]))
-    + r"|\d+ channels \(.+?\)"
-)
-
-
 def _getCodecInfo(name, encoder):
     #   // according to fftools/comdutils.c show_help_codec()
     stdout, data = __("encoder" if encoder else "decoder", name)
@@ -788,6 +782,11 @@ def _getCodecInfo(name, encoder):
     def resolveFs(s):
         m = re.match(r"(\d+)\/(\d+)", s)
         return fractions.Fraction(int(m[1]), int(m[2]))
+
+    _re_layouts = re.compile(
+        re.sub(r"([().])", r"\\\1", "|".join(layouts()["layouts"]))
+        + r"|\d+ channels \(.+?\)"
+    )
 
     data = {
         "name": m[1],
