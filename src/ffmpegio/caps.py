@@ -28,7 +28,7 @@ _cache = dict()
 
 
 def ffmpeg(gopts):
-    return sp.run([get_ffmpeg(), *gopts], stdout=sp.PIPE, encoding="utf-8").stdout
+    return sp.run([get_ffmpeg(), '-hide_banner', *gopts], stdout=sp.PIPE, encoding="utf-8").stdout
 
 
 def _(cap):
