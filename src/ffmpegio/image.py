@@ -40,11 +40,11 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
     else:
         out = ffmpegprocess.run(
             *args,
-            capture_log=None if show_log else False,
+            capture_log=None if show_log else True,
             **kwargs,
         )
         if out.returncode:
-            raise FFmpegError(out.stderr)
+            raise FFmpegError(out.stderr, show_log)
 
     nbytes = utils.get_samplesize(shape, dtype)
 
@@ -210,11 +210,11 @@ def write(url, data, overwrite=None, show_log=None, **options):
         input=plugins.get_hook().video_bytes(obj=data),
         stdout=stdout,
         overwrite=overwrite,
-        capture_log=None if show_log else False,
+        capture_log=None if show_log else True,
     )
 
     if out.returncode:
-        raise FFmpegError(out.stderr)
+        raise FFmpegError(out.stderr, show_log)
 
 
 def filter(expr, input, **options):

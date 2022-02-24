@@ -67,10 +67,10 @@ def read(*urls, progress=None, show_log=None, **options):
     out = ffmpegprocess.run(
         args,
         progress=progress,
-        capture_log=None if show_log else False,
+        capture_log=None if show_log else True,
     )
     if out.returncode:
-        raise FFmpegError(out.stderr)
+        raise FFmpegError(out.stderr, show_log)
 
     # fire up the AVI reader and process the stdout bytes
     # TODO: Convert to use pipe/thread
