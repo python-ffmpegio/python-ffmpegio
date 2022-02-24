@@ -3,7 +3,9 @@ from collections import abc
 
 from .utils import filter as filter_utils
 
-__all__ = ["parse", "compose"]
+__all__ = ["parse", "compose", "FLAG"]
+
+FLAG = None
 
 # till v3.7 is dropped
 form_shell_cmd = (
@@ -38,7 +40,7 @@ def parse_options(args):
                 res[key].append(args[i])
             i += 1
         else:
-            res[key] = None
+            res[key] = FLAG
     return res
 
 
@@ -78,8 +80,8 @@ def parse(cmdline):
         k = s[1:]
         if k in ("h", "?", "help", "-help"):  # special case take all args thereafter
             gopts[k] = " ".join(args[i + 1 :])
-        elif all_gopts[k] is None:
-            gopts[k] = None
+        elif all_gopts[k] is FLAG:
+            gopts[k] = FLAG
         else:
             gopts[k] = args[i + 1]
             is_lopt[i + 1] = False
@@ -104,7 +106,7 @@ def parse(cmdline):
             i == 0  # no output options
             or args[i - 1][0] != "-"  # prev arg specifies an output option value
             or all_lopts.get(args[i - 1][1:].split(":", 1)[0], False)
-            is None  # prev arg is a flag
+            is FLAG  # prev arg is a flag
         )
     ]
     outputs = [
@@ -170,7 +172,7 @@ def compose(args, command="", shell_command=False):
                     args.extend([karg, str(v)])
             else:
                 args.append(karg)
-                if val is not None:
+                if val is not FLAG:
                     args.append(str(val))
         return args
 
