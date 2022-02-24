@@ -27,12 +27,12 @@ from subprocess import DEVNULL, PIPE
 from copy import deepcopy
 from tempfile import TemporaryDirectory
 
-from .ffmpeg import parse, compose
+from .ffmpeg import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
 from .path import get_ffmpeg
 
-__all__ = ["versions", "run", "Popen", "PIPE", "DEVNULL", "devnull"]
+__all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
 
 
 def exec(
@@ -80,17 +80,31 @@ def exec(
         ffmpeg_args = parse(ffmpeg_args)
 
     gopts = ffmpeg_args.get("global_options", None)
-    if hide_banner:
-        if gopts is None:
-            gopts = ffmpeg_args["global_options"] = {"hide_banner": None}
-        else:
-            gopts["hide_banner"] = None
+    if gopts is None:
+        gopts = ffmpeg_args["global_options"] = {}
 
+    # disable user-interaction by default
+    if "stdin" not in gopts:
+        gopts["nostdin"] = FLAG
+
+    # hide preamble by default
+    if hide_banner:
+        gopts["hide_banner"] = FLAG
+
+    # add URL to dump progress status
     if progress and progress.url:
-        if gopts is None:
-            ffmpeg_args["global_options"] = {"progress": progress.url}
+        gopts["progress"] = progress.url
+
+    # set y or n flags (overwrite)
+    if overwrite is not None:
+        if "y" in gopts or "n" in gopts:
+            raise ValueError(
+                "Cannot set both the overwrite argument and a y/n global flag."
+            )
+        elif overwrite:
+            gopts["y"] = FLAG
         else:
-            gopts["progress"] = progress.url
+            gopts["n"] = FLAG
 
     # configure stdin pipe (if needed)
     def isreadable(f):
@@ -144,21 +158,6 @@ def exec(
     errpipe = stderr or (
         PIPE if capture_log else None if capture_log is None else DEVNULL
     )
-
-    # set y or n flags (overwrite)
-    gopts = ffmpeg_args["global_options"]
-    if not (gopts and ("y" in gopts or "n" in gopts)):
-        if gopts is None:
-            gopts = ffmpeg_args["global_options"] = {}
-        if any((True for url, _ in ffmpeg_args.get("outputs", []) if url == devnull)):
-            gopts["y"] = None  # output to null, need to overwrite
-        elif overwrite is not None:
-            gopts["y" if overwrite else "n"] = None
-        else:
-            # set to no-overwrite by default to avoid hanging
-            gopts["n"] = None
-    elif overwrite is not None:
-        raise ValueError('Cannot set both the y/n global flag and the overwrite argument.')
 
     args = compose(ffmpeg_args, command=get_ffmpeg())
     logging.debug(args)
