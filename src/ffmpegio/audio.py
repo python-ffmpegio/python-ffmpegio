@@ -244,7 +244,7 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
     )
     configure.add_url(ffmpeg_args, "output", url, options)
 
-    ffmpegprocess.run(
+    out = ffmpegprocess.run(
         ffmpeg_args,
         input=plugins.get_hook().audio_bytes(obj=data),
         stdout=stdout,
@@ -252,6 +252,8 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
         overwrite=overwrite,
         capture_log=None if show_log else False,
     )
+    if out.returncode:
+        raise FFmpegError(out.stderr)
 
 
 def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):

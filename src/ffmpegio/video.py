@@ -254,7 +254,7 @@ def write(
         else {}
     )
 
-    (ffmpegprocess.run_two_pass if two_pass else ffmpegprocess.run)(
+    out = (ffmpegprocess.run_two_pass if two_pass else ffmpegprocess.run)(
         ffmpeg_args,
         input=plugins.get_hook().video_bytes(obj=data),
         stdout=stdout,
@@ -263,6 +263,8 @@ def write(
         **kwargs,
         capture_log=None if show_log else False,
     )
+    if out.returncode:
+        raise FFmpegError(out.stderr)
 
 
 def filter(expr, rate, input, progress=None, show_log=None, **options):

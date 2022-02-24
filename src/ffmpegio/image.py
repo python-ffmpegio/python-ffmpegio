@@ -205,13 +205,16 @@ def write(url, data, overwrite=None, show_log=None, **options):
 
     configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
 
-    ffmpegprocess.run(
+    out = ffmpegprocess.run(
         ffmpeg_args,
         input=plugins.get_hook().video_bytes(obj=data),
         stdout=stdout,
         overwrite=overwrite,
         capture_log=None if show_log else False,
     )
+
+    if out.returncode:
+        raise FFmpegError(out.stderr)
 
 
 def filter(expr, input, **options):
