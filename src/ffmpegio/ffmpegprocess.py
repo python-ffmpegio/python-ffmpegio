@@ -593,12 +593,13 @@ def run_two_pass(
         if stdin is not None:
             pos = stdin.tell()
 
-        run(pass1_args, **other_run_kwargs)
+        ret = run(pass1_args, **other_run_kwargs)
+        if not ret.returncode:
 
-        if stdin is not None:
-            stdin.seek(pos)
+            if stdin is not None:
+                stdin.seek(pos)
 
-        ret = run(ffmpeg_args, overwrite=overwrite, **other_run_kwargs)
+            ret = run(ffmpeg_args, overwrite=overwrite, **other_run_kwargs)
 
     # split log lines
     if ret.stderr is not None:
