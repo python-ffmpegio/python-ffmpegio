@@ -430,7 +430,6 @@ def guess_video_format(shape, dtype):
             "<f4": {1: "grayf32le"},
         }[dtype][ncomp]
     except Exception as e:
-        print(e)
         raise ValueError(
             f"dtype ({dtype}) and guessed number of components ({ncomp}) do not yield a pix_fmt."
         )
