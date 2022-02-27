@@ -15,24 +15,6 @@ ERROR_MESSAGES = (
     r"Unknown key '.+?' in FFREPORT",
     r"Out of memory building report file name",
     r"Failed to open report ",
-    # cmdutils.c::show_help_codec()
-    r"No codec name specified\.",
-    r"Codec '.+?' is known to FFmpeg, but no .+? for it are available\.",
-    r"Codec '.+?' is not recognized by FFmpeg\.",
-    # cmdutils.c::show_help_demuxer()
-    r"Unknown format '.+?'\.",
-    # cmdutils.c::show_help_protocol()
-    r"No protocol name specified.",
-    r"Unknown protocol '.+?'\.",
-    # cmdutils.c::show_help_muxer()
-    r"Unknown format '.+?'\.",
-    # cmdutils.c::show_help_filter()
-    r"No filter name specified\.",
-    r"Unknown filter '.+?'\.",
-    r"Build without libavfilter; can not to satisfy request",
-    # cmdutils.c::show_help_bsf()
-    r"No bitstream filter name specified\.",
-    r"Unknown bit stream filter '.+?'\.",
     # cmdutils.c::check_stream_specifier()
     r"Invalid stream specifier: .+?\.",
     # ffmpeg_filter.c::insert_trim()

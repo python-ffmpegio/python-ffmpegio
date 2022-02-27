@@ -1,7 +1,8 @@
 import tempfile, re
 from os import path
 from ffmpegio.ffmpegprocess import run
-from ffmpegio import FFmpegError
+from ffmpegio import FFmpegError, caps
+import pytest
 
 
 def test_errors():
@@ -14,7 +15,20 @@ def test_errors():
     )
     assert FFmpegError(out.stderr).ffmpeg_msg == "fake.avi: No such file or directory"
 
-
+def test_caps_errors():
+    with pytest.raises(FFmpegError):
+        caps.bsfilter_info('bogus')
+    with pytest.raises(FFmpegError):
+        caps.muxer_info('bogus')
+    with pytest.raises(FFmpegError):
+        caps.demuxer_info('bogus')
+    with pytest.raises(FFmpegError):
+        caps.encoder_info('bogus')
+    with pytest.raises(FFmpegError):
+        caps.decoder_info('bogus')
+    with pytest.raises(FFmpegError):
+        caps.filter_info('bogus')
+    
 if __name__ == "__main__":
 
     # import os
