@@ -22,32 +22,21 @@ ERROR_MESSAGES = (
     # ffmpeg_filter.c::configure_input_filter()
     r"No decoder for stream #\d+:\d+, filtering impossible"
     # ffmpeg_filter.c::configure_filtergraph()
-    r"Simple filtergraph '.+?' was expected to have exactly 1 input and 1 output",
     r"Encoder \(codec .+?\) not found for output stream #d+:\d+",
     # ffmpeg_hw.c::hw_device_init_from_string()
     r"Invalid device specification ",
     r"Device creation failed: \d+\.",
     # ffmpeg_hw.c::hwaccel_retrieve_data()
     r"Failed to transfer data to output frame: ",
-    # ffmpeg_opt.c::opt_stats_period()
-    r"stats_period .+? must be positive",
     # ffmpeg_opt.c::opt_filter_hw_device()
     r"Only one filter device can be used",
     r"Invalid filter device ",
-    # ffmpeg_opt.c::choose_encoder()
-    r"Automatic encoder selection failed for output stream #\d+:\d+",
-    # ffmpeg_opt.c::read_file()
-    r"Error opening file ",
     # ffmpeg_opt.c::new_audio_stream()
     r"Cannot determine input stream for channel mapping ",
     # ffmpeg_opt.c::open_output_file()
     r".+?: Cannot allocate memory",  # ...
     # ffmpeg_opt.c::opt_target()
     r"Unknown target: ",
-    # ffmpeg_opt.c::opt_channel_layout()
-    r"Unknown channel layout: ",
-    # ffmpeg_opt.c::show_help_default()
-    r"Unknown help option ",
     # ffmpeg_opt.c::open_files()
     r"Error parsing options for .+? file ",  # -1
     r"Error opening .+ file ",  # -1
@@ -65,23 +54,11 @@ FINAL_ERROR_MESSAGES = (
     # ffmpeg_filter.c::init_input_filter()
     r"Only video and audio filters supported currently",
     r"Invalid file index \d+ in filtergraph description ",
-    r"Stream specifier '.+?' in filtergraph description .+? matches no streams",
     r"Stream specifier '.+?' in filtergraph description .+? matches a disabled input stream",
     r"Cannot find a matching stream for unlabeled input pad \d+ on filter ",
-    # ffmpeg_filter.c::configure_output_filter()
-    # ffmpeg_filter.c::check_filter_outputs()
-    r"Filter .+? has an unconnected output",
-    # ffmpeg_opt.c::opt_map()
-    r"Invalid sync file index: ",
-    r"Sync stream specification in map .+? does not match any streams",
-    r"Sync stream specification in map .+? matches a disabled input stream",
-    r"Invalid output link label: ",
-    r"Invalid input file index: ",
     # ffmpeg_opt.c::opt_map_channel()
-    r"Syntax error, mapchan usage: \[file.stream.channel\|-1\]\[:syncfile:syncstream\]",
     r"mapchan: invalid input file index: ",
     r"mapchan: invalid input file stream index ",
-    r"mapchan: stream #d+.\d+ is not an audio stream",
     r"mapchan: invalid audio channel #\d+.\d+.\d+"  # +1
     # ffmpeg_opt.c::parse_meta_type()
     r"Invalid metadata specifier ",
@@ -114,7 +91,6 @@ FINAL_ERROR_MESSAGES = (
     r"Could not alloc buffer for reading preset",
     # ffmpeg_opt.c::new_output_stream()
     r"Could not alloc stream",
-    r"Error selecting an encoder for stream",
     r"Error allocating the encoding context",
     r"Error allocating the encoding parameters",
     r"Invalid line found in the preset file",
@@ -150,7 +126,6 @@ FINAL_ERROR_MESSAGES = (
     r"Invalid value '.+?' for option '.+?', required syntax is 'index:value'",
     # ffmpeg_opt.c::init_output_filter()
     r"Only video and audio filters are supported currently",
-    r"Streamcopy requested for output stream \d+:\d+, which is fed from a complex filtergraph",
     r"Filtergraph( script?) '.+?' was specified through the .+? option for output stream \d+:\d+, which is fed from a complex filtergraph",  # +1
     # ffmpeg_opt.c::open_output_file()
     r"-to value smaller than -ss; aborting.",
@@ -173,8 +148,6 @@ FINAL_ERROR_MESSAGES = (
     r"Invalid program index \d+ in metadata specifier",
     r"Invalid metadata specifier ",
     r"Error setting output stream dispositions",
-    # ffmpeg_opt.c::opt_target()
-    r"Could not determine norm \(PAL/NTSC/NTSC-Film\) for target",  # +2
     # ffmpeg_opt::opt_vstats()
     r"Unable to get current time: ",
     # ffmpeg_opt.c::opt_preset()
@@ -189,8 +162,6 @@ FINAL_ERROR_MESSAGES = (
     r"Non-monotonous DTS in output stream ",
     # ffmpeg.c::output_packet()
     r"Error applying bitstream filters to an output packet for stream",
-    # ffmpeg.c::init_output_stream_wrapper()
-    r"Error initializing output stream ",
     # ffmpeg.c::do_audio_out()
     r"Audio encoding failed",
     # ffmpeg.c::do_video_out()
@@ -230,6 +201,8 @@ class FFmpegError(RuntimeError):
 
         if logs is None or not len(logs):
             msg = "FFmpeg failed for unknown reason (no log available)."
+        if logs[0].startswith("Unknown help option "):
+            msg = logs[0]
         else:
 
             msg = logs[-1]
@@ -247,6 +220,8 @@ class FFmpegError(RuntimeError):
                 msg = f"{logs[-2]}\n  {msg}"
             elif msg == "FFmpeg cannot edit existing files in-place.":
                 msg = f"{logs[-2]}\n  {msg}"
+            elif msg == 'or set a framerate with "-r xxx".':
+                msg = "\n  ".join(logs[-3:])
             elif msg.startswith("Error opening output files: "):
                 err = logs[-2]
                 i = -2
@@ -263,25 +238,32 @@ class FFmpegError(RuntimeError):
             elif msg.startswith("Error splitting the argument list: "):
                 msg = f"{logs[-2]}\n  {msg}"
             elif msg.startswith("Error parsing global options:"):
-                if logs[-3].startswith("Failed to open progress URL "):
+                if logs[-2].endswith("Invalid argument"):
                     msg = "\n  ".join(logs[-3:])
                 else:
                     msg = f"{logs[-2]}\n  {msg}"
+            elif msg.startswith("Error selecting an encoder for stream "):
+                msg = "\n  ".join(logs[-2:])
             elif msg == "Conversion failed!":
                 msg = logs[-2]
+                iend = -1  # skip the last 2 lines
                 if msg.startswith(
                     "Error while processing the decoded data for stream "
                 ):
-                    err = logs[-3]
+                    iend = -2  # skip the last 2 lines
+                    i = -3  # show
                     if (
-                        err
+                        logs[-3]
                         == "Failed to inject frame into filter network: Invalid argument"
                     ):
-                        err = logs[-4]
-                        if err == "Error reinitializing filters!":
-                            err = logs[-5]
-                if err:
-                    msg = f"{err}\n  {msg}"
+                        i = -4
+                        if logs[i] == "Error reinitializing filters!":
+                            iend = -4
+                            i = -5
+                    msg = "\n  ".join(logs[i:iend])
+                elif msg.startswith("Error initializing output stream "):
+                    # Could not write header for output file
+                    msg = "\n  ".join(logs[-4:iend])
             elif msg.startswith("Device setup failed for decoder on input stream "):
                 re_clue = re.compile(r"\[.+?\]|Device creation failed: ")
                 err = next((m for m in reversed(logs[:-1]) if re_clue.match(m)), None)
@@ -308,5 +290,3 @@ To display the full FFmpeg log, use additional argument `show_log=True`."""
 
         super().__init__(ffmpeg_msg)
         self.ffmpeg_msg = msg
-
-

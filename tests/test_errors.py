@@ -1,7 +1,8 @@
+from pprint import pprint
 import tempfile, re
 from os import path
-from ffmpegio.ffmpegprocess import run
-from ffmpegio import FFmpegError, caps
+from ffmpegio.ffmpegprocess import run, PIPE
+from ffmpegio import FFmpegError, caps, probe
 import pytest
 
 
@@ -15,41 +16,35 @@ def test_errors():
     )
     assert FFmpegError(out.stderr).ffmpeg_msg == "fake.avi: No such file or directory"
 
+
 def test_caps_errors():
     with pytest.raises(FFmpegError):
-        caps.bsfilter_info('bogus')
+        caps.bsfilter_info("bogus")
     with pytest.raises(FFmpegError):
-        caps.muxer_info('bogus')
+        caps.muxer_info("bogus")
     with pytest.raises(FFmpegError):
-        caps.demuxer_info('bogus')
+        caps.demuxer_info("bogus")
     with pytest.raises(FFmpegError):
-        caps.encoder_info('bogus')
+        caps.encoder_info("bogus")
     with pytest.raises(FFmpegError):
-        caps.decoder_info('bogus')
+        caps.decoder_info("bogus")
     with pytest.raises(FFmpegError):
-        caps.filter_info('bogus')
-    
+        caps.filter_info("bogus")
+
+
 if __name__ == "__main__":
 
-    # import os
-    # os.environ['FFREPORT']="file=H:\\ffreport.log" 
-
     with tempfile.TemporaryDirectory() as tmpdirname:
-        # print(probe.audio_streams_basic(url))
-        url = r"tests\assets\testvideo-1m.mp4"
-        # url = r"tests\assets\testaudio-1m.mp3"
-        out_url = path.join(tmpdirname, "test.rgb")
-
         out = run(
             {
-                "inputs": [(url, {})], 
+                "inputs": [(url, {}), (srt, None)],
                 "outputs": [
                     (
-                        url,
-                        {"vframes": 10},
+                        out_url,
+                        {"vf": "scale=dstw=100", "c:s": "mov_text"},
                     )
                 ],
-                "global_options": {'y':None},
+                "global_options": {},
             },
             capture_log=True,
         )
@@ -58,5 +53,5 @@ if __name__ == "__main__":
     if out.returncode:
         raise FFmpegError(out.stderr)
     else:
-        print(out.returncode)
+        print("noerror")  # print(out.returncode)
     # assert str(FFmpegError(out.stderr)) == "Output file #0 does not contain any stream"
