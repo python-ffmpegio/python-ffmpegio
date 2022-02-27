@@ -40,7 +40,7 @@ except Exception as e:
 
 from . import ffmpegprocess
 
-from .utils.log import FFmpegError
+from .utils.error import FFmpegError
 from .utils.filter import FilterGraph
 from .transcode import transcode
 from . import caps, probe, audio, image, video, media

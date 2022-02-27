@@ -4,41 +4,6 @@ from fractions import Fraction
 from . import layout_to_channels
 from ..caps import sample_fmts
 
-
-class FFmpegError(RuntimeError):
-    def __init__(self, logs=None, log_shown=None):
-        if logs is not None:
-            if isinstance(logs, str):
-                logs = re.split(r"[\n\r]+", logs)
-            log = next((x for x in reversed(logs) if x.startswith("[")), None)
-            nl = "\n"
-            super().__init__(
-                f"FFmpeg failed with unknown error:\n{nl.join(logs)}"
-                if log is None
-                else log
-            )
-
-        # File '...' already exists. Exiting.
-
-        # ...: No such file or directory
-
-        # Unrecognized option '...'.
-        # Error splitting the argument list: Option not found
-
-        # [AVFilterGraph @ 000002108e25d040] No such filter: '...'
-
-        # Invalid duration specification for ss: 1001/15000
-
-        # Stream map '0:a:0' matches no streams.
-
-        elif log_shown:
-            super().__init__("FFmpeg failed. Check its log printed above.")
-        else:
-            super().__init__(
-                "FFmpeg failed with an unknown error. Set show_log=True or None to see the error."
-            )
-
-
 _re_audio = re.compile(r"(?:(\d+) Hz, )?(.+)")
 
 
