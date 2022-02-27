@@ -10,11 +10,6 @@ ERROR_MESSAGES = (
     r"Missing argument for option '.+?'\.",
     r"Error parsing option '.+?' with argument '.+?'\.",
     r"Unrecognized option '.+?'\.",
-    # cmdutils.c::init_report()
-    r"Failed to parse FFREPORT environment variable: ",
-    r"Unknown key '.+?' in FFREPORT",
-    r"Out of memory building report file name",
-    r"Failed to open report ",
     # cmdutils.c::check_stream_specifier()
     r"Invalid stream specifier: .+?\.",
     # ffmpeg_filter.c::insert_trim()
@@ -256,7 +251,6 @@ class FFmpegError(RuntimeError):
                 err = logs[-2]
                 i = -2
                 if err.startswith("Error parsing options for output file "):
-                    # cmdutils.c::write_option()
                     m = re.match(
                         r"Failed to set value '.+?' for option '(.+?)':", logs[-3]
                     )
@@ -264,7 +258,6 @@ class FFmpegError(RuntimeError):
                         i = -4 if m[1] == "target" else -3
                     else:
                         i = -2
-                print(i)
                 msg = "\n  ".join(logs[i:])
 
             elif msg.startswith("Error splitting the argument list: "):
@@ -302,8 +295,6 @@ class FFmpegError(RuntimeError):
                     if logs[-2].startswith("[lavfi ")
                     else logs[-2]
                 )  # ...
-
-        # [AVFilterGraph @ 000002108e25d040] No such filter: '...'
 
         if log_shown:
             ffmpeg_msg = "FFmpeg failed. Check its log printed above."
