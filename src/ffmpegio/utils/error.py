@@ -200,7 +200,7 @@ class FFmpegError(RuntimeError):
             logs = re.split(r"[\n\r]+", logs.rstrip())
 
         if logs is None or not len(logs):
-            msg = "FFmpeg failed for unknown reason (no log available)."
+            logs = ["FFmpeg failed for unknown reason (no log available)."]
         if logs[0].startswith("Unknown help option "):
             msg = logs[0]
         else:
