@@ -1,8 +1,6 @@
-from ffmpegio import image, probe, transcode
+from ffmpegio import image, probe, transcode, FFmpegError
 import tempfile, re
 from os import path
-
-from ffmpegio.utils.log import FFmpegError
 
 outext = ".png"
 

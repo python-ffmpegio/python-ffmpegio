@@ -86,8 +86,10 @@ def compose_filter_args(*args):
         else:
             value = str(value)
 
-        # use quote if value start or ends with space
+        # escape special characters
         s = re.sub(r"([':\\])", r"\\\1", value)
+        
+        # use quote if value start or ends with space
         m = re.match(r"^(\s+)", s)
         if m:
             i = m.end()

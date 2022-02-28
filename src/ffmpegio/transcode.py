@@ -1,5 +1,4 @@
-from . import ffmpegprocess, configure, utils, probe
-from .utils.log import FFmpegError
+from . import ffmpegprocess, configure, utils, probe, FFmpegError
 
 __all__ = ["transcode"]
 
