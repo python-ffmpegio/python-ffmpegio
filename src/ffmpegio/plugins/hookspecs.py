@@ -117,3 +117,20 @@ def device_sink_api() -> Tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+def list_macros() -> dict[str, Callable]:
+    """return a list of macros defined in the plugin"""
+
+
+# @hookspec(firstresult=True)
+# def run_macro(name: str, args: Tuple, kwargs: dict) -> bool or None:
+#     """search and run ffmpegio macro given variable and keyword arguments.
+
+#     :param name: name of requested macro
+#     :type name: str
+#     :param args: arguments
+#     :type args: tuple
+#     :param kwargs: keyword arguments
+#     :type kwargs: dict
+#     :return: True if requested macro was found and run
+#     :rtype: bool|None
+#     """
