@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pluggy
-from typing import Callable, Tuple
+from typing import Callable, Tuple, Sequence
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
 
@@ -117,20 +117,25 @@ def device_sink_api() -> Tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+
 def list_macros() -> dict[str, Callable]:
     """return a list of macros defined in the plugin"""
 
+def list_actions() -> Sequence[str]:
+    """return a list of names of the custom actions defined in the plugin
+    
+       :return: List of action names
+       :rtype: Sequence[str]
 
-# @hookspec(firstresult=True)
-# def run_macro(name: str, args: Tuple, kwargs: dict) -> bool or None:
-#     """search and run ffmpegio macro given variable and keyword arguments.
+    """
 
-#     :param name: name of requested macro
-#     :type name: str
-#     :param args: arguments
-#     :type args: tuple
-#     :param kwargs: keyword arguments
-#     :type kwargs: dict
-#     :return: True if requested macro was found and run
-#     :rtype: bool|None
-#     """
+@hookspec(firstresult=True)
+def find_action(name: str) -> Callable:
+    """return specified action function
+    
+       :param name: name of the action
+       :typ name: str
+       :return: action function or None if no match found
+       :rtype: Callable or None
+
+    """
