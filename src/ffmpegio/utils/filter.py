@@ -88,7 +88,7 @@ def compose_filter_args(*args):
 
         # escape special characters
         s = re.sub(r"([':\\])", r"\\\1", value)
-        
+
         # use quote if value start or ends with space
         m = re.match(r"^(\s+)", s)
         if m:
@@ -1437,6 +1437,115 @@ class FilterGraph:
             return dst
 
 
+def FilterChain(filter_specs):
+    return FilterGraph([filter_specs])
+
+# list of filters with multiple outputs
+#  'asegment': None,
+#  'aselect': None,
+#  'asplit': None,
+#  'astreamselect': None,
+#  'concat': None,
+#  'extractplanes': None,
+#  'channelsplit': None,
+#  'scale2ref': 2,
+#  'segment': None,
+#  'select': None,
+#  'split': None,
+#  'streamselect': None
+#  'acrossover': None,
+#  'anequalizer': None,
+#  'ebur128': None,
+
+# list of filters with multiple inputs
+#  'acrossfade': 2,
+#  'ainterleave': None,
+#  'alphamerge': 2,
+#  'amerge': None,
+#  'amix': None,
+#  'amultiply': 2,
+#  'astreamselect': None,
+#  'blend': 2,
+#  'concat': None,
+#  'convolve': 2,
+#  'deconvolve': 2,
+#  'displace': 3,
+#  'framepack': 2,
+#  'freezeframes': 2,
+#  'haldclut': 2,
+#  'hstack': None,
+#  'hysteresis': 2,
+#  'identity': 2,
+#  'interleave': None,
+#  'join': None,
+#  'lut2': 2,
+#  'maskedclamp': 3,
+#  'maskedmax': 3,
+#  'maskedmerge': 3,
+#  'maskedmin': 3,
+#  'maskedthreshold': 2,
+#  'mergeplanes': None,
+#  'midequalizer': 2,
+#  'mix': None,
+#  'morpho': 2,
+#  'msad': 2,
+#  'overlay': 2,
+#  'overlay_cuda': 2,
+#  'overlay_qsv': 2,
+#  'paletteuse': 2,
+#  'premultiply': None,
+#  'remap': 3,
+#  'scale2ref': 2,
+#  'sidechaincompress': 2,
+#  'sidechaingate': 2,
+#  'spectrumsynth': 2,
+#  'ssim': 2,
+#  'streamselect': None,
+#  'threshold': 4,
+#  'unpremultiply': None,
+#  'varblur': 2,
+#  'vstack': None,
+#  'xcorrelate': 2,
+#  'xfade': 2,
+#  'xmedian': None,
+#  'xstack': None
+
+
+def concat():
+    pass
+
+def overlay():
+    pass
+
+def segment():
+    pass
+
+def asegment():
+    pass
+
+def select():
+    pass
+
+def aselect():
+    pass
+
+def split():
+    pass
+
+def asplit():
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
 def compose(expr, **kwargs):
     """compose filter, filter chain, or filter graph
 
@@ -1479,9 +1588,13 @@ def video_basic_filter(
     elif square_pixels == "downscale":
         vfilters.append("scale='min(iw,ih*dar):min(iw/dar,ih):eval=init',setsar=1/1")
     elif square_pixels == "upscale_even":
-        vfilters.append("scale='trunc(max(iw,ih*dar)/2)*2:trunc(max(iw/dar,ih)/2)*2:eval=init',setsar=1/1")
+        vfilters.append(
+            "scale='trunc(max(iw,ih*dar)/2)*2:trunc(max(iw/dar,ih)/2)*2:eval=init',setsar=1/1"
+        )
     elif square_pixels == "downscale_even":
-        vfilters.append("scale='trunc(min(iw,ih*dar)/2)*2:trunc(min(iw/dar,ih)/2)*2:eval=init',setsar=1/1")
+        vfilters.append(
+            "scale='trunc(min(iw,ih*dar)/2)*2:trunc(min(iw/dar,ih)/2)*2:eval=init',setsar=1/1"
+        )
     elif square_pixels is not None:
         raise ValueError(f"unknown `square_pixels` option value given: {square_pixels}")
 
