@@ -35,7 +35,7 @@ from . import path
 try:
     path.find()
 except Exception as e:
-    logging.warn(str(e))
+    logging.warning(str(e))
 
 
 from . import ffmpegprocess
