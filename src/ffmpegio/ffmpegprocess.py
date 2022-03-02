@@ -30,7 +30,7 @@ from tempfile import TemporaryDirectory
 from .ffmpeg import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
-from .path import get_ffmpeg
+from .path import where
 
 __all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
 
@@ -159,7 +159,7 @@ def exec(
         PIPE if capture_log else None if capture_log is None else DEVNULL
     )
 
-    args = compose(ffmpeg_args, command=get_ffmpeg())
+    args = compose(ffmpeg_args, command=where())
     logging.debug(args)
 
     # run the FFmpeg

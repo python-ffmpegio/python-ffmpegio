@@ -35,7 +35,7 @@ def ffprobe(
     :rtype: str
     """
     args = [
-        path.get_ffmpeg(probe=True),
+        path.where(probe=True),
         *(["-hide_banner"] if hide_banner else []),
         *(shlex.split(args) if isinstance(args, str) else args),
     ]

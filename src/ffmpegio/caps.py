@@ -2,7 +2,7 @@
 
 import re, fractions, subprocess as sp
 
-from .path import get_ffmpeg
+from .path import where
 from .utils.error import FFmpegError
 
 # fmt:off
@@ -32,7 +32,7 @@ _cache = dict()
 def ffmpeg(gopts):
 
     out = sp.run(
-        [get_ffmpeg(), "-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8"
+        [where(), "-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8"
     )
 
     if out.returncode or out.stdout.count("\n") == 1:
