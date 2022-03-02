@@ -1,6 +1,9 @@
+from email.utils import parseaddr
 import re, itertools
 from collections.abc import Sequence
 from copy import deepcopy
+
+from black import T
 
 from .. import utils
 
@@ -1440,6 +1443,37 @@ class FilterGraph:
 def FilterChain(filter_specs):
     return FilterGraph([filter_specs])
 
+
+def mimo_filter(
+    filter, in_fgs, out_fgs, in_map=None, out_map=None, *filter_opts, **filter_kw_opts
+):
+    """Join filtergraphs with a mimo filter
+
+    :param filter: _description_
+    :type filter: str
+    :param in_fgs: _description_
+    :type in_fgs: Sequence[FilterGraph]
+    :param out_fgs: _description_
+    :type out_fgs: Sequence[FilterGraph]
+    :param map: _description_, defaults to None
+    :type map: dict, optional
+    """
+
+    try:
+        in_fgs = [FilterGraph(fg) for fg in in_fgs]
+        out_fgs = [FilterGraph(fg) for fg in out_fgs]
+    except:
+        raise ValueError(
+            "All elements of in_fgs and out_fgs must be FilterGraph instances or str"
+        )
+
+    if in_map is None:
+        # assume the last output of each fg
+        def pick_last(fg):
+            pass
+        pass
+
+
 # list of filters with multiple outputs
 #  'asegment': None,
 #  'aselect': None,
@@ -1514,36 +1548,33 @@ def FilterChain(filter_specs):
 def concat():
     pass
 
+
 def overlay():
     pass
+
 
 def segment():
     pass
 
+
 def asegment():
     pass
+
 
 def select():
     pass
 
+
 def aselect():
     pass
+
 
 def split():
     pass
 
+
 def asplit():
     pass
-
-
-
-
-
-
-
-
-
-
 
 
 def compose(expr, **kwargs):

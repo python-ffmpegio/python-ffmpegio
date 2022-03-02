@@ -837,7 +837,7 @@ def filter_info(name):
     options      str             Unparsed string, listing supported options
     ===========  ==============  ================================================
 
-    The dict iterms of 'inputs' and 'outputs' entries has two keys: 'name' and 'type'
+    The dict items of 'inputs' and 'outputs' entries has two keys: 'name' and 'type'
     defining the pad name and pad stream type ('audio' or 'video')
 
     """

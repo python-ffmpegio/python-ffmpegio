@@ -147,7 +147,7 @@ if __name__ == "__main__":
     from ffmpegio import caps
 
     fall = caps.filters()
-    pprint(fall['concat'])
+    pprint(fall["concat"])
     pprint(
         {
             k: v["num_outputs"]
