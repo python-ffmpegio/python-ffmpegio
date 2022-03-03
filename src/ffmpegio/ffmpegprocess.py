@@ -463,7 +463,7 @@ def run(
         )
 
     # return stderr as str
-    if ret.stderr is not None:
+    if isinstance(ret.stderr, bytes):
         ret.stderr = ret.stderr.decode("utf-8")
 
     return ret
@@ -601,7 +601,7 @@ def run_two_pass(
             ret = run(ffmpeg_args, overwrite=overwrite, **other_run_kwargs)
 
     # split log lines
-    if ret.stderr is not None:
+    if isinstance(ret.stderr, bytes):
         ret.stderr = ret.stderr.decode("utf-8")
 
     return ret
