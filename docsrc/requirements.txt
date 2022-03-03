@@ -5,3 +5,4 @@ sphinxcontrib-blockdiag
 PyQt5-sip
 PyQt5
 matplotlib
+ffmpegio
