@@ -269,7 +269,7 @@ class SimpleAudioReader(SimpleReaderBase):
         # finalize FFmpeg arguments and output array
 
         inurl, inopts = ffmpeg_args.get("inputs", [])[0]
-        has_fg = configure.has_filtergraph(ffmpeg_args, "video")
+        has_fg = configure.has_filtergraph(ffmpeg_args, "audio")
 
         sample_fmt_in = inopts.get("sample_fmt", None)
         ac_in = ar_in = None
