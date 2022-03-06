@@ -289,8 +289,7 @@ class Popen(sp.Popen):
                 if k
                 in (
                     # fmt: off
-                    "bufsize", "executable",
-                    "close_fds", "shell", "niversal_newlines", "pass_fds",
+                    "executable", "close_fds", "shell", "niversal_newlines", "pass_fds",
                     "encoding", "errors", "text", "pipesize",
                     # fmt: on
                 )
