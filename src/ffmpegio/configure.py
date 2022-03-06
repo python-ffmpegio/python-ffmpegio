@@ -154,7 +154,7 @@ def add_url(args, type, url, opts=None):
     return id, filelist[id]
 
 
-def has_filtergraph(args, type, file_id=None, stream_id=None):
+def has_filtergraph(args, type):
     """True if FFmpeg arguments specify a filter graph
 
     :param args: FFmpeg argument dict
@@ -177,16 +177,25 @@ def has_filtergraph(args, type, file_id=None, stream_id=None):
     except:
         pass  # no global_options defined
 
-    try:
-        opts = args["outputs"][file_id or 0][1]
-        spec = utils.spec_stream(stream_id, type, no_join=True)
-        spec[0] = f"filter:{spec[0]}"
-        for i in range(1, len(spec)):
-            spec[i] = f"{spec[i-1]}:{spec[i]}"
-        onames = (*spec[::-1], f"{spec[0][-1]}f")
-        return any((o in opts for o in onames))
-    except:
-        return False  # no output options defined
+    # input filter
+    if any(
+        (opts is not None and opts.get("f", None) == "lavfi" for _, opts in args["inputs"])
+    ):
+        return True
+
+    # output filter
+    short_opt = {"video": "vf", "audio": "af"}[type]
+    other_st = {"video": "a", "audio": "v"}[type]
+    re_opt = re.compile(rf"{short_opt}$|filter(?::(?=[^{other_st}]).*?)?$")
+    if any(
+        (
+            any((re_opt.match(key) for key in opts.keys()))
+            for _, opts in args["outputs"]
+        )
+    ):
+        return True
+
+    return False  # no output options defined
 
 
 def finalize_video_read_opts(
@@ -227,7 +236,7 @@ def finalize_video_read_opts(
 
     # if no filter and video shape and rate are known, all known
     r = s = None
-    if not has_filtergraph(args, "video", ofile) and ncomp is not None:
+    if not has_filtergraph(args, "video") and ncomp is not None:
         r = outopts.get("r", inopts.get("r", r_in))
 
         s = outopts.get("s", inopts.get("s", s_in))
@@ -328,7 +337,7 @@ def finalize_audio_read_opts(
 ):
     inopts = args["inputs"][ifile][1] or {}
     outopts = args["outputs"][ofile][1]
-    has_filter = has_filtergraph(args, "audio", ofile)
+    has_filter = has_filtergraph(args, "audio")
 
     if outopts is None:
         outopts = {}
