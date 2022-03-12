@@ -12,11 +12,20 @@ url_short = "sine=220:4:d=5"
 # fg = "[0:a][1:a]amix=weights=1|2[out]"
 fg = "[1:a]adelay=3000,apad,asplit=2[sc][mix];[0:a][sc]sidechaincompress=threshold=0.003:ratio=20[bg];[bg][mix]amix=duration=shortest[out]"
 
+# ffmpegio.ffmpegprocess.run(
+#     {
+#         "inputs": [(url_long, {'f':'lavfi'}), (url_short, {'f':'lavfi'})],
+#         "outputs": [("sandbox/output.mp3", {"map": "[out]"})],
+#         "global_options": {"filter_complex": fg},
+#     },
+#     overwrite=True,
+# )
+
 ffmpegio.ffmpegprocess.run(
     {
-        "inputs": [(url_long, {'f':'lavfi'}), (url_short, {'f':'lavfi'})],
-        "outputs": [("sandbox/output.mp3", {"map": "[out]"})],
-        "global_options": {"filter_complex": fg},
+        "inputs": [(url_long, {'f':'lavfi'})],
+        "outputs": [("sandbox/output.mp3", {"af": "volume=0.0"})],
+        "global_options": {},
     },
     overwrite=True,
 )
