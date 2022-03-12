@@ -1,5 +1,5 @@
 import pluggy
-from typing import Tuple
+from typing import Callable, Tuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
 
@@ -86,4 +86,25 @@ def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> ob
     :type squeeze: bool
     :return: python object to hold the raw audio samples
     :rtype: object
+    """
+
+
+@hookspec
+def device_format() -> str:
+    """return the format name of the device"""
+
+
+@hookspec
+def device_api() -> dict[str, Callable]:
+    """return set of interface functions
+
+    keyword/signature                                     Descriptions
+    ----------------------------------------------------  -------------------------------------------------------
+    rescan()                                              scan system for available devices
+    resolve(dev_type: str, url: str) -> str               resolve stream specifier type url to proper device url
+    list_sources() -> dict[str, dict]                     list of available sources
+    list_sinks() -> dict[str, dict]                       list of available sinks
+    list_options(dev_type: str, spec: str) -> List[dict]  list available device options (some may return a range)
+
+    Partial definition is OK
     """
