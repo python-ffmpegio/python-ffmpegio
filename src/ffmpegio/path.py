@@ -1,11 +1,15 @@
 from os import path as _path, name as _os_name
 from shutil import which
+from subprocess import run, PIPE
+import re
+from packaging.version import Version
 
 from . import plugins
 
 # add FFmpeg directory to the system path as given in system environment variable FFMPEG_DIR
 FFMPEG_BIN = None
 FFPROBE_BIN = None
+FFMPEG_VER = None
 
 
 def found():
@@ -53,7 +57,7 @@ def find(ffmpeg_path=None, ffprobe_path=None):
 
     """
 
-    global FFMPEG_BIN, FFPROBE_BIN
+    global FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
 
     has_ffmpeg = ffmpeg_path is not None
     has_ffprobe = ffprobe_path is not None
@@ -83,16 +87,27 @@ def find(ffmpeg_path=None, ffprobe_path=None):
                 if has_ffdir
                 else f"ffprobe executable not found or {ffprobe_path}"
             )
-        FFMPEG_BIN = ffmpeg_path
-        FFPROBE_BIN = ffprobe_path
+        ffmpeg_bin = ffmpeg_path
+        ffprobe_bin = ffprobe_path
     elif which("ffmpeg") and which("ffprobe"):
-        FFMPEG_BIN = "ffmpeg"
-        FFPROBE_BIN = "ffprobe"
+        ffmpeg_bin = "ffmpeg"
+        ffprobe_bin = "ffprobe"
     else:
         res = plugins.get_hook().finder()
         if res is None:
             raise RuntimeError("Failed to auto-detect ffmpeg and ffprobe executable.")
-        FFMPEG_BIN, FFPROBE_BIN = res
+        ffmpeg_bin, ffprobe_bin = res
+
+    try:
+        out = run([ffmpeg_bin, "-version"], stdout=PIPE, universal_newlines=True)
+        assert not out.returncode
+        m = re.match(r"ffmpeg version ([.\d]+)", out.stdout)
+        FFMPEG_VER = Version(m[1]) if m else "nightly"
+    except:
+        raise RuntimeError("Detected FFmpeg failed to produce a version number.")
+
+    FFMPEG_BIN = ffmpeg_bin
+    FFPROBE_BIN = ffprobe_bin
 
 
 def get_ffmpeg(probe=False):
