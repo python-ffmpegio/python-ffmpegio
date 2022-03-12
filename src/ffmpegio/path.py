@@ -61,15 +61,15 @@ def find(ffmpeg_path=None, ffprobe_path=None):
 
     has_ffmpeg = ffmpeg_path is not None
     has_ffprobe = ffprobe_path is not None
-    has_ffdir = has_ffmpeg and _path.isfile(ffmpeg_path)
+    has_ffdir = has_ffmpeg and _path.isdir(ffmpeg_path)
 
-    if (has_ffdir and has_ffprobe) or (has_ffmpeg != has_ffprobe):
+    if (has_ffmpeg != has_ffprobe) and (not has_ffdir or has_ffprobe):
         raise ValueError(
             "Either specify paths of both ffmpeg and ffprobe or a path to the directory containing both."
         )
 
     if has_ffdir:
-        ext = ".exe" if _os_name != "nt" else ""
+        ext = ".exe" if _os_name == "nt" else ""
         ffdir = ffmpeg_path
         ffmpeg_path = _path.join(ffdir, f"ffmpeg{ext}")
         ffprobe_path = _path.join(ffdir, f"ffprobe{ext}")
