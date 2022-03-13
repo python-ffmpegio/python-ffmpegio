@@ -57,7 +57,7 @@ __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "transcode", "caps
 
 __version__ = "0.4.3"
 
-ffmpeg_info = ffmpegprocess.versions
+ffmpeg_info = path.versions
 set_path = path.find
 get_path = path.where
 is_ready = path.found

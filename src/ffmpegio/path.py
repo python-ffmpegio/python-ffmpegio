@@ -1,7 +1,7 @@
 from os import path as _path, name as _os_name
 from shutil import which
 from subprocess import run, PIPE
-import re
+import re, shlex, subprocess as sp
 from packaging.version import Version
 
 from . import plugins
@@ -107,3 +107,49 @@ def find(ffmpeg_path=None, ffprobe_path=None):
         if res is None:
             raise RuntimeError("Failed to auto-detect ffmpeg and ffprobe executable.")
         FFMPEG_BIN, FFPROBE_BIN = res
+
+
+def _exec(args, **other_run_args):
+    """just run ffmpeg without bells-n-whistles
+
+    :param args: FFmpeg command arguments without `ffmpeg`
+    :type args: str or Sequence[str]
+    :param **other_run_args: subprocess.run() options
+    :type **other_run_args: dict
+    """
+    if isinstance(args, str):
+        args = shlex.split(args)
+    return sp.run((where(), *args), **other_run_args)
+
+
+def versions():
+    """Get FFmpeg version and configuration information
+
+    :return: versions of ffmpeg and its av libraries as well as build configuration
+    :rtype: dict
+
+    ==================  ====  =========================================
+    key                 type  description
+    ==================  ====  =========================================
+    'version'           str   FFmpeg version
+    'configuration'     list  list of build configuration options
+    'library_versions'  dict  version numbers of dependent av libraries
+    ==================  ====  =========================================
+
+    """
+    s = _exec(
+        ["-version"], stdout=PIPE, universal_newlines=True, encoding="utf-8"
+    ).stdout.splitlines()
+    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    i = 2 if s[1].startswith("built with") else 1
+    if s[i].startswith("configuration:"):
+        v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
+        i += 1
+    lv = None
+    for l in s[i:]:
+        m = re.match(r"(\S+)\s+(.+?) /", l)
+        if m:
+            if lv is None:
+                lv = v["library_versions"] = {}
+            lv[m[1]] = m[2].replace(" ", "")
+    return v

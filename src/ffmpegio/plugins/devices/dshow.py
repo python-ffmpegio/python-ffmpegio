@@ -1,8 +1,8 @@
 """ DirectShow device"""
 
 from copy import deepcopy
+from subprocess import PIPE
 from ffmpegio import path
-from ffmpegio.ffmpegprocess import run
 import re, logging
 from packaging.version import Version
 
@@ -21,12 +21,18 @@ def _rescan():
 
     global DSHOW_DEVICES
 
-    logs = run(
-        {
-            "inputs": [("dummy", {"f": "dshow", "list_devices": True})],
-            "global_options": {"loglevel": "repeat+info"},
-        },
-        capture_log=True,
+    logs = path._exec(
+        [
+            "-f",
+            "dshow",
+            "-list_devices",
+            "true",
+            "-i",
+            "dummy",
+            "-loglevel",
+            "repeat+info",
+        ],
+        stderr=PIPE,
         universal_newlines=True,
     ).stderr
 
@@ -149,12 +155,9 @@ def _list_options(dev_type, spec):
     is_video = dev["media_type"] == "video"
 
     url = f'{dev["media_type"]}={dev["name"]}'
-    logs = run(
-        {
-            "inputs": [(url, {"f": "dshow", "list_options": True})],
-            "global_options": {"loglevel": "repeat+info"},
-        },
-        capture_log=True,
+    logs = path._exec(
+        ["-f", "dshow", "-list_options", "true", "-i", url, "-loglevel", "repeat+info"],
+        stderr=PIPE,
         universal_newlines=True,
     ).stderr
 

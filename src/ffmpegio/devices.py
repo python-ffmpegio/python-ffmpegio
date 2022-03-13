@@ -1,5 +1,6 @@
 import logging
-from ffmpegio.ffmpegprocess import _exec, PIPE, DEVNULL
+from ffmpegio.path import _exec
+from subprocess import PIPE, DEVNULL
 from . import plugins
 import re
 
