@@ -41,17 +41,15 @@ except Exception as e:
     logging.warn(str(e))
 
 
-from . import ffmpegprocess
-
 from .utils.log import FFmpegError
 from .utils.filter import FilterGraph
+from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
-from . import caps, probe, audio, image, video, media
 from . import streams as _streams
 
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "transcode", "caps",
-    "probe", "audio", "image", "video", "media", "open", "ffmpegprocess",
+    "probe", "audio", "image", "video", "media", "open", "ffmpegprocess", "devices",
     "FFmpegError", "FilterGraph"]
 # fmt:on
 
