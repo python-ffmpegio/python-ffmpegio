@@ -97,6 +97,8 @@ def _rescan():
             for m in re_dev.finditer(logs[stop : groups[i + 1][1]])
         }
 
+        return DSHOW_DEVICES
+
 
 def _resolve(dev_type, url):
     if dev_type != "source":
