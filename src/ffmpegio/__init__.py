@@ -38,10 +38,12 @@ plugins.initialize()
 try:
     path.find()
 except Exception as e:
-    logging.warn(str(e))
+    logging.warning(str(e))
 
 
-from .utils.log import FFmpegError
+from . import ffmpegprocess
+
+from .utils.error import FFmpegError
 from .utils.filter import FilterGraph
 from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
@@ -53,7 +55,7 @@ __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "transcode", "caps
     "FFmpegError", "FilterGraph"]
 # fmt:on
 
-__version__ = "0.4.1"
+__version__ = "0.4.3"
 
 ffmpeg_info = ffmpegprocess.versions
 set_path = path.find
@@ -196,7 +198,9 @@ def open(
 
     """
 
+    is_fg = isinstance(url_fg,FilterGraph)
     if isinstance(url_fg, str):
+        is_fg = kwds.get('f_in',None)=='lavfi'
         url_fg = (url_fg,)
 
     audio = "a" in mode
@@ -227,7 +231,9 @@ def open(
 
     # auto-detect type
     if not (audio or video):
-        if read:
+        if is_fg:
+            raise ValueError('media type must be specified to read from an Input filtergraph')
+        elif read:
             for url in url_fg:
                 try:
                     info = probe.streams_basic(url, entries=("codec_type",))
@@ -257,6 +263,8 @@ def open(
             video = audio and sum((1 for m in mode if m == "a")) > 1
         elif video and not audio:
             audio = video and sum((1 for m in mode if m == "v")) > 1
+    elif write and is_fg:
+        ValueError('Cannot write to a filtergraph.')
 
     try:
         StreamClass = {

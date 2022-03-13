@@ -5,6 +5,32 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.4.3] - 2022-03-02
+
+### Fixed
+
+- Fixed `path.find(ffmpeg_dir)` call
+
+### Changed
+
+- Renamed `path.get_ffmpeg` to `path.where`; original, `path.where` dropped
+
+## [0.4.2] - 2022-02-27
+
+### Fixed
+
+- Fixed import failure if FFmpeg is not found in the system
+
+### Changed
+
+- Improved FFmpeg error reporting with `FFmpegError` exception
+- `caps` functions nwo throw `FFmpegError` exceptions
+- FFmpeg is called with `-nostdin` flag by default
+
+### Added
+
+- `ffmpegio.ffmpegprocess.FLAG` alias for `None` to make flag options more readable in `ffmpeg_args` dict
+
 ## [0.4.1] - 2022-02-22
 
 ### Fixed
@@ -173,7 +199,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules. 
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.2...v0.4.3
+[0.4.2]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.3...v0.4.0
 [0.3.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.3.2...v0.3.3

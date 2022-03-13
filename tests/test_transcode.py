@@ -1,8 +1,7 @@
 from ffmpegio import transcode, probe, FFmpegError, FilterGraph
 import tempfile, re
 from os import path
-from pprint import pprint
-
+import pytest
 
 def test_transcode():
     url = "tests/assets/testmulti-1m.mp4"
@@ -17,11 +16,8 @@ def test_transcode():
         transcode(url, out_url, overwrite=True)
         # print(probe.audio_streams_basic(out_url))
         # transcode(url, out_url)
-        try:
+        with pytest.raises(FFmpegError):
             transcode(url, out_url, overwrite=False)
-            raise RuntimeError("failed to abort unforced output-file-exist case")
-        except FFmpegError:
-            pass
         transcode(url, out_url, overwrite=True, show_log=True, progress=progress)
 
 

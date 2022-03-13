@@ -30,7 +30,7 @@ from tempfile import TemporaryDirectory
 from .ffmpeg import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
-from .path import get_ffmpeg
+from .path import where
 
 __all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
 
@@ -106,6 +106,22 @@ def exec(
         else:
             gopts["n"] = FLAG
 
+    # turn on hw decoder by default
+    def check_hwaccel(url, opts):
+        if opts is None:
+            opts = {"hwaccel": "auto"}
+        elif "hwaccel" not in opts:
+            opts["hwaccel"] = "auto"
+        return url, opts
+
+    if 'inputs' in ffmpeg_args:
+        try:
+            ffmpeg_args["inputs"] = [
+                check_hwaccel(url, opts) for url, opts in ffmpeg_args["inputs"]
+            ]
+        except:
+            pass
+
     # configure stdin pipe (if needed)
     def isreadable(f):
         try:
@@ -159,7 +175,7 @@ def exec(
         PIPE if capture_log else None if capture_log is None else DEVNULL
     )
 
-    args = compose(ffmpeg_args, command=get_ffmpeg())
+    args = compose(ffmpeg_args, command=where())
     logging.debug(args)
 
     # run the FFmpeg
@@ -298,8 +314,7 @@ class Popen(sp.Popen):
                 if k
                 in (
                     # fmt: off
-                    "bufsize", "executable",
-                    "close_fds", "shell", "niversal_newlines", "pass_fds",
+                    "executable", "close_fds", "shell", "niversal_newlines", "pass_fds",
                     "encoding", "errors", "text", "pipesize",
                     # fmt: on
                 )

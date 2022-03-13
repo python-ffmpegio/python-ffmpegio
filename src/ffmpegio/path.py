@@ -21,13 +21,23 @@ def found():
     return bool(FFMPEG_BIN and FFPROBE_BIN)
 
 
-def where():
-    """Get current path to FFmpeg bin directory
+def where(probe=False):
+    """Get the path to FFmpeg/FFprobe executable
 
-    :return: path to FFmpeg bin directory or `None` if ffmpeg and ffprobe paths have not been set.
+    :param probe: True to return FFprobe path instead, defaults to False
+    :type probe: bool, optional
+    :return: Path to FFmpeg/FFprobe exectutable
     :rtype: str or None
     """
-    return _path.dirname(FFMPEG_BIN) if found() else None
+
+    path = FFPROBE_BIN if probe else FFMPEG_BIN
+
+    if not path:
+        raise Exception(
+            "FFmpeg executables not found. Run `ffmpegio.set_path()` first or place FFmpeg executables in auto-detectable path locations."
+        )
+
+    return path
 
 
 def find(ffmpeg_path=None, ffprobe_path=None):
@@ -96,33 +106,4 @@ def find(ffmpeg_path=None, ffprobe_path=None):
         res = plugins.get_hook().finder()
         if res is None:
             raise RuntimeError("Failed to auto-detect ffmpeg and ffprobe executable.")
-        ffmpeg_bin, ffprobe_bin = res
-
-    try:
-        out = run([ffmpeg_bin, "-version"], stdout=PIPE, universal_newlines=True)
-        assert not out.returncode
-        m = re.match(r"ffmpeg version ([.\d]+)", out.stdout)
-        FFMPEG_VER = Version(m[1]) if m else "nightly"
-    except:
-        raise RuntimeError("Detected FFmpeg failed to produce a version number.")
-
-    FFMPEG_BIN = ffmpeg_bin
-    FFPROBE_BIN = ffprobe_bin
-
-
-def get_ffmpeg(probe=False):
-    """Get the path to FFmpeg/FFprobe executable
-
-    :param probe: True to return FFprobe path instead, defaults to False
-    :type probe: bool, optional
-    :return: Path to FFmpeg/FFprobe exectutable
-    :rtype: str
-    """
-    path = FFPROBE_BIN if probe else FFMPEG_BIN
-
-    if not path:
-        raise Exception(
-            "FFmpeg executables not found. Run `ffmpegio.set_path()` first or place FFmpeg executables in auto-detectable path locations."
-        )
-
-    return path
+        FFMPEG_BIN, FFPROBE_BIN = res

@@ -21,6 +21,7 @@ class SimpleReaderBase:
         show_log=None,
         progress=None,
         blocksize=None,
+        bufsize=-1,
         **options,
     ) -> None:
 
@@ -53,7 +54,11 @@ class SimpleReaderBase:
 
         # start FFmpeg
         self._proc = ffmpegprocess.Popen(
-            ffmpeg_args, stdin=stdin, progress=progress, capture_log=True
+            ffmpeg_args,
+            stdin=stdin,
+            progress=progress,
+            capture_log=True,
+            bufsize=bufsize,
         )
 
         # set the log source and start the logger
@@ -215,8 +220,9 @@ class SimpleVideoReader(SimpleReaderBase):
         has_fg = configure.has_filtergraph(ffmpeg_args, "video")
 
         pix_fmt = outopts.get("pix_fmt", None)
-        if pix_fmt is None or (
-            not has_fg
+        if (
+            pix_fmt is None
+            and not has_fg
             and inurl not in ("-", "pipe:", "pipe:0")
             and not inopts.get("pix_fmt", None)
         ):
@@ -227,6 +233,9 @@ class SimpleVideoReader(SimpleReaderBase):
             r_in = info["frame_rate"]
         else:
             pix_fmt_in = s_in = r_in = None
+
+        if pix_fmt_in is None and pix_fmt is None:
+            raise ValueError("pix_fmt must be specified.")
 
         (
             self.dtype,
@@ -269,7 +278,7 @@ class SimpleAudioReader(SimpleReaderBase):
         # finalize FFmpeg arguments and output array
 
         inurl, inopts = ffmpeg_args.get("inputs", [])[0]
-        has_fg = configure.has_filtergraph(ffmpeg_args, "video")
+        has_fg = configure.has_filtergraph(ffmpeg_args, "audio")
 
         sample_fmt_in = inopts.get("sample_fmt", None)
         ac_in = ar_in = None
