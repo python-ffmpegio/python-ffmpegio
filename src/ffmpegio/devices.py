@@ -62,7 +62,7 @@ def rescan():
         api = plugin_devices[name]
         if info is None:
             if "rescan" in api:
-                return {**api.rescan(), **api}
+                return {**api['rescan'](), **api}
             else:
                 return api
         else:
@@ -77,3 +77,5 @@ def rescan():
     SINKS = {
         k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sinks")
     }
+
+# def 
