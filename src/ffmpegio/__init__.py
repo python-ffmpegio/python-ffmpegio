@@ -29,7 +29,10 @@ Block Read/Write/Filter Functions
 from contextlib import contextmanager
 import logging
 
-from . import path
+from . import path, plugins
+
+# register builtin plugins and external plugins found in site-packages 
+plugins.initialize()
 
 # initialize the paths
 try:
