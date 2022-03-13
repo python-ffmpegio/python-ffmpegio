@@ -4,7 +4,6 @@ from copy import deepcopy
 from subprocess import PIPE
 from ffmpegio import path
 import re, logging
-from packaging.version import Version
 
 from pluggy import HookimplMarker
 
@@ -23,6 +22,7 @@ def _rescan():
 
     logs = path._exec(
         [
+            "-hide_banner",
             "-f",
             "dshow",
             "-list_devices",
@@ -65,45 +65,26 @@ def _rescan():
         "is_default": None,
     }
 
-    if path.FFMPEG_VER == "nightly" or path.FFMPEG_VER >= Version("5.0"):
-        re_dev = re.compile(
-            rf'\[{sign}\] "(.+?)" \((.+?)\)\n\[{sign}\]   Alternative name "(.+?)"|dummy: Immediate exit requested'
-        )
+    logging.debug("For <v5.0")
+    re_header = re.compile(
+        rf"\[{sign}\] (?:DirectShow (.+?) devices.*|Could not enumerate .+? devices.*)\n|dummy: Immediate exit requested"
+    )
 
-        devices = {}
-        for m in re_dev.finditer(logs):
-            if m[1] is None:
-                break
-            name = m[1]
-            description = m[3]
-            for media_type in m[2].split(","):
-                if media_type in ("video", "audio"):
-                    devices[get_id(media_type, m)] = get_info(
-                        media_type, name, description
-                    )
+    groups = [(m[1], *m.span()) for m in re_header.finditer(logs)]
+    logging.debug(groups)
 
-        DSHOW_DEVICES = devices
-    else:
-        logging.info("Earlier FFmpeg version found")
-        re_header = re.compile(
-            rf"\[{sign}\] (?:DirectShow (.+?) devices.*|Could not enumerate .+? devices.*)\n|dummy: Immediate exit requested"
-        )
+    re_dev = re.compile(
+        rf'\[{sign}\]  "(.+?)"(?: \((.+?)\))?\n\[{sign}\]     Alternative name "(.+?)"'
+    )
 
-        groups = [(m[1], *m.span()) for m in re_header.finditer(logs)]
-        logging.debug(groups)
+    DSHOW_DEVICES = {
+        get_id(media_type, m): get_info(media_type, m[1], m[3])
+        for i, (media_type, _, stop) in enumerate(groups[:-1])
+        if media_type in ("audio", "video")
+        for m in re_dev.finditer(logs[stop : groups[i + 1][1]])
+    }
 
-        re_dev = re.compile(
-            rf'\[{sign}\]  "(.+?)"(?: \((.+?)\))?\n\[{sign}\]     Alternative name "(.+?)"'
-        )
-
-        DSHOW_DEVICES = {
-            get_id(media_type, m): get_info(media_type, m[1], m[3])
-            for i, (media_type, _, stop) in enumerate(groups[:-1])
-            if media_type in ("audio", "video")
-            for m in re_dev.finditer(logs[stop : groups[i + 1][1]])
-        }
-
-        return DSHOW_DEVICES
+    return DSHOW_DEVICES
 
 
 def _resolve(dev_type, url):
@@ -156,7 +137,17 @@ def _list_options(dev_type, spec):
 
     url = f'{dev["media_type"]}={dev["name"]}'
     logs = path._exec(
-        ["-f", "dshow", "-list_options", "true", "-i", url, "-loglevel", "repeat+info"],
+        [
+            "-hide_banner",
+            "-f",
+            "dshow",
+            "-list_options",
+            "true",
+            "-i",
+            url,
+            "-loglevel",
+            "repeat+info",
+        ],
         stderr=PIPE,
         universal_newlines=True,
     ).stderr
