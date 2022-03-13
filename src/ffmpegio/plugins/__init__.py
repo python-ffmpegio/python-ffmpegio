@@ -17,6 +17,8 @@ def initialize():
         from . import finder_win32
         pm.register(finder_win32)
 
+        from .devices import dshow
+        pm.register(dshow)
 
     # load all ffmpegio plugins found in site-packages
     pm.load_setuptools_entrypoints("ffmpegio")
