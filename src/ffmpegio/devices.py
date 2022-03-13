@@ -55,28 +55,23 @@ def rescan():
 
         return [(name, parse(out.stdout[i0:i1])) for name, i0, i1 in src_spans]
 
-
-    def check_plugin(plugin_devices, name, info):
+    def check_plugin(plugin_devices, name, devlist):
         if name not in plugin_devices:
-            return info
+            return {"list": devlist}
 
         api = plugin_devices[name]
-        if info is None:
+        if devlist is None:
             if "rescan" in api:
-                return {**api['rescan'](), **api}
+                return {"list": api["rescan"](), **api}
             else:
                 return api
         else:
-            return {**info, **api}
+            return {"list": devlist, **api}
 
     plugin_devices = {name: api for name, api in plugins.get_hook().device_source_api()}
-    SOURCES = {
-        k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sources")
-    }
+    SOURCES = {k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sources")}
 
     plugin_devices = {name: api for name, api in plugins.get_hook().device_sink_api()}
-    SINKS = {
-        k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sinks")
-    }
+    SINKS = {k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sinks")}
 
-# def 
+
