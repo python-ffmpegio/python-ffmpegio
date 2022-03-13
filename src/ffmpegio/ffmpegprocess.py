@@ -19,7 +19,7 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
-import logging, re
+import logging, re, shlex
 from os import path, devnull
 from threading import Thread
 import subprocess as sp
@@ -166,6 +166,19 @@ def exec(
     return sp_run(args, stdin=inpipe, stdout=outpipe, stderr=errpipe, **sp_kwargs)
 
 
+def _exec(args, **other_run_args):
+    '''just run ffmpeg without bells-n-whistles
+    
+    :param args: FFmpeg command arguments without `ffmpeg`
+    :type args: str or Sequence[str]
+    :param **other_run_args: subprocess.run() options
+    :type **other_run_args: dict
+    '''
+    if isinstance(args, str):
+        args = shlex.split(args)
+    return sp.run((get_ffmpeg(), *args), **other_run_args)
+
+
 def versions():
     """Get FFmpeg version and configuration information
 
@@ -181,12 +194,8 @@ def versions():
     ==================  ====  =========================================
 
     """
-    s = exec(
-        ["-version"],
-        hide_banner=False,
-        stdout=PIPE,
-        universal_newlines=True,
-        encoding="utf-8",
+    s = _exec(
+        ["-version"], stdout=PIPE, universal_newlines=True, encoding="utf-8"
     ).stdout.splitlines()
     v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
     i = 2 if s[1].startswith("built with") else 1
@@ -463,7 +472,7 @@ def run(
         )
 
     # return stderr as str
-    if ret.stderr is not None:
+    if isinstance(ret.stderr, bytes):
         ret.stderr = ret.stderr.decode("utf-8")
 
     return ret
@@ -601,7 +610,7 @@ def run_two_pass(
             ret = run(ffmpeg_args, overwrite=overwrite, **other_run_kwargs)
 
     # split log lines
-    if ret.stderr is not None:
+    if isinstance(ret.stderr, bytes):
         ret.stderr = ret.stderr.decode("utf-8")
 
     return ret
