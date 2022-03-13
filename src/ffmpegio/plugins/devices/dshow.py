@@ -56,11 +56,12 @@ def _rescan():
             return id
 
     get_id = TypeCounter()
-    get_info = lambda t, name, long_name: {
+    get_info = lambda t, name, description: {
         "dev_type": "source",
         "media_type": t,
         "name": name,
-        "long_name": long_name,
+        "description": description,
+        "is_default": None,
     }
 
     if path.FFMPEG_VER == "nightly" or path.FFMPEG_VER >= Version("5.0"):
@@ -73,11 +74,11 @@ def _rescan():
             if m[1] is None:
                 break
             name = m[1]
-            long_name = m[3]
+            description = m[3]
             for media_type in m[2].split(","):
                 if media_type in ("video", "audio"):
                     devices[get_id(media_type, m)] = get_info(
-                        media_type, name, long_name
+                        media_type, name, description
                     )
 
         DSHOW_DEVICES = devices
@@ -134,7 +135,7 @@ def _get_dev(dev_type, spec):
                 (
                     v
                     for v in DSHOW_DEVICES.values()
-                    if v["name"] == spec or v["long_name"] == spec
+                    if v["name"] == spec or v["description"] == spec
                 )
             )
         except:
@@ -232,25 +233,3 @@ def device_api():
         "resolve": _resolve,
         "list_options": _list_options,
     }
-
-    # run({"inputs": [('audio=@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{63888F14-F176-4F9B-9333-2AC6BFBEAA1B}', {"list_options": True, "f": "dshow"})]})
-
-    # run(
-    #     {
-    #         "inputs": [
-    #             (
-    #                 'audio=@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{63888F14-F176-4F9B-9333-2AC6BFBEAA1B}',
-    #                 {
-    #                     "f": "dshow",
-    #                     "rtbufsize": "1702000k",
-    #                     "audio_pin_name": "Capture",
-    #                     "channels": 1,
-    #                     # "sample_size": 16,
-    #                     "sample_rate": 48000,
-    #                     # "acodec": "pcm_s16le",
-    #                 },
-    #             )
-    #         ],
-    #         "outputs": [("-", {"c": "copy", "f": "wav", "t": 0.1})],
-    #     }
-    # )
