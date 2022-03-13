@@ -13,11 +13,6 @@ hookimpl = HookimplMarker("ffmpegio")
 DSHOW_DEVICES = {}
 
 
-@hookimpl
-def device_format():
-    return "dshow"
-
-
 def _list_sources():
     return deepcopy(DSHOW_DEVICES)
 
@@ -226,8 +221,8 @@ def _list_options(dev_type, spec):
 
 
 @hookimpl
-def device_api():
-    return {
+def device_source_api():
+    return "dshow", {
         "rescan": _rescan,
         "list_sources": _list_sources,
         "resolve": _resolve,
