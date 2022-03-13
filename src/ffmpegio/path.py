@@ -48,6 +48,8 @@ def find(ffmpeg_path=None, ffprobe_path=None):
     :type ffmpeg_path: str, optional
     :param ffprobe_path: Full path to the ffprobe executable file, defaults to None
     :type ffprobe_path: str, optional
+    :returns: ffmpeg path, ffprobe path, and ffmpeg version
+    :rtype: Tuple[str,str,str]
 
     If `ffmpeg_path` specifies a directory, the names of the executables are
     auto-set to `ffmpeg` and `ffprobe`.
@@ -97,16 +99,25 @@ def find(ffmpeg_path=None, ffprobe_path=None):
                 if has_ffdir
                 else f"ffprobe executable not found or {ffprobe_path}"
             )
-        ffmpeg_bin = ffmpeg_path
-        ffprobe_bin = ffprobe_path
+        FFMPEG_BIN = ffmpeg_path
+        FFPROBE_BIN = ffprobe_path
     elif which("ffmpeg") and which("ffprobe"):
-        ffmpeg_bin = "ffmpeg"
-        ffprobe_bin = "ffprobe"
+        FFMPEG_BIN = "ffmpeg"
+        FFPROBE_BIN = "ffprobe"
     else:
         res = plugins.get_hook().finder()
         if res is None:
             raise RuntimeError("Failed to auto-detect ffmpeg and ffprobe executable.")
         FFMPEG_BIN, FFPROBE_BIN = res
+
+    if FFMPEG_BIN:
+        ver = versions()["version"]
+        m = re.match(r"\d+(?:\.\d+(?:\d+)?)?", ver)
+        FFMPEG_VER = Version(m[0]) if m else "nightly"
+    else:
+        FFMPEG_VER = Version("0")
+
+    return FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
 
 
 def _exec(args, **other_run_args):
@@ -119,7 +130,7 @@ def _exec(args, **other_run_args):
     """
     if isinstance(args, str):
         args = shlex.split(args)
-    return sp.run((where(), *args), **other_run_args)
+    return sp.run((FFMPEG_BIN, *args), **other_run_args)
 
 
 def versions():
