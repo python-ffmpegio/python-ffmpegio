@@ -75,3 +75,35 @@ def rescan():
     SINKS = {k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sinks")}
 
 
+def resolve_source(url, opts):
+    try:
+        dev = SOURCES[opts["f"]]
+        assert dev is not None
+    except:
+        # not a device or unknown device
+        return url, opts
+
+    try:
+        return dev["resolve"]("source", url), opts
+    except:
+        try:
+            url = dev["list"][url]
+        finally:
+            return url, opts
+
+
+def resolve_sink(url, opts):
+    try:
+        dev = SINKS[opts["f"]]
+        assert dev is not None
+    except:
+        # not a device or unknown device
+        return url, opts
+
+    try:
+        return dev["resolve"]("sink", url), opts
+    except:
+        try:
+            url = dev["list"][url]
+        finally:
+            return url, opts

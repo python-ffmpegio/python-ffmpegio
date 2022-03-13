@@ -2,6 +2,7 @@ import re, os, shlex
 from collections import abc
 
 from .utils import filter as filter_utils
+from . import devices
 
 __all__ = ["parse", "compose", "FLAG"]
 
@@ -179,6 +180,10 @@ def compose(args, command="", shell_command=False):
     def inputs2args(inputs):
         args = []
         for url, opts in inputs:
+
+            # resolve url enumeration if it's a device
+            url, opts = devices.resolve_source(url, opts)
+
             if opts:
                 args.extend(opts2args(opts, finalize_input))
             args.extend(
@@ -196,6 +201,10 @@ def compose(args, command="", shell_command=False):
     def outputs2args(outputs):
         args = []
         for url, opts in outputs:
+
+            # resolve url enumeration if it's a device
+            url, opts = devices.resolve_sink(url, opts)
+
             if opts:
                 args.extend(opts2args(opts, finalize_output))
             args.append(
