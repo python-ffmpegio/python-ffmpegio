@@ -82,12 +82,28 @@ def rescan():
     SINKS = gather_device_info("sinks", "device_sink_api")
 
 
-    plugin_devices = {name: api for name, api in plugins.get_hook().device_source_api()}
-    SOURCES = {k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sources")}
+def _list_devices(devs, mtype):
+    return [
+        dev
+        for dev, info in devs.items()
+        if "list" in info and any((k.startswith(mtype) for k in info["list"].keys()))
+    ]
 
-    plugin_devices = {name: api for name, api in plugins.get_hook().device_sink_api()}
-    SINKS = {k: check_plugin(plugin_devices, k, v) for k, v in get_devices("sinks")}
 
+def list_video_sources():
+    return _list_devices(SOURCES, "v")
+
+
+def list_audio_sources():
+    return _list_devices(SOURCES, "a")
+
+
+def list_video_sinks():
+    return _list_devices(SINKS, "v")
+
+
+def list_audio_sinks():
+    return _list_devices(SINKS, "a")
 
 def resolve_source(url, opts):
     try:
