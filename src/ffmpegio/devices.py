@@ -125,7 +125,26 @@ def _get_dev(device, dev_type):
 
 
 def list_hardware(device, dev_type=None):
-    return _get_dev(device, dev_type)['list']
+    return _get_dev(device, dev_type)["list"]
+
+
+def list_source_options(device, enum):
+    info = _get_dev(device, "source")
+    try:
+        list_options = info["list_options"]
+    except:
+        raise ValueError(f"No options to list")
+    return list_options('source', enum)
+
+
+def list_sink_options(device, enum):
+    info = _get_dev(device, "sink")
+    try:
+        list_options = info["list_options"]
+    except:
+        raise ValueError(f"No options to list")
+    return list_options('sink', enum)
+
 
 def resolve_source(url, opts):
     try:
