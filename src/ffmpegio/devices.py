@@ -105,6 +105,28 @@ def list_video_sinks():
 def list_audio_sinks():
     return _list_devices(SINKS, "a")
 
+
+def _get_dev(device, dev_type):
+    try:
+        devices = dev_type and {"source": SOURCES, "sink": SINKS}[dev_type]
+    except:
+        raise ValueError(f'Unknown dev_type: {dev_type} (must be "source" or "sink") ')
+
+    try:
+        if devices:
+            return devices[device]
+        else:
+            try:
+                return SOURCES[device]
+            except:
+                return SINKS[device]
+    except:
+        raise ValueError(f"Unknown/unenumerated device: {device}")
+
+
+def list_hardware(device, dev_type=None):
+    return _get_dev(device, dev_type)['list']
+
 def resolve_source(url, opts):
     try:
         dev = SOURCES[opts["f"]]
