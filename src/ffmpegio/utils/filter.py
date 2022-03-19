@@ -88,7 +88,7 @@ def compose_filter_args(*args):
 
         # escape special characters
         s = re.sub(r"([':\\])", r"\\\1", value)
-        
+
         # use quote if value start or ends with space
         m = re.match(r"^(\s+)", s)
         if m:
@@ -470,7 +470,7 @@ def compose_graph(
 
         def set_link_label(i):
             for j in itertools.count():
-                label = f"L{j*n+i}"
+                label = f"L{j+i}"
                 if label not in labels:
                     labels.add(label)
                     return label
@@ -1479,9 +1479,13 @@ def video_basic_filter(
     elif square_pixels == "downscale":
         vfilters.append("scale='min(iw,ih*dar):min(iw/dar,ih):eval=init',setsar=1/1")
     elif square_pixels == "upscale_even":
-        vfilters.append("scale='trunc(max(iw,ih*dar)/2)*2:trunc(max(iw/dar,ih)/2)*2:eval=init',setsar=1/1")
+        vfilters.append(
+            "scale='trunc(max(iw,ih*dar)/2)*2:trunc(max(iw/dar,ih)/2)*2:eval=init',setsar=1/1"
+        )
     elif square_pixels == "downscale_even":
-        vfilters.append("scale='trunc(min(iw,ih*dar)/2)*2:trunc(min(iw/dar,ih)/2)*2:eval=init',setsar=1/1")
+        vfilters.append(
+            "scale='trunc(min(iw,ih*dar)/2)*2:trunc(min(iw/dar,ih)/2)*2:eval=init',setsar=1/1"
+        )
     elif square_pixels is not None:
         raise ValueError(f"unknown `square_pixels` option value given: {square_pixels}")
 
