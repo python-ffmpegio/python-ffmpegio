@@ -2,6 +2,37 @@ import math
 from ffmpegio import utils
 import pytest
 
+def test_string_escaping():
+    raw = "Crime d'Amour"
+    esc = utils.escape(raw)
+    assert esc == r"'Crime d'\''Amour'"
+    assert utils.unescape(esc) == raw
+
+    raw = "  this string starts and ends with whitespaces  "
+    esc = utils.escape(raw)
+    assert esc == "'  this string starts and ends with whitespaces  '"
+    assert utils.unescape(esc) == raw
+
+    esc = r"' The string '\'string\'' is a string '"
+    raw = r" The string 'string' is a string "
+    assert raw == utils.unescape(utils.escape(raw))
+    assert raw == utils.unescape(esc)
+
+    esc = r"'c:\foo' can be written as c:\\foo"
+    raw = r"c:\foo can be written as c:\foo"
+    assert raw == utils.unescape(esc)
+    assert raw == utils.unescape(utils.escape(raw))
+
+    raw = "d'Amour"
+    esc = utils.escape(raw)
+    assert esc == r"d\'Amour"
+    assert utils.unescape(esc) == raw
+
+    raw = r"c:\foo"
+    esc = utils.escape(raw)
+    assert esc == r"c:\\foo"
+    assert utils.unescape(esc) == raw
+
 
 def test_parse_spec_stream():
     assert utils.parse_spec_stream(1) == {"index": 1}
@@ -81,5 +112,3 @@ def test_get_audio_format():
 if __name__ == "__main__":
     import re
 
-    spec = "p:4"
-    print(re.split(r"(?<![pi]\:|m\:.+?\:)\:", spec))
