@@ -1,4 +1,4 @@
-from ffmpegio import ffmpeg, probe
+from ffmpegio import ffmpegprocess, probe
 from os import path
 from pprint import pprint
 
@@ -34,11 +34,17 @@ command_list = (
         "outputs": [("tests/assets/testmulti-1m.mp4", {"map": (0, 1, 2, 3)})],
         "global_options": {"y": None},
     },
+    {
+        "inputs": [("testsrc=r=1:d=5", {"f": "lavfi"})],
+        "outputs": [("tests/assets/imgs/testimage-%d.png", None)],
+        "global_options": {"y": None},
+    },
 )
 
 
 for cfg in command_list:
     url = cfg["outputs"][0][0]
     if not path.isfile(url):
-        ffmpeg.run_sync(cfg)
+        ffmpegprocess.run(cfg)
+    url = url.replace("%d", "1")
     pprint(probe.full_details(url))
