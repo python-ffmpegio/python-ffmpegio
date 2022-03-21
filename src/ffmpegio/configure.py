@@ -86,14 +86,22 @@ def empty():
 def check_url(url, nodata=True, nofileobj=False, format=None):
     """Analyze url argument for non-url input
 
-    :param url: url argument string or data or file
-    :type url: str, bytes-like object, audio or video data object, or file-like object
+    :param url: url argument string or data or file or a custom class
+    :type url: str, bytes-like object, audio or video data object, file-like object, or pipe input custom object
     :param nodata: True to raise exception if url is a bytes-like object, default to True
     :type nodata: bool, optional
     :param nofileobj: True to raise exception if url is a file-like object, default to False
     :type nofileobj: bool, optional
     :return: url string, file object, and data object
     :rtype: tuple<str, file-like object or None, bytes-like object or None>
+
+    Custom Pipe Class
+    -----------------
+
+    `url` may be a class instance of which `str(url)` call yields a stdin pipe expression 
+    (i.e., '-' or 'pipe:' or 'pipe:0') with `url.input` returns the input data. For such `url`,
+    `check_url()` returns url and data objects, accordingly.
+
     """
 
     def hasmethod(o, name):
@@ -113,6 +121,12 @@ def check_url(url, nodata=True, nofileobj=False, format=None):
                     raise ValueError("File-like object cannot be specified as url.")
                 fileobj = url
                 url = "-"
+            elif str(url) in ('-','pipe:','pipe:0'):
+                try:
+                    data = url.input
+                except:
+                    pass
+
 
         if nodata and data is not None:
             raise ValueError("Bytes-like object cannot be specified as url.")
