@@ -5,6 +5,7 @@ import io, re
 from tempfile import NamedTemporaryFile
 from functools import partial
 
+from . import escape, unescape
 
 # https://trac.ffmpeg.org/wiki/Concatenate
 # https://ffmpeg.org/ffmpeg-formats.html#concat
@@ -75,29 +76,52 @@ from functools import partial
 
 
 class ConcatDemuxer:
-    """Create a handler for FFmpeg concat demuxer
+    """Create FFmpeg concat demuxer source generator
 
-    :param script: concat script to parse, defaults to None
+    :param script: concat script to parse, defaults to None (empty script)
     :type script: str, optional
-    :param pipe_url: stdin pipe or False to use a temp file, defaults to False
+    :param pipe_url: stdin pipe or None to use a temp file, defaults to None
     :type pipe_url: bool, optional
 
-    ConcatDemuxer instance is intended to be used as an input url object when invoking `ffmpegprocess.run` 
+    ConcatDemuxer instance is intended to be used as an input url object when invoking `ffmpegprocess.run`
     or `ffmpegprocess.Popen`. The FFmpeg command parser stringify the ConatDemuxer instance to either the
-    temp file path or the pipe name, depending on the chosen operation mode. The temporary listing is 
-    automatically generated within the ConcatDemuxer context. If the listing is send in via pipe, the 
+    temp file path or the pipe name, depending on the chosen operation mode. The temporary listing is
+    automatically generated within the ConcatDemuxer context. If the listing is send in via pipe, the
     listing data can be obtained via `concat_demuxer.input`.
 
-    The listing can be populated either by parsing a valid ffconcat script via the constructor or 
+    The listing can be populated either by parsing a valid ffconcat script via the constructor or
     `concat_demuxer.parse()`. Or an individual item (file, stream, option, or chapter) can be added by
-    `concat_demuxer.add_file()`, `concat_demuxer.add_stream()`, `concat_demuxer.add_option()`, or 
+    `concat_demuxer.add_file()`, `concat_demuxer.add_stream()`, `concat_demuxer.add_option()`, or
     `concat_demuxer.add_chapter()`. Files can also be added in batch by `concat_demuxer.add_files()`.
 
     Aside from the intended operations with `ffmpegprocess`, a listing file can be explicitly created by
     calling `concat_demuxer.compose()` with a valid writable text file object.
 
+    Examples
+    --------
 
-    """        
+    1. Concatenate mp4 files with listing piped to stdin
+
+    ```python
+
+    files = ['video1.mp4','video2.mp4']
+    concat = ffmpegio.ConcatDemuxer(pipe_url='-')
+    concat.add_files(files)
+    ffmpegio.transcode(concat,'output.mp4')
+    ```
+
+    2. Concatenate mp4 files with a temp listing file
+
+    ```python
+
+    files = ['video1.mp4','video2.mp4']
+    concat = ffmpegio.ConcatDemuxer()
+    concat.add_files(files)
+    with concat:
+        ffmpegio.transcode(concat,'output.mp4')
+    ```
+
+    """
 
     class FileItem:
         """Create a file listing item
@@ -128,16 +152,19 @@ class ConcatDemuxer:
             if not self.path:
                 raise RuntimeError("Invalid FileItem. File path must be set.")
             lines = [
-                f"file '{self.path}'",
+                f"file {escape(self.path)}\n",
                 *(
-                    f"{k} {getattr(self,k)}"
+                    f"{k} {getattr(self,k)}\n"
                     for k in ("duration", "inpoint", "outpoint")
                     if getattr(self, k) is not None
                 ),
             ]
             if self.metadata is not None:
                 lines.extend(
-                    [f"file_packet_meta {k} {v}" for k, v in self.metadata.items()]
+                    [
+                        f"file_packet_meta {k} {escape(v)}\n"
+                        for k, v in self.metadata.items()
+                    ]
                 )
             return lines
 
@@ -170,33 +197,42 @@ class ConcatDemuxer:
                     "Invalid StreamItem. At least one attribute must be set."
                 )
 
-            lines = ["stream"]
+            lines = ["stream\n"]
             if self.id is not None:
-                lines.append(f"exact_stream_id {self.id}")
+                lines.append(f"exact_stream_id {self.id}\n")
             if self.codec is not None:
-                lines.append(f"stream_codec {self.codec}")
+                lines.append(f"stream_codec {self.codec}\n")
             if self.metadata is not None:
-                lines.extend([f"stream_meta {k} {v}" for k, v in self.metadata.items()])
+                lines.extend(
+                    [f"stream_meta {k} {escape(v)}\n" for k, v in self.metadata.items()]
+                )
             if self.extradata is not None:
                 lines.append(
-                    f"stream_extradata {self.extradata if isinstance(self.extradata,str) else memoryview(self.extradata).hex()}"
+                    f"stream_extradata {self.extradata if isinstance(self.extradata,str) else memoryview(self.extradata).hex()}\n"
                 )
 
             return lines
 
-    def __init__(self, script=None, pipe_url=False):
-        self.files = []
-        self.streams = []
-        self.options = {}
-        self.chapters = {}
-        self.pipe_url = pipe_url
-        self._temp_url = None  # used by context manager
+    def __init__(self, script=None, pipe_url=None):
+        self.files = (
+            []
+        )  # :List[ConcatDemuxer.FileItem]: list of files to be included in the order of appearance
+        self.streams = (
+            []
+        )  #:ListConcatDemuxer.StreamItem]: list of streams to be included in the order of appearance
+        self.options = {}  #:dict[str,Any]: option key-value pairs to be included
+        self.chapters = (
+            {}
+        )  #:dict[str,tuple]: chapter id-(start,end) pairs to be included
+        self.pipe_url = pipe_url  #:str|None: specify pipe url if concat script to be loaded via stdin; None via a temp file
+        self._temp_file = None  # used by context manager
 
         if script is not None:
             self.parse(script)
 
     @property
     def last_file(self):
+        """:ConcatDemuxer.FileItem: Last added file item"""
         try:
             return self.files[-1]
         except:
@@ -204,6 +240,7 @@ class ConcatDemuxer:
 
     @property
     def last_stream(self):
+        """:ConcatDemuxer.StreamItem: Last added stream item"""
         try:
             return self.streams[-1]
         except:
@@ -216,15 +253,15 @@ class ConcatDemuxer:
             self.FileItem(filepath, duration, inpoint, outpoint, metadata)
         )
 
-    def add_files(self, *files):
+    def add_files(self, files):
         for file in files:
             self.files.append(self.FileItem(file))
 
     def add_glob(self, expr):
-        pass
+        raise ValueError("TODO")
 
     def add_sequence(self, expr):
-        pass
+        raise ValueError("TODO")
 
     def add_stream(self, id=None, codec=None, metadata=None, extradata=None):
         self.streams.append(self.StreamItem(id, codec, metadata, extradata))
@@ -232,12 +269,15 @@ class ConcatDemuxer:
     def add_option(self, key, value):
         self.options[key] = value
 
+    def add_options(self, options):
+        self.options.update(options)
+
     def add_chapter(self, id, start, end):
         self.chapters[id] = (start, end)
 
     def parse(self, script, append=False):
         def new_file(args):
-            self.files.append(self.FileItem(args))
+            self.files.append(self.FileItem(unescape(args)))
 
         def new_stream(_):
             self.streams.append(self.StreamItem())
@@ -247,22 +287,22 @@ class ConcatDemuxer:
 
         def set_file_meta(esc, args):
             k, v = args.split(esc, 1)
-            self.last_file.metadata[k] = v
+            self.last_file.metadata[k] = unescape(v)
 
         def set_stream_attr(key, args):
             setattr(self.last_stream, key, args)
 
         def set_stream_meta(args):
             k, v = args.split(" ", 1)
-            self.last_stream.metadata[k] = v
+            self.last_stream.metadata[k] = unescape(v)
 
         def set_option(args):
             key, value = args.split(" ", 1)
-            self.options[key] = value
+            self.options[key] = unescape(value)
 
         def set_chapter(args):
             id, start, end = args.split(" ", 2)
-            self.chapters[id] = (start, end)
+            self.chapters[unescape(id)] = (start, end)
 
         arg_parsers = {
             "file": new_file,
@@ -286,11 +326,11 @@ class ConcatDemuxer:
             self.options = {}
             self.chapters = {}
 
-        for match in re.finditer(r"\s*([^#]\S*)\s*(\S*)", script):
-            dir = match[0]
-            args = match[1]
+        for match in re.finditer(r"\s*([^#]\S*)\s+(.*)?\n", script):
+            dir = match[1]
+            args = match[2]
 
-            if dir == "ffconcat" and args == " version 1.0":
+            if dir == "ffconcat" and args == "version 1.0":
                 continue
 
             try:
@@ -308,7 +348,7 @@ class ConcatDemuxer:
             f.writelines(file.lines)
 
         for key, value in self.options.items():
-            f.write(f"option {key} {value}\n")
+            f.write(f"option {key} {escape(value)}\n")
 
         for stream in self.streams:
             f.writelines(stream.lines)
@@ -317,25 +357,39 @@ class ConcatDemuxer:
             ((key, *value) for key, value in self.chapters.items()),
             key=lambda el: el[1],
         ):
-            f.write(f"chapter {id} {start} {end}\n")
+            f.write(f"chapter {escape(id)} {start} {end}\n")
         return f
 
     def __enter__(self):
-        self._temp_url = self.compose(
+        self._temp_file = self.compose(
             None if self.pipe_url else NamedTemporaryFile("w+t")
         )
+
         return self
 
     def __exit__(self, *exc):
-        self._temp_url.close()
-        self._temp_url = None
+        self._temp_file.close()
+        self._temp_file = None
+
+    @property
+    def url(self):
+        """:str: url to use as FFmpeg `-i` option"""
+        try:
+            return self.pipe_url or self._temp_file.name
+        except:
+            return "unset"
 
     @property
     def input(self):
-        return (self._temp_url or self.compose()).getvalue()
+        """:str: composed concat listing script"""
+        return (self._temp_file or self.compose()).getvalue()
 
     def __str__(self) -> str:
-        return self.pipe_url or self._temp_url
+        return self.url
 
     def __repr__(self) -> str:
-        return self.input
+        script = "\n        ".join(self.input.splitlines())
+        return f"""FFmpeg concat demuxer source generator
+    url: {self.url}
+    script:
+        {script}"""
