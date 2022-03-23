@@ -105,9 +105,9 @@ class ConcatDemuxer:
     ```python
 
     files = ['video1.mp4','video2.mp4']
-    concat = ffmpegio.ConcatDemuxer(pipe_url='-')
-    concat.add_files(files)
-    ffmpegio.transcode(concat,'output.mp4')
+    concat_demuxer = ffmpegio.ConcatDemuxer(pipe_url='-')
+    concat_demuxer.add_files(files)
+    ffmpegio.transcode(concat_demuxer,'output.mp4')
     ```
 
     2. Concatenate mp4 files with a temp listing file
@@ -115,10 +115,24 @@ class ConcatDemuxer:
     ```python
 
     files = ['video1.mp4','video2.mp4']
-    concat = ffmpegio.ConcatDemuxer()
-    concat.add_files(files)
-    with concat:
-        ffmpegio.transcode(concat,'output.mp4')
+    concat_demuxer = ffmpegio.ConcatDemuxer()
+    concat_demuxer.add_files(files)
+    with concat_demuxer:
+        ffmpegio.transcode(concat_demuxer,'output.mp4')
+
+    ```
+
+    The concat script may be populated/altered inside the `with` statement, 
+    but `refresh()` must be called to update the script:
+
+    ```python
+
+    files = ['video1.mp4','video2.mp4']
+    with ffmpegio.ConcatDemuxer() as concat_demuxer:
+        concat_demuxer.add_files(files)
+        concat_demuxer.refresh()
+        ffmpegio.transcode(concat_demuxer,'output.mp4')
+
     ```
 
     """
@@ -366,6 +380,16 @@ class ConcatDemuxer:
         )
 
         return self
+
+    def update(self):
+        """Update the prepared script for the context
+        """        
+        if self._temp_file:
+            self._temp_file.close()
+            self._temp_file = self.compose(
+                None if self.pipe_url else NamedTemporaryFile("w+t")
+            )
+
 
     def __exit__(self, *exc):
         self._temp_file.close()
