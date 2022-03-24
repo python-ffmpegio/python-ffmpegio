@@ -297,6 +297,10 @@ class ConcatDemuxer:
             self.streams.append(self.StreamItem())
 
         def set_file_attr(key, args):
+            try:
+                args = float(args)
+            except:
+                pass
             setattr(self.last_file, key, args)
 
         def set_file_meta(esc, args):
