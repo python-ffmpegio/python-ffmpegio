@@ -2,6 +2,7 @@
 """
 
 import io, re
+import logging
 from tempfile import NamedTemporaryFile
 from functools import partial
 
@@ -122,7 +123,7 @@ class ConcatDemuxer:
 
     ```
 
-    The concat script may be populated/altered inside the `with` statement, 
+    The concat script may be populated/altered inside the `with` statement,
     but `refresh()` must be called to update the script:
 
     ```python
@@ -386,14 +387,12 @@ class ConcatDemuxer:
         return self
 
     def update(self):
-        """Update the prepared script for the context
-        """        
+        """Update the prepared script for the context"""
         if self._temp_file:
             self._temp_file.close()
             self._temp_file = self.compose(
                 None if self.pipe_url else NamedTemporaryFile("w+t")
             )
-
 
     def __exit__(self, *exc):
         self._temp_file.close()
@@ -421,3 +420,48 @@ class ConcatDemuxer:
     url: {self.url}
     script:
         {script}"""
+
+    def as_filter(self, v=1, a=0, file_offset=0):
+        """convert to concat filter commands
+
+        :param v: number of video streams in each file, default to 1
+        :type v: int, optional
+        :param a: number of audio streams in each file, default to 0
+        :type a: int, optional
+        :param file_offset: id of the first file used in the filtergraph input labels
+        :type file_offset: int, optional
+        :returns: inputs list and concat filtergraph string
+        :rtype: tuple[list[tuple[str,dict]], str]
+        """
+
+        if len(self.streams) or len(self.options) or len(self.chapters):
+            logging.warning(
+                "Demuxer specifying non-file directives. Only file directives are converted."
+            )
+
+        meta_warn = False
+
+        inputs = []
+        for file in self.files:
+            url = file.path
+            opts = {}
+            if file.duration:
+                opts["t"] = file.duration
+            if file.inpoint:
+                opts["ss"] = file.inpoint
+            if file.outpoint:
+                opts["to"] = file.outpoint
+            if file.metadata and not meta_warn:
+                logging.warning("File metadata directives are ignored.")
+                meta_warn = True
+            inputs.append((url, opts))
+
+        n = len(self.files)
+        nst = v + a
+        in_labels = "".join(
+            (f"[{i+file_offset}:{j}]" for j in range(nst) for i in range(n))
+        )
+
+        fg = f"{in_labels}concat=n={n}:v={v}:a={a}"
+
+        return inputs, fg

@@ -80,6 +80,9 @@ def test_concat_demux():
     print(concat.compose().getvalue())
     print(repr(concat))
 
+    url,fg = concat.as_filter()
+    print(url,fg)
+
 
 def test_url_check():
     concat = ConcatDemuxer("file vid1.mp4\nfile vid2.mp4\n", pipe_url="-")
@@ -90,4 +93,4 @@ def test_url_check():
 
 if __name__ == "__main__":
     # test_concat_demux()
-    test_url_check()
+    test_concat_demux()
