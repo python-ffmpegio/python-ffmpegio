@@ -1,4 +1,4 @@
-"""ConcatDemuxer class to 
+"""FFConcat class to 
 """
 
 import io, re
@@ -76,7 +76,7 @@ from . import escape, unescape
 #     Option to access, open and probe the file. Can be present multiple times.
 
 
-class ConcatDemuxer:
+class FFConcat:
     """Create FFmpeg concat demuxer source generator
 
     :param script: concat script to parse, defaults to None (empty script)
@@ -84,19 +84,19 @@ class ConcatDemuxer:
     :param pipe_url: stdin pipe or None to use a temp file, defaults to None
     :type pipe_url: bool, optional
 
-    ConcatDemuxer instance is intended to be used as an input url object when invoking `ffmpegprocess.run`
+    FFConcat instance is intended to be used as an input url object when invoking `ffmpegprocess.run`
     or `ffmpegprocess.Popen`. The FFmpeg command parser stringify the ConatDemuxer instance to either the
     temp file path or the pipe name, depending on the chosen operation mode. The temporary listing is
-    automatically generated within the ConcatDemuxer context. If the listing is send in via pipe, the
-    listing data can be obtained via `concat_demuxer.input`.
+    automatically generated within the FFConcat context. If the listing is send in via pipe, the
+    listing data can be obtained via `ffconcat.input`.
 
     The listing can be populated either by parsing a valid ffconcat script via the constructor or
-    `concat_demuxer.parse()`. Or an individual item (file, stream, option, or chapter) can be added by
-    `concat_demuxer.add_file()`, `concat_demuxer.add_stream()`, `concat_demuxer.add_option()`, or
-    `concat_demuxer.add_chapter()`. Files can also be added in batch by `concat_demuxer.add_files()`.
+    `ffconcat.parse()`. Or an individual item (file, stream, option, or chapter) can be added by
+    `ffconcat.add_file()`, `ffconcat.add_stream()`, `ffconcat.add_option()`, or
+    `ffconcat.add_chapter()`. Files can also be added in batch by `ffconcat.add_files()`.
 
     Aside from the intended operations with `ffmpegprocess`, a listing file can be explicitly created by
-    calling `concat_demuxer.compose()` with a valid writable text file object.
+    calling `ffconcat.compose()` with a valid writable text file object.
 
     Examples
     --------
@@ -106,9 +106,9 @@ class ConcatDemuxer:
     ```python
 
     files = ['video1.mp4','video2.mp4']
-    concat_demuxer = ffmpegio.ConcatDemuxer(pipe_url='-')
-    concat_demuxer.add_files(files)
-    ffmpegio.transcode(concat_demuxer,'output.mp4')
+    ffconcat = ffmpegio.FFConcat(pipe_url='-')
+    ffconcat.add_files(files)
+    ffmpegio.transcode(ffconcat,'output.mp4')
     ```
 
     2. Concatenate mp4 files with a temp listing file
@@ -116,10 +116,10 @@ class ConcatDemuxer:
     ```python
 
     files = ['video1.mp4','video2.mp4']
-    concat_demuxer = ffmpegio.ConcatDemuxer()
-    concat_demuxer.add_files(files)
-    with concat_demuxer:
-        ffmpegio.transcode(concat_demuxer,'output.mp4')
+    ffconcat = ffmpegio.FFConcat()
+    ffconcat.add_files(files)
+    with ffconcat:
+        ffmpegio.transcode(ffconcat,'output.mp4')
 
     ```
 
@@ -129,10 +129,10 @@ class ConcatDemuxer:
     ```python
 
     files = ['video1.mp4','video2.mp4']
-    with ffmpegio.ConcatDemuxer() as concat_demuxer:
-        concat_demuxer.add_files(files)
-        concat_demuxer.refresh()
-        ffmpegio.transcode(concat_demuxer,'output.mp4')
+    with ffmpegio.FFConcat() as ffconcat:
+        ffconcat.add_files(files)
+        ffconcat.refresh()
+        ffmpegio.transcode(ffconcat,'output.mp4')
 
     ```
 
@@ -231,7 +231,7 @@ class ConcatDemuxer:
     def __init__(self, script=None, pipe_url=None):
         self.files = (
             []
-        )  # :List[ConcatDemuxer.FileItem]: list of files to be included in the order of appearance
+        )  # :List[FFConcat.FileItem]: list of files to be included in the order of appearance
         self.streams = (
             []
         )  #:ListConcatDemuxer.StreamItem]: list of streams to be included in the order of appearance
@@ -247,7 +247,7 @@ class ConcatDemuxer:
 
     @property
     def last_file(self):
-        """:ConcatDemuxer.FileItem: Last added file item"""
+        """:FFConcat.FileItem: Last added file item"""
         try:
             return self.files[-1]
         except:
@@ -255,7 +255,7 @@ class ConcatDemuxer:
 
     @property
     def last_stream(self):
-        """:ConcatDemuxer.StreamItem: Last added stream item"""
+        """:FFConcat.StreamItem: Last added stream item"""
         try:
             return self.streams[-1]
         except:

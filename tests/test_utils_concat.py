@@ -1,4 +1,4 @@
-from ffmpegio.utils.concat import ConcatDemuxer
+from ffmpegio.utils.concat import FFConcat
 from ffmpegio.utils import escape
 from ffmpegio.configure import check_url
 import pytest
@@ -11,14 +11,14 @@ def test_file_item():
     outpoint = 5.4
     metadata = {"url": "https://ffmpeg.org", "name": ".mp4", "author": "Crime d'Amour"}
 
-    item = ConcatDemuxer.FileItem(None)
+    item = FFConcat.FileItem(None)
     with pytest.raises(RuntimeError):
         item.lines
 
-    item = ConcatDemuxer.FileItem(filepath)
+    item = FFConcat.FileItem(filepath)
     assert item.lines == ["file test.mp4\n"]
 
-    item = ConcatDemuxer.FileItem(filepath, duration, inpoint, outpoint, metadata)
+    item = FFConcat.FileItem(filepath, duration, inpoint, outpoint, metadata)
     assert item.lines == [
         "file test.mp4\n",
         "duration 15.4\n",
@@ -36,11 +36,11 @@ def test_stream_item():
     metadata = {"encoder": "libx264", "crf": 20}
     extradata = b"random_extra_data"
 
-    item = ConcatDemuxer.StreamItem()
+    item = FFConcat.StreamItem()
     with pytest.raises(RuntimeError):
         item.lines
 
-    item = ConcatDemuxer.StreamItem(id, codec, metadata, extradata)
+    item = FFConcat.StreamItem(id, codec, metadata, extradata)
     assert item.lines == [
         "stream\n",
         f"exact_stream_id {id}\n",
@@ -51,12 +51,12 @@ def test_stream_item():
     ]
 
     # invalid extradata but make sure str data comes through as is
-    item = ConcatDemuxer.StreamItem(extradata=extradata.decode("utf8"))
+    item = FFConcat.StreamItem(extradata=extradata.decode("utf8"))
     assert item.lines == ["stream\n", "stream_extradata random_extra_data\n"]
 
 
 def test_concat_demux():
-    concat = ConcatDemuxer()
+    concat = FFConcat()
     assert str(concat) == "unset"  # url not set
 
     concat.add_file("test1.mp4", metadata={"created_by": "ffmpegio"})
@@ -85,7 +85,7 @@ def test_concat_demux():
 
 
 def test_url_check():
-    concat = ConcatDemuxer("file vid1.mp4\nfile vid2.mp4\n", pipe_url="-")
+    concat = FFConcat("file vid1.mp4\nfile vid2.mp4\n", pipe_url="-")
     url, _, input = check_url(concat, nodata=False)
     assert url == concat
     assert input == concat.input
