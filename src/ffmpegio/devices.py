@@ -1,3 +1,20 @@
+'''I/O Device Enumeration Module
+
+This module allows input and output hardware devices to be enumerated in the same fashion as the 
+streams of media containers. For example, instead of specifying DirectShow hardware by
+
+```
+url = 'video="WebCam":audio="Microphone"'
+```
+
+You can specify them as
+
+```
+url = 'v:0|a:0'
+```
+
+
+'''
 import logging
 from ffmpegio.path import _exec
 from subprocess import PIPE, DEVNULL
@@ -9,6 +26,25 @@ SINKS = {}
 
 
 def rescan():
+    """scans the system for input/output hardware
+
+    This function must be called by user to enable device enumeration in
+    ffmpegio. Also, none of functions in `ffmpegio.devices` module will return 
+    meaningful outputs until `rescan` is called. Likewise, `rescan()` must
+    run again after a change in hardware to reflect the change.
+
+    The devices are enumerated according to the outputs of outputs
+    `ffmpeg -sources` and `ffmpeg -sinks` calls for the devices supporting
+    this fairly new FFmpeg interface. Additional hardware configurations
+    are detected by registered plugins with hooks `device_source_api` or
+    `device_sink_api`.
+
+    Currently Supported Devices
+    ---------------------------
+    Windows: dshow
+    Mac: tbd
+    Linux: tbd
+    """
 
     global SOURCES, SINKS
 
@@ -91,18 +127,38 @@ def _list_devices(devs, mtype):
 
 
 def list_video_sources():
+    """list detected video source devices
+
+    :return: list of devices
+    :rtype: list[str]
+    """    
     return _list_devices(SOURCES, "v")
 
 
 def list_audio_sources():
+    """list detected audio source devices
+
+    :return: list of devices
+    :rtype: list[str]
+    """    
     return _list_devices(SOURCES, "a")
 
 
 def list_video_sinks():
+    """list detected video sink devices
+
+    :return: list of devices
+    :rtype: list[str]
+    """    
     return _list_devices(SINKS, "v")
 
 
 def list_audio_sinks():
+    """list detected audio sink devices
+
+    :return: list of devices
+    :rtype: list[str]
+    """    
     return _list_devices(SINKS, "a")
 
 
@@ -125,10 +181,29 @@ def _get_dev(device, dev_type):
 
 
 def list_hardware(device, dev_type=None):
+    """list detected hardware of a device
+
+    :param device: name of the device
+    :type device: str
+    :param dev_type: source or sink, defaults to None to list all
+    :type dev_type: str, optional
+    :return: list of discoveredhardware
+    :rtype: list[dict[str,dict]]
+    """    
     return _get_dev(device, dev_type)["list"]
 
 
 def list_source_options(device, enum):
+    """list supported options of enumerated source hardware
+
+    :param device: device name
+    :type device: str
+    :param enum: hardware specifier, e.g., v:0, a:0
+    :type enum: str
+    :return: list of supported option combinations. If option values are tuple
+             it indicates the min and max range of the option value.
+    :rtype: list[dict]
+    """    
     info = _get_dev(device, "source")
     try:
         list_options = info["list_options"]
@@ -138,6 +213,16 @@ def list_source_options(device, enum):
 
 
 def list_sink_options(device, enum):
+    """list supported options of enumerated sink hardware
+
+    :param device: device name
+    :type device: str
+    :param enum: hardware specifier, e.g., v:0, a:0
+    :type enum: str
+    :return: list of supported option combinations. If option values are tuple
+             it indicates the min and max range of the option value.
+    :rtype: list[dict]
+    """    
     info = _get_dev(device, "sink")
     try:
         list_options = info["list_options"]
@@ -147,6 +232,19 @@ def list_sink_options(device, enum):
 
 
 def resolve_source(url, opts):
+    """resolve source enumeration
+
+    :param url: input url, possibly device enum
+    :type url: str
+    :param opts: input options
+    :type opts: dict
+    :return: possibly modified url and opts
+    :rtype: tuple[str,dict]
+
+    This function is called by `ffmpeg.compose()` to convert
+    device enumeration back to url expected by ffmpeg
+
+    """
     try:
         dev = SOURCES[opts["f"]]
         assert dev is not None
@@ -164,6 +262,19 @@ def resolve_source(url, opts):
 
 
 def resolve_sink(url, opts):
+    """resolve sink enumeration
+
+    :param url: output url, possibly device enum
+    :type url: str
+    :param opts: output options
+    :type opts: dict
+    :return: possibly modified url and opts
+    :rtype: tuple[str,dict]
+
+    This function is called by `ffmpeg.compose()` to convert
+    device enumeration back to url expected by ffmpeg
+
+    """
     try:
         dev = SINKS[opts["f"]]
         assert dev is not None
