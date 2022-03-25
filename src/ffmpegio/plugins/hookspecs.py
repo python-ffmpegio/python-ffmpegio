@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import pluggy
-from typing import Callable, Tuple, Literal
+from typing import Callable, Tuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
 
@@ -103,6 +105,7 @@ def device_source_api() -> Tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+
 
 @hookspec
 def device_sink_api() -> Tuple[str, dict[str, Callable]]:
