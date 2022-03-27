@@ -13,7 +13,9 @@ def found():
 
     :return: True if both ffmpeg and ffprobe are found
     :rtype: bool
+
     """
+
     return bool(FFMPEG_BIN and FFPROBE_BIN)
 
 
@@ -53,12 +55,13 @@ def find(ffmpeg_path=None, ffprobe_path=None):
     valid executables.
 
     If no argument is specified, the executables are auto-detected in the following orders.
+
     (1) `ffmpeg` and `ffprobe` commands, i.e., the path to the parent directory
         is included in the system PATH environmental variable.
     (2) Run the `finder` plugin functions in the LIFO order and use the first valid
         paths. There are two plugins currently offered: `ffmpegio-plugin-downloader`
         and `ffmpegio-plugin-static-ffmpeg`.
-    (3) In Windows, additional locations are searched (e.g., C:\Program Files\ffmpeg).
+    (3) In Windows, additional locations are searched (e.g., C:\\Program Files\\ffmpeg).
         See the documentation for the full list.
 
     """

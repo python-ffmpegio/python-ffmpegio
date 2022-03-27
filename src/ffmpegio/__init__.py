@@ -165,14 +165,14 @@ def open(
     =====  =====  =========  ===================================
     ncomp  dtype  pix_fmt    Description
     =====  =====  =========  ===================================
-      1     |u8   gray       grayscale
+      1     \|u8   gray       grayscale
       1     <u2   gray16le   16-bit grayscale
       1     <f4   grayf32le  floating-point grayscale
-      2     |u1   ya8        grayscale with alpha channel
+      2     \|u1   ya8        grayscale with alpha channel
       2     <u2   ya16le     16-bit grayscale with alpha channel
-      3     |u1   rgb24      RGB
+      3     \|u1   rgb24      RGB
       3     <u2   rgb48le    16-bit RGB
-      4     |u1   rgba       RGB with alpha transparency channel
+      4     \|u1   rgba       RGB with alpha transparency channel
       4     <u2   rgba64le   16-bit RGB with alpha channel
     =====  =====  =========  ===================================
 
@@ -183,7 +183,7 @@ def open(
     ======  ==========
     dtype   sample_fmt
     ======  ==========
-     |u1     u8
+     \|u1     u8
      <i2     s16
      <i4     s32
      <f4     flt

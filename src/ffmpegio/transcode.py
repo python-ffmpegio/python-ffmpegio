@@ -37,7 +37,7 @@ def transcode(
                          defaults to None (add 'an' if `pass1_omits` also None)
     :type pass1_extras: dict(int:dict(str)), optional
     :param \\**options: FFmpeg options. For output and global options, use FFmpeg
-                        option names as is. For input options, prepend "input_" to
+                        option names as is. For input options, prepend "input\_" to
                         the option name. For example, input_r=2000 to force the
                         input frame rate to 2000 frames/s (see :doc:`options`).
     :type \\**options: dict, optional
