@@ -40,6 +40,7 @@ except Exception as e:
 
 from . import ffmpegprocess
 
+from .ffmpegprocess import run as ffmpeg
 from .utils.error import FFmpegError
 from .utils.concat import FFConcat
 from .utils.filter import FilterGraph
@@ -48,9 +49,9 @@ from . import caps, probe, audio, image, video, media
 from . import streams as _streams
 
 # fmt:off
-__all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "transcode", "caps",
-    "probe", "audio", "image", "video", "media", "open", "ffmpegprocess",
-    "FFmpegError", "FilterGraph", "FFConcat"]
+__all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg",
+    "transcode", "caps", "probe", "audio", "image", "video", "media", 
+    "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat"]
 # fmt:on
 
 __version__ = "0.4.3"
