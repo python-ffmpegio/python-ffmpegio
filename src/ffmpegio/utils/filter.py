@@ -1,9 +1,6 @@
-from email.utils import parseaddr
 import re, itertools
 from collections.abc import Sequence
 from copy import deepcopy
-
-from black import T
 
 from .. import utils
 
@@ -817,6 +814,23 @@ class FilterGraph:
     def copy(self):
         return FilterGraph(self)
 
+    def iter_loose_input_pads(self, max=1):
+
+        used = set((*self.input_labels.values(), *self.links.keys()))
+        return ((i, 0, k)
+            for i in range(len(self))
+            for k in range(max)
+            if (i, 0, k) not in used)
+
+    def iter_loose_output_pads(self, max=1):
+        used = set((*self.output_labels.values(), *self.links.values()))
+        return (
+            (i, len(chain) - 1, k)
+            for i, chain in enumerate(self.filter_specs)
+            for k in range(max)
+            if (i, len(chain) - 1, k) not in used
+        )
+
     def __getitem__(self, inds):
         get_chains, *inds = self._resolve_indices_(inds)
         if get_chains:
@@ -1439,142 +1453,81 @@ class FilterGraph:
         if not inplace:
             return dst
 
+    @staticmethod
+    def split(splitter, src_fg, *dst_fgs, src_pad=None, dst_pads=None, compact=False):
+        """combine filtergraphs with a splitting filter
 
-def FilterChain(filter_specs):
-    return FilterGraph([filter_specs])
+        :param splitter: a filter to split the output of src_fg, must be a one-to-many filter
+        :type splitter: str or filter tuple
+        :param src_fg: leading filtergraph or input stream specifier
+        :type src_fg: FilterGraph or str
+        :param *dst_fgs: output filtergraphs or output stream labels
+        :type *dst_fgs: List[FilterGraph or str]
+        :param src_pad: src_fg's output pad label or index-tuple, defaults to None
+        :type src_pad: str or filter index, optional
+        :param dst_pads: input pad labels or index-tuples for dst_fgs, defaults to None
+        :type dst_pads: dict[FilterGraph or str, str or filter index or None], optional
+        :param compact: If True, src_fg, splitter, and dst_fgs[-1] will form a single chain, defaults to False
+        :type compact: bool, optional
 
+        If src_pad is not given for a FilterGraph src_fg, the first output pad of the first filter
+        chain without any output label will be chosen. An input stream spec may be used instead.
 
-def mimo_filter(
-    filter, in_fgs, out_fgs, in_map=None, out_map=None, *filter_opts, **filter_kw_opts
-):
-    """Join filtergraphs with a mimo filter
+        Likewise, if dst_pads is not given or the i-th element is None, the first input pad of the
+        first filter chain without any input label will be chosen.
 
-    :param filter: _description_
-    :type filter: str
-    :param in_fgs: _description_
-    :type in_fgs: Sequence[FilterGraph]
-    :param out_fgs: _description_
-    :type out_fgs: Sequence[FilterGraph]
-    :param map: _description_, defaults to None
-    :type map: dict, optional
-    """
+        Note: This function does not check whether splitter is properly configured to output the number
+        of outputs specified.
+        """
 
-    try:
-        in_fgs = [FilterGraph(fg) for fg in in_fgs]
-        out_fgs = [FilterGraph(fg) for fg in out_fgs]
-    except:
-        raise ValueError(
-            "All elements of in_fgs and out_fgs must be FilterGraph instances or str"
-        )
+        def is_fg(fg):
+            is_fg = isinstance(fg, FilterGraph)
+            if not (is_fg or isinstance(fg, str)):
+                raise
+            return is_fg
 
-    if in_map is None:
-        # assume the last output of each fg
-        def pick_last(fg):
-            pass
+        try:
+            is_src_fg = is_fg
+        except:
+            raise ValueError("src_fg must be either FilterGraph or str.")
+
+        if len(dst_fgs) < 2:
+            raise ValueError("At least 2 dst_fgs must be specified.")
+
+        try:
+            is_dst_fg = [is_fg(fg) for fg in dst_fgs]
+        except:
+            raise ValueError("All dst_fgs must be either FilterGraph or str.")
+
+        # create a new FilterGraph with the splitter filter alone
+        input_labels = None if is_src_fg else {src_fg: (0, 0, 0)}
+        output_labels = {
+            fg: (0, 0, i) for i, fg in enumerate(dst_fgs) if not is_dst_fg[i]
+        }
+        fg = FilterGraph([[splitter]], input_labels, output_labels)
+
+        if is_src_fg:
+            # combine src_fg and fg
+            if src_pad is None:
+                src_pad = next(src_fg.iter_loose_output_pad())
+            elif isinstance(src_pad,str):
+                src_pad = src_fg.output_pad[src_pad]
+
+    @staticmethod
+    def merge(merger, dst_fg, *src_fgs, **merge_options):
+        """join filtergraphs feed the first graph from the others"""
         pass
 
 
-# list of filters with multiple outputs
-#  'asegment': None,
-#  'aselect': None,
-#  'asplit': None,
-#  'astreamselect': None,
-#  'concat': None,
-#  'extractplanes': None,
-#  'channelsplit': None,
-#  'scale2ref': 2,
-#  'segment': None,
-#  'select': None,
-#  'split': None,
-#  'streamselect': None
-#  'acrossover': None,
-#  'anequalizer': None,
-#  'ebur128': None,
+def FilterChain(filter_specs):
+    """convenience function to create a single-chain FilterGraph instance
 
-# list of filters with multiple inputs
-#  'acrossfade': 2,
-#  'ainterleave': None,
-#  'alphamerge': 2,
-#  'amerge': None,
-#  'amix': None,
-#  'amultiply': 2,
-#  'astreamselect': None,
-#  'blend': 2,
-#  'concat': None,
-#  'convolve': 2,
-#  'deconvolve': 2,
-#  'displace': 3,
-#  'framepack': 2,
-#  'freezeframes': 2,
-#  'haldclut': 2,
-#  'hstack': None,
-#  'hysteresis': 2,
-#  'identity': 2,
-#  'interleave': None,
-#  'join': None,
-#  'lut2': 2,
-#  'maskedclamp': 3,
-#  'maskedmax': 3,
-#  'maskedmerge': 3,
-#  'maskedmin': 3,
-#  'maskedthreshold': 2,
-#  'mergeplanes': None,
-#  'midequalizer': 2,
-#  'mix': None,
-#  'morpho': 2,
-#  'msad': 2,
-#  'overlay': 2,
-#  'overlay_cuda': 2,
-#  'overlay_qsv': 2,
-#  'paletteuse': 2,
-#  'premultiply': None,
-#  'remap': 3,
-#  'scale2ref': 2,
-#  'sidechaincompress': 2,
-#  'sidechaingate': 2,
-#  'spectrumsynth': 2,
-#  'ssim': 2,
-#  'streamselect': None,
-#  'threshold': 4,
-#  'unpremultiply': None,
-#  'varblur': 2,
-#  'vstack': None,
-#  'xcorrelate': 2,
-#  'xfade': 2,
-#  'xmedian': None,
-#  'xstack': None
-
-
-def concat():
-    pass
-
-
-def overlay():
-    pass
-
-
-def segment():
-    pass
-
-
-def asegment():
-    pass
-
-
-def select():
-    pass
-
-
-def aselect():
-    pass
-
-
-def split():
-    pass
-
-
-def asplit():
-    pass
+    :param filter_specs: specifications of the filters to compose a filterchain
+    :type filter_specs: Sequence[filter_spec]
+    :return: single-chain FFmpeg filtergraph
+    :rtype: FilterGraph
+    """
+    return FilterGraph([filter_specs])
 
 
 def compose(expr, **kwargs):
