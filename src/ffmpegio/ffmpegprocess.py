@@ -27,7 +27,7 @@ from subprocess import DEVNULL, PIPE
 from copy import deepcopy
 from tempfile import TemporaryDirectory
 
-from .ffmpeg import parse, compose, FLAG
+from .utils.parser import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
 from .path import where

@@ -1,7 +1,7 @@
 import re, os, shlex
 from collections import abc
 
-from .utils import filter as filter_utils
+from . import filter as filter_utils
 
 __all__ = ["parse", "compose", "FLAG"]
 
@@ -53,7 +53,7 @@ def parse(cmdline):
     :rtype: dict
     """
 
-    from .caps import options
+    from ..caps import options
 
     if isinstance(cmdline, str):
         # remove multi-line command

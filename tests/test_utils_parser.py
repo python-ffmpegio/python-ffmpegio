@@ -1,13 +1,8 @@
-from shutil import ignore_patterns
-from sys import stderr
-import pytest
-from ffmpegio import ffmpeg, probe
-import tempfile, re
-from os import path
+from ffmpegio.utils import parser
 
 
 def test_ffmpeg():
-    out = ffmpeg.parse("ffmpeg -i input.avi -b:v 64k -bufsize 64k output.avi")
+    out = parser.parse("ffmpeg -i input.avi -b:v 64k -bufsize 64k output.avi")
     assert out == {
         "global_options": {},
         "inputs": [("input.avi", {})],
@@ -17,7 +12,7 @@ def test_ffmpeg():
     s = r"ffmpeg -i input.ts -filter_complex \
     '[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay' \
     -sn -map '#0x2dc' -map a output.mkv"
-    assert ffmpeg.parse(s) == {
+    assert parser.parse(s) == {
         "global_options": {
             "filter_complex": "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay"
         },
@@ -26,7 +21,7 @@ def test_ffmpeg():
     }
 
     s = "ffmpeg -i /tmp/a.wav -map 0:a -b:a 64k /tmp/a.mp2 -map 0:a -b:a 128k /tmp/b.mp2"
-    p = ffmpeg.parse(s)
+    p = parser.parse(s)
     assert p == {
         "global_options": {},
         "inputs": [("/tmp/a.wav", {})],
@@ -41,7 +36,7 @@ def test_parse_options():
     s = r"-filter_complex \
     '[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay' \
     -sn -map '#0x2dc'"
-    ffmpeg.parse_options(s) == {
+    parser.parse_options(s) == {
         "filter_complex": "\n",
         "#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay": "\n",
         "sn": None,
@@ -49,13 +44,13 @@ def test_parse_options():
     }
 
     s = "-i /tmp/a.wav -map 0:a -map 1:a -map 1:v -b:a 64k"
-    p = ffmpeg.parse_options(s)
+    p = parser.parse_options(s)
     assert p == {"i": "/tmp/a.wav", "map": ["0:a", "1:a", "1:v"], "b:a": "64k"}
 
 
 def test_compose():
     assert (
-        ffmpeg.compose(
+        parser.compose(
             {
                 "global_options": None,
                 "inputs": [("input.avi", {})],
@@ -65,7 +60,7 @@ def test_compose():
         == ["-i", "input.avi", "-b:v", "64k", "-bufsize", "64k", "output.avi"]
     )
 
-    assert ffmpeg.compose(
+    assert parser.compose(
         {
             "global_options": {
                 "filter_complex": "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay"
@@ -89,7 +84,7 @@ def test_compose():
     ]
 
     assert (
-        ffmpeg.compose(
+        parser.compose(
             dict(
                 inputs=[("/tmp/a.wav", {})],
                 outputs=[
