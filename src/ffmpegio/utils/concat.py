@@ -478,15 +478,20 @@ class FFConcat:
             return "unset"
 
     @property
+    def script(self):
+        """:str: composed concat listing script"""
+        return (self._temp_file or self.compose()).getvalue()
+
+    @property
     def input(self):
-        """:bytes: composed concat listing script"""
-        return (self._temp_file or self.compose()).getvalue().encode("utf-8")
+        """:bytes: script as bytes"""
+        return self.script.encode("utf-8")
 
     def __str__(self) -> str:
         return self.url
 
     def __repr__(self) -> str:
-        script = "\n        ".join(self.compose().splitlines())
+        script = "\n        ".join(self.script.splitlines())
         return f"""FFmpeg concat demuxer source generator
     url: {self.url}
     script:
