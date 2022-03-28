@@ -104,11 +104,16 @@ class FFConcat:
         def __init__(
             self, filepath, duration=None, inpoint=None, outpoint=None, metadata=None
         ):
-            self.path = filepath #:str: url of the file
-            self.duration = duration #:str or numeric or None: duration of the file, optional
-            self.inpoint = inpoint #:str or numeric or None: start time of the file, optional
-            self.outpoint = outpoint #:str or numeric or None: end time of the file, optional
-            self.metadata = metadata or {} #:dict or None: metadata of the packets of the file, optional
+            #:str: url of the file
+            self.path = filepath
+            #:str or numeric or None: duration of the file, optional
+            self.duration = duration
+            #:str or numeric or None: start time of the file, optional
+            self.inpoint = inpoint
+            #:str or numeric or None: end time of the file, optional
+            self.outpoint = outpoint
+            #:dict or None: metadata of the packets of the file, optional
+            self.metadata = metadata or {}
 
         @property
         def lines(self):
@@ -178,19 +183,9 @@ class FFConcat:
 
             return lines
 
-    def __init__(self, script=None, pipe_url=None):
-        self.files = (
-            []
-        )  # :List[FFConcat.FileItem]: list of files to be included in the order of appearance
-        self.streams = (
-            []
-        )  #:ListConcatDemuxer.StreamItem]: list of streams to be included in the order of appearance
-        self.options = {}  #:dict[str,Any]: option key-value pairs to be included
-        self.chapters = (
-            {}
-        )  #:dict[str,tuple]: chapter id-(start,end) pairs to be included
-        self.pipe_url = pipe_url  #:str|None: specify pipe url if concat script to be loaded via stdin; None via a temp file
-        self._temp_file = None  # used by context manager
+    def __init__(self, script=None, pipe_url=None, ffconcat_url=None):
+        #:str|None: specify url to save generated ffconcat file instead of a temp file
+        self.ffconcat_url = ffconcat_url
 
         if script is not None:
             self.parse(script)
@@ -403,21 +398,32 @@ class FFConcat:
 
     def __enter__(self):
         self._temp_file = self.compose(
-            None if self.pipe_url else NamedTemporaryFile("w+t")
+            None
+            if self.pipe_url
+            else open(self.ffconcat_url, "wt")
+            if self.ffconcat_url
+            else NamedTemporaryFile("wt", delete=False)
         )
+        self._temp_file.close()
 
         return self
 
     def update(self):
         """Update the prepared script for the context"""
         if self._temp_file:
-            self._temp_file.close()
+            os.remove(self._temp_file.name)
             self._temp_file = self.compose(
-                None if self.pipe_url else NamedTemporaryFile("w+t")
+                None
+                if self.pipe_url
+                else open(self.ffconcat_url, "wt")
+                if self.ffconcat_url
+                else NamedTemporaryFile("wt", delete=False)
             )
+            self._temp_file.close()
 
     def __exit__(self, *exc):
-        self._temp_file.close()
+        if self._temp_file and not self.ffconcat_url:
+            os.remove(self._temp_file.name)
         self._temp_file = None
 
     @property
@@ -430,14 +436,14 @@ class FFConcat:
 
     @property
     def input(self):
-        """:str: composed concat listing script"""
-        return (self._temp_file or self.compose()).getvalue()
+        """:bytes: composed concat listing script"""
+        return (self._temp_file or self.compose()).getvalue().encode("utf-8")
 
     def __str__(self) -> str:
         return self.url
 
     def __repr__(self) -> str:
-        script = "\n        ".join(self.input.splitlines())
+        script = "\n        ".join(self.compose().splitlines())
         return f"""FFmpeg concat demuxer source generator
     url: {self.url}
     script:
