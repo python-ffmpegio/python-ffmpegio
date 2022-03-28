@@ -1,7 +1,10 @@
 from ffmpegio.utils.concat import FFConcat
 from ffmpegio.utils import escape
 from ffmpegio.configure import check_url
-import pytest
+from ffmpegio.transcode import transcode
+from ffmpegio.ffmpegprocess import run
+import pytest, tempfile
+from os import path
 
 
 def test_file_item():
@@ -80,8 +83,8 @@ def test_concat_demux():
     print(concat.compose().getvalue())
     print(repr(concat))
 
-    url,fg = concat.as_filter()
-    print(url,fg)
+    url, fg = concat.as_filter()
+    print(url, fg)
 
 
 def test_url_check():
@@ -91,6 +94,97 @@ def test_url_check():
     assert input == concat.input
 
 
+def test_transcode():
+    # files = [path.abspath("tests/assets/testaudio-1m.mp3")] * 2
+    url = "tests/assets/testaudio-1m.mp3"
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+
+        in_url = path.join(tmpdirname, "input.wav")
+        transcode(url, in_url)
+
+        out_url = path.join(tmpdirname, "output.wav")
+
+        # example 1
+        files = [in_url] * 2
+        ffconcat = FFConcat()
+        ffconcat.add_files(files)
+        with ffconcat:
+            transcode(
+                ffconcat,
+                out_url,
+                f_in="concat",
+                # protocol_whitelist_in="pipe,file",
+                safe_in=0,
+                codec="copy",
+                # show_log=True,
+                overwrite=True,
+            )
+
+        # example 2
+        files = [path.basename(in_url)] * 2
+        ffconcat = FFConcat(ffconcat_url=path.join(tmpdirname, "concat.txt"))
+        ffconcat.add_files(files)
+        with ffconcat:
+            transcode(
+                ffconcat,
+                out_url,
+                f_in="concat",
+                # protocol_whitelist_in="pipe,file",
+                # safe_in=0,
+                codec="copy",
+                show_log=True,
+                overwrite=True,
+            )
+
+        # example 3
+        files = [f"file:{in_url}"] * 2
+        ffconcat = FFConcat(pipe_url="-")
+        ffconcat.add_files(files)
+        transcode(
+            ffconcat,
+            out_url,
+            f_in="concat",
+            protocol_whitelist_in="pipe,file",
+            safe_in=0,
+            codec="copy",
+            overwrite=True,
+            show_log=True,
+        )
+
+        # example 4
+        files = [path.basename(in_url)] * 2
+        with FFConcat(ffconcat_url=path.join(tmpdirname, "concat.txt")) as ffconcat:
+            ffconcat.add_files(files)
+            ffconcat.update()
+            transcode(
+                ffconcat,
+                out_url,
+                f_in="concat",
+                codec="copy",
+                show_log=True,
+                overwrite=True,
+            )
+
+        # example 5
+        ffconcat = FFConcat()
+        ffconcat.add_files([url] * 2)
+        inputs, fg = ffconcat.as_filter(v=0, a=1)
+        run(
+            {
+                "inputs": inputs,
+                "outputs": [(out_url, None)],
+                "global_options": {"filter_complex": fg},
+            },
+            capture_log=None,
+            overwrite=True,
+        )
+
+
 if __name__ == "__main__":
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
     # test_concat_demux()
-    test_concat_demux()
+    # test_concat_demux()
+    test_transcode()
