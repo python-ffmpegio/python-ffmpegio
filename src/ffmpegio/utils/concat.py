@@ -2,6 +2,7 @@
 """
 
 import io, re
+import os
 import logging
 from tempfile import NamedTemporaryFile
 from functools import partial
@@ -39,50 +40,76 @@ class FFConcat:
     Examples
     --------
 
-    1. Concatenate mp4 files with listing piped to stdin
+    1. Concatenate mkv files with a temp listing file
 
-    .. code-block:: python
+       .. code-block:: python
 
-        files = ['video1.mp4','video2.mp4']
-        ffconcat = ffmpegio.FFConcat(pipe_url='-')
-        ffconcat.add_files(files)
-        ffmpegio.transcode(ffconcat,'output.mp4')
+           files = ['/video/video1.mkv','/video/video2.mkv']
+           ffconcat = ffmpegio.FFConcat()
+           ffconcat.add_files(files)
+           with ffconcat: # generates temporary ffconcat file
+               ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat', safe_in=0)
 
-    2. Concatenate mp4 files with a temp listing file
+       Note that the files in an ffconcat listing file are defined relative to
+       to the location of the ffconcat file. As such, both video files must be
+       defined with absolute paths because the temporary ffconcat file is in a
+       tempdir. Because the absolute paths are given, `safe_in=0` option must
+       be specified.
 
-    .. code-block:: python
+    2. Save generated ffconcat file in a same folder as the source video files
 
-        files = ['video1.mp4','video2.mp4']
-        ffconcat = ffmpegio.FFConcat()
-        ffconcat.add_files(files)
-        with ffconcat:
-            ffmpegio.transcode(ffconcat,'output.mp4')
+       .. code-block:: python
 
-    The concat script may be populated/altered inside the `with` statement,
-    but `refresh()` must be called to update the script:
+           files = ['video1.mkv','video2.mkv']
+           ffconcat = ffmpegio.FFConcat(ffconcat_url='/video/concat.txt')
+           ffconcat.add_files(files)
+           with ffconcat: # generates ffconcat file at ffconcat_url
+               ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat')
 
-    .. code-block:: python
+       By creating the ffconcat listing file in the directory where the video files
+       are, the files in the listing can be defined relatively (i.e., just filenames).
+       FFConcat will overwrite the file if exists, and the generated ffconcat file
+       will not be deleted.
 
-        files = ['video1.mp4','video2.mp4']
-        with ffmpegio.FFConcat() as ffconcat:
-            ffconcat.add_files(files)
-            ffconcat.refresh()
-            ffmpegio.transcode(ffconcat,'output.mp4')
+    3. Concatenate mkv files with listing piped to stdin
 
-    Rather than using demuxer, it can be used to compose concat filter command:
+       .. code-block:: python
 
-    .. code-block:: python
+           files = ['file:video1.mkv','file:video2.mkv']
+           ffconcat = ffmpegio.FFConcat(pipe_url='-')
+           ffconcat.add_files(files)
+           ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat',
+                              protocol_whitelist_in="pipe,file", safe_in=0)
 
-        inputs,fg = ffconcat.as_filter(v=1, a=1):
+       Because of files are specified by data passed in via pipe (protocol)
+       the files in the `FFConcat` must specify the protocol: `file:`. Also,
+       additional input options are necessary: `protocol_whitelist_in="pipe,file"`
+       and `safe_in=0`.
 
-        ffmpegio.ffmpeg(
-            {
-                "inputs": inputs,
-                "outputs": [("output.mp4", None)],
-                "global_options": {"filter_complex": fg},
-            }
-        )
+    4. The concat script may be populated/altered inside the `with` statement,
+       but `update()` must be called to update the prepared script:
 
+       .. code-block:: python
+
+           files = ['video1.mkv','video2.mkv']
+           with ffmpegio.FFConcat(ffconcat_url='/video/concat.txt') as ffconcat:
+               ffconcat.add_files(files)
+               ffconcat.update() # must call update() before transcode
+               ffmpegio.transcode(ffconcat,'output.mkv', f_in='concat')
+
+    4. Rather than using demuxer, it can be used to compose concat filter command:
+
+       .. code-block:: python
+
+           inputs,fg = ffconcat.as_filter(v=1, a=1)
+
+           ffmpegio.ffmpeg(
+               {
+                   "inputs": inputs,
+                   "outputs": [("output.mkv", None)],
+                   "global_options": {"filter_complex": fg},
+               }
+           )
 
     """
 
@@ -117,7 +144,7 @@ class FFConcat:
 
         @property
         def lines(self):
-            """:List[str]: ffconcat lines of the file"""            
+            """:List[str]: ffconcat lines of the file"""
             if not self.path:
                 raise RuntimeError("Invalid FileItem. File path must be set.")
             lines = [
@@ -151,14 +178,18 @@ class FFConcat:
         """
 
         def __init__(self, id=None, codec=None, metadata=None, extradata=None):
-            self.id = id #:str or None: id of the stream, optional
-            self.codec = codec #:str or None: codec of the stream, optional
-            self.metadata = metadata or {} #:dict or None: of the stream, optional
-            self.extradata = extradata #:bytes or str or None: extra data of the stream, optional
+            #:str or None: id of the stream, optional
+            self.id = id
+            #:str or None: codec of the stream, optional
+            self.codec = codec
+            #:dict or None: of the stream, optional
+            self.metadata = metadata or {}
+            #:bytes or str or None: extra data of the stream, optional
+            self.extradata = extradata
 
         @property
         def lines(self):
-            """:List[str]: ffconcat lines of the stream"""            
+            """:List[str]: ffconcat lines of the stream"""
 
             if all(
                 (getattr(self, k) is None for k in ("id", "codec", "extradata"))
@@ -184,8 +215,20 @@ class FFConcat:
             return lines
 
     def __init__(self, script=None, pipe_url=None, ffconcat_url=None):
+        # :List[FFConcat.FileItem]: list of files to be included in the order of appearance
+        self.files = []
+        #:ListConcatDemuxer.StreamItem]: list of streams to be included in the order of appearance
+        self.streams = []
+        #:dict[str,Any]: option key-value pairs to be included
+        self.options = {}
+        #:dict[str,tuple]: chapter id-(start,end) pairs to be included
+        self.chapters = {}
+        #:str|None: specify pipe url if concat script to be loaded via stdin; None via a temp file
+        self.pipe_url = pipe_url
         #:str|None: specify url to save generated ffconcat file instead of a temp file
         self.ffconcat_url = ffconcat_url
+        # used by context manager
+        self._temp_file = None
 
         if script is not None:
             self.parse(script)
@@ -221,7 +264,7 @@ class FFConcat:
         :type outpoint: str or numeric, optional
         :param metadata: Metadata of the packets of the file, defaults to None
         :type metadata: dict, optional
-        """    
+        """
         self.files.append(
             self.FileItem(filepath, duration, inpoint, outpoint, metadata)
         )
@@ -231,7 +274,7 @@ class FFConcat:
 
         :param files: list of files
         :type files: Sequence[str]
-        """        
+        """
 
         for file in files:
             self.files.append(self.FileItem(file))
@@ -253,7 +296,7 @@ class FFConcat:
         :type metadata: dict, optional
         :param extradata: Extradata for the stream in hexadecimal, defaults to None
         :type extradata: str or bytes-like, optional
-        """        
+        """
         self.streams.append(self.StreamItem(id, codec, metadata, extradata))
 
     def add_option(self, key, value):
@@ -263,7 +306,7 @@ class FFConcat:
         :type key: str
         :param value: option value (must be stringifiable)
         :type value: Any
-        """        
+        """
 
         self.options[key] = value
 
@@ -272,8 +315,8 @@ class FFConcat:
 
         :param options: options
         :type options: dict[str, Any]
-        """        
-        
+        """
+
         self.options.update(options)
 
     def add_chapter(self, id, start, end):
@@ -297,7 +340,7 @@ class FFConcat:
         :param append: True to append to the existing listing, False to clear
                        existing and start new, defaults to False
         :type append: bool, optional
-        """        
+        """
 
         def new_file(args):
             self.files.append(self.FileItem(unescape(args)))
