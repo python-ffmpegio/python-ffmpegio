@@ -7,23 +7,30 @@ def test_devices():
     print(devices.SOURCES)
     print(devices.SINKS)
 
-    for dev in devices.list_video_sources():
-        print(dev, devices.resolve_source("v:0", {"f": dev}))
-        print(dev, devices.list_hardware(dev,'source'))
-        print(devices.list_source_options(dev, 'v:0'))
-    for dev in devices.list_audio_sources():
-        print(dev, devices.resolve_source("a:0", {"f": dev}))
-        print(dev, devices.list_hardware(dev,'source'))
-        print(devices.list_source_options(dev,'a:0'))
+    print(devices.list_sources("dshow", "video"))
+    print(devices.list_sources(return_nested=True))
 
-    for dev in devices.list_video_sinks():
-        print(dev, devices.resolve_sink("v:0", {"f": dev}))
-        print(dev, devices.list_hardware(dev,'sink'))
-        print(devices.list_sink_options(dev,'v:0'))
-    for dev in devices.list_audio_sinks():
-        print(dev, devices.resolve_sink("v:0", {"f": dev}))
-        print(dev, devices.list_hardware(dev,'sink'))
-        print(devices.list_sink_options(dev,'a:0'))
+    try:
+        (dev, hw_enum), name = next((i for i in devices.list_sources().items()), None)
+        print(f"({dev},{hw_enum}): {name}")
+        print(dev, devices.resolve_source(hw_enum, {"f": dev}))
+        print(dev, devices.resolve_source(f"{dev}:{hw_enum}", None))
+        print(devices.list_source_options(dev, hw_enum))
+
+        print(devices.resolve_source(f"dshow:v:0|a:0", None))
+
+    except:
+        print("no source device found")
+
+    print(devices.list_sinks("dshow", "video"))
+    print(devices.list_sinks("dshow", "audio", return_nested=True))
+    try:
+        (dev, hw_enum), name = next((i for i in devices.list_sources().items()), None)
+        print(f"({dev},{hw_enum}): {name}")
+        print(dev, devices.resolve_sink(hw_enum, {"f": dev}))
+        print(devices.list_sink_options(dev, hw_enum))
+    except:
+        print("no sink device found")
 
 
 if __name__ == "__main__":

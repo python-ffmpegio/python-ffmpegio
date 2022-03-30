@@ -118,48 +118,60 @@ def scan():
     SINKS = gather_device_info("sinks", "device_sink_api")
 
 
-def _list_devices(devs, mtype):
-    return [
-        dev
-        for dev, info in devs.items()
-        if "list" in info and any((k.startswith(mtype) for k in info["list"].keys()))
-    ]
+def _list_devices(devs, dev, mtype, return_nested):
+    if mtype:
+        mtype = mtype[0]
+    return (
+        {
+            d: {
+                k: v["name"]
+                for k, v in devs.get(d, {}).get("list", {}).items()
+                if not mtype or mtype == k[0]
+            }
+            for d in (devs.keys() if dev is None else [dev])
+        }
+        if return_nested or dev
+        else {
+            (d, k): v["name"]
+            for d in (devs.keys() if dev is None else [dev])
+            for k, v in devs.get(d, {}).get("list", {}).items()
+            if not mtype or mtype == k[0]
+        }
+    )
 
 
-def list_video_sources():
-    """list detected video source devices
+def list_sources(dev=None, mtype=None, return_nested=False):
+    """list enumerated source hardware devices
 
-    :return: list of devices
-    :rtype: list[str]
-    """    
-    return _list_devices(SOURCES, "v")
-
-
-def list_audio_sources():
-    """list detected audio source devices
-
-    :return: list of devices
-    :rtype: list[str]
-    """    
-    return _list_devices(SOURCES, "a")
-
-
-def list_video_sinks():
-    """list detected video sink devices
-
-    :return: list of devices
-    :rtype: list[str]
-    """    
-    return _list_devices(SINKS, "v")
+    :param dev: ffmpeg device name, defaults to None
+    :type dev: str, optional
+    :param mtype: media type, defaults to None
+    :type dev: "video", "audio", optional
+    :param return_nested: True to return results in nested dict, defaults to False
+    :type return_nested: bool, optional
+    :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,
+              or nested dicts. If dev is specified, dict of enumerated hardware devices and their names
+    :rtype: dict(tuple(str,str),str) or dict(str,dict(str,str)) or dict(str,str)
+    """
+    devs = _list_devices(SOURCES, dev, mtype, return_nested)
+    return devs[dev] if dev else devs
 
 
-def list_audio_sinks():
-    """list detected audio sink devices
+def list_sinks(dev=None, mtype=None, return_nested=False):
+    """list enumerated sink hardware devices
 
-    :return: list of devices
-    :rtype: list[str]
-    """    
-    return _list_devices(SINKS, "a")
+    :param dev: ffmpeg device name, default to None
+    :type dev: str, optional
+    :param mtype: media type, default to None
+    :type dev: "video", "audio", optional
+    :param return_nested: True to return results in nested dict, defaults to False
+    :type return_nested: bool, optional
+    :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,
+              or nested dicts. If dev is specified, dict of enumerated hardware devices and their names
+    :rtype: dict(tuple(str,str),str) or dict(str,dict(str,str)) or dict(str,str)
+    """
+    devs = _list_devices(SINKS, dev, mtype, return_nested)
+    return devs[dev] if dev else devs
 
 
 def _get_dev(device, dev_type):
@@ -180,19 +192,6 @@ def _get_dev(device, dev_type):
         raise ValueError(f"Unknown/unenumerated device: {device}")
 
 
-def list_hardware(device, dev_type=None):
-    """list detected hardware of a device
-
-    :param device: name of the device
-    :type device: str
-    :param dev_type: source or sink, defaults to None to list all
-    :type dev_type: str, optional
-    :return: list of discoveredhardware
-    :rtype: list[dict[str,dict]]
-    """    
-    return _get_dev(device, dev_type)["list"]
-
-
 def list_source_options(device, enum):
     """list supported options of enumerated source hardware
 
@@ -203,13 +202,13 @@ def list_source_options(device, enum):
     :return: list of supported option combinations. If option values are tuple
              it indicates the min and max range of the option value.
     :rtype: list[dict]
-    """    
+    """
     info = _get_dev(device, "source")
     try:
         list_options = info["list_options"]
     except:
         raise ValueError(f"No options to list")
-    return list_options('source', enum)
+    return list_options("source", enum)
 
 
 def list_sink_options(device, enum):
@@ -222,13 +221,46 @@ def list_sink_options(device, enum):
     :return: list of supported option combinations. If option values are tuple
              it indicates the min and max range of the option value.
     :rtype: list[dict]
-    """    
+    """
     info = _get_dev(device, "sink")
     try:
         list_options = info["list_options"]
     except:
         raise ValueError(f"No options to list")
-    return list_options('sink', enum)
+    return list_options("sink", enum)
+
+
+def _resolve(devs, url, opts):
+    try:
+        # try to get device name
+        try:
+            f = opts["f"]
+            _opts = opts
+            _url = url
+        except:
+            # use the first part of the device name
+            f, _url = url.split(":", 1)
+            try:
+                _opts = {**opts, "f": f}
+            except:
+                _opts = {"f": f}
+        # try to get device info
+        dev = devs[f]
+        url = _url
+        opts = _opts
+        assert dev is not None
+    except:
+        # not a device or unknown device
+        return url, opts
+
+    # if device-specific resolver is available, use it
+    try:
+        return dev["resolve"]("source", url), opts
+    except:
+        try:
+            url = dev["list"][url]
+        finally:
+            return url, opts
 
 
 def resolve_source(url, opts):
@@ -244,21 +276,11 @@ def resolve_source(url, opts):
     This function is called by `ffmpeg.compose()` to convert
     device enumeration back to url expected by ffmpeg
 
-    """
-    try:
-        dev = SOURCES[opts["f"]]
-        assert dev is not None
-    except:
-        # not a device or unknown device
-        return url, opts
+    The device name (-f) could be provided via opts['f'] or encoded as a
+    part of enumeration
 
-    try:
-        return dev["resolve"]("source", url), opts
-    except:
-        try:
-            url = dev["list"][url]
-        finally:
-            return url, opts
+    """
+    return _resolve(SOURCES, url, opts)
 
 
 def resolve_sink(url, opts):
@@ -275,17 +297,4 @@ def resolve_sink(url, opts):
     device enumeration back to url expected by ffmpeg
 
     """
-    try:
-        dev = SINKS[opts["f"]]
-        assert dev is not None
-    except:
-        # not a device or unknown device
-        return url, opts
-
-    try:
-        return dev["resolve"]("sink", url), opts
-    except:
-        try:
-            url = dev["list"][url]
-        finally:
-            return url, opts
+    return _resolve(SINKS, url, opts)
