@@ -182,43 +182,6 @@ def exec(
     return sp_run(args, stdin=inpipe, stdout=outpipe, stderr=errpipe, **sp_kwargs)
 
 
-def versions():
-    """Get FFmpeg version and configuration information
-
-    :return: versions of ffmpeg and its av libraries as well as build configuration
-    :rtype: dict
-
-    ==================  ====  =========================================
-    key                 type  description
-    ==================  ====  =========================================
-    'version'           str   FFmpeg version
-    'configuration'     list  list of build configuration options
-    'library_versions'  dict  version numbers of dependent av libraries
-    ==================  ====  =========================================
-
-    """
-    s = exec(
-        ["-version"],
-        hide_banner=False,
-        stdout=PIPE,
-        universal_newlines=True,
-        encoding="utf-8",
-    ).stdout.splitlines()
-    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
-    i = 2 if s[1].startswith("built with") else 1
-    if s[i].startswith("configuration:"):
-        v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
-        i += 1
-    lv = None
-    for l in s[i:]:
-        m = re.match(r"(\S+)\s+(.+?) /", l)
-        if m:
-            if lv is None:
-                lv = v["library_versions"] = {}
-            lv[m[1]] = m[2].replace(" ", "")
-    return v
-
-
 def monitor_process(proc, on_exit=None):
     """thread function to monitor subprocess termination
 

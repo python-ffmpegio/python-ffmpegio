@@ -29,7 +29,10 @@ Block Read/Write/Filter Functions
 from contextlib import contextmanager
 import logging
 
-from . import path
+from . import path, plugins
+
+# register builtin plugins and external plugins found in site-packages 
+plugins.initialize()
 
 # initialize the paths
 try:
@@ -44,19 +47,19 @@ from .ffmpegprocess import run as ffmpeg
 from .utils.error import FFmpegError
 from .utils.concat import FFConcat
 from .utils.filter import FilterGraph
+from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
-from . import caps, probe, audio, image, video, media
 from . import streams as _streams
 
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg",
-    "transcode", "caps", "probe", "audio", "image", "video", "media", 
+    "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
     "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat"]
 # fmt:on
 
 __version__ = "0.4.3"
 
-ffmpeg_info = ffmpegprocess.versions
+ffmpeg_info = path.versions
 set_path = path.find
 get_path = path.where
 is_ready = path.found

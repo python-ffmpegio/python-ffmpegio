@@ -4,10 +4,6 @@ from ffmpegio import probe, configure, ffmpegprocess, utils
 # logging.basicConfig(level=logging.DEBUG)
 
 
-def test_versions():
-    assert "version" in ffmpegprocess.versions()
-
-
 def test_run_help():
     ffmpegprocess.run({"global_options": {"help": None}})
 

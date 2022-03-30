@@ -1,11 +1,15 @@
 from os import path as _path, name as _os_name
 from shutil import which
+from subprocess import run, PIPE
+import re, shlex, subprocess as sp
+from packaging.version import Version
 
 from . import plugins
 
 # add FFmpeg directory to the system path as given in system environment variable FFMPEG_DIR
 FFMPEG_BIN = None
 FFPROBE_BIN = None
+FFMPEG_VER = None
 
 
 def found():
@@ -46,6 +50,8 @@ def find(ffmpeg_path=None, ffprobe_path=None):
     :type ffmpeg_path: str, optional
     :param ffprobe_path: Full path to the ffprobe executable file, defaults to None
     :type ffprobe_path: str, optional
+    :returns: ffmpeg path, ffprobe path, and ffmpeg version
+    :rtype: Tuple[str,str,str]
 
     If `ffmpeg_path` specifies a directory, the names of the executables are
     auto-set to `ffmpeg` and `ffprobe`.
@@ -66,7 +72,7 @@ def find(ffmpeg_path=None, ffprobe_path=None):
 
     """
 
-    global FFMPEG_BIN, FFPROBE_BIN
+    global FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
 
     has_ffmpeg = ffmpeg_path is not None
     has_ffprobe = ffprobe_path is not None
@@ -106,3 +112,58 @@ def find(ffmpeg_path=None, ffprobe_path=None):
         if res is None:
             raise RuntimeError("Failed to auto-detect ffmpeg and ffprobe executable.")
         FFMPEG_BIN, FFPROBE_BIN = res
+
+    if FFMPEG_BIN:
+        ver = versions()["version"]
+        m = re.match(r"\d+(?:\.\d+(?:\d+)?)?", ver)
+        FFMPEG_VER = Version(m[0]) if m else "nightly"
+    else:
+        FFMPEG_VER = Version("0")
+
+    return FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
+
+
+def _exec(args, **other_run_args):
+    """just run ffmpeg without bells-n-whistles
+
+    :param args: FFmpeg command arguments without `ffmpeg`
+    :type args: str or Sequence[str]
+    :param **other_run_args: subprocess.run() options
+    :type **other_run_args: dict
+    """
+    if isinstance(args, str):
+        args = shlex.split(args)
+    return sp.run((FFMPEG_BIN, *args), **other_run_args)
+
+
+def versions():
+    """Get FFmpeg version and configuration information
+
+    :return: versions of ffmpeg and its av libraries as well as build configuration
+    :rtype: dict
+
+    ==================  ====  =========================================
+    key                 type  description
+    ==================  ====  =========================================
+    'version'           str   FFmpeg version
+    'configuration'     list  list of build configuration options
+    'library_versions'  dict  version numbers of dependent av libraries
+    ==================  ====  =========================================
+
+    """
+    s = _exec(
+        ["-version"], stdout=PIPE, universal_newlines=True, encoding="utf-8"
+    ).stdout.splitlines()
+    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    i = 2 if s[1].startswith("built with") else 1
+    if s[i].startswith("configuration:"):
+        v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
+        i += 1
+    lv = None
+    for l in s[i:]:
+        m = re.match(r"(\S+)\s+(.+?) /", l)
+        if m:
+            if lv is None:
+                lv = v["library_versions"] = {}
+            lv[m[1]] = m[2].replace(" ", "")
+    return v
