@@ -241,6 +241,7 @@ High-level API Reference
     options
     filters
     caps
+    devices
     concat
 
 Advanced Topics
