@@ -97,7 +97,7 @@ def device_source_api() -> Tuple[str, dict[str, Callable]]:
 
     keyword/signature                                     Descriptions
     ----------------------------------------------------  -------------------------------------------------------
-    rescan()                                              scan system for available devices
+    scan()                                              scan system for available devices
     resolve(dev_type: str, url: str) -> str               resolve stream specifier type url to proper device url
     list_sources() -> dict[str, dict]                     list of available sources
     list_sinks() -> dict[str, dict]                       list of available sinks
@@ -113,7 +113,7 @@ def device_sink_api() -> Tuple[str, dict[str, Callable]]:
 
     keyword/signature                                     Descriptions
     ----------------------------------------------------  -------------------------------------------------------
-    rescan()                                              scan system for available devices
+    scan()                                              scan system for available devices
     resolve(dev_type: str, url: str) -> str               resolve stream specifier type url to proper device url
     list_sources() -> dict[str, dict]                     list of available sources
     list_sinks() -> dict[str, dict]                       list of available sinks

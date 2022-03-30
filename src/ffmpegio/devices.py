@@ -1,4 +1,4 @@
-'''I/O Device Enumeration Module
+"""I/O Device Enumeration Module
 
 This module allows input and output hardware devices to be enumerated in the same fashion as the 
 streams of media containers. For example, instead of specifying DirectShow hardware by
@@ -14,7 +14,7 @@ url = 'v:0|a:0'
 ```
 
 
-'''
+"""
 import logging
 from ffmpegio.path import _exec
 from subprocess import PIPE, DEVNULL
@@ -25,12 +25,12 @@ SOURCES = {}
 SINKS = {}
 
 
-def rescan():
+def scan():
     """scans the system for input/output hardware
 
     This function must be called by user to enable device enumeration in
-    ffmpegio. Also, none of functions in `ffmpegio.devices` module will return 
-    meaningful outputs until `rescan` is called. Likewise, `rescan()` must
+    ffmpegio. Also, none of functions in `ffmpegio.devices` module will return
+    meaningful outputs until `scan` is called. Likewise, `scan()` must
     run again after a change in hardware to reflect the change.
 
     The devices are enumerated according to the outputs of outputs
@@ -104,8 +104,8 @@ def rescan():
                 info = plugin_devices[name]
                 if devlist is not None:
                     info["list"] = devlist
-                elif "rescan" in info:
-                    info["list"] = info["rescan"]()
+                elif "scan" in info:
+                    info["list"] = info["scan"]()
             else:
                 info = {"list": devlist} if devlist else None
 

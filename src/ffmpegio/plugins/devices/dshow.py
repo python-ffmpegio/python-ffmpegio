@@ -124,7 +124,7 @@ def _get_dev(dev_type, spec):
             )
         except:
             raise ValueError(
-                f"Specified DirectShow device ({spec}) does not exist. Run `ffmpegio.devices.rescan()` and try again."
+                f"Specified DirectShow device ({spec}) does not exist. Run `ffmpegio.devices.scan()` and try again."
             )
     return dev
 
@@ -219,7 +219,7 @@ def _list_options(dev_type, spec):
 @hookimpl
 def device_source_api():
     return "dshow", {
-        "rescan": _rescan,
+        "scan": _rescan,
         "list_sources": _list_sources,
         "resolve": _resolve,
         "list_options": _list_options,

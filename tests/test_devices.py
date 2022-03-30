@@ -3,7 +3,7 @@ import logging
 
 
 def test_devices():
-    devices.rescan()
+    devices.scan()
     print(devices.SOURCES)
     print(devices.SINKS)
 
