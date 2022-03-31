@@ -34,7 +34,7 @@ def read(*urls, progress=None, show_log=None, **options):
     Unlike :py:mod:`video` and :py:mod:`image`, video pixel formats are not autodetected. If output
     'pix_fmt' option is not explicitly set, 'rgb24' is used.
 
-    For audio streams, if 'sample_fmt' output option is not specified, 's16le'.
+    For audio streams, if 'sample_fmt' output option is not specified, 's16'.
 
 
     streams = ['0:v:0','1:a:3'] # pick 1st file's 1st video stream and 2nd file's 4th audio stream

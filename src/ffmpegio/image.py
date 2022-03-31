@@ -1,5 +1,6 @@
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
 from .utils import filter as filter_utils, log as log_utils
+import logging
 
 __all__ = ["create", "read", "write", "filter"]
 
@@ -143,9 +144,12 @@ def read(url, show_log=None, **options):
 
     # get pix_fmt of the input file only if needed
     if "pix_fmt" not in options and "pix_fmt_in" not in options:
-        info = probe.video_streams_basic(url, 0)[0]
-        pix_fmt_in = info["pix_fmt"]
-        s_in = (info["width"], info["height"])
+        try:
+            info = probe.video_streams_basic(url, 0)[0]
+            pix_fmt_in = info["pix_fmt"]
+            s_in = (info["width"], info["height"])
+        except:
+            pix_fmt_in = 'rgb24'
     else:
         pix_fmt_in = s_in = None
 

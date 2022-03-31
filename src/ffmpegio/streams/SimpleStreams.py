@@ -226,11 +226,14 @@ class SimpleVideoReader(SimpleReaderBase):
             and inurl not in ("-", "pipe:", "pipe:0")
             and not inopts.get("pix_fmt", None)
         ):
-            # must assign output rgb/grayscale pixel format
-            info = probe.video_streams_basic(inurl, 0)[0]
-            pix_fmt_in = info["pix_fmt"]
-            s_in = (info["width"], info["height"])
-            r_in = info["frame_rate"]
+            try:
+                # must assign output rgb/grayscale pixel format
+                info = probe.video_streams_basic(inurl, 0)[0]
+                pix_fmt_in = info["pix_fmt"]
+                s_in = (info["width"], info["height"])
+                r_in = info["frame_rate"]
+            except:
+                pix_fmt_in = 'rgb24'
         else:
             pix_fmt_in = s_in = r_in = None
 
@@ -290,7 +293,7 @@ class SimpleAudioReader(SimpleReaderBase):
                 ac_in = info.get("channels", None)
                 ar_in = info.get("sample_rate", None)
             except:
-                pass
+                sample_fmt_in = 's16'
 
         (
             self.dtype,

@@ -1,8 +1,9 @@
 """Audio Read/Write Module
 """
 
-from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
+from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, caps
 from .utils import filter as filter_utils, log as log_utils
+import logging
 
 __all__ = ["create", "read", "write", "filter"]
 
@@ -187,11 +188,14 @@ def read(url, progress=None, show_log=None, **options):
     sample_fmt = options.get("sample_fmt", None)
     ac_in = ar_in = None
     if sample_fmt is None:
-        # use the same format as the input
-        info = probe.audio_streams_basic(url, 0)[0]
-        sample_fmt = info["sample_fmt"]
-        ac_in = info.get("ac", None)
-        ar_in = info.get("ar", None)
+        try:
+            # use the same format as the input
+            info = probe.audio_streams_basic(url, 0)[0]
+            sample_fmt = info["sample_fmt"]
+            ac_in = info.get("ac", None)
+            ar_in = info.get("ar", None)
+        except:
+            sample_fmt = 's16'
 
     input_options = utils.pop_extra_options(options, "_in")
     url, stdin, input = configure.check_url(
