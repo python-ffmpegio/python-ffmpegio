@@ -13,6 +13,7 @@ def test_devices():
     try:
         (dev, hw_enum), name = next((i for i in devices.list_sources().items()), None)
         print(f"({dev},{hw_enum}): {name}")
+        print(devices.get_source_info(dev, hw_enum))
         print(dev, devices.resolve_source(hw_enum, {"f": dev}))
         print(dev, devices.resolve_source(f"{dev}:{hw_enum}", None))
         print(devices.list_source_options(dev, hw_enum))
@@ -27,6 +28,7 @@ def test_devices():
     try:
         (dev, hw_enum), name = next((i for i in devices.list_sources().items()), None)
         print(f"({dev},{hw_enum}): {name}")
+        print(devices.get_sink_info(dev, hw_enum))
         print(dev, devices.resolve_sink(hw_enum, {"f": dev}))
         print(devices.list_sink_options(dev, hw_enum))
     except:

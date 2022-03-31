@@ -192,6 +192,42 @@ def _get_dev(device, dev_type):
         raise ValueError(f"Unknown/unenumerated device: {device}")
 
 
+def get_source_info(device, enum):
+    """get source information
+
+    :param device: device name
+    :type device: str
+    :param enum: hardware enumeration
+    :type enum: str
+    :return: info dict with keys: name, description, and is_default
+    :rtype: dict[str,str]
+    """    
+
+    info = _get_dev(device, "source")
+    try:
+        return {k: info["list"][enum][k] for k in ("name", "description", "is_default")}
+    except:
+        raise ValueError(f"Source device {device}:{enum} is not found ")
+
+
+def get_sink_info(device, enum):
+    """get sink information
+
+    :param device: device name
+    :type device: str
+    :param enum: hardware enumeration
+    :type enum: str
+    :return: info dict with keys: name, description, and is_default
+    :rtype: dict[str,str]
+    """    
+
+    info = _get_dev(device, "sink")
+    try:
+        return {k: info["list"][enum][k] for k in ("name", "description", "is_default")}
+    except:
+        raise ValueError(f"Sink device {device}:{enum} is not found ")
+
+
 def list_source_options(device, enum):
     """list supported options of enumerated source hardware
 
