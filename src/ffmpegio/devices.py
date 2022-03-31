@@ -227,6 +227,7 @@ def get_sink_info(device, enum):
     except:
         raise ValueError(f"Sink device {device}:{enum} is not found ")
 
+#TODO find_source() and find_sink() given device name or description
 
 def list_source_options(device, enum):
     """list supported options of enumerated source hardware
