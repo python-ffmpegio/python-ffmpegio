@@ -31,9 +31,7 @@ _cache = dict()
 
 def ffmpeg(gopts):
 
-    out = sp.run(
-        [where(), "-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8"
-    )
+    out = sp.run([where(), "-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8")
 
     if out.returncode or out.stdout.count("\n") == 1:
         raise FFmpegError(out.stdout)
@@ -379,9 +377,11 @@ def formats():
     return _getFormats("formats", True)
 
 
-def devices():
+def devices(type=None):
     """get FFmpeg devices
 
+    :param type: specify source or sink type, defaults to None
+    :type type: 'source'|'sink', optional
     :return: list of devices
     :rtype: dict
 
@@ -397,7 +397,14 @@ def devices():
     can_mux           bool  True if support outputs of this format
     ================  ====  ===============================================
     """
-    return _getFormats("devices", True)
+    devs = _getFormats("devices", True)
+    if type:
+        try:
+            key = {"source": "can_demux", "sink": "can_mux"}[type]
+        except:
+            raise ValueError(f'type must be either "source" or "sink"')
+        return {k: v for k, v in devs.items() if v[key]}
+    return devs
 
 
 def muxers():
