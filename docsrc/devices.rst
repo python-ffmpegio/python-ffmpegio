@@ -75,7 +75,7 @@ Given the enumeration, the enumerated device can be used as the ``url`` in any
    fs, x = ffmpegio.audio.read('a:0', f_in='dshow', t_in=10)
 
    # stream webcam video feed for 
-   with ffmpegio.open('v:0', 'rb', f_in='dshow') as dev:
+   with ffmpegio.open('v:0', 'vr', f_in='dshow') as dev:
        for i, frame in enumerate(dev):
            print(f'Frame {i}: {frame.shape}')
 
