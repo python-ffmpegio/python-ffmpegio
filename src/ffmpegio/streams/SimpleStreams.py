@@ -220,6 +220,7 @@ class SimpleVideoReader(SimpleReaderBase):
         has_fg = configure.has_filtergraph(ffmpeg_args, "video")
 
         pix_fmt = outopts.get("pix_fmt", None)
+        pix_fmt_in = s_in = r_in = None
         if (
             pix_fmt is None
             and not has_fg
@@ -234,8 +235,7 @@ class SimpleVideoReader(SimpleReaderBase):
                 r_in = info["frame_rate"]
             except:
                 pix_fmt_in = 'rgb24'
-        else:
-            pix_fmt_in = s_in = r_in = None
+            
 
         if pix_fmt_in is None and pix_fmt is None:
             raise ValueError("pix_fmt must be specified.")
