@@ -164,6 +164,7 @@ def read(url, progress=None, show_log=None, **options):
     pix_fmt = options.get("pix_fmt", None)
 
     # get pix_fmt of the input file only if needed
+    pix_fmt_in = s_in = r_in = None
     if pix_fmt is None and "pix_fmt_in" not in options:
         try:
             info = probe.video_streams_basic(url, 0)[0]
@@ -172,8 +173,6 @@ def read(url, progress=None, show_log=None, **options):
             r_in = info["frame_rate"]
         except:
             pix_fmt_in = 'rgb24'
-    else:
-        pix_fmt_in = s_in = r_in = None
 
     input_options = utils.pop_extra_options(options, "_in")
 
