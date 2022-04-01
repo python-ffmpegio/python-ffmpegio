@@ -1,11 +1,11 @@
 """ DirectShow device"""
 
-from copy import deepcopy
 from subprocess import PIPE
 from ffmpegio import path
 import re, logging
 
 from pluggy import HookimplMarker
+from packaging.version import Version
 
 hookimpl = HookimplMarker("ffmpegio")
 
@@ -78,7 +78,7 @@ def _scan():
 
 def _resolve(infos):
     # TODO Verify if multiple videos/audios allowed (more than 1 each)
-    return ":".join([f'{dev["media_type"]}="{dev["name"]}"' for dev in infos])
+    return ":".join([f'{dev["media_type"]}={dev["name"]}' for dev in infos])
 
 
 def _list_options(dev):
@@ -114,6 +114,19 @@ def _list_options(dev):
     i1 = m.start()
 
     re_pin = re.compile(rf'\[{sign}\]  Pin "(.+?)" \(alternative pin name "(.+?)"\)\n')
+
+    re_video = re.compile(
+        rf"\[{sign}\]   (?:unknown compression type 0x([0-9A-F]+?)|vcodec=(.+?)|pixel_format=(.+?))"
+        + rf"  min s=(\d+)x(\d+) fps=([\d.]+) max s=(\d+)x(\d+) fps=([\d.]+)"
+        + rf"(?: \((.+?), (.+?)/(.+?)/(.+?)(?:, (.+?))?\))?\n"
+    )
+
+    re_audio = re.compile(
+        rf"\[{sign}\]   ch=\s*(\d+), bits=\s*(\d+), rate=\s*(\d+)\n"
+        if v5_or_later
+        else rf"\[{sign}\]   min ch=\s*(\d+) bits=\s*(\d+) rate=\s*(\d+) max ch=\s*(\d+) bits=\s*(\d+) rate=\s*(\d+)\n"
+    )
+
     pins = [(m[1], *m.span()) for m in re_pin.finditer(logs)]
     ipins = [(pin[2], pins[i + 1][1]) for i, pin in enumerate(pins[:-1])]
     ipins.append((pins[-1][2], i1))
@@ -121,12 +134,6 @@ def _list_options(dev):
     device_formats = []
 
     for (pin, *_), (i0, i1) in zip(pins, ipins):
-
-        re_video = re.compile(
-            rf"\[{sign}\]   (?:unknown compression type 0x([0-9A-F]+?)|vcodec=(.+?)|pixel_format=(.+?))"
-            + rf"  min s=(\d+)x(\d+) fps=([\d.]+) max s=(\d+)x(\d+) fps=([\d.]+)"
-            + rf"(?: \((.+?), (.+?)/(.+?)/(.+?)(?:, (.+?))?\))?\n"
-        )
 
         def form_video_config(m):
             # https://docs.microsoft.com/en-us/windows/win32/api/strmif/nf-strmif-iamstreamconfig-getstreamcapss
@@ -149,17 +156,22 @@ def _list_options(dev):
 
             return cfg
 
-        re_audio = re.compile(
-            rf"\[{sign}\]   ch=\s*(\d+), bits=\s*(\d+), rate=\s*(\d+)\n"
-        )
-
         def form_audio_config(m):
-            return {
-                "audio_pin_name": pin,
-                "channels": int(m[1]),
-                "sample_size": int(m[2]),
-                "sample_rate": int(m[3]),
-            }
+            return (
+                {
+                    "audio_pin_name": pin,
+                    "channels": int(m[1]),
+                    "sample_size": int(m[2]),
+                    "sample_rate": int(m[3]),
+                }
+                if v5_or_later
+                else {
+                    "audio_pin_name": pin,
+                    "channels": (int(m[1]), int(m[4])),
+                    "sample_size": (int(m[2]), int(m[5])),
+                    "sample_rate": (int(m[3]), int(m[6])),
+                }
+            )
 
         re_cfgs = re_video if is_video else re_audio
         form_config = form_video_config if is_video else form_audio_config
