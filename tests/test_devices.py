@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 from os import path
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 
 def test_devices():
@@ -50,14 +50,14 @@ def try_devices():
     fs, x = video.read("v:0", f_in="dshow", t=1, show_log=True)
 
     # capture 10 seconds of audio
-    fs, x = audio.read("a:0", f_in="dshow", t=10, show_log=True)
-    print(f"[a:0] rate={fs}, data={x.dtype} {x.shape}")
+    fs, x = audio.read("a:0", f_in="dshow", t=1, show_log=True)
+    print(f"[a:0] rate={fs}, data={[*x.keys()]}")
 
     # stream webcam video feed for
     with open("v:0", "rv", f_in="dshow", show_log=True) as dev:
         print(f"[v:0] rate={dev.rate}")
         for i, frame in enumerate(dev):
-            print(f"Frame {i}: {frame.dtype} {frame.shape}")
+            print(f"Frame {i}: {[*frame.keys()]}")
             break
 
     # save video and audio to mp4 file
@@ -67,7 +67,7 @@ def try_devices():
             "v:0|a:0",
             path.join(tempdir, "captured.mp4"),
             f_in="dshow",
-            t_in=10,
+            t_in=1,
             show_log=True,
         )
 
