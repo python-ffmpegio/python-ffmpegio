@@ -95,13 +95,11 @@ def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> ob
 def device_source_api() -> Tuple[str, dict[str, Callable]]:
     """return a source name and its set of interface functions
 
-    keyword/signature                                     Descriptions
-    ----------------------------------------------------  -------------------------------------------------------
-    scan()                                              scan system for available devices
-    resolve(dev_type: str, url: str) -> str               resolve stream specifier type url to proper device url
-    list_sources() -> dict[str, dict]                     list of available sources
-    list_sinks() -> dict[str, dict]                       list of available sinks
-    list_options(dev_type: str, spec: str) -> List[dict]  list available device options (some may return a range)
+    keyword/signature                      Descriptions
+    -------------------------------------  -------------------------------------------------------
+    scan() -> dict[str, dict]              scan system for available hardware
+    resolve(infos: set[dict]) -> str       resolve stream specifier type url to proper device url
+    list_options(name: str) -> List[dict]  list available device options (some may return a range)
 
     Partial definition is OK
     """
@@ -111,13 +109,11 @@ def device_source_api() -> Tuple[str, dict[str, Callable]]:
 def device_sink_api() -> Tuple[str, dict[str, Callable]]:
     """return a sink name and its set of interface functions
 
-    keyword/signature                                     Descriptions
-    ----------------------------------------------------  -------------------------------------------------------
-    scan()                                              scan system for available devices
-    resolve(dev_type: str, url: str) -> str               resolve stream specifier type url to proper device url
-    list_sources() -> dict[str, dict]                     list of available sources
-    list_sinks() -> dict[str, dict]                       list of available sinks
-    list_options(dev_type: str, spec: str) -> List[dict]  list available device options (some may return a range)
+    keyword/signature                       Descriptions
+    --------------------------------------  -------------------------------------------------------
+    scan() -> dict[str, dict]               scan system for available hardware
+    resolve(infos: set[dict]) -> str        resolve stream specifier type url to proper device url
+    list_options(info: dict) -> List[dict]  list available device options (some may return a range)
 
     Partial definition is OK
     """
