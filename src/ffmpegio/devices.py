@@ -201,7 +201,7 @@ def get_source_info(device, enum):
     :type enum: str
     :return: info dict with keys: name, description, and is_default
     :rtype: dict[str,str]
-    """    
+    """
 
     info = _get_dev(device, "source")
     try:
@@ -219,7 +219,7 @@ def get_sink_info(device, enum):
     :type enum: str
     :return: info dict with keys: name, description, and is_default
     :rtype: dict[str,str]
-    """    
+    """
 
     info = _get_dev(device, "sink")
     try:
@@ -227,7 +227,9 @@ def get_sink_info(device, enum):
     except:
         raise ValueError(f"Sink device {device}:{enum} is not found ")
 
-#TODO find_source() and find_sink() given device name or description
+
+# TODO find_source() and find_sink() given device name or description
+
 
 def list_source_options(device, enum):
     """list supported options of enumerated source hardware
@@ -240,12 +242,12 @@ def list_source_options(device, enum):
              it indicates the min and max range of the option value.
     :rtype: list[dict]
     """
-    info = _get_dev(device, "source")
+    dev = _get_dev(device, "source")
     try:
-        list_options = info["list_options"]
+        list_options = dev["list_options"]
     except:
         raise ValueError(f"No options to list")
-    return list_options("source", enum)
+    return list_options(dev["list"][enum])
 
 
 def list_sink_options(device, enum):
@@ -283,21 +285,27 @@ def _resolve(devs, url, opts):
                 _opts = {"f": f}
         # try to get device info
         dev = devs[f]
-        url = _url
-        opts = _opts
         assert dev is not None
     except:
         # not a device or unknown device
         return url, opts
 
-    # if device-specific resolver is available, use it
+    # find device names
     try:
-        return dev["resolve"]("source", url), opts
+        enums = {enum for enum in _url.split("|")}
+        infos = [dev["list"][enum] for enum in enums]
     except:
-        try:
-            url = dev["list"][url]
-        finally:
-            return url, opts
+        # unknown enumeration (possibly the actual name)
+        return url, opts
+
+    try:
+        # if device-specific resolver is available, use it
+        return dev["resolve"](infos), _opts
+    except:
+        # only allow single stream
+        if len(infos) > 1:
+            raise ValueError(f"{f} only supports 1 enumerated hardware device per url")
+        return infos[0]["name"], opts
 
 
 def resolve_source(url, opts):
