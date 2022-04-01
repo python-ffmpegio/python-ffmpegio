@@ -118,7 +118,7 @@ def find(ffmpeg_path=None, ffprobe_path=None):
         m = re.match(r"\d+(?:\.\d+(?:\d+)?)?", ver)
         FFMPEG_VER = Version(m[0]) if m else "nightly"
     else:
-        FFMPEG_VER = Version("0")
+        FFMPEG_VER = Version("0.dev")
 
     return FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
 
