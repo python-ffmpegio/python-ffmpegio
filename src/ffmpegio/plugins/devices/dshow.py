@@ -9,16 +9,8 @@ from pluggy import HookimplMarker
 
 hookimpl = HookimplMarker("ffmpegio")
 
-DSHOW_DEVICES = {}
 
-
-def _list_sources():
-    return deepcopy(DSHOW_DEVICES)
-
-
-def _rescan():
-
-    global DSHOW_DEVICES
+def _scan():
 
     logs = path._exec(
         [
@@ -58,7 +50,6 @@ def _rescan():
 
     get_id = TypeCounter()
     get_info = lambda t, name, description: {
-        "dev_type": "source",
         "media_type": t,
         "name": name,
         "description": description,
@@ -77,61 +68,23 @@ def _rescan():
         rf'\[{sign}\]  "(.+?)"(?: \((.+?)\))?\n\[{sign}\]     Alternative name "(.+?)"'
     )
 
-    DSHOW_DEVICES = {
+    return {
         get_id(media_type, m): get_info(media_type, m[1], m[3])
         for i, (media_type, _, stop) in enumerate(groups[:-1])
         if media_type in ("audio", "video")
         for m in re_dev.finditer(logs[stop : groups[i + 1][1]])
     }
 
-    return DSHOW_DEVICES
+
+def _resolve(infos):
+    # TODO Verify if multiple videos/audios allowed (more than 1 each)
+    return ":".join([f'{dev["media_type"]}="{dev["name"]}"' for dev in infos])
 
 
-def _resolve(dev_type, url):
-    if dev_type != "source":
-        raise ValueError(
-            f"Invalid dev_type ({dev_type}). DirectShow (dshow) device only supports source devices."
-        )
-    try:
-        url = ":".join(
-            [
-                f'{dev["media_type"]}="{dev["name"]}"'
-                for dev in (DSHOW_DEVICES[spec] for spec in url.split("|"))
-            ]
-        )
-    finally:
-        return url
+def _list_options(dev):
 
-
-def _get_dev(dev_type, spec):
-    if dev_type != "source":
-        raise ValueError(
-            f"Invalid dev_type ({dev_type}). DirectShow (dshow) device only supports source devices."
-        )
-
-    # get the device
-    try:
-        dev = DSHOW_DEVICES[spec]
-    except:
-        # look for the names
-        try:
-            dev = next(
-                (
-                    v
-                    for v in DSHOW_DEVICES.values()
-                    if v["name"] == spec or v["description"] == spec
-                )
-            )
-        except:
-            raise ValueError(
-                f"Specified DirectShow device ({spec}) does not exist. Run `ffmpegio.devices.scan()` and try again."
-            )
-    return dev
-
-
-def _list_options(dev_type, spec):
-
-    dev = _get_dev(dev_type, spec)
+    ver = path.FFMPEG_VER
+    v5_or_later = ver.is_devrelease or ver >= Version("5.0")
 
     is_video = dev["media_type"] == "video"
 
@@ -219,8 +172,7 @@ def _list_options(dev_type, spec):
 @hookimpl
 def device_source_api():
     return "dshow", {
-        "scan": _rescan,
-        "list_sources": _list_sources,
+        "scan": _scan,
         "resolve": _resolve,
         "list_options": _list_options,
     }
