@@ -12,7 +12,7 @@ hookimpl = HookimplMarker("ffmpegio")
 
 def _scan():
 
-    logs = path._exec(
+    logs = path.ffmpeg(
         [
             "-hide_banner",
             "-f",
@@ -89,7 +89,7 @@ def _list_options(dev):
     is_video = dev["media_type"] == "video"
 
     url = f'{dev["media_type"]}={dev["name"]}'
-    logs = path._exec(
+    logs = path.ffmpeg(
         [
             "-hide_banner",
             "-f",

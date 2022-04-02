@@ -16,7 +16,7 @@ url = 'v:0|a:0'
 
 """
 import logging
-from ffmpegio.path import _exec
+from ffmpegio.path import ffmpeg
 from subprocess import PIPE, DEVNULL
 from . import plugins
 import re
@@ -49,7 +49,7 @@ def scan():
     global SOURCES, SINKS
 
     def get_devices(dev_type):
-        out = _exec(
+        out = ffmpeg(
             f"-{dev_type}",
             stderr=DEVNULL,
             stdout=PIPE,

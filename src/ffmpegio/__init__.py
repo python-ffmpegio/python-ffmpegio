@@ -31,7 +31,7 @@ import logging
 
 from . import path, plugins
 
-# register builtin plugins and external plugins found in site-packages 
+# register builtin plugins and external plugins found in site-packages
 plugins.initialize()
 
 # initialize the paths
@@ -43,7 +43,6 @@ except Exception as e:
 
 from . import ffmpegprocess
 
-from .ffmpegprocess import run as ffmpeg
 from .utils.error import FFmpegError
 from .utils.concat import FFConcat
 from .utils.filter import FilterGraph
@@ -52,7 +51,7 @@ from .transcode import transcode
 from . import streams as _streams
 
 # fmt:off
-__all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg",
+__all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
     "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
     "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat"]
 # fmt:on
@@ -63,6 +62,8 @@ ffmpeg_info = path.versions
 set_path = path.find
 get_path = path.where
 is_ready = path.found
+ffmpeg = path.ffmpeg
+ffprobe = path.ffprobe
 
 
 @contextmanager
@@ -200,9 +201,9 @@ def open(
 
     """
 
-    is_fg = isinstance(url_fg,FilterGraph)
+    is_fg = isinstance(url_fg, FilterGraph)
     if isinstance(url_fg, str):
-        is_fg = kwds.get('f_in',None)=='lavfi'
+        is_fg = kwds.get("f_in", None) == "lavfi"
         url_fg = (url_fg,)
 
     audio = "a" in mode
@@ -234,7 +235,9 @@ def open(
     # auto-detect type
     if not (audio or video):
         if is_fg:
-            raise ValueError('media type must be specified to read from an Input filtergraph')
+            raise ValueError(
+                "media type must be specified to read from an Input filtergraph"
+            )
         elif read:
             for url in url_fg:
                 try:
@@ -266,7 +269,7 @@ def open(
         elif video and not audio:
             audio = video and sum((1 for m in mode if m == "v")) > 1
     elif write and is_fg:
-        ValueError('Cannot write to a filtergraph.')
+        ValueError("Cannot write to a filtergraph.")
 
     try:
         StreamClass = {

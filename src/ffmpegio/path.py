@@ -1,15 +1,28 @@
-from os import path as _path, name as _os_name
+from os import path as _path, name as _os_name, devnull
 from shutil import which
-from subprocess import run, PIPE
-import re, shlex, subprocess as sp
+from subprocess import run, DEVNULL, PIPE, STDOUT
+import re, shlex, logging
 from packaging.version import Version
 
 from . import plugins
+
+# fmt:off
+__all__ = [
+    "found", "where", "find", "ffmpeg", "ffprobe", "versions", "DEVNULL", "PIPE", "STDOUT", "devnull"
+]
+# fmt:on
 
 # add FFmpeg directory to the system path as given in system environment variable FFMPEG_DIR
 FFMPEG_BIN = None
 FFPROBE_BIN = None
 FFMPEG_VER = None
+
+# shlex.join added in Python38
+shlex_join = (
+    shlex.join
+    if hasattr(shlex, "join")
+    else lambda args: " ".join(shlex.quote(arg) for arg in args)
+)
 
 
 def found():
@@ -123,17 +136,45 @@ def find(ffmpeg_path=None, ffprobe_path=None):
     return FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
 
 
-def _exec(args, **other_run_args):
+def ffmpeg(args, sp_run=None, *sp_args, **other_sp_args):
     """just run ffmpeg without bells-n-whistles
 
     :param args: FFmpeg command arguments without `ffmpeg`
     :type args: str or Sequence[str]
-    :param **other_run_args: subprocess.run() options
-    :type **other_run_args: dict
+    :param sp_run: command runner, defaults to subprocess.run
+    :param sp_run: Callable, optional
+    :param *sp_args: sp_run arguments
+    :type *sp_args: tuple, optional
+    :param **other_sp_args: sp_run keyword arguments
+    :type **other_sp_args: dict, optional
+    :returns: sp_run output
+    :rtype: subprocess.CompletedProcess or subprocess.Popen or others
     """
+
     if isinstance(args, str):
         args = shlex.split(args)
-    return sp.run((FFMPEG_BIN, *args), **other_run_args)
+
+    logging.debug(shlex_join(args))
+    return (sp_run or run)((FFMPEG_BIN, *args), *sp_args, **other_sp_args)
+
+
+def ffprobe(args, sp_run=None, *sp_args, **other_sp_args):
+    """just run ffprobe without bells-n-whistles
+
+    :param sp_run: command runner, defaults to subprocess.run
+    :param sp_run: Callable, optional
+    :param *sp_args: sp_run arguments
+    :type *sp_args: tuple, optional
+    :param **other_sp_args: sp_run keyword arguments
+    :type **other_sp_args: dict, optional
+    :returns: sp_run output
+    :rtype: subprocess.CompletedProcess or subprocess.Popen or others
+    """
+
+    if isinstance(args, str):
+        args = shlex.split(args)
+    logging.debug(shlex_join(args))
+    return (sp_run or run)((FFPROBE_BIN, *args), *sp_args, **other_sp_args)
 
 
 def versions():
@@ -151,7 +192,7 @@ def versions():
     ==================  ====  =========================================
 
     """
-    s = _exec(
+    s = ffmpeg(
         ["-version"], stdout=PIPE, universal_newlines=True, encoding="utf-8"
     ).stdout.splitlines()
     v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])

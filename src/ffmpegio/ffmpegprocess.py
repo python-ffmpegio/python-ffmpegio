@@ -19,18 +19,17 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
-import logging, re
-from os import path, devnull
+import logging
+from os import path
 from threading import Thread
 import subprocess as sp
-from subprocess import DEVNULL, PIPE
 from copy import deepcopy
 from tempfile import TemporaryDirectory
 
 from .utils.parser import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
-from .path import where
+from .path import ffmpeg, DEVNULL, PIPE, devnull
 
 __all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
 
@@ -114,7 +113,7 @@ def exec(
             opts["hwaccel"] = "auto"
         return url, opts
 
-    if 'inputs' in ffmpeg_args:
+    if "inputs" in ffmpeg_args:
         try:
             ffmpeg_args["inputs"] = [
                 check_hwaccel(url, opts) for url, opts in ffmpeg_args["inputs"]
@@ -175,11 +174,12 @@ def exec(
         PIPE if capture_log else None if capture_log is None else DEVNULL
     )
 
-    args = compose(ffmpeg_args, command=where())
-    logging.debug(args)
+    args = compose(ffmpeg_args)
 
     # run the FFmpeg
-    return sp_run(args, stdin=inpipe, stdout=outpipe, stderr=errpipe, **sp_kwargs)
+    return ffmpeg(
+        args, sp_run=sp_run, stdin=inpipe, stdout=outpipe, stderr=errpipe, **sp_kwargs
+    )
 
 
 def monitor_process(proc, on_exit=None):

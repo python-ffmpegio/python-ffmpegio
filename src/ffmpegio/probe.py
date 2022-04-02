@@ -1,61 +1,11 @@
-import logging, shlex, json, fractions, os, pickle, re
+import json, fractions, os, pickle, re
 from collections import OrderedDict
-import subprocess as sp
-from . import path
+from .path import ffprobe, PIPE
 
 # fmt:off
-__all__ = ['ffprobe', 'full_details', 'format_basic', 'streams_basic',
+__all__ = ['full_details', 'format_basic', 'streams_basic',
 'video_streams_basic', 'audio_streams_basic', 'query']
 # fmt:on
-
-form_shell_cmd = (
-    shlex.join
-    if hasattr(shlex, "join")
-    else lambda args: " ".join(shlex.quote(arg) for arg in args)
-)
-
-
-def ffprobe(
-    args,
-    *sp_arg,
-    stdout=sp.PIPE,
-    stderr=sp.PIPE,
-    universal_newlines=True,
-    encoding="utf8",
-    hide_banner=True,
-    **sp_kwargs,
-):
-    """run ffprobe command as a subprocess (blocking)
-
-    :param args: ffprobe argument options
-    :type args: seq or str
-    :param hide_banner: False to output ffmpeg banner, defaults to True
-    :type hide_banner: bool, optional
-    :return: ffprobe stdout output
-    :rtype: str
-    """
-    args = [
-        path.where(probe=True),
-        *(["-hide_banner"] if hide_banner else []),
-        *(shlex.split(args) if isinstance(args, str) else args),
-    ]
-
-    logging.debug(form_shell_cmd(args))
-
-    ret = sp.run(
-        args,
-        *sp_arg,
-        stdout=stdout,
-        stderr=stderr,
-        universal_newlines=universal_newlines,
-        encoding=encoding,
-        **sp_kwargs,
-    )
-
-    if ret.returncode != 0:
-        raise Exception(f"execution failed\n   {form_shell_cmd(args)}\n\n{ret.stderr}")
-    return ret.stdout
-
 
 # stores all the local queries during the session
 # - key: path
@@ -109,7 +59,7 @@ def _full_details(
 
     """
 
-    args = ["-of", "json"]
+    args = ["-hide_banner", "-of", "json"]
 
     if select_streams:
         args.extend(["-select_streams", select_streams])
@@ -138,12 +88,20 @@ def _full_details(
 
     if pipe:
         try:
-            assert not url.seekable
+            assert url.seekable
             pos0 = url.tell()
         except:
-            raise ValueError("url must be str or seekable io object")
+            raise ValueError("url must be str or seekable file-like object")
 
-    results = json.loads(ffprobe(args))
+    # run ffprobe
+    ret = ffprobe(
+        args, stdout=PIPE, stderr=PIPE, universal_newlines=True, encoding="utf-8"
+    )
+    if ret.returncode != 0:
+        raise Exception(f"ffprobe execution failed\n\n{ret.stderr}\n")
+
+    # decode output JSON string
+    results = json.loads(ret.stdout)
 
     if pipe:
         url.seek(pos0)
