@@ -59,10 +59,7 @@ def _full_details(
 
     """
 
-    args = ["-hide_banner", "-of", "json"]
-
-    if select_streams:
-        args.extend(["-select_streams", select_streams])
+    args = ["-select_streams", select_streams] if select_streams else []
 
     modes = dict(
         format=show_format,
@@ -71,6 +68,20 @@ def _full_details(
         chapters=show_chapters,
     )
 
+    _add_show_entries(args, modes)
+
+    results = _exec(url, args)
+
+    if not modes["stream"]:
+        modes["streams"] = modes["stream"]
+    for key, val in modes.items():
+        if not val and key in results:
+            del results[key]
+
+    return _items_to_numeric(results)
+
+
+def _add_show_entries(args, modes):
     entries = []
     for key, val in modes.items():
         if not isinstance(val, bool):
@@ -82,6 +93,11 @@ def _full_details(
 
     args.append("-show_entries")
     args.append(":".join(entries))
+
+
+def _exec(url, args):
+    """execute ffprobe and return data as dict"""
+    args = ["-hide_banner", "-of", "json", *args]
 
     pipe = not isinstance(url, str)
     args.append("-" if pipe else url)
@@ -105,14 +121,7 @@ def _full_details(
 
     if pipe:
         url.seek(pos0)
-
-    if not modes["stream"]:
-        modes["streams"] = modes["stream"]
-    for key, val in modes.items():
-        if not val and key in results:
-            del results[key]
-
-    return _items_to_numeric(results)
+    return results
 
 
 def _queryall_if_path(url):
