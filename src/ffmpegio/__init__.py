@@ -243,7 +243,7 @@ def open(
                 try:
                     info = probe.streams_basic(url, entries=("codec_type",))
                 except:
-                    raise ValueError(f"cannot be read url {url}")
+                    raise ValueError(f"cannot auto-detect media type of {url}")
                 for inf in info:
                     t = inf["codec_type"]
                     if t == "video" and not video:
@@ -260,7 +260,7 @@ def open(
                 audio = len(shape) < 2
             else:
                 # TODO identify based on file extension
-                raise ValueError("Unknown media type")
+                raise ValueError(f"cannot auto-detect media type")
             video = not audio
     elif read:
         # if audio or video is set multiple times, use avi reader
