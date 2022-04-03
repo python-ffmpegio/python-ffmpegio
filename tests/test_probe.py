@@ -21,7 +21,7 @@ def test_probe():
 
 def test_all():
     url = "tests/assets/testmulti-1m.mp4"
-    print(probe.full_details(url, show_streams=("codec_type",)))
+    print(probe.full_details(url, show_streams="v"))
     print(probe.format_basic(url))
     print(probe.video_streams_basic(url))
     print(probe.audio_streams_basic(url))
@@ -89,4 +89,5 @@ def test_frames():
     print(info)
 
 if __name__ == "__main__":
+    test_all()
     pass
