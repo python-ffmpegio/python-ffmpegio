@@ -20,6 +20,7 @@ List of Functions
    ffmpegio.probe.audio_streams_basic
    ffmpegio.probe.full_details
    ffmpegio.probe.query
+   ffmpegio.probe.frames
 
 Function References
 -------------------
@@ -30,3 +31,4 @@ Function References
 .. autofunction:: ffmpegio.probe.audio_streams_basic
 .. autofunction:: ffmpegio.probe.full_details
 .. autofunction:: ffmpegio.probe.query
+.. autofunction:: ffmpegio.probe.frames

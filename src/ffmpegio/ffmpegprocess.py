@@ -235,14 +235,10 @@ class Popen(sp.Popen):
     :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
     :type \\**other_popen_args: dict, optional
 
-    If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen` creates
-    a pipe for each piped url. If input is piped, :code:`stdin` is default to :code:`ffmpegio.io.QueuedWriter`
-    class instance.  If output is piped, :code:`stdout` is default to :code:`ffmpegio.io.QueuedReader` class
-    instance. If :code:`capture_log=True`, then :code:`stderr` is default to :code:`ffmpegio.io.QueuedWriter`. See
-    :ref:`ffmpegio.io module<adv_io>` for how to use these custom stream classes.
-
-    Alternately, a file-stream object could be specified in the argument for each of :code:`stdin`, :code:`stdout`,
-    and :code:`stderr` to redirect pipes to existing file streams. If files aren't already open in Python,
+    If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen` 
+    automatically sets `stdin=PIPE` or `stdout=PIPE`. Alternately, a file-stream object could be
+    specified in the argument for each of :code:`stdin`, :code:`stdout`, and :code:`stderr` 
+    to redirect pipes to existing file streams. If files aren't already open in Python,
     specify their urls in :ref:`ffmpeg_args<adv_args>` instead of using the pipes.
 
     """

@@ -55,7 +55,7 @@ def options(type=None, name_only=False, return_desc=False):
     """get FFmpeg command options
 
     :param type: specify option type to return, defaults to None
-    :type type: "per-file"|"video"|"audio"|"subtitle"|"general"|"global"|None, optional
+    :type type: "per-file"\|"video"\|"audio"\|"subtitle"\|"general"\|"global"\|None, optional
     :param name_only: True to only return option names, defaults to False
     :type name_only: bool, optional
     :param return_desc: True to also return option description, defaults to False

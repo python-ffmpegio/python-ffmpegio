@@ -110,18 +110,7 @@ def create(
 
     .. note:: Either `duration` or `nb_samples` filter options must be set.
 
-    Supported Audio Source Filters
-    ------------------------------
-
-    =============  ==============================================================================
-    filter name    description
-    =============  ==============================================================================
-    "aevalsrc"     an audio signal specified by an expression
-    "anoisesrc"    a noise audio signal
-    "sine"         audio signal made of a sine wave with amplitude 1/8
-    =============  ==============================================================================
-
-    https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources
+    See https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources for available video source filters
 
     ouptut data object is determined by the selected `bytes_to_audio` hook
 

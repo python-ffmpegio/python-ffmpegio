@@ -32,6 +32,8 @@ Features
 * Accepts all FFmpeg options including filter graphs
 * Supports a user callback whenever FFmpeg updates its progress information file 
   (see `-progress` FFmpeg option)
+* `ffconcat` scripter to make the use of `-f concat` demuxer easier
+* I/O device enumeration to eliminate the need to look up device names. (currently supports only: Windows DirectShow)
 * Advanced users can gain finer controls of FFmpeg I/O with :py:mod:`ffmpegio.ffmpegprocess` submodule
 
 .. * (planned) Multi-stream read/write
@@ -64,6 +66,21 @@ To import :py:mod:`ffmpegio`
 
   >>> import ffmpegio
 
+
+- :ref:`ex_trancode`
+- :ref:`ex_read_audio`
+- :ref:`ex_read_image`
+- :ref:`ex_read_video`
+- :ref:`ex_read_media`
+- :ref:`ex_write`
+- :ref:`ex_filter`
+- :ref:`ex_stream`
+- :ref:`ex_devices`
+- :ref:`ex_progress`
+- :ref:`ex_direct`
+
+.. _ex_trancode:
+
 Transcoding
 ^^^^^^^^^^^
 
@@ -80,6 +97,15 @@ Transcoding
   >>> ffmpegio.transcode('input.avi', 'output.mkv', two_pass=True, show_log=True,
   >>>                    **{'c:v':'libx264', 'b:v':'2600k', 'c:a':'aac', 'b:a':'128k'}) 
 
+  >>> # concatenate videos using concat demuxer
+  >>> files = ['/video/video1.mkv','/video/video2.mkv']
+  >>> ffconcat = ffmpegio.FFConcat()
+  >>> ffconcat.add_files(files)
+  >>> with ffconcat: # generates temporary ffconcat file
+  >>>     ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat', codec='copy', safe_in=0)
+
+.. _ex_read_audio:
+
 Read Audio Files
 ^^^^^^^^^^^^^^^^
 
@@ -95,6 +121,8 @@ Read Audio Files
   >>> # read filtered audio samples first 10 seconds
   >>> #   filter: equalizer which attenuate 10 dB at 1 kHz with a bandwidth of 200 Hz 
   >>> fs, x = ffmpegio.audio.read('myaudio.mp3', t=10.0, af='equalizer=f=1000:t=h:width=200:g=-10')
+
+.. _ex_read_image:
 
 Read Image Files / Capture Video Frames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -126,6 +154,8 @@ Read Image Files / Capture Video Frames
   >>> I = ffmpegio.image.read('myaudio.mp3', filter_complex='showspectrumpic=s=960x540', pix_fmt='rgb24')
 
 
+.. _ex_read_video:
+
 Read Video Files
 ^^^^^^^^^^^^^^^^
 
@@ -138,6 +168,8 @@ Read Video Files
   >>> # get running spectrogram of audio input (must specify pix_fmt if input is audio)
   >>> fs, F = ffmpegio.video.read('myvideo.mp4', pix_fmt='rgb24', filter_complex='showspectrum=s=1280x480')
   
+
+.. _ex_read_media:
 
 Read Multiple Files or Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -158,6 +190,8 @@ Read Multiple Files or Streams
   >>> #  rates: dict of frame rates: keys="v:0" and "v:1"
   >>> #  data: dict of video frame arrays: keys="v:0" and "v:1"
 
+.. _ex_write:
+
 Write Audio, Image, & Video Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -171,6 +205,8 @@ Write Audio, Image, & Video Files
 
   >>> # create an audio file from a numpy array
   >>> ffmpegio.audio.write('myaudio.mp3', rate, x)
+
+.. _ex_filter:
 
 Filter Audio, Image, & Video data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -187,6 +223,8 @@ Filter Audio, Image, & Video data
   >>> filter = "drawtext=fontsize=30:fontfile=FreeSerif.ttf:text='hello world':x=(w-text_w)/2:y=(h-text_h)/2"
   >>> fs_out, F_out = ffmpegio.video.filter(filter, fs_in, F_in)
 
+.. _ex_stream:
+
 Stream I/O
 ^^^^^^^^^^
 
@@ -199,8 +237,27 @@ Stream I/O
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
 
+.. _ex_devices:
+
+Device I/O Enumeration
+^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+  >>> # record 5 minutes of audio from Windows microphone
+  >>> fs, x = ffmpegio.audio.read('a:0', f_in='dshow', sample_fmt='dbl', t=300)
+
+  >>> # capture Windows' webcam frame
+  >>> with ffmpegio.open('v:0', 'rv', f_in='dshow') as webcam,
+  >>>     for frame in webcam:
+  >>>         process_frame(frame)
+
+.. _ex_progress:
+
 Progress callback
 ^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
 
   >>> import pprint
 
@@ -219,6 +276,37 @@ Progress callback
   >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100, progress=progress) as fin:
   >>>     for frames in fin:
   >>>         myprocess(frames)
+
+.. _ex_direct:
+
+Run FFmpeg and FFprobe Directly
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+  >>> from ffmpegio import ffmpeg, FFprobe, ffmpegprocess
+  >>> from subprocess import PIPE
+
+  >>> # call with options as a long string
+  >>> ffmpeg('-i input.avi -b:v 64k -bufsize 64k output.avi')
+
+  >>> # or call with list of options
+  >>> ffmpeg(['-i', 'input.avi' ,'-r', '24', 'output.avi'])
+
+  >>> # the same for ffprobe
+  >>> ffprobe('ffprobe -show_streams -select_streams a INPUT')
+
+  >>> # specify subprocess arguments to capture stdout
+  >>> out = ffprobe('ffprobe -of json -show_frames INPUT', 
+                    stdout=PIPE, universal_newlines=True).stdout
+
+  >>> # use ffmpegprocess to take advantage of ffmpegio's default behaviors
+  >>> out = ffmpegprocess.run({"inputs": [("input.avi", None)],
+                               "outputs": [("out1.mp4", None),
+                                           ("-", {"f": "rawvideo", "vframes": 1, "pix_fmt": "gray", "an": None})
+                              }, capture_log=True)
+  >>> print(out.stderr) # print the captured FFmpeg logs (banner text omitted)
+  >>> b = out.stdout # width*height bytes of the first frame
 
 Introductory Info
 -----------------

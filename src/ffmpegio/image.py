@@ -76,33 +76,7 @@ def create(expr, *args, pix_fmt=None, vf=None, vframe=None, show_log=None, **kwa
     :return: image data, created by `bytes_to_video` plugin hook
     :rtype: object
 
-
-    Supported Video Source Filters
-    ------------------------------
-
-    =============  ==============================================================================
-    filter name    description
-    =============  ==============================================================================
-    "color"        uniformly colored frame
-    "allrgb"       frames of size 4096x4096 of all rgb colors
-    "allyuv"       frames of size 4096x4096 of all yuv colors
-    "gradients"    several gradients
-    "mandelbrot"   Mandelbrot set fractal
-    "mptestsrc"    various test patterns of the MPlayer test filter
-    "life"         life pattern based on John Conway’s life game
-    "haldclutsrc"  identity Hald CLUT
-    "testsrc"      test video pattern, showing a color pattern
-    "testsrc2"     another test video pattern, showing a color pattern
-    "rgbtestsrc"   RGB test pattern useful for detecting RGB vs BGR issues
-    "smptebars"    color bars pattern, based on the SMPTE Engineering Guideline EG 1-1990
-    "smptehdbars"  color bars pattern, based on the SMPTE RP 219-2002
-    "pal100bars"   a color bars pattern, based on EBU PAL recommendations with 100% color levels
-    "pal75bars"    a color bars pattern, based on EBU PAL recommendations with 75% color levels
-    "yuvtestsrc"   YUV test pattern. You should see a y, cb and cr stripe from top to bottom
-    "sierpinski"   Sierpinski carpet/triangle fractal
-    =============  ==============================================================================
-
-    https://ffmpeg.org/ffmpeg-filters.html#Video-Sources
+    See https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for available video source filters
 
     """
 
