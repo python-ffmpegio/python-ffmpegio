@@ -5,6 +5,29 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-04-03
+
+### Added
+
+- `ffmpegio.ffmpeg` and `ffmpegio.ffprobe` functions to call `ffmpeg` & `ffprobe`, respectively,
+  without any input argument processing
+- `devices` submodule to provide a framework to enumerate I/O devices
+- New `plugins` hooks: `device_source_api` and `device_sink_api`
+- `plugins/devices/dshow` to support Windows' DirectShow device (`-f dshow`)
+- `FFConcat` class to support `-f concat` demuxer and `ffconcat` auto-scripting
+- `probe.frames` to retrieve frame information
+
+### Fixed
+
+- Fixed failed `import ffmpegio` when it cannot find FFmpeg binaries
+- Many minor bugs
+
+### Changed
+
+- Uses `-hwaccel auto` as default for all inputs (experiment)
+- Renamed `ffmpeg` module to `path`
+- Refactored `probe.py` 
+
 ## [0.4.3] - 2022-03-02
 
 ### Fixed

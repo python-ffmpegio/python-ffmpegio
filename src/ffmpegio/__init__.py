@@ -56,7 +56,7 @@ __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe
     "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat"]
 # fmt:on
 
-__version__ = "0.4.3"
+__version__ = "0.5.0"
 
 ffmpeg_info = path.versions
 set_path = path.find
