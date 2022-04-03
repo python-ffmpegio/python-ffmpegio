@@ -1,3 +1,6 @@
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 import pytest
 
 import ffmpegio.probe as probe
@@ -12,9 +15,9 @@ import ffmpegio.probe as probe
 # )
 
 
-
 def test_probe():
     probe.ffprobe("-help")
+
 
 def test_all():
     url = "tests/assets/testmulti-1m.mp4"
@@ -43,6 +46,47 @@ def test_query():
         is None
     )
 
+def test_frames():
+    url = "tests/assets/testmulti-1m.mp4"
+    info = probe.frames(
+        url,
+        streams="a:0",
+        intervals=10
+        # intervals='%+#20,30%+#15'
+        # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
+    )
+    print(len(info))
+    print(info[-1])
+    pts_time = probe.frames(
+        url,
+        "pkt_pts_time",
+        "a:0",
+        intervals=10
+        # intervals='%+#20,30%+#15'
+        # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
+    )
+    print(pts_time)
+    pts_time1 = probe.frames(
+        url,
+        "pkt_pts_time",
+        "a:0",
+        intervals=10,
+        accurate_time=True
+        # intervals='%+#20,30%+#15'
+        # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
+    )
+    print(pts_time1)
+    print([t - t1 for t, t1 in zip(pts_time, pts_time1)])
+
+    info = probe.frames(
+        url,
+        streams="a:0",
+        intervals=(23.4, 1),
+        accurate_time=True
+        # intervals='%+#20,30%+#15'
+        # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
+    )
+    print(info)
 
 if __name__ == "__main__":
     pass

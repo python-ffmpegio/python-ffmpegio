@@ -647,18 +647,102 @@ def query(url, stream=None, fields=None, return_none=False):
         )
 
 
-# -show_data
-# -show_data_hash algorithm
-# -show_error
-# -show_packets
-# -show_frames
-# -show_log loglevel
-# -count_frames
-# -count_packets
-# -read_intervals read_intervals
-# -show_private_data, -private
-# -show_program_version
-# -show_library_versions
-# -show_versions
-# -show_pixel_formats
-# -bitexact
+def frames(url, entries=None, streams=None, intervals=None, accurate_time=False):
+    """get frame information
+
+    :param url: URL of the media file/stream
+    :type url: str or seekable file-like object
+    :param entries: names of frame attributes, defaults to None (get all attributes)
+    :type entries: str or seq[str], optional
+    :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
+    :type stream: str or int, optional
+    :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
+    :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
+    :param accurate_time: True to return all '*_time' attributes to be computed from associated timestamps and 
+                          stream timebase, defaults to False (= us accuracy)
+    :param accurate_time: bool, optional
+    :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
+             if entries is str (i.e., a single entry)
+    :rtype: list[dict] or list[str|int|float]
+
+    ``intervals`` argument
+    ----------------------
+
+    intervals argument can be specified in multiple ways to form the ``-read_intervals`` ffprobe option:
+
+    1) ``str`` - pass through the argument as-is to ffprobe
+    2) ``int`` - read this numbers of packets to read from the beginning of the file
+    3) ``float`` - read packets over this duration in seconds from the beginning of the file
+    4) ``seq[str|float, str|int|float]`` - sets start and end points
+       - start: str = as-is, float=starting time in seconds
+       - end: str = as-is, int=offset in # of packets, float=offset in seconds
+    5) ``dict`` - specifies start and end points with the following keys:
+       - 'start'        - (str|float) start time
+       - 'start_offset' - (str|float) start time offset from the previous read. Ignored if 'start' is present.
+       - 'end'          - (str|float) end time
+       - 'end_offset'   - (str|float|int) end time offset from the start time. Ignored if 'end' is present.
+    6) - ``seq[dict]`` - specify multiple intervals
+
+    """
+
+    is_single = isinstance(entries, str)
+    if is_single:
+        entry = entries
+        entries = [entries]
+
+    if accurate_time:
+        pick_entries = entries is not None
+        has_time = not pick_entries
+        if pick_entries:
+            time_entries = []
+            other_entries = set(("stream_index",))
+            for e in entries:
+                if e.endswith("_time"):
+                    has_time = True
+                    time_entries.append(e)
+                    other_entries.add(e[:-5])
+                else:
+                    other_entries.add(e)
+            if has_time:
+                orig_entries = entries
+                entries = other_entries
+
+    entries = {"frame": (entries is None) or entries}
+    if accurate_time and has_time:
+        entries["stream"] = ["index", "time_base"]
+
+    res = _exec(
+        url,
+        entries,
+        streams=streams,
+        intervals=intervals,
+    )
+
+    out = [_items_to_numeric(d) for d in res["frames"]]
+
+    if len(out) == 0:
+        return out
+
+    if accurate_time and has_time:
+
+        time_bases = {
+            d["index"]: fractions.Fraction(d["time_base"])
+            for d in res["streams"]
+        }
+
+        if not pick_entries:
+            time_entries = [e for e in out[0].keys() if e.endswith("_time")]
+
+        ts_entries = [e[:-5] for e in time_entries]
+
+        for d in out:
+            tb = time_bases[d["stream_index"]]
+            for e, e_ts in zip(time_entries, ts_entries):
+                d[e] = d[e_ts] * tb
+                if pick_entries and e_ts not in orig_entries:
+                    del d[e_ts]
+
+    try:
+        return [d[entry] for d in out] if is_single else out
+    except:
+        raise ValueError(f"invalid frame attribute: {entry}")
