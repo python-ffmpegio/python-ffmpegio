@@ -200,7 +200,7 @@ class SimpleVideoReader(SimpleReaderBase):
     multi_read = False
     multi_write = False
 
-    def __init__(self, url, show_log=None, progress=None, blocksize=None, **options):
+    def __init__(self, url, show_log=None, progress=None, blocksize=1, **options):
         hook = plugins.get_hook()
         super().__init__(
             hook.bytes_to_video,
