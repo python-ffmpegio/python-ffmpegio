@@ -32,6 +32,166 @@ def _items_to_numeric(d):
     return {k: try_conv(v) for k, v in d.items()}
 
 
+def _add_select_streams(args, stream_specifier):
+    if stream_specifier:
+        args.extend(["-select_streams", stream_specifier])
+    return args
+
+
+def _add_show_entries(args, entries):
+    arg = []
+    for key, val in entries.items():
+        if not isinstance(val, bool):
+            arg.append(f"{key}={','.join(val)}")
+        elif val:
+            arg.append(key)
+
+    args.append("-show_entries")
+    args.append(":".join(arg))
+    return args
+
+
+def _add_read_intervals(args, intervals):
+    """add -read_intervals option to ffprobe argumnets
+
+    :param args: argument list under construction
+    :type args: list[str]
+    :param intervals: interval specification
+    :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
+    :return: same as args input
+    :rtype: list[str]
+
+    ffprobe will seek to the interval starting point and will continue reading from that.
+    intervals argument can be specified in multiple ways to form the ffprobe argument:
+
+    1) ``str`` - pass through the argument as-is to ffprobe
+    2) ``int`` - read this numbers of packets to read from the beginning of the file
+    3) ``float`` - read packets over this duration in seconds from the beginning of the file
+    4) ``seq[str|float, str|int|float]`` - sets start and end points
+       - start: str = as-is, float=starting time in seconds
+       - end: str = as-is, int=offset in # of packets, float=offset in seconds
+    5) ``dict`` - specifies start and end points with the following keys:
+       - 'start'        - (str|float) start time
+       - 'start_offset' - (str|float) start time offset from the previous read. Ignored if 'start' is present.
+       - 'end'          - (str|float) end time
+       - 'end_offset'   - (str|float|int) end time offset from the start time. Ignored if 'end' is present.
+    6) - ``seq[dict]`` - specify multiple intervals
+
+    """
+
+    # INTERVAL  ::= [START|+START_OFFSET][%[END|+END_OFFSET]]
+    # INTERVALS ::= INTERVAL[,INTERVALS]
+    if intervals is None:
+        return args
+
+    def compose_time(t, is_end_offset):
+        if isinstance(t, str):
+            return str
+        elif isinstance(t, float):
+            return str(t)
+        elif is_end_offset and isinstance(t, int):
+            return f"#{t}"
+        else:
+            raise ValueError("unknown interval endpoint specification")
+
+    def compose_dict(intv):
+        s = ""
+        try:
+            s = compose_time(intv["start"], False)
+        except:
+            try:
+                s = "+" + compose_time(intv["start_offset"], False)
+            except:
+                pass
+        try:
+            s += "%" + compose_time(intv["end"], False)
+        except:
+            try:
+                s += "%+" + compose_time(intv["end_offset"], True)
+            except:
+                pass
+        return s
+
+    if not isinstance(intervals, str):
+        try:
+            if isinstance(intervals, dict):
+                intervals = compose_dict(intervals)
+            else:
+                try:
+                    # try to set duration
+                    intervals = f"%+{compose_time(intervals, True)}"
+                except:
+                    n = len(intervals)
+                    if n and isinstance(intervals[0], dict):
+                        # multiple intervals
+                        intervals = ",".join([compose_dict(intv) for intv in intervals])
+                    else:
+                        # (start, +end)
+                        assert len(intervals) == 2
+                        start = compose_time(intervals[0], False)
+                        end = compose_time(intervals[1], True)
+                        intervals = f"{start}%+{end}"
+        except:
+            raise ValueError("unknown interval specification")
+
+    args.extend(("-read_intervals", intervals))
+    return args
+
+
+def _exec(
+    url, entries, streams=None, intervals=None, count_frames=False, count_packets=False
+):
+    """execute ffprobe and return data as dict"""
+
+    sp_opts = {
+        "stdout": PIPE,
+        "stderr": PIPE,
+        "universal_newlines": True,
+        "encoding": "utf-8",
+    }
+
+    args = ["-hide_banner", "-of", "json"]
+
+    if streams is not None:
+        _add_select_streams(args, streams)
+
+    if intervals is not None:
+        _add_read_intervals(args, intervals)
+
+    if count_frames:
+        args.append("-count_frames")
+        # returns "nb_read_frames" item in each stream
+
+    if count_packets:
+        args.append("-count_packets")
+        # returns "nb_read_packets" item in each stream
+
+    _add_show_entries(args, entries)
+
+    pipe = not isinstance(url, str)
+    args.append("-" if pipe else url)
+
+    if pipe:
+        try:
+            assert url.seekable
+            pos0 = url.tell()
+            sp_opts["input"] = url
+        except:
+            raise ValueError("url must be str or seekable file-like object")
+
+    # run ffprobe
+    ret = ffprobe(args, **sp_opts)
+    if ret.returncode != 0:
+        raise Exception(f"ffprobe execution failed\n\n{ret.stderr}\n")
+
+    # decode output JSON string
+    results = json.loads(ret.stdout)
+
+    if pipe:
+        url.seek(pos0)
+    return results
+
+
 def _full_details(
     url,
     show_format=True,
@@ -59,18 +219,14 @@ def _full_details(
 
     """
 
-    args = ["-select_streams", select_streams] if select_streams else []
-
     modes = dict(
         format=show_format,
         stream=show_streams,
-        programs=show_programs,
-        chapters=show_chapters,
+        program=show_programs,
+        chapter=show_chapters,
     )
 
-    _add_show_entries(args, modes)
-
-    results = _exec(url, args)
+    results = _exec(url, modes, select_streams)
 
     if not modes["stream"]:
         modes["streams"] = modes["stream"]
@@ -79,68 +235,6 @@ def _full_details(
             del results[key]
 
     return _items_to_numeric(results)
-
-
-def _add_show_entries(args, modes):
-    entries = []
-    for key, val in modes.items():
-        if not isinstance(val, bool):
-            entries.append(f"{key}={','.join(val)}")
-        elif val:
-            entries.append(key)
-        else:
-            entries.append(f"{key}=")
-
-    args.append("-show_entries")
-    args.append(":".join(entries))
-
-
-def _exec(url, args):
-    """execute ffprobe and return data as dict"""
-    args = ["-hide_banner", "-of", "json", *args]
-
-    pipe = not isinstance(url, str)
-    args.append("-" if pipe else url)
-
-    if pipe:
-        try:
-            assert url.seekable
-            pos0 = url.tell()
-        except:
-            raise ValueError("url must be str or seekable file-like object")
-
-    # run ffprobe
-    ret = ffprobe(
-        args, stdout=PIPE, stderr=PIPE, universal_newlines=True, encoding="utf-8"
-    )
-    if ret.returncode != 0:
-        raise Exception(f"ffprobe execution failed\n\n{ret.stderr}\n")
-
-    # decode output JSON string
-    results = json.loads(ret.stdout)
-
-    if pipe:
-        url.seek(pos0)
-    return results
-
-
-def _queryall_if_path(url):
-
-    if re.match(r"[a-z][a-z0-9+.-]*://", url) is not None:
-        return None
-
-    mtime = os.stat(url).st_mtime
-
-    db_entry = _db.get(url, None)
-    if db_entry and db_entry[0] == mtime:
-        _db.move_to_end(url, True)  # refresh the entry position
-        return pickle.loads(db_entry[1])
-
-    results = _full_details(url, True, True, True, True)
-    _db[url] = (mtime, pickle.dumps(results))
-    if len(_db) > _db_maxsize:
-        _db.popitem(False)  # remove the oldest entry
-    return results
 
 
 def full_details(
@@ -170,53 +264,69 @@ def full_details(
 
     """
 
+    def _queryall_if_path():
+
+        assert isinstance(url, str)
+
+        sspec = None
+        if select_streams is not None:
+            try:
+                sspec = (None, int(select_streams))
+            except:
+                m = re.match("([avstd])(?::([0-9]+))?$", select_streams)
+                sspec = (
+                    {
+                        "a": "audio",
+                        "v": "video",
+                        "s": "subtitle",
+                        "t": "attachment",
+                        "d": "data",
+                    }[m[1]],
+                    m[2] and int(m[2]),
+                )
+                # raises exception if match not found
+
+        mtime = os.stat(url).st_mtime
+        db_entry = _db.get(url, None)
+        if db_entry and db_entry[0] == mtime:
+            _db.move_to_end(url, True)  # refresh the entry position
+            results = pickle.loads(db_entry[1])
+        else:
+            results = _full_details(url, True, True, True, True)
+            _db[url] = (mtime, pickle.dumps(results))
+            if len(_db) > _db_maxsize:
+                _db.popitem(False)  # remove the oldest entry
+
+        # drop unrequested items
+        for show, key in zip(
+            (show_format, show_streams, show_programs, show_chapters),
+            ("format", "streams", "programs", "chapters"),
+        ):
+            if not show:
+                del results[key]
+
+        # pick streams if specified
+        if sspec is not None:
+            t, i = sspec
+            streams = results["streams"]
+            if t is not None:
+                streams = [st for st in streams if st["codec_type"] == t]
+            if i is not None:
+                streams = streams[i : i + 1]
+            results["streams"] = streams
+
+        return results
+
     if not show_streams:
         select_streams = None
 
-    sspec = None
-
-    if isinstance(select_streams, int):
-        sspec = (None, select_streams)
-    elif select_streams is not None:
-        m = re.match("([avstd])(?::([0-9]+))?$", select_streams)
-        sspec = m and (
-            {
-                "a": "audio",
-                "v": "video",
-                "s": "subtitle",
-                "t": "attachment",
-                "d": "data",
-            }[m[1]],
-            m[2] and int(m[2]),
-        )
-
     # get full query if url is a path
-    results = (
-        _queryall_if_path(url) if select_streams is None or sspec is not None else None
-    )
-
-    if results is None:  # actual url, no store
+    try:
+        return _queryall_if_path()
+    except:
         return _full_details(
             url, show_format, show_streams, show_programs, show_chapters, select_streams
         )
-
-    for show, key in zip(
-        (show_format, show_streams, show_programs, show_chapters),
-        ("format", "streams", "programs", "chapters"),
-    ):
-        if not show:
-            del results[key]
-
-    if sspec is not None:
-        t, i = sspec
-        streams = results["streams"]
-        if t is not None:
-            streams = [st for st in streams if st["codec_type"] == t]
-        if i is not None:
-            streams = streams[i : i + 1]
-        results["streams"] = streams
-
-    return results
 
 
 def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}):
