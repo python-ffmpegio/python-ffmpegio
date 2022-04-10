@@ -284,3 +284,48 @@ class FreezeDetect:
     @property
     def output(self):
         return self.Output(self.interval)
+
+
+class SilenceDetect:
+    media_type = "audio"  # the stream media type
+    meta_names = ("silence_start", "silence_end")  # metadata primary names
+    filter_name = "silencedetect"
+    Output = namedtuple("Silent", ["interval"])
+
+    def __init__(self, **options):
+        self.options = options
+        self.interval = []
+        self.mono_intervals = {}  # mono intervals
+
+    @property
+    def filter_spec(self):
+        return (self.filter_name, self.options)
+
+    def log(self, t, key, ch, _):
+
+        if ch is None:
+            i = self.interval
+        else:
+            ch = int(ch) - 1
+            try:
+                i = self.mono_intervals[ch]
+            except:
+                i = self.mono_intervals[ch] = []
+
+        if key == "silence_start":
+            i.append([t, None])
+        elif len(i):
+            i[-1][-1] = t
+        else:
+            i.append([None, t])
+
+    @property
+    def output(self):
+        nch = len(self.mono_intervals)
+        if nch:
+            channels = sorted(self.mono_intervals.keys())
+            ints = [self.mono_intervals[ch] for ch in channels]
+            return namedtuple("SilentIntervals", [f"ch{ch}" for ch in channels])(*ints)
+        else:
+            return self.Output(self.interval)
+
