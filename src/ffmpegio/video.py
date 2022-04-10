@@ -1,7 +1,5 @@
-from collections import namedtuple
-from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
+from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, analyze
 from .utils import filter as filter_utils, log as log_utils
-import logging
 
 __all__ = ["create", "read", "write", "filter", "detect"]
 
@@ -308,23 +306,17 @@ def filter(expr, rate, input, progress=None, show_log=None, **options):
     )
 
 
-from .utils.filter import FilterGraph
-from .threading import ProgressMonitorThread
-from .path import ffmpeg, DEVNULL, PIPE, devnull
-import re
-
-
 def detect(
     url,
     *features,
     ss=None,
     t=None,
     to=None,
-    time_units=None,
-    scene_all_scores=False,
     start_at_zero=False,
+    time_units=None,
     progress=None,
     show_log=None,
+    scene_all_scores=False,
     **options,
 ):
     """detect video frame features
@@ -350,17 +342,17 @@ def detect(
     :type t: int, float, str, optional
     :param to: stop processing at this time (ignored if t is also specified), defaults to None
     :type to: int, float, str, optional
-    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
-    :type time_units: 'seconds', 'frames', 'pts', optional
-    :param scene_all_scores: (only for 'scene' feature) True to return scores for all frames, defaults to False
-    :type scene_all_scores: bool, optional
     :param start_at_zero: ignore start time, defaults to False
     :type start_at_zero: bool, optional
+    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
+    :type time_units: 'seconds', 'frames', 'pts', optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
+    :param scene_all_scores: (only for 'scene' feature) True to return scores for all frames, defaults to False
+    :type scene_all_scores: bool, optional
     :param \**options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
         of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
         options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
@@ -382,7 +374,7 @@ def detect(
              - 'time'
              - numeric
              - Timestamp of the frame
-           * - 
+           * -
              - 'change'
              - bool
              - True if scene change detected (only present if ``scene_all_scores=True``)
@@ -417,7 +409,7 @@ def detect(
     --------
 
     .. code-block::python
-    
+
         ffmpegio.video.detect('video.mp4', 'scene')
 
     .. _scdet: https://ffmpeg.org/ffmpeg-filters.html#scdet-1
@@ -429,177 +421,43 @@ def detect(
     """
 
     all_detectors = {
-        "black": "blackdetect",
-        "blackframe": "blackframe",
-        "freeze": "freezedetect",
-        "scene": "scdet",
+        "black": analyze.BlackDetect,
+        "blackframe": analyze.BlackFrame,
+        "freeze": analyze.FreezeDetect,
+        "scene": analyze.ScDet,
     }
-
-    try:
-        tunits = ("frames", "pts", "seconds").index(time_units) + 1 if time_units else 3
-    except:
-        raise ValueError(
-            f'time_units "{time_units}" is invalid. Must be one of ("frames", "pts", "seconds")'
-        )
 
     if not len(features):
         features = [*all_detectors.keys()]
 
-    # gather options for each detector
-    det_options = {k: options.pop(f"{k}_options", {}) for k in features}
-    try:
-        det_options = {k: {**options, **o} for k, o in det_options.items()}
-    except:
-        raise ValueError(f"Detector-specific options must be given as a dict.")
+    # pop detector-specific options
+    det_options = [options.pop(f"{k}_options", None) for k in features]
 
-    # create filter chain
+    # create loggers
     try:
-        detectors = [(all_detectors[k], det_options[k]) for k in features]
+        loggers = [all_detectors[k](**options) for k in features]
     except:
         raise ValueError(f"Unknown feature(s) specified: {features}")
 
-    detectors.append(("metadata", "print", {"file": "-", "direct": True}))
-    fg = FilterGraph([detectors])
+    # add detector-specific options
+    for l, o in zip(loggers, det_options):
+        if o is not None:
+            l.options.update(**o)
+        if l.filter_name == "scdet":
+            l.all_frames = bool(scene_all_scores)
 
-    progmon = ProgressMonitorThread(progress)
+    # exclude unspecified input options
+    input_opts = {k: v for k, v in zip(("ss", "t", "to"), (ss, t, to)) if v is not None}
 
-    # create arguments
-    args = ["-hide_banner"]
-    if progress:
-        args.extend("-progress", progmon.url)
-    if ss is not None:
-        args.extend(("-ss", str(ss)))
-    if t is not None:
-        args.extend(("-t", str(t)))
-    if to is not None:
-        args.extend(("-to", str(ss)))
-    args.extend(("-i", str(url), "-copyts"))
-    if start_at_zero:
-        args.append("-start_at_zero")
-    args.extend(("-vf", str(fg), "-f", "null", devnull))
+    # run analysis
+    analyze.run(
+        url,
+        *loggers,
+        start_at_zero=start_at_zero,
+        time_units=time_units,
+        progress=progress,
+        show_log=show_log,
+        **input_opts,
+    )
 
-    # run FFmpeg
-    with progmon:
-        out = ffmpeg(
-            args,
-            stdout=PIPE,
-            stderr=None if show_log else PIPE,
-            universal_newlines=True,
-        )
-
-    if out.returncode:
-        raise FFmpegError(out.stderr, show_log)
-
-    class Scene:
-        Output = namedtuple("Scenes", ["time", "score", "mafd"])
-        OutputAll = namedtuple("AllSceneScores", ["time", "changed", "score", "mafd"])
-
-        def __init__(self):
-            self.data = {}
-
-        def log(self, t, _, key, value):
-            if key == "mafd":  # always the first entry / frame
-                self.data[t] = {"mafd": float(value)}
-            elif key == "score":
-                self.data[t]["score"] = float(value)
-            elif key == "time":
-                self.data[t]["changed"] = True
-
-        def output(self):
-            d = self.data
-            if scene_all_scores:
-                times = sorted((t for t, v in self.data.items()))
-                return Scene.OutputAll(
-                    times,
-                    *zip(
-                        *(
-                            (d[t].get("changed", False), d[t]["score"], d[t]["mafd"])
-                            for t in times
-                        )
-                    ),
-                )
-            else:
-                times = sorted((t for t, v in d.items() if v.get("changed", False)))
-                return Scene.Output(
-                    times, *zip(*((d[t]["score"], d[t]["mafd"]) for t in times))
-                )
-
-    class Black:
-        Output = namedtuple("Black", ["interval"])
-
-        def __init__(self):
-            self.interval = []
-
-        def log(self, t, key, *_):
-            if key == "black_start":
-                self.interval.append([t, None])
-            elif len(self.interval):
-                self.interval[-1][-1] = t
-            else:
-                self.interval.append([None, t])
-
-        def output(self):
-            return Black.Output(self.interval)
-
-    class BlackFrame:
-        Output = namedtuple("BlackFrames", ["time", "pblack"])
-
-        def __init__(self):
-            self.frames = []
-
-        def log(self, t, _, key, value):
-            if key != "pblack":
-                raise ValueError(f"Unknown blackframe metadata found: {key}")
-            self.frames.append((t, int(value)))
-
-        def output(self):
-            return BlackFrame.Output(*zip(*self.frames))
-
-    class Freeze:
-        Output = namedtuple("Frozen", ["interval"])
-
-        def __init__(self):
-            self.interval = []
-
-        def log(self, t, _, key, __):
-            if key == "freeze_start":
-                self.interval.append([t, None])
-            elif key == '"freeze_end"':
-                if len(self.interval):
-                    self.interval[-1][-1] = t
-                else:
-                    self.interval.append([None, t])
-
-        def output(self):
-            return Freeze.Output(self.interval)
-
-    Loggers = {
-        "scene": Scene,
-        "black": Black,
-        "blackframe": BlackFrame,
-        "freeze": Freeze,
-    }
-
-    loggers = {k: Loggers[k]() for k in features}
-
-    meta_logger = {
-        "scd": loggers.get("scene", None),
-        "black_start": loggers.get("black", None),
-        "black_end": loggers.get("black", None),
-        "blackframe": loggers.get("blackframe", None),
-        "freezedetect": loggers.get("freeze", None),
-    }
-
-    re_metadata = re.compile(r"lavfi\.(.+?)(?:\.(.+?))?=(.+)")
-    for m in re.finditer(
-        r"frame:(\d+)\s+pts:(\d+)\s+pts_time:(\d+(?:\.\d+)?)\s*\n(.+?)(?=\nframe:|$)",
-        out.stdout,
-        re.DOTALL,
-    ):
-        # logged time
-        t = (int, int, float)[tunits - 1](m[tunits])
-
-        for mm in re_metadata.finditer(m[4]):
-            meta_logger[mm[1]].log(t, *mm.groups())
-
-    return tuple((loggers[k].output() for k in features))
+    return tuple((l.output for l in loggers))
