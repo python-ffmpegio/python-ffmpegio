@@ -59,7 +59,7 @@ def test_frames():
     print(info[-1])
     pts_time = probe.frames(
         url,
-        "pkt_pts_time",
+        "pts_time",
         "a:0",
         intervals=10
         # intervals='%+#20,30%+#15'
@@ -68,7 +68,7 @@ def test_frames():
     print(pts_time)
     pts_time1 = probe.frames(
         url,
-        "pkt_pts_time",
+        "pts_time",
         "a:0",
         intervals=10,
         accurate_time=True

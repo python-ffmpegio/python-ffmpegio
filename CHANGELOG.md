@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Added
+
+- `path.check_version()` to check FFmpeg version easily
+
 ## [0.5.0] - 2022-04-03
 
 ### Added

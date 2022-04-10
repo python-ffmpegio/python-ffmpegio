@@ -208,3 +208,23 @@ def versions():
                 lv = v["library_versions"] = {}
             lv[m[1]] = m[2].replace(" ", "")
     return v
+
+
+def check_version(ver, cond=None):
+    """check FFmpeg version
+
+    :param ver: desired version string
+    :type ver: str
+    :param cond: condition, defaults to None (">=)
+    :type cond: "==", "!=", "<", "<=", ">", ">=", optional
+    :return: True if condition is met
+    :rtype: bool
+    """
+    return {
+        "==": FFMPEG_VER.__eq__,
+        "!=": FFMPEG_VER.__ne__,
+        "<": FFMPEG_VER.__lt__,
+        "<=": FFMPEG_VER.__le__,
+        ">": FFMPEG_VER.__gt__,
+        ">=": FFMPEG_VER.__ge__,
+    }[cond or ">="](Version(ver))

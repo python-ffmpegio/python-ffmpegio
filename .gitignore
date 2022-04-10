@@ -152,4 +152,3 @@ docs/
 !docs/.nojekyll
 
 sandbox/*
-!sandbox/*.py
