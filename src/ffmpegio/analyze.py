@@ -153,7 +153,10 @@ def run(
 
         # log each meta data
         for mm in re_metadata.finditer(m[4]):
-            meta_logger[mm[1]].log(t, *mm.groups())
+            try:
+                meta_logger[mm[1]].log(t, *mm.groups())
+            except:
+                pass # ignore unknown metadata
 
     # return the loggers as convenience
     return loggers
