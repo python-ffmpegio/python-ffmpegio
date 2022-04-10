@@ -12,6 +12,8 @@ List of Functions
    :recursive:
 
    ffmpegio.video.detect
+   ffmpegio.audio.detect
 
 
 .. autofunction:: ffmpegio.video.detect
+.. autofunction:: ffmpegio.audio.detect
