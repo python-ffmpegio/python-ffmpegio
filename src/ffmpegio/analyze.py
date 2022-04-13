@@ -156,7 +156,7 @@ def run(
             try:
                 meta_logger[mm[1]].log(t, *mm.groups())
             except:
-                pass # ignore unknown metadata
+                pass  # ignore unknown metadata
 
     # return the loggers as convenience
     return loggers
@@ -284,6 +284,38 @@ class FreezeDetect:
     @property
     def output(self):
         return self.Output(self.interval)
+
+
+class BBox:
+    media_type = "video"  # the stream media type
+    meta_names = ("bbox",)  # metadata primary names
+    filter_name = "bbox"
+    Output = namedtuple("BBox", ["time", "position"])
+    pos_keys = {"y1": 1, "w": 2, "h": 3}
+
+    def __init__(self, **options):
+        self.options = options
+        self.time = []
+        self.position = []
+
+    @property
+    def filter_spec(self):
+        return (self.filter_name, self.options)
+
+    def log(self, t, _, key, value):
+        if key == "x1":
+            self.time.append(t)
+            self.position.append([int(value), 0, 0, 0])
+        else:
+            try:
+                key = self.pos_keys[key]
+                self.position[-1][key] = int(value)
+            except:
+                pass
+
+    @property
+    def output(self):
+        return self.Output(self.time, self.position)
 
 
 class SilenceDetect:
