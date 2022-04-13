@@ -22,9 +22,23 @@ def test_bbox():
     analyze.run(url, logger, f="lavfi", t=1, show_log=True)
     assert len(logger.output.time) == len(logger.output.position)
 
+def test_astats():
+    url = "tests/assets/sample.mp4"
+    logger = analyze.AStats()
+    analyze.run(url, logger, t=1, show_log=True)
+    pprint(logger.output)
 
 if __name__ == "__main__":
     import logging
     from matplotlib import pyplot as plt
 
     logging.basicConfig(level=logging.DEBUG)
+
+    url = "tests/assets/sample.mp4"
+    logger = analyze.AStats()
+    analyze.run(url, logger, t=1, show_log=True)
+
+    pprint(logger.output)
+
+    # assert len(logger.output.mono_interval) == 1
+    # assert len(logger.output.time) == len(logger.output.value)

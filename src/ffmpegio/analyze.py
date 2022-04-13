@@ -3,6 +3,7 @@
 """
 
 from collections import namedtuple
+import logging
 from .utils.filter import FilterGraph
 from .utils.error import FFmpegError
 from .threading import ProgressMonitorThread
@@ -401,3 +402,78 @@ class APhaseMeter:
     @property
     def output(self):
         return self.Output(self.time, self.value, self.mono, self.out_phase)
+
+
+class AStats:
+    media_type = "audio"  # the stream media type
+    meta_names = ("astats",)  # metadata primary names
+    filter_name = "astats"
+    re_key = re.compile(
+        r"(?:(\d+)|Overall)\.(.+)|(Number of NaNs|Number of Infs|Number of denormals)"
+    )
+
+    # fmt: off
+    stats_names = {
+        meas: meas.lower().replace(" ", "_")
+        for meas in (
+            "DC_offset", "Min_level", "Max_level", "Min_difference", "Max_difference",
+            "Mean_difference", "RMS_difference", "Peak_level", "RMS_level", "RMS_peak",
+            "RMS_trough", "Crest_factor", "Flat_factor", "Peak_count", "Noise_floor",
+            "Noise_floor_count", "Entropy", "Bit_depth", "Bit_depth2", "Dynamic_range",
+            "Zero_crossings", "Zero_crossings_rate", "Number of NaNs", "Number of Infs",
+            "Number of denormals",
+        )
+    }
+    # fmt: on
+    Output = namedtuple("AStats", ["time", *stats_names.values()])
+
+    def __init__(self, **options):
+        self.options = options
+        self.time = []
+        self._first = None
+        for meas in AStats.stats_names.values():
+            setattr(self, meas, {})
+
+    @property
+    def filter_spec(self):
+        return (self.filter_name, {**self.options, "metadata": True})
+
+    def log(self, t, _, key, value):
+
+        if not self._first:
+            self._first = key
+
+        if key == self._first:
+            self.time.append(t)
+
+        m = self.re_key.match(key)
+        if not m:
+            logging.warning(f"[AStats.log()] Unknown metadata key: {key}")
+            return
+
+        ch, name, bug = m.groups()
+        ch = "overall" if ch is None else int(ch) - 1
+        key = self.stats[bug or name]
+
+        try:
+            stat = self.stats[key]
+        except:
+            stat = self.stats[key] = {}
+
+        try:
+            l = stat[ch]
+        except:
+            l = stat[ch] = []
+
+        l.append(float(value))
+
+    @property
+    def output(self):
+        return self.Output(
+            self.time,
+            *(
+                getattr(self, meas)
+                for meas in AStats.stats_names.values()
+                if hasattr(self, meas)
+            ),
+        )
