@@ -329,3 +329,43 @@ class SilenceDetect:
         else:
             return self.Output(self.interval)
 
+
+class APhaseMeter:
+    media_type = "audio"  # the stream media type
+    meta_names = ("aphasemeter",)  # metadata primary names
+    filter_name = "aphasemeter"
+    Output = namedtuple(
+        "Phase", ["time", "value", "mono_interval", "out_phase_interval"]
+    )
+
+    def __init__(self, **options):
+        self.options = options
+        self.time = []
+        self.value = []
+        self.mono = []
+        self.out_phase = []
+
+    @property
+    def filter_spec(self):
+        return (self.filter_name, {**self.options, "video": False, "phasing": True})
+
+    def log(self, t, _, key, val):
+
+        if key == "phase":
+            self.time.append(t)
+            self.value.append(float(val))
+        else:
+            ptype, action = key.rsplit("_", 1)
+            i = getattr(self, ptype)
+
+            if action == ("start"):
+                i.append([t, None])
+            elif action == "end":
+                if len(i):
+                    i[-1][-1] = t
+                else:
+                    i.append([None, t])
+
+    @property
+    def output(self):
+        return self.Output(self.time, self.value, self.mono, self.out_phase)
