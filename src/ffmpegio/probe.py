@@ -27,7 +27,10 @@ def _items_to_numeric(d):
                 try:
                     return float(v)
                 except ValueError:
-                    return v
+                    try:
+                        return fractions.Fraction(v)
+                    except:
+                        return v
 
     return {k: try_conv(v) for k, v in d.items()}
 
@@ -580,7 +583,7 @@ def audio_streams_basic(url, index=None, entries=None):
     )["streams"]
 
     def adjust(res):
-        tb = eval(res.pop("time_base", "1"))
+        tb = res.pop("time_base", 1)
         start_pts = res.pop("start_pts", 0)
         duration_ts = res.pop("duration_ts", 0)
 
@@ -599,7 +602,7 @@ def audio_streams_basic(url, index=None, entries=None):
 
 
 def query(url, stream=None, fields=None, return_none=False):
-    """Query a specific fields of media format or stream
+    """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
     :type url: str
@@ -658,7 +661,7 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
     :type stream: str or int, optional
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
     :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
-    :param accurate_time: True to return all '*_time' attributes to be computed from associated timestamps and 
+    :param accurate_time: True to return all '*_time' attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param accurate_time: bool, optional
     :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
@@ -726,8 +729,7 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
     if accurate_time and has_time:
 
         time_bases = {
-            d["index"]: fractions.Fraction(d["time_base"])
-            for d in res["streams"]
+            d["index"]: fractions.Fraction(d["time_base"]) for d in res["streams"]
         }
 
         if not pick_entries:
