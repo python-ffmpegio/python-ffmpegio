@@ -655,3 +655,19 @@ def pop_extra_options_multi(options, suffix):
         options.pop(o)
 
     return popped
+
+def pop_global_options(options):
+    """pop global options from options dict
+
+    :param options: source option dict (content will be modified)
+    :type options: dict
+    :return: popped options
+    :rtype: dict
+    """
+
+    all_gopts = caps.options("global")
+    return {
+        k: options.pop(k)
+        for k in [k for k in options.keys() if k in all_gopts]
+    }
+
