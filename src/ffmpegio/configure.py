@@ -74,13 +74,15 @@ def array_to_audio_input(
     )
 
 
-def empty():
+def empty(global_options=None):
     """create empty ffmpeg arg dict
 
+    :param global_options: global options, defaults to None
+    :type global_options: dict, optional
     :return: empty ffmpeg arg dict with 'inputs','outputs',and 'global_options' entries.
     :rtype: dict
     """
-    return dict(inputs=[], outputs=[], global_options=None)
+    return {'inputs':[], 'outputs': [], 'global_options': global_options}
 
 
 def check_url(url, nodata=True, nofileobj=False, format=None):
