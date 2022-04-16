@@ -1,11 +1,12 @@
-from . import ffmpegprocess, configure, utils, probe, FFmpegError
+from collections.abc import Sequence
+from . import ffmpegprocess, configure, utils, FFmpegError
 
 __all__ = ["transcode"]
 
 
 def transcode(
-    input_url,
-    output_url,
+    inputs,
+    outputs,
     progress=None,
     overwrite=None,
     show_log=None,
@@ -14,12 +15,14 @@ def transcode(
     pass1_extras=None,
     **options
 ):
-    """Transcode a media file to another format/encoding
+    """Transcode media files to another format/encoding
 
-    :param input_url: url/path of the input media file
-    :type input_url: str
-    :param output_url: url/path of the output media file
-    :type output_url: str
+    :param inputs: url/path of the input media file or a sequence of tuples, each
+                   containing an input url and its options dict
+    :type inputs: str or sequence of (str,dict)
+    :param outputs: url/path of the output media file or a sequence of tuples, each
+                    containing an output url and its options dict
+    :type outputs: str or sequence of (str, dict)
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
@@ -40,6 +43,12 @@ def transcode(
                         option names as is. For input options, prepend "input\_" to
                         the option name. For example, input_r=2000 to force the
                         input frame rate to 2000 frames/s (see :doc:`options`).
+
+                        If multiple inputs or outputs are specified, these input
+                        or output options specified here are treated as common
+                        options, and the url-specific duplicate options in the
+                        ``inputs`` or ``outputs`` sequence will overwrite those
+                        specified here.
     :type \\**options: dict, optional
     :return: returncode of FFmpeg subprocess
     :rtype: int
@@ -47,29 +56,31 @@ def transcode(
 
     """
 
+    # split input and global options from options
     input_options = utils.pop_extra_options(options, "_in")
+    global_options = utils.pop_global_options(options)
 
-    input_url, stdin, input = configure.check_url(
-        input_url, False, input_options.get("f", None)
-    )
-    output_url, stdout, _ = configure.check_url(output_url, True)
+    # detect single input/output argument
+    if isinstance(inputs, str) or not isinstance(inputs, Sequence):
+        inputs = [(inputs, None)]
+    if isinstance(outputs, str) or not isinstance(outputs, Sequence):
+        outputs = [(outputs, None)]
 
-    args = configure.empty()
-    configure.add_url(args, "input", input_url, input_options)
-    configure.add_url(args, "output", output_url, options)
+    # initialize FFmpeg argument dict
+    args = configure.empty(global_options)
 
-    # if output pix_fmt defined, get input pix_fmt to check for transparency change
-    # TODO : stream spec?
-    pix_fmt = options.get("pix_fmt", None)
-    pix_fmt_in = input_options.get("pix_fmt", None)
-    if pix_fmt is not None and pix_fmt_in is None:
-        try:
-            pix_fmt = probe.video_streams_basic(input_url, 0)[0]["pix_fmt"]
-        except:
-            pass  # filter or invalid url, let ffmpeg complain if there is a problem
+    for url, opts in inputs:
+        opts = {**input_options, **(opts or {})}
+        input_url, stdin, input = configure.check_url(url, False, opts.get("f", None))
+        configure.add_url(args, "input", input_url, opts)
 
-    # convert basic VF options to vf option
-    configure.build_basic_vf(args, utils.alpha_change(pix_fmt_in, pix_fmt, -1))
+    for url, opts in outputs:
+        opts = {**options, **(opts or {})}
+        output_url, stdout, _ = configure.check_url(url, True)
+        i, _ = configure.add_url(args, "output", output_url, opts)
+
+        # convert basic VF options to vf option
+        configure.build_basic_vf(args, None, i)
 
     kwargs = (
         {
