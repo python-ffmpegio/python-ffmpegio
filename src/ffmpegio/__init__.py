@@ -70,10 +70,11 @@ ffprobe = path.ffprobe
 def open(
     url_fg,
     mode="",
-    rate=None,
-    shape=None,
     rate_in=None,
     shape_in=None,
+    dtype_in=None,
+    rate=None,
+    shape=None,
     **kwds,
 ):
     """Open a multimedia file/stream for read/write
@@ -83,6 +84,14 @@ def open(
     :type url_fg: str or seq(str)
     :param mode: specifies the mode in which the FFmpeg is used, defaults to None
     :type mode: str, optional
+    :param rate_in: (filter specific) input frame rate (video write) or sample rate (audio
+                 write), defaults to None
+    :type rate_in: Fraction, float, int, optional
+    :param shape_in: (write and filter specific) input video frame size (height x width [x ncomponents]),
+                  or audio sample size (channels,), defaults to None
+    :type shape_in: seq of int, optional
+    :param dtype_in: (write and filter specific) input data type, defaults to None
+    :type dtype_in: str, optional
     :param rate: (filter specific) output frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate: Fraction, float, int, optional
@@ -91,14 +100,6 @@ def open(
     :param shape: (read and filter specific) output video frame size (height x width [x ncomponents]),
                   or audio sample size (channels,), defaults to None
     :type shape: seq of int, optional
-    :param rate_in: (filter specific) input frame rate (video write) or sample rate (audio
-                 write), defaults to None
-    :type rate_in: Fraction, float, int, optional
-    :param dtype_in: (write and filter specific) input data type, defaults to None
-    :type dtype_in: str, optional
-    :param shape_in: (write and filter specific) input video frame size (height x width [x ncomponents]),
-                  or audio sample size (channels,), defaults to None
-    :type shape_in: seq of int, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :yields: ffmpegio stream object
@@ -296,10 +297,12 @@ def open(
     # add other info to the arguments
     args = (*url_fg,) if read else (*url_fg, rate_in)
     for k, v in (
+        ("dtype_in", dtype_in),
+        ("shape_in", shape_in),
         ("rate", rate),
         ("shape", shape),
-        ("shape_in", shape_in),
     ):
+    
         if v is not None:
             kwds[k] = v
 
