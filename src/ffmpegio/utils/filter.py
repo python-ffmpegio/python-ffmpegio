@@ -2,7 +2,7 @@ import re, itertools
 from collections.abc import Sequence
 from copy import deepcopy
 
-from .. import utils
+from .. import utils, caps
 
 
 # various regexp objects used in the module
@@ -300,8 +300,9 @@ def compose_graph(
                may be a dict, defining its keyword arguments.
     :type filter_specs: seq(seq(filter_args))
     :param input_labels: specifies labels of filter input pads which receives
-                         input streams. Keys are the link labels and values
-                         are sequences of (chain_id, filter_id, in_pad_id),
+                         input streams. Keys are sequences of (chain_id, 
+                         filter_id, in_pad_id), and values are the link labels
+                         (either the pad label or input stream spec) 
                          chain_id and filter_id are ints, specifying the filter
                          index in fg, and in_pad_id is an int specifying the
                          input pad, defaults to None
@@ -814,720 +815,228 @@ class FilterGraph:
     def copy(self):
         return FilterGraph(self)
 
-    def iter_loose_input_pads(self, max=1):
-
-        used = set((*self.input_labels.values(), *self.links.keys()))
-        return ((i, 0, k)
-            for i in range(len(self))
-            for k in range(max)
-            if (i, 0, k) not in used)
-
-    def iter_loose_output_pads(self, max=1):
-        used = set((*self.output_labels.values(), *self.links.values()))
-        return (
-            (i, len(chain) - 1, k)
-            for i, chain in enumerate(self.filter_specs)
-            for k in range(max)
-            if (i, len(chain) - 1, k) not in used
-        )
-
-    def __getitem__(self, inds):
-        get_chains, *inds = self._resolve_indices_(inds)
-        if get_chains:
-            return self.subgraph(
-                inds[0]
-                if isinstance(inds[0], int)
-                else range(inds[0].start, inds[0].stop, inds[0].step)
-            )
-        else:
-            return self.subgraph(
-                inds[0],
-                inds[1]
-                if isinstance(inds[1], int)
-                else range(inds[1].start, inds[1].stop, inds[1].step),
-            )
-
-    def __setitem__(self, inds, vals):
-        do_chain, *inds = self._resolve_indices_(inds)
-        if do_chain:
-            if isinstance(inds[0], int):  # f[i] = v
-                self.replace(inds[0], vals)
-            else:
-                inds = range(inds[0].start, inds[0].stop, inds[0].step)
-                if inds.step > 1:  # f[i:j:k] = v (exact replacement)
-                    self.replace(inds, vals)
-                else:  # extension
-                    self.delete_chains(inds)
-                    self.insert(min(inds), vals)
-        else:
-            if isinstance(inds[1], int):  # f[i] = v
-                self.replace(inds[0], vals, inds[1])
-            else:
-                inds[1] = range(inds[1].start, inds[1].stop, inds[1].step)
-                if inds[1].step > 0:  # f[i:j:k] = v (exact replacement)
-                    self.replace(inds[0], vals, inds[1])
-                else:  # extension
-                    self.delete_filters(inds[0], inds[1])
-                    self.insert(min(inds[0]), vals, inds[1])
-
-    def __delitem__(self, inds):
-        del_chain, *inds = self._resolve_indices_(inds)
-        if del_chain:
-            self.delete_chains(
-                [inds]
-                if isinstance(inds[0], int)
-                else range(inds[0].start, inds[0].stop, inds[0].step)
-            )
-        else:
-            self.delete_filters(
-                inds[0],
-                [inds[1]]
-                if isinstance(inds[1], int)
-                else range(inds[1].start, inds[1].stop, inds[1].step),
-            )
-
-    def _resolve_indices_(self, inds):
-        def positivify(inds, n):
-            if isinstance(inds, slice):
-                k = 1 if inds.step is None else inds.step
-                i = (
-                    (0 if k > 0 else n - 1)
-                    if inds.start is None
-                    else (min(inds.start, n) if k > 0 else min(n + inds.start, n - 1))
-                )
-                j = (
-                    (n if k > 0 else -1)
-                    if inds.stop is None
-                    else (min(inds.stop, n) if k > 0 else min(n + inds.stop, n - 1))
-                )
-                inds = slice(i, j, k)
-            elif inds < 0:
-                inds += n
-            return inds
-
-        if isinstance(inds, tuple):
-            try:
-                cid, fid = inds
-            except:
-                raise IndexError(
-                    "FilterGraph indices must be 1D (indexing chains) or 2D (indexing filters)."
-                )
-            if isinstance(cid, slice):
-                raise IndexError(
-                    "Chains cannot be slice indexed to index filter_specs."
-                )
-            try:
-                self.filter_specs[cid][fid]
-            except:
-                raise IndexError("Invalid index to filters.")
-
-            return False, cid, positivify(fid, self.get_chain_length(cid))
-        else:
-            try:
-                self.filter_specs[inds]
-            except:
-                raise IndexError("Invalid index to filter chains.")
-
-            return True, positivify(inds, len(self.filter_specs))
-
-    def _get_chain(self, cid):
-        n = len(self.filter_specs)
-        if n < cid:
-            return self.filter_specs[cid], False
-        self.filter_specs.extend([[]] * (cid - n + 1))
-        return self.filter_specs[-1], True
-
-    def append_filter(
-        self,
-        filter_spec,
-        chain_id=0,
-        input_links=None,
-        output_links=None,
-        adjust_out_labels=True,
-    ):
-        """append a new filter
-
-        :param filter_spec: filter description or arguments for compose_filter()
-        :type filter_spec: str or arg sequence for compose_filter()
-        :param chain_id: [description], defaults to 0
-        :type chain_id: int, optional
-        :param input_links: [description], defaults to None
-        :type input_links: [type], optional
-        :param output_links: [description], defaults to None
-        :type output_links: [type], optional
-        :param adjust_out_labels: [description], defaults to True
-        :type adjust_out_labels: bool, optional
-        """
-        chain, new_chain = self._get_chain(chain_id)
-        fpos = len(chain)
-        chain.append(filter_spec)
-        if not new_chain and fpos and adjust_out_labels:
-            # keep all the labels from the end of the chain
-            self.output_labels = {
-                k: (
-                    (cid, fpos, pid)
-                    if cid == chain_id and fid == fpos - 1
-                    else (cid, fid, pid)
-                )
-                for k, (cid, fid, pid) in self.output_labels.items()
-            }
-
-            self.links = {
-                k: (
-                    (cid, fpos, pid)
-                    if cid == chain_id and fid == fpos - 1
-                    else (cid, fid, pid)
-                )
-                for k, (cid, fid, pid) in self.links.items()
-            }
-
-        if input_links is not None:
-            for pid, label in enumerate(input_links):
-                id = (chain_id, fpos, pid)
-                if isinstance(label, str):
-                    self.input_labels[label] = id
-                else:
-                    self.links[id] = tuple(label)
-
-        if output_links is not None:
-            for pid, label in enumerate(output_links):
-                id = (chain_id, fpos, pid)
-                if isinstance(label, str):
-                    self.output_labels[label] = id
-                else:
-                    self.links[tuple(label)] = id
-
-    def set_link(self, input_link, output_link, overwrite=False):
-        """set an internal or external link
-
-        :param input_link: either filter input pad specifier or label of the output pad
-        :type input_link: int or str
-        :param output_link: either filter output pad specifier or label of the input pad
-        :type output_link: int or str
-        :param overwrite: True to overwrite existing link or label, defaults to False
-        :type overwrite: bool, optional
-
-        A filter pad specifier is a 3-int sequence: (chain_id, filter_id, pad_id). It specifies the target filter and its
-        I/O pad to create a link. Chain_id is the index of the filter chain that the filter belongs to, and filter_id is
-        the index of the filter within the chain. Both of these ids may be negative to specify wrt the end of the sequence.
-        For example, chain_id=-2 picks the filter chain, second from last, and filter_id=-1 picks the last filter of the chain.
-        I/O pad index is not absolute. Filter graph expression will be list I/O pad labels in the sorted order of the pad indices.
-
-        Examples:
-
-        ```python
-            fg.set_link((0,0,0), 'in') # set the first input pad of the first filter of the first chain to be labeled "in"
-            fg.set_link('out', (0,-1,0)) # set the first output pad of the last filter of the first chain to be labeled "out"
-            fg.set_link((-1,0,1), (1,-1,0)) # link the second input pad of the first filter of the last chain to be linked to
-                                            # the first output pad of the last filter of the second chain to be labeled "out"
-        ```
-
-        """
-
-        def adjust_index(l, nc, nf):
-            return (
-                l[0] + nc if l[0] < 0 else l[0],
-                l[1] + nf if l[1] < 0 else l[1],
-                l[2],
-            )
-
-        def del_label(labels, l):
-            dup = next((k for k, v in labels.items() if v == l), None)
-            if dup:
-                del labels[dup]
-
-        def del_link(l, is_input):
-            self.links = {
-                k: v for k, v in self.links.items() if (k if is_input else v) != l
-            }
-
-        in_label = isinstance(input_link, str)
-        out_label = isinstance(output_link, str)
-        if in_label and out_label:
-            raise ValueError(
-                "Both input_link and output_link cannot be labels. One or both must be a filter pad specifier."
-            )
-
-        n = len(self)
-
-        # input filter pad specified
-        if not in_label:
-            # make sure the sequence is a tuple
-            input_link = adjust_index(
-                input_link, n, self.get_chain_length(input_link[1])
-            )
-            # check for duplicate use of the input filter pad
-            if overwrite:  # delete all existing
-                del_label(self.input_labels, input_link)
-                del_link(input_link, True)
-            elif input_link in self.input_labels.values() or input_link in self.links:
-                raise ValueError(
-                    "specified input_link filter pad has already been linked."
-                )
-
-        if not out_label:
-            # make sure the sequence is a tuple
-            output_link = adjust_index(
-                output_link, n, self.get_chain_length(output_link[1])
-            )
-
-            if overwrite:
-                del_label(self.output_labels, output_link)
-                del_link(output_link, False)
-            elif (
-                output_link in self.output_labels.values()
-                or output_link in self.links.values()
-            ):
-                raise ValueError(
-                    "specified output_link filter pad has already been linked."
-                )
-
-        if in_label:  # add to output_labels
-            if overwrite:
-                if input_link in self.input_labels:
-                    del self.input_labels[input_link]
-            else:
-                if input_link in self.input_labels or input_link in self.output_labels:
-                    raise ValueError(
-                        f"filter pad label '{input_link}' is already in use."
-                    )
-            self.output_labels[input_link] = output_link
-        elif out_label:  # add to input_labels
-            if overwrite:
-                if output_link in self.output_labels:
-                    del self.output_labels[output_link]
-            else:
-                if (
-                    output_link in self.input_labels
-                    or output_link in self.output_labels
-                ):
-                    raise ValueError(
-                        f"filter pad label '{output_link}' is already in use."
-                    )
-            self.input_labels[output_link] = input_link
-        else:  # add to links
-            self.links[input_link] = output_link
-
-    def subgraph(self, chain_ids, filter_ids=None, copy_sws_flags=False):
-
-        chain_is_int = isinstance(chain_ids, int)
-
-        filter_specs = (
-            self.filter_specs[chain_ids]
-            if chain_is_int
-            else [self.filter_specs[i] for i in chain_ids]
-        )
-
-        if filter_ids is None:
-            # subgraph chains
-            chain_lut = (
-                {chain_ids: 0}
-                if chain_is_int
-                else {v: i for i, v in enumerate(chain_ids)}
-            )
-
-            def _gather_labels(labels):
-                return {
-                    k: (chain_lut[v[0]], *v[1:])
-                    for k, v in labels.items()
-                    if v[0] in chain_lut
-                }
-
-            in_labels = _gather_labels(self.input_labels)
-            out_labels = _gather_labels(self.output_labels)
-            links = {
-                (chain_lut[k[0]], *k[1:]): (chain_lut[v[0]], *v[1:])
-                for k, v in self.links.items()
-                if k[0] in chain_lut and v[0] in chain_lut
-            }
-        else:
-            # subgraph filters of a chain
-            if not chain_is_int:
-                raise ValueError(
-                    "only filters from one filter-chain can be subgraphed together"
-                )
-
-            filt_is_int = isinstance(filter_ids, int)
-
-            filter_specs = (
-                filter_specs[filter_ids]
-                if filt_is_int
-                else [f for i, f in enumerate(filter_specs) if i in filter_ids]
-            )
-
-            filt_lut = (
-                {filter_ids: 0}
-                if filt_is_int
-                else {v: i for i, v in enumerate(set(filter_ids))}
-            )
-
-            def _gather_labels(labels):
-                return {
-                    k: (0, filt_lut[v[1]], v[2])
-                    for k, v in labels.items()
-                    if v[0] == chain_ids and v[1] in filt_lut
-                }
-
-            in_labels = _gather_labels(self.input_labels)
-            out_labels = _gather_labels(self.output_labels)
-            links = {
-                (0, filt_lut[k[1]], k[2]): (0, filt_lut[v[1]], v[2])
-                for k, v in self.links.items()
-                if k[0] == chain_ids
-                and v[0] == chain_ids
-                and k[1] in filt_lut
-                and v[1] in filt_lut
-            }
-
-        return FilterGraph(
-            [filter_specs] if chain_is_int else filter_specs,
-            in_labels,
-            out_labels,
-            links,
-            self.sws_flags if copy_sws_flags else None,
-        )
-
-    def _update_links(self, lut, i=None):
-        """update input_labels, output_labels, and links
-
-        :param lut: key-existing chain or filter index; value-new chain or filter index
-        :type lut: dict
-        :param i: chain index to update filters on the ith chain, defaults to None
-        :type i: int, optional
-
-        Any element not included in lut gets dropped
-        """
-
-        def matcher_c(v):
-            return v[0] in lut
-
-        def matcher_f(v):
-            return v[0] == i and v[1] in lut
-
-        matcher = matcher_c if i is None else matcher_f
-
-        def updater_c(v):
-            return (lut[v[0]], *v[1:])
-
-        def updater_f(v):
-            return (v[0], lut[v[1]], v[2])
-
-        updater = updater_c if i is None else updater_f
-
-        self.input_labels = {
-            k: updater(v) for k, v in self.input_labels.items() if matcher(v)
-        }
-        self.output_labels = {
-            k: updater(v) for k, v in self.output_labels.items() if matcher(v)
-        }
-        self.links = {
-            updater(k): updater(v)
-            for k, v in self.links.items()
-            if matcher(k) and matcher(v)
-        }
-
-    def _add_links(self, src, chain_index, filter_index=None, overwrite=True):
-        def appender_c(dst_labels, src_labels, update_key):
-            for k, v in src_labels.items():
-                if update_key:
-                    k = (k[0] + chain_index, *k[1:])
-                if overwrite or k not in dst_labels:
-                    dst_labels[k] = v[0] + chain_index, *v[1:]
-
-        def appender_f(dst_labels, src_labels, update_key):
-            for k, v in src_labels.items():
-                if update_key:
-                    k = (k[0] + chain_index, k[1] + filter_index, k[2])
-                if overwrite or k not in dst_labels:
-                    dst_labels[k] = (v[0] + chain_index, v[1] + filter_index, v[2])
-
-        appender = appender_c if filter_index is None else appender_f
-
-        appender(self.input_labels, src.input_labels, False)
-        appender(self.output_labels, src.output_labels, False)
-        appender(self.links, src.links, True)
-
-    def delete_chains(self, chain_ids, inplace=True):
-        dst = self if inplace else FilterGraph(self)  # make copy
-
-        # LUT of keepers and their new id's
-        chain_ids = set(chain_ids)
-        lut = {
-            j: i
-            for i, j in enumerate((i for i in range(len(dst)) if i not in chain_ids))
-        }
-        dst._update_links(lut)
-
-        # delete specified filter-chains
-        dst.filter_specs = [c for i, c in enumerate(dst.filter_specs) if i in lut]
-
-        if not inplace:
-            return dst
-
-    def delete_filters(self, chain_id, filter_ids, inplace=True):
-        # subgraph filters of a chain
-        dst = self if inplace else FilterGraph(self)  # make copy
-
-        # delete specified filter-chains
-        chain = dst.filter_specs[chain_id]
-        n = len(chain)
-
-        filter_ids = set(filter_ids)
-
-        # purge voided label & link
-        lut = {j: i for i, j in enumerate((i for i in range(n) if i not in filter_ids))}
-        dst._update_links(lut, chain_id)
-
-        dst.filter_specs[chain_id] = [c for i, c in enumerate(chain) if i in lut]
-
-        if not inplace:
-            return dst
-
-    def append(
-        self, other, chain_id=None, links_from=None, links_to=None, inplace=True
-    ):
-        """append another FilterGraph to this instance
-
-        :param other: other filter graph to be appended
-        :type other: FilterGraph
-        :param chain_id: specify chain index to append to only if appending
-                         serially to an existing filter chain, defaults to None
-        :type chain_id: int, optional
-        :param inplace: If True, do operation in-place and return None, defaults to True
-        :type inplace: bool, optional
-        :return: FilterGraph with the appended filter chains or None if inplace=True.
-        :rtype: FilterGraph or None
-        """
-        dst = self if inplace else FilterGraph(self)  # make copy
-
-        if chain_id is None:
-            # insert filter chains
-            n = len(dst)
-            dst.filter_specs.extend(other.filter_specs)
-            dst._add_links(other, n)
-            if links_from is not None:
-                # connect input of the self from input of other
-                for ldst, lsrc in links_from.items():
-                    dst.set_link(
-                        tuple(lsrc),
-                        (ldst[0] if ldst[0] < 0 else n + ldst[0], ldst[1], ldst[2]),
-                        True,
-                    )
-
-            if links_to is not None:
-                # connect output of the self to input of other
-                for ldst, lsrc in links_to.items():
-                    dst.set_link(
-                        (ldst[0] if ldst[0] < 0 else n + ldst[0], ldst[1], ldst[2]),
-                        tuple(lsrc),
-                        True,
-                    )
-        else:
-            if len(other) > 1:
-                raise ValueError(
-                    "other FilterGraph must have only one chain to append it to a chain."
-                )
-            n = dst.get_chain_length(chain_id)
-            dst.filter_specs[chain_id].extend(other.filter_specs[0])
-            dst._add_links(other, chain_id, n)
-            if links_from is not None:
-                # connect input of the self from input of other
-                for ldst, lsrc in links_from.items():
-                    dst.set_link(
-                        tuple(lsrc),
-                        (ldst[0], ldst[1] if ldst[1] < 0 else n + ldst[1], ldst[2]),
-                        True,
-                    )
-
-            if links_to is not None:
-                # connect output of the self to input of other
-                for ldst, lsrc in links_to.items():
-                    dst.set_link(
-                        (ldst[0], ldst[1] if ldst[1] < 0 else n + ldst[1], ldst[2]),
-                        tuple(lsrc),
-                        True,
-                    )
-
-        if not inplace:
-            return dst
-
-    def extend(self, *args, copy_sws_flags=False, **kwargs):
-        other = (
-            args[0]
-            if len(args) == 1 and isinstance(args[1], FilterGraph) and not len(kwargs)
-            else FilterGraph(*args, **kwargs)
-        )
-        n = len(self.filter_specs)  # offset on chain id
-        self.filter_specs.extend(other.filter_specs)
-        self._add_links(other, n)
-        if copy_sws_flags and other.sws_flags is not None:
-            self.sws_flags = deepcopy(other.sws_flags)
-
-    # def __imul__(self, other):
-    #     self.filter_specs *= other
-
-    def insert(self, chain_index, fg, filter_index=None, copy_sws_flags=False):
-        n = len(fg)
-
-        if filter_index is None:
-            # insert filter chains
-            self.filter_specs.insert(chain_index, fg.filter_specs)
-            lut = {i: i if i < chain_index else i + n for i in range(len(self))}
-            self._update_links(lut)
-            self._add_links(fg, chain_index)
-        else:
-            if n > 1:
-                raise ValueError("fg must be a chain if filter_index is specified")
-            n = fg.get_chain_length(0)
-            self.filter_specs[chain_index].insert(filter_index, fg.filter_specs)
-            lut = {
-                i: i if i < filter_index else i + n
-                for i in range(self.get_chain_length(chain_index))
-            }
-            self._update_links(lut, chain_index)
-            self._add_links(fg, chain_index, filter_index)
-
-        if copy_sws_flags and fg.sws_flags is not None:
-            self.sws_flags = deepcopy(fg.sws_flags)
-
-    def replace(
-        self, chain_index, fg, filter_index=None, inplace=True, keep_links=True
-    ):
-
-        dst = self if inplace else FilterGraph(self)  # make copy
-
-        if filter_index is None:  # replace chains
-            n = len(fg)
-            if isinstance(chain_index, int):
-                chain_index = [chain_index]
-            if n != 1 and n != len(chain_index):
-                raise ValueError("the lengths of chain_index and fg must match")
-
-            fg_src = fg if n == 1 else None
-
-            if not keep_links:
-                lut = {i: i for i in range(len(dst)) if i not in chain_index}
-                dst._update_links(lut)
-
-            for i in chain_index:
-                if n > 1:
-                    fg_src = fg[i]
-                    if len(fg_src) != 1:
-                        raise ValueError(
-                            "Each element of fg must be a single-chain filtergraph."
-                        )
-                dst.filter_specs[i] = fg_src.filter_specs[0]
-                dst._add_links(fg_src, i, overwrite=not keep_links)
-
-            # if keep_links:
-            # only keep valid links
-
-        else:  # replace filters on the (chain_index)th chain
-            if not isinstance(chain_index, int):
-                raise ValueError("chain_index must be an int to replace filters.")
-            if isinstance(filter_index, int):
-                filter_index = [filter_index]
-
-            if len(fg) > 1:
-                raise ValueError("fg must be a single-chain filter graph.")
-            n = fg.get_chain_length(0)
-            if n != 1 and n != len(filter_index):
-                raise ValueError(
-                    "the lengths of fg[0] must be one or equals the length of filter_index"
-                )
-
-            # drop the links of the existing chain to be replaced
-            lut = {
-                i: i
-                for i in range(dst.get_chain_length(chain_index))
-                if i not in filter_index
-            }
-            dst._update_links(lut, chain_index)
-
-            for i, j in enumerate(filter_index):
-                dst.filter_specs[chain_index][j] = (
-                    fg.filter_specs[0][i] if n > 1 else fg.filter_specs[0][0]
-                )
-                dst._add_links(fg, chain_index, i, overwrite=not keep_links)
-
-        if not inplace:
-            return dst
-
-    @staticmethod
-    def split(splitter, src_fg, *dst_fgs, src_pad=None, dst_pads=None, compact=False):
-        """combine filtergraphs with a splitting filter
-
-        :param splitter: a filter to split the output of src_fg, must be a one-to-many filter
-        :type splitter: str or filter tuple
-        :param src_fg: leading filtergraph or input stream specifier
-        :type src_fg: FilterGraph or str
-        :param *dst_fgs: output filtergraphs or output stream labels
-        :type *dst_fgs: List[FilterGraph or str]
-        :param src_pad: src_fg's output pad label or index-tuple, defaults to None
-        :type src_pad: str or filter index, optional
-        :param dst_pads: input pad labels or index-tuples for dst_fgs, defaults to None
-        :type dst_pads: dict[FilterGraph or str, str or filter index or None], optional
-        :param compact: If True, src_fg, splitter, and dst_fgs[-1] will form a single chain, defaults to False
-        :type compact: bool, optional
-
-        If src_pad is not given for a FilterGraph src_fg, the first output pad of the first filter
-        chain without any output label will be chosen. An input stream spec may be used instead.
-
-        Likewise, if dst_pads is not given or the i-th element is None, the first input pad of the
-        first filter chain without any input label will be chosen.
-
-        Note: This function does not check whether splitter is properly configured to output the number
-        of outputs specified.
-        """
-
-        def is_fg(fg):
-            is_fg = isinstance(fg, FilterGraph)
-            if not (is_fg or isinstance(fg, str)):
-                raise
-            return is_fg
-
+    def find_input_pad(self, label=None):
         try:
-            is_src_fg = is_fg
+            return self.input_labels[label or "in"]
         except:
-            raise ValueError("src_fg must be either FilterGraph or str.")
+            if label:
+                raise ValueError(f'input label "{label}" is not defined.')
+            if not len(self.filter_specs):
+                raise ValueError("No filter defined in the graph.")
+            pad = (0, 0, 0)
+            if pad in self.links or pad in self.input_labels.values():
+                raise ValueError(
+                    "cannot use the first input pad of the first filter: already in use."
+                )
+            return pad
 
-        if len(dst_fgs) < 2:
-            raise ValueError("At least 2 dst_fgs must be specified.")
-
+    def find_output_pad(self, label=None):
         try:
-            is_dst_fg = [is_fg(fg) for fg in dst_fgs]
+            return self.output_labels[label or "out"]
         except:
-            raise ValueError("All dst_fgs must be either FilterGraph or str.")
+            if label:
+                raise ValueError(f'output label "{label}" is not defined.')
+            i = len(self.filter_specs) - 1
+            try:
+                j = len(self.filter_specs[-1]) - 1
+            except:
+                raise ValueError("No filter defined in the graph.")
 
-        # create a new FilterGraph with the splitter filter alone
-        input_labels = None if is_src_fg else {src_fg: (0, 0, 0)}
-        output_labels = {
-            fg: (0, 0, i) for i, fg in enumerate(dst_fgs) if not is_dst_fg[i]
-        }
-        fg = FilterGraph([[splitter]], input_labels, output_labels)
-
-        if is_src_fg:
-            # combine src_fg and fg
-            if src_pad is None:
-                src_pad = next(src_fg.iter_loose_output_pad())
-            elif isinstance(src_pad,str):
-                src_pad = src_fg.output_pad[src_pad]
-
-    @staticmethod
-    def merge(merger, dst_fg, *src_fgs, **merge_options):
-        """join filtergraphs feed the first graph from the others"""
-        pass
+            pad = (i, j, 0)
+            if pad in self.links.values() or pad in self.output_labels.values():
+                raise ValueError(
+                    "cannot find output label and the first output pad of the last filter already in use."
+                )
+            return pad
 
 
-def FilterChain(filter_specs):
+def FilterChain(
+    filter_specs, input_labels=None, output_labels=None, autolabel=False, sws_flags=None
+):
     """convenience function to create a single-chain FilterGraph instance
 
     :param filter_specs: specifications of the filters to compose a filterchain
     :type filter_specs: Sequence[filter_spec]
+    :param input_labels: specifies labels of filter input pads which receive
+                         input streams. If str, it defines the label of the first
+                         input pad. If dict, keys are the link labels and values
+                         specify which input pad. If a dict value is int, it's the
+                         input pad index of the first filter. If the value is tuple
+                         of 2 ints, they are indices of (filter, pad) defaults to None
+    :type input_labels: str, dict[str,int or tuple[int,int]], optional
+    :param output_labels: specifies labels of filter output pads which send
+                          output streams. If str, it defines the label of the first
+                          output pad. If dict, keys are the link labels and values
+                          specify which output pad. If a dict value is int, it's the
+                          output pad index of the last filter. If the value is tuple
+                          of 2 ints, they are indices of (filter, pad) defaults to None
+    :type output_labels: str, dict[str,int], optional
+    :param autolabel: True to add "in" input label if input_labels is not specified
+                     and to add "out" output label if output_labels is not specified.
+    :type autolabel: bool, optional
+    :param sws_flags: specify swscale flags for those automatically inserted
+                      scalers, defaults to None
+    :type sws_flags: seq of stringifyable elements with optional dict as the last
+                     element for the keyword flags, optional
     :return: single-chain FFmpeg filtergraph
     :rtype: FilterGraph
     """
-    return FilterGraph([filter_specs])
+
+    def set_label(labels, default_label, arg_name):
+        if isinstance(labels, str):
+            labels = {labels: (0, 0, 0)}
+        elif isinstance(labels, dict):
+            labels = {k: (0, 0, v) if isinstance(v) else (0, *v) for k, v in labels}
+        elif labels is not None:
+            raise ValueError(f"invalid {arg_name} argument.")
+        elif autolabel:
+            labels = {default_label: (0, 0, 0)}
+        return labels
+
+    input_labels = set_label(input_labels, "in", "input_labels")
+    output_labels = set_label(output_labels, "out", "output_labels")
+
+    return FilterGraph([filter_specs], input_labels, output_labels, sws_flags)
+
+
+def Filter(
+    filter_spec, input_labels=None, output_labels=None, autolabel=False, sws_flags=None
+):
+    """convenience function to create a single-filter FilterGraph instance
+
+    :param filter_specs: specifications of the filters to compose a filterchain
+    :type filter_specs: Sequence[filter_spec]
+    :param input_labels: specifies labels of filter input pads which receive
+                         input streams. If str, it defines the label of the first
+                         input pad. If dict, keys are the link labels and values
+                         specify which input pad, defaults to None
+    :type input_labels: str, dict[str,int], optional
+    :param output_labels: specifies labels of filter output pads which send
+                          output streams. If str, it defines the label of the first
+                          output pad. If dict, keys are the link labels and values
+                          specify which output pad, defaults to None
+    :type output_labels: str, dict[str,int], optional
+    :param autolabel: True to add "in" input label if input_labels is not specified
+                     and to add "out" output label if output_labels is not specified.
+    :type autolabel: bool, optional
+    :param sws_flags: specify swscale flags for those automatically inserted
+                      scalers, defaults to None
+    :type sws_flags: seq of stringifyable elements with optional dict as the last
+                     element for the keyword flags, optional
+    :return: single-filter FFmpeg filtergraph
+    :rtype: FilterGraph
+    """
+
+    def set_label(labels, default_label, arg_name):
+        if isinstance(labels, str):
+            labels = {labels: (0, 0, 0)}
+        elif isinstance(labels, dict):
+            labels = {k: (0, 0, v) for k, v in labels}
+        elif labels is not None:
+            raise ValueError(f"invalid {arg_name} argument.")
+        elif autolabel:
+            labels = {default_label: (0, 0, 0)}
+        return labels
+
+    input_labels = set_label(input_labels, "in", "input_labels")
+    output_labels = set_label(output_labels, "out", "output_labels")
+
+    return FilterGraph([[filter_spec]], input_labels, output_labels, sws_flags)
+
+
+def join(*fgs, joiner=None, n_in=None, unconnected=False):
+    """join filtergraphs
+
+    Three types of connections are possible:
+
+    * Series connection: 2 filtergraphs connected in series
+    * Series connection with a joining filter: number of filtergraphs dictated by
+      the joining filter.
+    * No connection: filtergraphs are independently operating
+
+    :param \\*fgs: filtergraphs to be joined. If graphs are connected (connect=True)
+                   the input or output pad of each filtergraph may be specified by
+                   passing in a pair of filtergraph and its connecting pad.
+
+                   Its connecting pad, specified either
+                   by its label or pad id tuple (chain, filter, pad). If pad not
+                   given, the first output pad of the last filter of the last filterchain
+                   is connected of the input filtergraph, and the first output pad
+                   of the first filter of the first filterchain is selected for output
+                   filtergraph
+    :type \\*fgs: tuple[FilterGraph or (FilterGraph, str or tuple[int] or str]
+    :param joiner: joining filter, e.g., overlay, defaults to None
+    :type joiner: str or filter_spec tuple, optional
+    :param n_in: number of input filtergraphs to the joining filter, defaults to None
+    :type n_in: int, optional
+    :param unconnected: True to make no connections between fgs, defaults to False
+    :type unconnected: bool, optional
+
+    Examples
+    --------
+
+    fg3 = join(fg1,fg2)
+    fg4 = join(fg1,fg2,'out','overlay')
+
+    """
+
+    # check input fgs
+    if unconnected:
+        # parallel fgs, no joining
+        joiner = n_in = None
+    else:
+        if joiner is None:  # series join
+            if n_in != 1 or len(fgs) != 2:
+                raise ValueError(
+                    "Only 2 filtergraphs can be joined in series at a time."
+                )
+            n_in = 1
+        else:  # joined with a joiner filter
+            try:
+                name = joiner if isinstance(joiner, str) else joiner[0]
+                info = caps.filters()[name]
+                n_in = info["num_inputs"] if isinstance(info["num_inputs"], int) else 2
+            except:
+                raise ValueError("invalid joiner argument: filter name is invalid")
+
+    # split fg and pad
+    pads = []
+
+    def analyze_input(i, fg):
+        if unconnected:
+            if isinstance(fg, FilterGraph):
+                return fg
+            raise ValueError(
+                f"fgs must be all FilterGraph objects for unconnected join"
+            )
+        if isinstance(fg, str):
+            # in/out label
+            pad = fg
+            fg = None
+        elif isinstance(fg, FilterGraph):
+            pad = fg.find_output_pad() if i < n_in else fg.find_input_pad()
+        else:
+            try:
+                fg, pad = fg
+            except:
+                raise ValueError(f"invalid filtergraph/label specification: {fg}")
+            if isinstance(pad, str):
+                pad = fg.find_output_pad(pad) if i < n_in else fg.find_input_pad(pad)
+        pads.append(pad)
+        return fg and fg.copy()
+
+    fgs = [analyze_input(i, fg) for i, fg in enumerate(fgs)]
+
+    fgiter = (i_fg for i_fg in enumerate(fgs) if i_fg[1])
+    i0, fg0 = next(fgiter)
+    i0 = len(fg0)  # chain id offset
+    for i, fg in fgiter:
+        fg0.filter_specs += fg.filter_specs
+        
+
+    n = [len(fg) if fg else 0 for fg in fgs]  # number of chains
+
+    pass
 
 
 def compose(expr, **kwargs):

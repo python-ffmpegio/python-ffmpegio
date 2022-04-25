@@ -142,23 +142,40 @@ def test_compose_graph():
 
 
 if __name__ == "__main__":
-    from ffmpegio.utils.filter import FilterGraph
+    from ffmpegio.utils.filter import (
+        FilterGraph,
+        Filter,
+        FilterChain,
+        join_filtergraphs,
+    )
     from pprint import pprint
     from ffmpegio import caps
 
-    fall = caps.filters()
-    pprint(fall["concat"])
-    pprint(
-        {
-            k: v["num_outputs"]
-            for k, v in fall.items()
-            if not isinstance(v["num_outputs"], int) or v["num_outputs"] > 1
-        }
+    fg1 = Filter(
+        ("color", {"c": "red", "s": "1280x30"}), input_labels="in", output_labels="out"
     )
-    pprint(
-        {
-            k: v["num_inputs"]
-            for k, v in fall.items()
-            if not isinstance(v["num_inputs"], int) or v["num_inputs"] > 1
-        }
-    )
+    fg2 = Filter(("color", {"c": "blue", "s": "1280x30"}), autolabel=True)
+    fg3 = Filter(("scale", "max(t/5*in_w,1)", "in_h", {"eval": "frame"}))
+
+    print(fg1, fg2, fg3)
+
+    print(caps.filters()['concat'])
+    info = caps.filter_info('concat')
+    print(info['inputs'],info['outputs'])
+
+    # join_filtergraphs(fg2, fg3)
+
+    #     vf = ffmpegio.FilterGraph(
+    #     [
+    #         [("color", {"c": "red", "s": "1280x30"})],
+    #         [
+    #             ("color", {"c": "blue", "s": "1280x30"}),
+    #             ("scale", "max(t/5*in_w,1)", "in_h", {"eval": "frame"}),
+    #         ],
+    #         [("overlay", 0, 0)],
+    #         [("overlay", 0, 720 - 30, {"shortest": 1})],
+    #     ],
+    #     input_labels={"0": (3, 0, 0)},
+    #     output_labels={"out": (3, 0, 0)},
+    #     links={(2, 0, 0): (0, 0, 0), (2, 0, 1): (1, 1, 0), (3, 0, 1): (2, 0, 0)},
+    # )
