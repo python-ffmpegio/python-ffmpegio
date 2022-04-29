@@ -477,3 +477,53 @@ class AStats:
                 if hasattr(self, meas)
             ),
         )
+
+
+class ASpectralStats:
+    media_type = "audio"  # the stream media type
+    meta_names = ("aspectralstats",)  # metadata primary names
+    filter_name = "aspectralstats"
+    re_key = re.compile(r"(?:(\d+)\.)?(.+)")
+
+    def __init__(self, **options):
+        self.options = options
+        self.time = []
+        self.stats = {}
+        self._first = None
+
+    @property
+    def filter_spec(self):
+        return (self.filter_name, {**self.options, "metadata": True})
+
+    def log(self, t, _, key, value):
+
+        m = self.re_key.match(key)
+        if not (m and m[1]):
+            logging.warning(f"[ASpectralStats.log()] Unknown metadata key: {key}")
+            return
+
+        if not self._first:
+            self._first = key
+
+        ch, name = m.groups()
+
+        if key == self._first:
+            self.time.append(t)
+
+        try:
+            stat = self.stats[name]
+        except:
+            stat = self.stats[name] = {}
+
+        ch = int(ch) - 1
+        try:
+            l = stat[ch]
+        except:
+            l = stat[ch] = []
+
+        l.append(float(value))
+
+    @property
+    def output(self):
+        Output = namedtuple("ASpectralStats", ["time", *self.stats.keys()])
+        return Output(self.time, *self.stats.values())
