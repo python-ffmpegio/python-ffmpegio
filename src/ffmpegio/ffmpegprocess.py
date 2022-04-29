@@ -106,20 +106,20 @@ def exec(
             gopts["n"] = FLAG
 
     # turn on hw decoder by default
-    def check_hwaccel(url, opts):
-        if opts is None:
-            opts = {"hwaccel": "auto"}
-        elif "hwaccel" not in opts:
-            opts["hwaccel"] = "auto"
-        return url, opts
+    # def check_hwaccel(url, opts):
+    #     if opts is None:
+    #         opts = {"hwaccel": "auto"}
+    #     elif "hwaccel" not in opts:
+    #         opts["hwaccel"] = "auto"
+    #     return url, opts
 
-    if "inputs" in ffmpeg_args:
-        try:
-            ffmpeg_args["inputs"] = [
-                check_hwaccel(url, opts) for url, opts in ffmpeg_args["inputs"]
-            ]
-        except:
-            pass
+    # if "inputs" in ffmpeg_args:
+    #     try:
+    #         ffmpeg_args["inputs"] = [
+    #             check_hwaccel(url, opts) for url, opts in ffmpeg_args["inputs"]
+    #         ]
+    #     except:
+    #         pass
 
     # configure stdin pipe (if needed)
     def isreadable(f):
