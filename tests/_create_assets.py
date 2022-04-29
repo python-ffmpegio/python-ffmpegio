@@ -9,7 +9,12 @@ command_list = (
     {
         "inputs": [("testsrc=r=30000/1001:d=60", {"f": "lavfi"})],
         "outputs": [("tests/assets/testvideo-1m.mp4", None)],
-        "global_options": {"y": None},
+        "global_options": {"n": None},
+    },
+    {
+        "inputs": [("testsrc=r=30000/1001:d=60", {"f": "lavfi"})],
+        "outputs": [("tests/assets/testvideo-1m-lowres.mp4", {"crf": 25})],
+        "global_options": {"n": None},
     },
     {
         "inputs": [
@@ -19,7 +24,7 @@ command_list = (
             )
         ],
         "outputs": [("tests/assets/testaudio-1m.mp3", None)],
-        "global_options": {"y": None},
+        "global_options": {"n": None},
     },
     {
         "inputs": [
@@ -32,12 +37,12 @@ command_list = (
             ("anoisesrc=d=60:c=pink:r=44100:a=0.5:d=60", {"f": "lavfi"}),
         ],
         "outputs": [("tests/assets/testmulti-1m.mp4", {"map": (0, 1, 2, 3)})],
-        "global_options": {"y": None},
+        "global_options": {"n": None},
     },
     {
         "inputs": [("testsrc=r=1:d=5", {"f": "lavfi"})],
         "outputs": [("tests/assets/imgs/testimage-%d.png", None)],
-        "global_options": {"y": None},
+        "global_options": {"n": None},
     },
 )
 
