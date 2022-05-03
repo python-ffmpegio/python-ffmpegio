@@ -22,23 +22,45 @@ def test_bbox():
     analyze.run(url, logger, f="lavfi", t=1, show_log=True)
     assert len(logger.output.time) == len(logger.output.position)
 
+
 def test_astats():
     url = "tests/assets/sample.mp4"
     logger = analyze.AStats()
     analyze.run(url, logger, t=1, show_log=True)
     pprint(logger.output)
 
+
 if __name__ == "__main__":
     import logging
     from matplotlib import pyplot as plt
+    import ffmpegio
 
     logging.basicConfig(level=logging.DEBUG)
 
-    url = "tests/assets/sample.mp4"
-    logger = analyze.AStats()
-    analyze.run(url, logger, t=1, show_log=True)
+    url = "tests/assets/testvideo-1m.mp4"
+    ref = "tests/assets/testvideo-1m-lowres.mp4"
 
-    pprint(logger.output)
+    logger = analyze.PSNR()
+
+
+    out = ffmpegio.ffmpeg(
+        [
+            "-t", "1", "-i", url,
+            "-t", "1", "-i", ref,
+            "-filter_complex",
+            f"[0:v][1:v]{logger.filter_spec},metadata=print:file=-:direct=true",
+            "-f",
+            "null",
+            ffmpegio.path.devnull,
+        ],
+        stdout=ffmpegio.path.PIPE,
+        universal_newlines=True,
+    )
+    pprint(out.stdout)
+
+    # analyze.run(url, logger, t=1, show_log=True)
+
+    # pprint(logger.output)
 
     # assert len(logger.output.mono_interval) == 1
     # assert len(logger.output.time) == len(logger.output.value)

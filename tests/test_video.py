@@ -102,16 +102,13 @@ def test_two_pass_write():
             A,
             two_pass=True,
             **{"c:v": "libx264", "b:v": "500k"},
-            show_log=True
+            show_log=True,
         )
 
 
 if __name__ == "__main__":
     # test_create()
-    from ffmpegio import configure, utils, ffmpegprocess
-    from ffmpegio.utils import log as log_utils
-    from pprint import pprint
-    import re
+    import ffmpegio
 
     # ffmpeg -y -i input -c:v libx264 -b:v 2600k -pass 1 -an -f null /dev/null && \
     # ffmpeg -i input -c:v libx264 -b:v 2600k -pass 2 -c:a aac -b:a 128k output.mp4
@@ -119,4 +116,59 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
 
-    test_two_pass_write()
+    # url = 'tests/assets/testvideo-1m.mp4'
+    url = "C:/Users/tikuma/Downloads/BigBuckBunny.mp4"
+    output = video.detect(url, black_options={"d": 0.5}, t=30, time_units="frames")
+    print(output)
+    outurl = "tests/assets/sample.mp4"
+    # ffmpegio.ffmpeg(f"-y -copyts -ss 10 -t 20 -i {url} -c copy {outurl}")
+
+    # time, changed, score, mafd = video.detect(outurl, "scene", scene_all_scores=True)
+    # print([i for i, tf in enumerate(changed) if tf])
+
+    # time1, *_ = video.detect(outurl, "scene", start_at_zero=True, show_log=False)
+    # time, *_ = video.detect(url, "scene", t=30)
+    # print(time1)
+    # print(time)
+
+    # # url = 'tests/assets/imgs/testimage-%d.png'
+    # out = ffmpegio.ffmpeg(
+    #     f"-hide_banner -t 60 -i {url} -vf scdet,blackdetect,blackframe,freezedetect,metadata=print:file=- -f null {ffmpegio.path.devnull}",
+    #     stdout=ffmpegio.path.PIPE,
+    #     stderr=ffmpegio.path.PIPE,
+    #     universal_newlines=True,
+    # )
+    # print(out.stdout)
+    # print(out.stderr)
+
+    # blackdetect
+    # frame:0    pts:0       pts_time:0
+    # lavfi.black_start=0
+    # frame:14   pts:14000   pts_time:0.583333
+    # lavfi.black_end=0.583333
+
+    # blackframe
+    # frame:10   pts:10000   pts_time:0.416667
+    # lavfi.blackframe.pblack=100
+
+    # freezedetect
+    # frame:4    pts:4       pts_time:4
+    # lavfi.freezedetect.freeze_start=3
+    # [frame:100    pts:100       pts_time:4]
+    # lavfi.freezedetect.freeze_duration=1
+    # lavfi.freezedetect.freeze_end=4
+
+    # idet
+    # TBD
+
+    # readvitc
+    # TBD
+
+    # scdet
+    # frame:1347 pts:1347000 pts_time:56.125
+    # lavfi.scd.mafd=24.401
+    # lavfi.scd.score=23.007
+    # lavfi.scd.time=56.125 <- prints this only when scene changes
+
+    # vfrdet
+    # (stderr) [Parsed_vfrdet_0 @ 000001cec62bca00] VFR:0.000000 (0/1798)

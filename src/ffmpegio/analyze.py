@@ -2,6 +2,7 @@
 
 """
 
+from __future__ import annotations
 from collections import namedtuple
 import logging
 from .utils.filter import FilterGraph
@@ -25,6 +26,11 @@ class MetadataLogger(Protocol):
         ...
 
     @property
+    def ref_in(self) -> str or None:
+        """stream specifier for reference input url only if applicable"""
+        ...
+
+    @property
     def output(self) -> namedtuple:
         """output named tuple"""
         ...
@@ -45,6 +51,7 @@ class MetadataLogger(Protocol):
 def run(
     url,
     *loggers,
+    references=None,
     time_units=None,
     start_at_zero=False,
     progress=None,
@@ -57,6 +64,8 @@ def run(
     :type url: str
     :param \*loggers: class object with the metadata logging interface
     :type \*loggers: MetadataLogger
+    :param references: reference input urls, defaults to None
+    :type references: list of str
     :param ss: start time to process, defaults to None
     :type ss: int, float, str, optional
     :param t: duration of data to process, defaults to None
@@ -84,6 +93,9 @@ def run(
     if not len(loggers):
         raise ValueError("At least one logger object must be present.")
 
+    if isinstance(references, str):
+        references = [references]
+
     try:
         tunits = ("frames", "pts", "seconds").index(time_units) + 1 if time_units else 3
     except:
@@ -91,9 +103,22 @@ def run(
             f'time_units "{time_units}" is invalid. Must be one of ("frames", "pts", "seconds")'
         )
 
-    filtspecs = {"video": [], "audio": []}
+    filtspecs = [{"video": [], "audio": []}, {"video": [], "audio": []}]
     for l in loggers:
-        filtspecs[l.media_type].append(l.filter_spec)
+        try:  # just logger (no reference src specified)
+            ref = 0 if l.require_reference else None
+        except:  # expect 2-element seq (logger, index to references)
+            try:
+                l, ref = l
+            except:
+                raise ValueError(
+                    "Each logger argument must be either a logger instance alone or "
+                    "a sequence of the instance and reference url index."
+                )
+
+        ref = f"{ref+1}:{l.media_type[0]}"
+
+        filtspecs[l.require_reference][l.media_type].append(l.filter_spec)
 
     def create_fg(filtchain, metadata):
         return (
@@ -167,6 +192,7 @@ class ScDet:
     media_type = "video"  # the stream media type
     meta_names = ("scd",)  # metadata primary names
     filter_name = "scdet"
+    require_reference = False
     Output = namedtuple("Scenes", ["time", "score", "mafd"])
     OutputAll = namedtuple("AllSceneScores", ["time", "changed", "score", "mafd"])
 
@@ -212,6 +238,7 @@ class BlackDetect:
     media_type = "video"  # the stream media type
     meta_names = ("black_start", "black_end")  # metadata primary names
     filter_name = "blackdetect"
+    require_reference = False
     Output = namedtuple("Black", ["interval"])
 
     def __init__(self, **options):
@@ -239,6 +266,7 @@ class BlackFrame:
     media_type = "video"  # the stream media type
     meta_names = ("blackframe",)  # metadata primary names
     filter_name = "blackframe"
+    require_reference = False
     Output = namedtuple("BlackFrames", ["time", "pblack"])
 
     def __init__(self, **options):
@@ -263,6 +291,7 @@ class FreezeDetect:
     media_type = "video"  # the stream media type
     meta_names = ("freeze",)  # metadata primary names
     filter_name = "freezedetect"
+    require_reference = False
     Output = namedtuple("Frozen", ["interval"])
 
     def __init__(self, **options):
@@ -291,6 +320,7 @@ class BBox:
     media_type = "video"  # the stream media type
     meta_names = ("bbox",)  # metadata primary names
     filter_name = "bbox"
+    require_reference = False
     Output = namedtuple("BBox", ["time", "position"])
     pos_keys = {"y1": 1, "w": 2, "h": 3}
 
@@ -319,10 +349,78 @@ class BBox:
         return self.Output(self.time, self.position)
 
 
+#  'frame:26   pts:26026   pts_time:0.867533\n'
+#  'lavfi.entropy.entropy.normal.Y=4.762884\n'
+#  'lavfi.entropy.normalized_entropy.normal.Y=0.595360\n'
+#  'lavfi.entropy.entropy.normal.U=4.609038\n'
+#  'lavfi.entropy.normalized_entropy.normal.U=0.576130\n'
+#  'lavfi.entropy.entropy.normal.V=4.532040\n'
+#  'lavfi.entropy.normalized_entropy.normal.V=0.566505\n'
+class PSNR:
+    media_type = "video"  # the stream media type
+    meta_names = ("psnr",)  # metadata primary names
+    filter_name = "psnr"
+    require_reference = True
+    re_key = re.compile(r"(.+)(?:\.(.))?")
+
+    def __init__(self, **options):
+        self.options = options
+        self.time = []
+        self.comps = []
+        self.stats = {}
+        self._first = None
+
+    @property
+    def filter_spec(self):
+        return (self.filter_name, self.options)
+
+    def log(self, t, _, key, value):
+
+        m = self.re_key.match(key)
+        if not (m and m[1]):
+            logging.warning(f"[PSNR.log()] Unknown metadata key: {key}")
+            return
+
+        if not self._first:
+            self._first = key
+
+        name, comp = m.groups()
+
+        new_row = key == self._first
+        if new_row:
+            self.time.append(t)
+        if comp:
+            n = len(t)
+            if n == 1:
+                self.comps.append(comp)
+            try:
+                stat = self.stats[name]
+            except:
+                stat = self.stats[name] = []
+            if len(stat) < n:
+                l = []
+                stat.append(l)
+            else:
+                l = stat[-1]
+        else:
+            try:
+                l = self.stats[name]
+            except:
+                l = self.stats[name] = []
+
+        l.append(float(value))
+
+    @property
+    def output(self):
+        Output = namedtuple("PSNR", ["time", *self.stats.keys()])
+        return Output(self.time, *self.stats.values())
+
+
 class SilenceDetect:
     media_type = "audio"  # the stream media type
     meta_names = ("silence_start", "silence_end")  # metadata primary names
     filter_name = "silencedetect"
+    require_reference = False
     Output = namedtuple("Silent", ["interval"])
 
     def __init__(self, **options):
@@ -367,6 +465,7 @@ class APhaseMeter:
     media_type = "audio"  # the stream media type
     meta_names = ("aphasemeter",)  # metadata primary names
     filter_name = "aphasemeter"
+    require_reference = False
     Output = namedtuple(
         "Phase", ["time", "value", "mono_interval", "out_phase_interval"]
     )
@@ -408,6 +507,7 @@ class AStats:
     media_type = "audio"  # the stream media type
     meta_names = ("astats",)  # metadata primary names
     filter_name = "astats"
+    require_reference = False
     re_key = re.compile(
         r"(?:(\d+)|Overall)\.(.+)|(Number of NaNs|Number of Infs|Number of denormals)"
     )
@@ -483,6 +583,7 @@ class ASpectralStats:
     media_type = "audio"  # the stream media type
     meta_names = ("aspectralstats",)  # metadata primary names
     filter_name = "aspectralstats"
+    require_reference = False
     re_key = re.compile(r"(?:(\d+)\.)?(.+)")
 
     def __init__(self, **options):
