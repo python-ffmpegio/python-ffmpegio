@@ -1472,7 +1472,7 @@ def video_basic_filter(
     bg_color = fill_color or "white"
 
     if remove_alpha:
-        vfilters.append(f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay")
+        vfilters.append(f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay=shortest=1")
 
     if square_pixels == "upscale":
         vfilters.append("scale='max(iw,ih*dar):max(iw/dar,ih):eval=init',setsar=1/1")
