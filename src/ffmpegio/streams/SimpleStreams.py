@@ -234,8 +234,7 @@ class SimpleVideoReader(SimpleReaderBase):
                 s_in = (info["width"], info["height"])
                 r_in = info["frame_rate"]
             except:
-                pix_fmt_in = 'rgb24'
-            
+                pix_fmt_in = "rgb24"
 
         if pix_fmt_in is None and pix_fmt is None:
             raise ValueError("pix_fmt must be specified.")
@@ -293,7 +292,7 @@ class SimpleAudioReader(SimpleReaderBase):
                 ac_in = info.get("channels", None)
                 ar_in = info.get("sample_rate", None)
             except:
-                sample_fmt_in = 's16'
+                sample_fmt_in = "s16"
 
         (
             self.dtype,
@@ -461,6 +460,9 @@ class SimpleVideoWriter(SimpleWriterBase):
         **options,
     ):
         options["r_in"] = rate_in
+        if "r" not in options:
+            options["r"] = rate_in
+
         super().__init__(
             plugins.get_hook().video_bytes,
             url,
@@ -519,6 +521,9 @@ class SimpleAudioWriter(SimpleWriterBase):
         **options,
     ):
         options["ar_in"] = rate_in
+        if "ar" not in options:
+            options["ar"] = rate_in
+            
         super().__init__(
             plugins.get_hook().audio_bytes,
             url,
