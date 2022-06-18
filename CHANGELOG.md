@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.5.2] - 2022-06-18
+
+### Fixed
+
+- video writers hanging when a basic filter to remove alpha channel is used
+
+### Changed
+
+- `SimpleOutputStream`s output rates are now explicitly matched to input rates by default
+
 ## [0.5.1] - 2022-04-21
 
 ### Fixed
