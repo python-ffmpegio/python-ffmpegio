@@ -5,7 +5,7 @@
 from __future__ import annotations
 from collections import namedtuple
 import logging
-from .utils.filter import FilterGraph
+from .utils.filter import FilterGraph, compose_filter
 from .utils.error import FFmpegError
 from .threading import ProgressMonitorThread
 from .path import ffmpeg, DEVNULL, PIPE, devnull
@@ -103,36 +103,43 @@ def run(
             f'time_units "{time_units}" is invalid. Must be one of ("frames", "pts", "seconds")'
         )
 
-    filtspecs = [{"video": [], "audio": []}, {"video": [], "audio": []}]
-    for l in loggers:
-        try:  # just logger (no reference src specified)
-            ref = 0 if l.require_reference else None
-        except:  # expect 2-element seq (logger, index to references)
-            try:
-                l, ref = l
-            except:
-                raise ValueError(
-                    "Each logger argument must be either a logger instance alone or "
-                    "a sequence of the instance and reference url index."
-                )
+    # filtspecs = [{"video": [], "audio": []}, {"video": [], "audio": []}]
+    # for l in loggers:
+    #     try:  # just logger (no reference src specified)
+    #         ref = 0 if l.require_reference else None
+    #     except:  # expect 2-element seq (logger, index to references)
+    #         try:
+    #             l, ref = l
+    #         except:
+    #             raise ValueError(
+    #                 "Each logger argument must be either a logger instance alone or "
+    #                 "a sequence of the instance and reference url index."
+    #             )
 
-        ref = f"{ref+1}:{l.media_type[0]}"
+    #     ref = f"{ref+1}:{l.media_type[0]}"if l.require_reference else None
 
-        filtspecs[l.require_reference][l.media_type].append(l.filter_spec)
+    #     filtspecs[l.require_reference][l.media_type].append(l.filter_spec)
 
-    def create_fg(filtchain, metadata):
-        return (
-            FilterGraph(
-                [[*filtchain, (metadata, "print", {"file": "-", "direct": True})]]
-            )
-            if len(filtchain)
-            else None
-        )
+    # def create_fg(filtchain, metadata):
+    #     return (
+    #         FilterGraph(
+    #             [[*filtchain, (metadata, "print", {"file": "-", "direct": True})]]
+    #         )
+    #         if len(filtchain)
+    #         else None
+    #     )
 
-    vf, af = (
-        create_fg(filtspecs[mediatype], metadata)
-        for mediatype, metadata in zip(("video", "audio"), ("metadata", "ametadata"))
-    )
+    # vf, af = (
+    #     create_fg(filtspecs[mediatype], metadata)
+    #     for mediatype, metadata in zip(("video", "audio"), ("metadata", "ametadata"))
+    # )
+
+    l = loggers[0]
+    vf = af = None
+    if l.media_type == "video":
+        vf = compose_filter(*l.filter_spec) + ",metadata=print:file=-"
+    else:
+        af = compose_filter(*l.filter_spec) + ",ametadata=print:file=-"
 
     progmon = ProgressMonitorThread(progress)
 
