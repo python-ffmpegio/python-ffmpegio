@@ -1,6 +1,7 @@
 """FFConcat class to build/use ffconcat list file for concat demuxer
 """
 
+from glob import glob
 import io, re
 import os
 import logging
@@ -279,8 +280,22 @@ class FFConcat:
         for file in files:
             self.files.append(self.FileItem(file))
 
-    def add_glob(self, expr):
-        raise ValueError("TODO")
+    def add_glob(self, expr, root_dir=None, recursive=False):
+        """append files with glob expression
+
+        :param expr: glob expression
+        :type expr: str
+        :param root_dir: the root directory for searching, defaults to None (uses the current directory)
+        :type root_dir: str, optional
+        :param recursive: True to use the pattern “**” to match any files and zero or more directories, defaults to False
+        :type recursive: bool, optional
+        """
+        if root_dir:
+            expr = os.path.join(root_dir, expr)
+        else:
+            expr = ""
+        for file in glob(expr, recursive=recursive):
+            self.files.append(self.FileItem(os.path.relpath(file, root_dir)))
 
     def add_sequence(self, expr):
         raise ValueError("TODO")
