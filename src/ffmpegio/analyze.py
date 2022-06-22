@@ -5,13 +5,118 @@
 from __future__ import annotations
 from collections import namedtuple
 import logging
+from . import configure
+from .utils import pop_extra_options
 from .utils.filter import FilterGraph, compose_filter
 from .utils.error import FFmpegError
 from .threading import ProgressMonitorThread
 from .path import ffmpeg, DEVNULL, PIPE, devnull
+from . import ffmpegprocess
 import re
+from json import loads
 
 from typing import Any, Protocol, Literal, Tuple
+
+
+def loudnorm(
+    url,
+    i=None,
+    lra=None,
+    tp=None,
+    offset=None,
+    linear=None,
+    dual_mono=None,
+    af=None,
+    progress=None,
+    overwrite=None,
+    return_stats=False,
+    **options,
+):
+    """run analysis (first pass) of EBU R128 loudness normalization
+
+    :param url: input url
+    :type url: str
+    :param i: integrated loudness target, defaults to None
+    :type i: float, optional
+    :param lra: loudness range target, defaults to None
+    :type lra: float, optional
+    :param tp: maximum true peak, defaults to None
+    :type tp: float, optional
+    :param offset: offset gain, defaults to None
+    :type offset: float, optional
+    :param linear: True to normalize by linearly scaling the source audio, False to normalize dynamically, defaults to None
+    :type linear: bool, optional
+    :param dual_mono: True to treat mono input files as "dual-mono", defaults to None
+    :type dual_mono: bool, optional
+    :param af: preceding filter chain, defaults to None
+    :type af: str, optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param overwrite: True to overwrite if output url exists, defaults to None
+                      (auto-select)
+    :type overwrite: bool, optional
+    :param return_stats: True to return stats instead of loudnorm options, defaults to False
+    :type return_stats: bool, optional
+    :return: second pass loudnorm filter spec str or analysis stats
+    :rtype: str or dict
+    """
+    loudnorm_opts = {
+        k: v
+        for k, v in zip(
+            ["i", "lra", "tp", "offset", "linear", "dual_mono"],
+            [i, lra, tp, offset, linear, dual_mono],
+        )
+        if v is not None
+    }
+
+    loundness_f = compose_filter(
+        "loudnorm",
+        {**loudnorm_opts, "print_format": "json"},
+    )
+
+    if af:
+        af += f",{loundness_f}"
+    else:
+        af = loundness_f
+
+    args = configure.empty()
+    configure.add_url(args, "input", url, options)
+    configure.add_url(
+        args,
+        "output",
+        devnull,
+        {
+            "af": af,
+            "f": "null",
+            "vn": None,
+            "sn": None,
+            "ar": "192k",
+            "c:a": "pcm_f32le",
+        },
+    )
+
+    log = ffmpegprocess.run(
+        args,
+        progress=progress,
+        overwrite=overwrite,
+        capture_log=True,
+        universal_newlines=True,
+    ).stderr
+
+    stats = loads(log[re.search(r"\[Parsed_loudnorm_2 @ .+\] \n", log).end() :])
+
+    if return_stats:
+        return stats
+
+    for k, src in (
+        ("measured_i", "input_i"),
+        ("measured_lra", "input_lra"),
+        ("measured_tp", "input_tp"),
+        ("measured_thresh", "input_thresh"),
+    ):
+        loudnorm_opts[k] = float(stats[src])
+
+    return compose_filter("loudnorm", loudnorm_opts)
 
 
 class MetadataLogger(Protocol):
