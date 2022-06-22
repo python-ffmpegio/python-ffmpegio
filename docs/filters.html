@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Filtering Reference &mdash; python-ffmpegio 0.5.2 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/plot_directive.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/custom.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="FFmpeg Capabilities References" href="caps.html" />
+    <link rel="prev" title="FFmpeg Option References" href="options.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="quick.html">Quick Start Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+</ul>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="basicio.html">Basic I/O Function References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="probe.html">Media Probe Function References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">FFmpeg Option References</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Filtering Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#batch-functions">Batch Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#example-image-scaling">Example: Image Scaling</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-audio-fading">Example: Audio Fading</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#streaming-classes">Streaming Classes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#filtergraph-class"><code class="xref py py-class docutils literal notranslate"><span class="pre">FilterGraph</span></code> class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="caps.html">FFmpeg Capabilities References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="devices.html">Hardware I/O Device Enumeration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concat.html"><cite>FFConcat</cite> Class: Concatenating Media Files</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="adv-ffmpeg.html"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.ffmpegprocess</span></code>: Direct invocation of FFmpeg subprocess</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adv-args.html">Specification of FFmpeg Argument dict <code class="code docutils literal notranslate"><span class="pre">ffmpeg_args</span></code></a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="links.html">External Links</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Filtering Reference</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/filters.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="filtering-reference">
+<span id="filters"></span><h1>Filtering Reference<a class="headerlink" href="#filtering-reference" title="Permalink to this heading"></a></h1>
+<p>One of the great feature of FFmpeg is the plethora of filters to manipulate video, audio, and subtitle
+data. See <cite>&lt;the official FFmpeg Filters Documentation https://ffmpeg.org/ffmpeg-filters.html&gt;</cite> and
+<cite>FFmpeg Wiki Entries on Filtering &lt;https://trac.ffmpeg.org/#Filtering&gt;</cite>.</p>
+<p>In addition to all the read and write functions in <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> supporting an arbitrary
+filter operation so long as it is a single-input-single-output (SISO) filtering, it is also
+equipped with <cite>filter</cite> functions and classes to manipulate <cite>numpy.ndarray</cite> using FFmpeg filters.</p>
+<p>Intended use cases for these functionalities are:</p>
+<ul class="simple">
+<li><p>Adding FFmpeg filters to the middle of media processing chain</p></li>
+<li><p>Isolated evaluation of FFmpeg filters - Running test data through the filters directly without
+needing to save intermediate data</p></li>
+</ul>
+<p>Filtering, much like reading and writing, can be performed with both batch and stream modes. The batch mode
+is faster and a single-function-call operation while the stream mode requires the stream to be opened first
+then filtering operation can be performed in a little chunks at a time. Note that the stream-mode filtering
+does not guarantee its output chunk size to be consistent even if input data size is fixed. Moreover, audio
+filter stream does not produce any output until at least 2 seconds of data are input. So, use it with a care.</p>
+<section id="batch-functions">
+<h2>Batch Functions<a class="headerlink" href="#batch-functions" title="Permalink to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.video.filter" title="ffmpegio.video.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.filter</span></code></a></p></td>
+<td><p>Filter video frames.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.image.filter" title="ffmpegio.image.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.filter</span></code></a></p></td>
+<td><p>Filter image pixels.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.filter" title="ffmpegio.audio.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.filter</span></code></a></p></td>
+<td><p>Filter audio samples.</p></td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="code docutils literal notranslate"><span class="pre">filter()</span></code> functions in <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.video</span></code>, <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.image</span></code>, and
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.audio</span></code> are blocking operations. They take an input data array and produces
+an output data array.</p>
+<p>The following are examples.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Note that the input data are loaded with <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> only for the illustration purpose. If media data
+loaded with <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> read functions need to be filtered, call the read function with
+<code class="code docutils literal notranslate"><span class="pre">vf</span></code> (video or image) or <code class="code docutils literal notranslate"><span class="pre">af</span></code> (audio) arguments so the filtered output is obtained
+with a single FFmpeg call.</p>
+</div>
+<section id="example-image-scaling">
+<h3>Example: Image Scaling<a class="headerlink" href="#example-image-scaling" title="Permalink to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">Iin</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">)</span>
+
+<span class="c1"># reduce the size of the input image Iin</span>
+<span class="n">Iout</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;scale=iw/2:-1&#39;</span><span class="p">,</span> <span class="n">Iin</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="example-audio-fading">
+<h3>Example: Audio Fading<a class="headerlink" href="#example-audio-fading" title="Permalink to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs_in</span> <span class="o">=</span> <span class="mi">4000</span>
+<span class="n">T</span> <span class="o">=</span> <span class="mi">10</span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">fs_in</span><span class="o">*</span><span class="n">T</span><span class="p">,</span><span class="s1">&#39;f4&#39;</span><span class="p">)</span> <span class="c1"># only supports single-precision FP</span>
+
+<span class="c1"># add fade in and fade out</span>
+<span class="n">fs_out</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="s1">&#39;afade=t=in:d=1,afade=t=out:st=9:d=1&#39;</span><span class="p">,</span> <span class="n">fs_in</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="streaming-classes">
+<h2>Streaming Classes<a class="headerlink" href="#streaming-classes" title="Permalink to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.streams.SimpleVideoFilter" title="ffmpegio.streams.SimpleVideoFilter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.streams.SimpleVideoFilter</span></code></a></p></td>
+<td><p>SISO video filter stream class</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.streams.SimpleAudioFilter" title="ffmpegio.streams.SimpleAudioFilter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.streams.SimpleAudioFilter</span></code></a></p></td>
+<td><p>SISO audio filter stream class</p></td>
+</tr>
+</tbody>
+</table>
+<p>TODO Additional writeup</p>
+</section>
+<section id="filtergraph-class">
+<h2><code class="xref py py-class docutils literal notranslate"><span class="pre">FilterGraph</span></code> class<a class="headerlink" href="#filtergraph-class" title="Permalink to this heading"></a></h2>
+<p>TODO</p>
+</section>
+<section id="api-reference">
+<h2>API Reference<a class="headerlink" href="#api-reference" title="Permalink to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.video.filter">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.filter" title="Permalink to this definition"></a></dt>
+<dd><p>Filter video frames.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em>) – SISO filter graph.</p></li>
+<li><p><strong>rate</strong> (<cite>float</cite>, <cite>int</cite>, or <cite>fractions.Fraction</cite>) – input frame rate in frames/second</p></li>
+<li><p><strong>input</strong> (<em>object</em>) – input video frame data object, accessed by <cite>video_info</cite> and <cite>video_bytes</cite> plugin hooks</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output frame rate and video frame data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.image.filter">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.filter" title="Permalink to this definition"></a></dt>
+<dd><p>Filter image pixels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em>) – SISO filter graph.</p></li>
+<li><p><strong>input</strong> (<em>object</em>) – input image data, accessed by <cite>video_info</cite> and <cite>video_bytes</cite> plugin hooks</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output sampling rate and data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(int, object)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.audio.filter">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.filter" title="Permalink to this definition"></a></dt>
+<dd><p>Filter audio samples.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em>) – SISO filter graph.</p></li>
+<li><p><strong>input_rate</strong> (<em>int</em>) – Input sample rate in samples/second</p></li>
+<li><p><strong>input</strong> (<em>object</em>) – input audio data, accessed by <cite>audio_info()</cite> and <cite>audio_bytes()</cite> plugin hooks.</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output sampling rate and audio data object, created by <cite>bytes_to_audio</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple(int, object)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.streams.</span></span><span class="sig-name descname"><span class="pre">SimpleVideoFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaulttimeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter" title="Permalink to this definition"></a></dt>
+<dd><p>SISO video filter stream class</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Number of output frames is not predetermined although it is
+generally close to the expected number of frames based on the
+number of input frames and the ratio of input and output frame
+rate</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rate_in</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>Fraction</em><em>, </em><em>str</em>) – input frame rate</p></li>
+<li><p><strong>shape_in</strong> (<em>seq of ints</em><em>, </em><em>optional</em>) – input single-frame array shape, defaults to None</p></li>
+<li><p><strong>dtype_in</strong> (<em>str</em><em>, </em><em>optional</em>) – input numpy data type, defaults to None</p></li>
+<li><p><strong>rate</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>Fraction</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – output frame rate, defaults to None (auto-detect)</p></li>
+<li><p><strong>shape</strong> (<em>seq of ints</em><em>, </em><em>optional</em>) – output single-frame array shape, defaults to None</p></li>
+<li><p><strong>dtype</strong> (<em>str</em><em>, </em><em>optional</em>) – output numpy data type, defaults to None</p></li>
+<li><p><strong>block_size</strong> (<em>int</em><em>, </em><em>optional</em>) – read buffer block size in frames, defaults to None (=1)</p></li>
+<li><p><strong>defaulttimeout</strong> (<em>float</em><em>, </em><em>optional</em>) – default filter timeout in seconds, defaults to None (10 ms)</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.close" title="Permalink to this definition"></a></dt>
+<dd><p>Close the stream.</p>
+<p>This method has no effect if the stream is already closed. Once the
+stream is closed, any read operation on the stream will raise a ThreadNotActive.</p>
+<p>As a convenience, it is allowed to call this method more than once; only the first call,
+however, will have an effect.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.closed">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">closed</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.closed" title="Permalink to this definition"></a></dt>
+<dd><p>True if the stream is closed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.defaulttimeout">
+<span class="sig-name descname"><span class="pre">defaulttimeout</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.defaulttimeout" title="Permalink to this definition"></a></dt>
+<dd><p>default filter operation timeout in seconds</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.dtype">
+<span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.dtype" title="Permalink to this definition"></a></dt>
+<dd><p>output array dtype</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.dtype_in">
+<span class="sig-name descname"><span class="pre">dtype_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.dtype_in" title="Permalink to this definition"></a></dt>
+<dd><p>input array dtype</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.filter" title="Permalink to this definition"></a></dt>
+<dd><p>Run filter operation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.22)"><em>numpy.ndarray</em></a>) – input data block</p></li>
+<li><p><strong>timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – timeout for the operation in seconds, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output data block</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.22)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<p>The input <cite>data</cite> array is expected to have the datatype specified by
+Filter class’ <cite>dtype_in</cite> property and the array shape to match Filter
+class’ <cite>shape_in</cite> property or with an additional dimension prepended.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>[audio only] For the first 2-seconds or 50000-samples, whichever
+is smaller, TimeoutError may be raised because the necessary output
+format information is not yet made available from FFmpeg. This
+exception, however, only indicate the lack of output data and
+the input data can be assumed properly enqueued to be sent to
+FFmpeg process</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Once the output format is resolved, this method always return
+numpy.ndarray object as output. However, the exact number of
+samples is unknown, and it could be a properly shaped empty
+array. Additional buffering may be required if the following
+process requires a fixed number of samples.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Filtering operation is always timed because the buffering
+protocols used by various subsystems of FFmpeg are undeterminable
+from Python. The operation timeout is controlled by <cite>timeout</cite>
+argument if specified or else  by <cite>defaulttimeout</cite> property. The
+default timeout duration is 10 ms, but it could be optimized for
+each use case (<cite>blocksize</cite> property, I/O rate ratio, typical size of
+<cite>data</cite> argument, etc.).</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.flush">
+<span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.flush" title="Permalink to this definition"></a></dt>
+<dd><p>Close the stream input and retrieve the remaining output samples</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – timeout duration in seconds, defaults to None</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>remaining output samples</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.22)">numpy.ndarray</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.lasterror">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lasterror</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.lasterror" title="Permalink to this definition"></a></dt>
+<dd><p>Last error FFmpeg posted</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>FFmpegError</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.nin">
+<span class="sig-name descname"><span class="pre">nin</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.nin" title="Permalink to this definition"></a></dt>
+<dd><p>total number of input samples sent to FFmpeg</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.nout">
+<span class="sig-name descname"><span class="pre">nout</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.nout" title="Permalink to this definition"></a></dt>
+<dd><p>total number of output sampless received from FFmpeg</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.rate">
+<span class="sig-name descname"><span class="pre">rate</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.rate" title="Permalink to this definition"></a></dt>
+<dd><p>output sample rate</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int|Fraction</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.rate_in">
+<span class="sig-name descname"><span class="pre">rate_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.rate_in" title="Permalink to this definition"></a></dt>
+<dd><p>input sample rate</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int|Fraction</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.readlog">
+<span class="sig-name descname"><span class="pre">readlog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.readlog" title="Permalink to this definition"></a></dt>
+<dd><p>get FFmpeg log lines</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em><em>, </em><em>optional</em>) – number of lines to return, defaults to None (every line logged)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>string containing the requested logs</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.shape">
+<span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.shape" title="Permalink to this definition"></a></dt>
+<dd><p>output array shape</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>tuple(int)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleVideoFilter.shape_in">
+<span class="sig-name descname"><span class="pre">shape_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleVideoFilter.shape_in" title="Permalink to this definition"></a></dt>
+<dd><p>input array shape</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>tuple(int)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.streams.</span></span><span class="sig-name descname"><span class="pre">SimpleAudioFilter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">defaulttimeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter" title="Permalink to this definition"></a></dt>
+<dd><p>SISO audio filter stream class</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>If the total duration of the stream is less than 2 seconds, use
+<code class="xref py py-func docutils literal notranslate"><span class="pre">audio.filter()</span></code> function instead. FFmpeg does not start
+the filtering process until about 2-seconds or about 50000-samples
+worth of data are first accumulated. No output data will be produced
+during this initial accumulation period.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>The exact number of output samples after each <a class="reference internal" href="#ffmpegio.streams.SimpleAudioFilter.filter" title="ffmpegio.streams.SimpleAudioFilter.filter"><code class="xref py py-meth docutils literal notranslate"><span class="pre">filter()</span></code></a>
+call is not known and can be zero.</p>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>rate_in</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>Fraction</em><em>, </em><em>str</em>) – input sample rate</p></li>
+<li><p><strong>shape_in</strong> (<em>seq of ints</em><em>, </em><em>optional</em>) – input single-sample array shape, defaults to None</p></li>
+<li><p><strong>dtype_in</strong> (<em>str</em><em>, </em><em>optional</em>) – input numpy data type, defaults to None</p></li>
+<li><p><strong>rate</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>Fraction</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – output sample rate, defaults to None (auto-detect)</p></li>
+<li><p><strong>shape</strong> (<em>seq of ints</em><em>, </em><em>optional</em>) – output single-sample array shape, defaults to None</p></li>
+<li><p><strong>dtype</strong> (<em>str</em><em>, </em><em>optional</em>) – output numpy data type, defaults to None</p></li>
+<li><p><strong>block_size</strong> (<em>int</em><em>, </em><em>optional</em>) – read buffer block size in samples, defaults to None (=&gt;1024)</p></li>
+<li><p><strong>defaulttimeout</strong> (<em>float</em><em>, </em><em>optional</em>) – default filter timeout in seconds, defaults to None (100 ms)</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>..note::</dt><dd><p>Use of larger <cite>block_size</cite> parameter could improve the processing speed</p>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.channels">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">channels</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.channels" title="Permalink to this definition"></a></dt>
+<dd><p>Number of output channels (None if not yet determined)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.channels_in">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">channels_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.channels_in" title="Permalink to this definition"></a></dt>
+<dd><p>Number of input channels (None if not yet determined)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.close">
+<span class="sig-name descname"><span class="pre">close</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.close" title="Permalink to this definition"></a></dt>
+<dd><p>Close the stream.</p>
+<p>This method has no effect if the stream is already closed. Once the
+stream is closed, any read operation on the stream will raise a ThreadNotActive.</p>
+<p>As a convenience, it is allowed to call this method more than once; only the first call,
+however, will have an effect.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.closed">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">closed</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.closed" title="Permalink to this definition"></a></dt>
+<dd><p>True if the stream is closed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.defaulttimeout">
+<span class="sig-name descname"><span class="pre">defaulttimeout</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.defaulttimeout" title="Permalink to this definition"></a></dt>
+<dd><p>default filter operation timeout in seconds</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.dtype">
+<span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.dtype" title="Permalink to this definition"></a></dt>
+<dd><p>output array dtype</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.dtype_in">
+<span class="sig-name descname"><span class="pre">dtype_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.dtype_in" title="Permalink to this definition"></a></dt>
+<dd><p>input array dtype</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.filter">
+<span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.filter" title="Permalink to this definition"></a></dt>
+<dd><p>Run filter operation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.22)"><em>numpy.ndarray</em></a>) – input data block</p></li>
+<li><p><strong>timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – timeout for the operation in seconds, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>output data block</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.22)">numpy.ndarray</a></p>
+</dd>
+</dl>
+<p>The input <cite>data</cite> array is expected to have the datatype specified by
+Filter class’ <cite>dtype_in</cite> property and the array shape to match Filter
+class’ <cite>shape_in</cite> property or with an additional dimension prepended.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>[audio only] For the first 2-seconds or 50000-samples, whichever
+is smaller, TimeoutError may be raised because the necessary output
+format information is not yet made available from FFmpeg. This
+exception, however, only indicate the lack of output data and
+the input data can be assumed properly enqueued to be sent to
+FFmpeg process</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Once the output format is resolved, this method always return
+numpy.ndarray object as output. However, the exact number of
+samples is unknown, and it could be a properly shaped empty
+array. Additional buffering may be required if the following
+process requires a fixed number of samples.</p>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Filtering operation is always timed because the buffering
+protocols used by various subsystems of FFmpeg are undeterminable
+from Python. The operation timeout is controlled by <cite>timeout</cite>
+argument if specified or else  by <cite>defaulttimeout</cite> property. The
+default timeout duration is 10 ms, but it could be optimized for
+each use case (<cite>blocksize</cite> property, I/O rate ratio, typical size of
+<cite>data</cite> argument, etc.).</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.flush">
+<span class="sig-name descname"><span class="pre">flush</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.flush" title="Permalink to this definition"></a></dt>
+<dd><p>Close the stream input and retrieve the remaining output samples</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – timeout duration in seconds, defaults to None</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>remaining output samples</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.22)">numpy.ndarray</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.lasterror">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lasterror</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.lasterror" title="Permalink to this definition"></a></dt>
+<dd><p>Last error FFmpeg posted</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>FFmpegError</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.nin">
+<span class="sig-name descname"><span class="pre">nin</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.nin" title="Permalink to this definition"></a></dt>
+<dd><p>total number of input samples sent to FFmpeg</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.nout">
+<span class="sig-name descname"><span class="pre">nout</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.nout" title="Permalink to this definition"></a></dt>
+<dd><p>total number of output sampless received from FFmpeg</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.rate">
+<span class="sig-name descname"><span class="pre">rate</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.rate" title="Permalink to this definition"></a></dt>
+<dd><p>output sample rate</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int|Fraction</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.rate_in">
+<span class="sig-name descname"><span class="pre">rate_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.rate_in" title="Permalink to this definition"></a></dt>
+<dd><p>input sample rate</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int|Fraction</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.readlog">
+<span class="sig-name descname"><span class="pre">readlog</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.readlog" title="Permalink to this definition"></a></dt>
+<dd><p>get FFmpeg log lines</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>n</strong> (<em>int</em><em>, </em><em>optional</em>) – number of lines to return, defaults to None (every line logged)</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>string containing the requested logs</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.shape">
+<span class="sig-name descname"><span class="pre">shape</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.shape" title="Permalink to this definition"></a></dt>
+<dd><p>output array shape</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>tuple(int)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.streams.SimpleAudioFilter.shape_in">
+<span class="sig-name descname"><span class="pre">shape_in</span></span><a class="headerlink" href="#ffmpegio.streams.SimpleAudioFilter.shape_in" title="Permalink to this definition"></a></dt>
+<dd><p>input array shape</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>tuple(int)</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="options.html" class="btn btn-neutral float-left" title="FFmpeg Option References" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="caps.html" class="btn btn-neutral float-right" title="FFmpeg Capabilities References" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
