@@ -228,6 +228,9 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
     ncomp  dtype  pix_fmt    Description
     =====  =====  =========  ===================================
       1     |u1   gray       grayscale
+      1     <u2   gray10le   10-bit grayscale
+      1     <u2   gray12le   12-bit grayscale
+      1     <u2   gray14le   14-bit grayscale
       1     <u2   gray16le   16-bit grayscale
       1     <f4   grayf32le  floating-point grayscale
       2     |u1   ya8        grayscale with alpha channel
@@ -257,12 +260,16 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
         elif n_in == 4:
             pix_fmt = "rgba" if bpp <= 32 else "rgba64le"
 
-    if pix_fmt != input_pix_fmt:
+    if pix_fmt == input_pix_fmt:
+        n_out = n_in
+    elif n_in==1 and pix_fmt=='gray16le':
+        # sub-16-bit pixel format, use the input format
+        pix_fmt = input_pix_fmt
+        n_out = n_in
+    else:
         fmt_info = caps.pix_fmts()[pix_fmt]
         n_out = fmt_info["nb_components"]
         bpp = fmt_info["bits_per_pixel"]
-    else:
-        n_out = n_in
 
     return (
         pix_fmt,
@@ -307,6 +314,9 @@ def get_pixel_format(fmt):
     try:
         return dict(
             gray=("|u1", 1),
+            gray10le=("<u2", 1),
+            gray12le=("<u2", 1),
+            gray14le=("<u2", 1),
             gray16le=("<u2", 1),
             grayf32le=("<f4", 1),
             ya8=("|u1", 2),

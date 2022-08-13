@@ -74,7 +74,10 @@ functions operate strictly with RGB or grayscale formats listed below.
 ncomp  dtype  pix_fmt    Description
 =====  =====  =========  ===================================
   1     |u8   gray       grayscale
-  1     <u2   gray16le   16-bit grayscale
+  1     <u2   gray10le   10-bit grayscale
+  1     <u2   gray12le   12-bit grayscale
+  1     <u2   gray14le   14-bit grayscale
+  1     <u2   gray16le   16-bit grayscale (default for <u2)
   1     <f4   grayf32le  floating-point grayscale
   2     |u1   ya8        grayscale with alpha channel
   2     <u2   ya16le     16-bit grayscale with alpha channel
@@ -86,7 +89,6 @@ ncomp  dtype  pix_fmt    Description
 
 Note that each video pixel format has a specific `dtype` (or `dtype_in`) str argument, which 
 follows the NumPy array data type convention.
-
 
 Audio Sample Formats :code:`sample_fmt`
 ---------------------------------------
