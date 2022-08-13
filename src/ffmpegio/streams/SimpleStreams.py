@@ -88,7 +88,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -146,10 +146,10 @@ class SimpleReaderBase:
         return self
 
     def __next__(self):
-        try:
-            return self.read(self.blocksize)
-        except:
+        F = self.read(self.blocksize)
+        if F is None:
             raise StopIteration
+        return F
 
     def readlog(self, n=None):
         if n is not None:
@@ -176,6 +176,7 @@ class SimpleReaderBase:
         logging.debug(f"[reader main] read {len(b)} bytes")
         if not len(b):
             self._proc.stdout.close()
+            return None
         return self._converter(b=b, shape=self.shape, dtype=self.dtype, squeeze=False)
 
     def readinto(self, array):
