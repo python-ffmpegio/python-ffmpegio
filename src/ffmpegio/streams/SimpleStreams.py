@@ -383,9 +383,9 @@ class SimpleWriterBase:
         """close the output stream"""
         if self._proc is None:
             return
-        self._proc.stdin.close()
-        self._proc.stderr.close()
+        self._proc.stdin.close()  # flushes the buffer first before closing
         self._proc.wait()
+        self._proc.stderr.close()
         self._logger.join()
 
     @property
