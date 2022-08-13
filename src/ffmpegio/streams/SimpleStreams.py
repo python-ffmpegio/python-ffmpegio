@@ -477,29 +477,39 @@ class SimpleVideoWriter(SimpleWriterBase):
     def _finalize(self, ffmpeg_args) -> None:
         inopts = ffmpeg_args["inputs"][0][1]
         inopts["f"] = "rawvideo"
-        if self.dtype_in is not None or self.shape_in is not None:
-            inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(
-                (self.shape_in, self.dtype_in)
-            )
-            return True
 
         ready = "s" in inopts and "pix_fmt" in inopts
+
+        if not (ready or (self.dtype_in is None or self.shape_in is None)):
+            s, pix_fmt = utils.guess_video_format((self.shape_in, self.dtype_in))
+            if "s" not in inopts:
+                inopts["s"] = s
+            if "pix_fmt" not in inopts:
+                inopts["pix_fmt"] = pix_fmt
+            ready = True
+
         if ready:
+            # set basic video filter chain if related options are specified
             configure.build_basic_vf(
                 ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
             )
-        return
+        return ready
 
     def _finalize_with_data(self, data):
 
         ffmpeg_args = self._cfg["ffmpeg_args"]
         inopts = ffmpeg_args["inputs"][0][1]
         shape, dtype = plugins.get_hook().video_info(obj=data)
-        inopts["s"], inopts["pix_fmt"] = utils.guess_video_format(shape, dtype)
+        s, pix_fmt = utils.guess_video_format(shape, dtype)
 
         configure.build_basic_vf(
             ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
         )
+
+        if "s" not in inopts:
+            inopts["s"] = s
+        if "pix_fmt" not in inopts:
+            inopts["pix_fmt"] = pix_fmt
 
         self.shape_in = shape
         self.dtype_in = dtype
@@ -524,7 +534,7 @@ class SimpleAudioWriter(SimpleWriterBase):
         options["ar_in"] = rate_in
         if "ar" not in options:
             options["ar"] = rate_in
-            
+
         super().__init__(
             plugins.get_hook().audio_bytes,
             url,
@@ -536,14 +546,25 @@ class SimpleAudioWriter(SimpleWriterBase):
         )
 
     def _finalize(self, ffmpeg_args):
-        if self.dtype_in is not None or self.shape_in is not None:
+
+        # ffmpeg_args must have sample format & sampling rate specified
+        inopts = ffmpeg_args["inputs"][0][1]
+        ready = "sample_fmt" in inopts and "ac" in inopts
+
+        if not ready and (self.dtype_in is not None or self.shape_in is not None):
             inopts = ffmpeg_args["inputs"][0][1]
             inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
                 self.dtype_in, self.shape_in
             )
+            ready = True
+
+        if ready and not ("c:a" in inopts or "acodec" in inopts):
+            # fill audio codec and format options
             inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])
-            return True
-        return False
+            if "acodec" in inopts:
+                del inopts["acodec"]
+
+        return ready
 
     def _finalize_with_data(self, data):
 
