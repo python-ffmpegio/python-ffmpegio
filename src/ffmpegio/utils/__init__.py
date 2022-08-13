@@ -3,6 +3,9 @@ import re, fractions
 from .. import caps
 from .._utils import *
 
+# TODO: auto-detect endianness
+# import sys
+# sys.byteorder
 
 def escape(txt):
     """apply FFmpeg single quote escaping
