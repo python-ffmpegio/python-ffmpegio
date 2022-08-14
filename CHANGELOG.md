@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.6.0] - 2022-08-13
+
+### Added
+
+- Support for `gray10le`, `gray12le`, and `gray14le` pixel formats
+- `ffmpegio.FFConcat.add_glob()` method
+
+### Changed
+
+- `SimpleReaderBase.read()` to return None if no frames remains
+
+### Fixed
+
+- BUG: `SimpleWriterBase.__next__()` returns empty frame at the eof
+- BUG: `SimpleVideoReader` and `SimpleAudioReader` overwrites user specified options
+- BUG: `SimpleWriterBase` fails to capture all the FFmpeg log lines
+
 ## [0.5.2] - 2022-06-18
 
 ### Fixed
