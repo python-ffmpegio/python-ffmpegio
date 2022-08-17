@@ -127,10 +127,18 @@ class FFConcat:
         :type outpoint: str or numeric, optional
         :param metadata: Metadata of the packets of the file, defaults to None
         :type metadata: dict, optional
+        :param options: Option to access, open and probe the file, defaults to None
+        :type options: dict, optional
         """
 
         def __init__(
-            self, filepath, duration=None, inpoint=None, outpoint=None, metadata=None
+            self,
+            filepath,
+            duration=None,
+            inpoint=None,
+            outpoint=None,
+            metadata=None,
+            options=None,
         ):
             #:str: url of the file
             self.path = filepath
@@ -142,6 +150,8 @@ class FFConcat:
             self.outpoint = outpoint
             #:dict or None: metadata of the packets of the file, optional
             self.metadata = metadata or {}
+            #:dict[str,Any]: option key-value pairs to be included
+            self.options = options or {}
 
         @property
         def lines(self):
@@ -162,6 +172,10 @@ class FFConcat:
                         f"file_packet_meta {k} {escape(v)}\n"
                         for k, v in self.metadata.items()
                     ]
+                )
+            if self.options is not None:
+                lines.extend(
+                    [f"option {k} {escape(v)}\n" for k, v in self.options.items()]
                 )
             return lines
 
@@ -220,8 +234,6 @@ class FFConcat:
         self.files = []
         #:ListConcatDemuxer.StreamItem]: list of streams to be included in the order of appearance
         self.streams = []
-        #:dict[str,Any]: option key-value pairs to be included
-        self.options = {}
         #:dict[str,tuple]: chapter id-(start,end) pairs to be included
         self.chapters = {}
         #:str|None: specify pipe url if concat script to be loaded via stdin; None via a temp file
@@ -251,7 +263,13 @@ class FFConcat:
             raise ValueError("No stream defined.")
 
     def add_file(
-        self, filepath, duration=None, inpoint=None, outpoint=None, metadata=None
+        self,
+        filepath,
+        duration=None,
+        inpoint=None,
+        outpoint=None,
+        metadata=None,
+        options=None,
     ):
         """append a file to the list
 
@@ -265,9 +283,11 @@ class FFConcat:
         :type outpoint: str or numeric, optional
         :param metadata: Metadata of the packets of the file, defaults to None
         :type metadata: dict, optional
+        :param options: Option to access, open and probe the file, defaults to None
+        :type options: dict, optional
         """
         self.files.append(
-            self.FileItem(filepath, duration, inpoint, outpoint, metadata)
+            self.FileItem(filepath, duration, inpoint, outpoint, metadata, options)
         )
 
     def add_files(self, files):
@@ -314,26 +334,6 @@ class FFConcat:
         """
         self.streams.append(self.StreamItem(id, codec, metadata, extradata))
 
-    def add_option(self, key, value):
-        """add an option
-
-        :param key: option name
-        :type key: str
-        :param value: option value (must be stringifiable)
-        :type value: Any
-        """
-
-        self.options[key] = value
-
-    def add_options(self, options):
-        """add options
-
-        :param options: options
-        :type options: dict[str, Any]
-        """
-
-        self.options.update(options)
-
     def add_chapter(self, id, start, end):
         """add a chapter
 
@@ -374,16 +374,16 @@ class FFConcat:
             k, v = args.split(esc, 1)
             self.last_file.metadata[k] = unescape(v)
 
+        def set_option(args):
+            key, value = args.split(" ", 1)
+            self.last_file.options[key] = unescape(value)
+
         def set_stream_attr(key, args):
             setattr(self.last_stream, key, args)
 
         def set_stream_meta(args):
             k, v = args.split(" ", 1)
             self.last_stream.metadata[k] = unescape(v)
-
-        def set_option(args):
-            key, value = args.split(" ", 1)
-            self.options[key] = unescape(value)
 
         def set_chapter(args):
             id, start, end = args.split(" ", 2)
@@ -440,9 +440,6 @@ class FFConcat:
 
         for file in self.files:
             f.writelines(file.lines)
-
-        for key, value in self.options.items():
-            f.write(f"option {key} {escape(value)}\n")
 
         for stream in self.streams:
             f.writelines(stream.lines)
@@ -525,12 +522,12 @@ class FFConcat:
         :rtype: tuple[list[tuple[str,dict]], str]
         """
 
-        if len(self.streams) or len(self.options) or len(self.chapters):
+        if len(self.streams) or len(self.chapters):
             logging.warning(
                 "Demuxer specifying non-file directives. Only file directives are converted."
             )
 
-        meta_warn = False
+        meta_warn = opt_warn = False
 
         inputs = []
         for file in self.files:
@@ -545,6 +542,9 @@ class FFConcat:
             if file.metadata and not meta_warn:
                 logging.warning("File metadata directives are ignored.")
                 meta_warn = True
+            if file.options and not opt_warn:
+                logging.warning("File option directives are ignored.")
+                opt_warn = True
             inputs.append((url, opts))
 
         n = len(self.files)

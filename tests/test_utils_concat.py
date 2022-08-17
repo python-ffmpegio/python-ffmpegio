@@ -64,9 +64,8 @@ def test_concat_demux():
 
     concat.add_file("test1.mp4", metadata={"created_by": "ffmpegio"})
     concat.add_file("test2.mp4", 5)
-    concat.add_file("test3.mp4", inpoint=0.4, outpoint=10.4)
+    concat.add_file("test3.mp4", inpoint=0.4, outpoint=10.4, options={"r": 30})
     concat.add_stream("v:0", "h264", {"performer": "me"}, b"extradata")
-    concat.add_option("r", 30)
     concat.add_chapter(1, 0, 5.42)
 
     f = concat.compose()
