@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Added
 
 - Added `extra_inputs` argument to `audio.write`, `image.write`, `video.write`, and `SimpleWriterBase` constructor to support extra source urls
+- `path.check_version()` to check FFmpeg version easily
 
 ### Fixed
 
