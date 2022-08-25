@@ -1,6 +1,6 @@
 import logging, os
 from ffmpegio.plugins.devices import dshow
-from ffmpegio.path import FFMPEG_VER
+from ffmpegio.path import check_version
 from ffmpegio import devices
 from packaging.version import Version
 import pytest
@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.skipif(os.name != "nt", reason="only run on windows")
 def test_dshow():
-    if FFMPEG_VER >= Version("5.0"):
+    if check_version("5.0"):
         devices.scan()
         try:
             devs = devices.SOURCES["dshow"]["list"]

@@ -102,7 +102,7 @@ def test_two_pass_write():
             A,
             two_pass=True,
             **{"c:v": "libx264", "b:v": "500k"},
-            show_log=True
+            show_log=True,
         )
 
 def test_write_basic_filter():
@@ -120,10 +120,7 @@ def test_write_basic_filter():
 
 if __name__ == "__main__":
     # test_create()
-    from ffmpegio import configure, utils, ffmpegprocess
-    from ffmpegio.utils import log as log_utils
-    from pprint import pprint
-    import re
+    import ffmpegio
 
     # ffmpeg -y -i input -c:v libx264 -b:v 2600k -pass 1 -an -f null /dev/null && \
     # ffmpeg -i input -c:v libx264 -b:v 2600k -pass 2 -c:a aac -b:a 128k output.mp4

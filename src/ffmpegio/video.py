@@ -1,8 +1,7 @@
-from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, caps
+from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, analyze
 from .utils import filter as filter_utils, log as log_utils
-import logging
 
-__all__ = ["create", "read", "write", "filter"]
+__all__ = ["create", "read", "write", "filter", "detect"]
 
 
 def _run_read(
@@ -319,3 +318,160 @@ def filter(expr, rate, input, progress=None, show_log=None, **options):
         progress=progress,
         show_log=show_log,
     )
+
+
+def detect(
+    url,
+    *features,
+    ss=None,
+    t=None,
+    to=None,
+    start_at_zero=False,
+    time_units=None,
+    progress=None,
+    show_log=None,
+    scene_all_scores=False,
+    **options,
+):
+    """detect video frame features
+
+    :param url: video file url
+    :type url: str
+    :param \*features: specify frame features to detect:
+
+        ============  ===============  =========================================================
+        feature       FFmpeg filter    description
+        ============  ===============  =========================================================
+        'scene'       `scdet`_          Detect video scene change
+        'black'       `blackdetect`_    Detect video intervals that are (almost) completely black
+        'blackframe'  `blackframe`_     Detect frames that are (almost) completely black
+        'freeze'      `freezedetect`_   Detect frozen video
+        ============  ===============  =========================================================
+
+        defaults to include all the features
+    :type \*features: tuple, a subset of ('scene', 'black', 'blackframe', 'freeze'), optional
+    :param ss: start time to process, defaults to None
+    :type ss: int, float, str, optional
+    :param t: duration of data to process, defaults to None
+    :type t: int, float, str, optional
+    :param to: stop processing at this time (ignored if t is also specified), defaults to None
+    :type to: int, float, str, optional
+    :param start_at_zero: ignore start time, defaults to False
+    :type start_at_zero: bool, optional
+    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
+    :type time_units: 'seconds', 'frames', 'pts', optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+    :type show_log: bool, optional
+    :param scene_all_scores: (only for 'scene' feature) True to return scores for all frames, defaults to False
+    :type scene_all_scores: bool, optional
+    :param \**options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
+        of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
+        options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
+        Any other arguments are treated as a common option to all FFmpeg filters. For the available options
+        for each filter, follow the link on the feature table above to the FFmpeg documentation.
+    :type \**options: dict, optional
+    :return: detection outcomes. A namedtuple is returned for each feature in the order specified.
+        All namedtuple fields contain a list with the element specified as below:
+
+        .. list-table::
+           :header-rows: 1
+           :widths: auto
+
+           * - feature
+             - named tuple field
+             - element type
+             - description
+           * - 'scene'
+             - 'time'
+             - numeric
+             - Timestamp of the frame
+           * -
+             - 'change'
+             - bool
+             - True if scene change detected (only present if ``scene_all_scores=True``)
+           * -
+             - 'score'
+             - 'float'
+             - Absolute difference of MAFD of current and previous frame
+           * -
+             - 'mafd'
+             - float
+             - Mean absolute frame difference. See `this commentary`_ for detailed discussion of the MAFD.
+           * - 'black'
+             - 'interval'
+             - (numeric, numeric)
+             - Interval of black frames
+           * - 'blackframe'
+             - 'time'
+             - numeric
+             - Timestamp of a black frame
+           * -
+             - 'pblack'
+             - int
+             - Percentage of black pixels
+           * - 'freeze'
+             - 'interval'
+             - (numeric, numeric)
+             - Interval of frozen frames
+
+    :rtype: tuple of namedtuples
+
+    Examples
+    --------
+
+    .. code-block::python
+
+        ffmpegio.video.detect('video.mp4', 'scene')
+
+    .. _scdet: https://ffmpeg.org/ffmpeg-filters.html#scdet-1
+    .. _blackdetect: https://ffmpeg.org/ffmpeg-filters.html#blackdetect
+    .. _blackframe: https://ffmpeg.org/ffmpeg-filters.html#blackframe
+    .. _freezedetect: https://ffmpeg.org/ffmpeg-filters.html#freezedetect
+    .. _this commentary: https://rusty.today/posts/ffmpeg-scene-change-detector
+
+    """
+
+    all_detectors = {
+        "black": analyze.BlackDetect,
+        "blackframe": analyze.BlackFrame,
+        "freeze": analyze.FreezeDetect,
+        "scene": analyze.ScDet,
+    }
+
+    if not len(features):
+        features = [*all_detectors.keys()]
+
+    # pop detector-specific options
+    det_options = [options.pop(f"{k}_options", None) for k in features]
+
+    # create loggers
+    try:
+        loggers = [all_detectors[k](**options) for k in features]
+    except:
+        raise ValueError(f"Unknown feature(s) specified: {features}")
+
+    # add detector-specific options
+    for l, o in zip(loggers, det_options):
+        if o is not None:
+            l.options.update(**o)
+        if l.filter_name == "scdet":
+            l.all_frames = bool(scene_all_scores)
+
+    # exclude unspecified input options
+    input_opts = {k: v for k, v in zip(("ss", "t", "to"), (ss, t, to)) if v is not None}
+
+    # run analysis
+    analyze.run(
+        url,
+        *loggers,
+        start_at_zero=start_at_zero,
+        time_units=time_units,
+        progress=progress,
+        show_log=show_log,
+        **input_opts,
+    )
+
+    return tuple((l.output for l in loggers))

@@ -1,11 +1,11 @@
 """Audio Read/Write Module
 """
 
-from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, caps
+from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, analyze
 from .utils import filter as filter_utils, log as log_utils
 import logging
 
-__all__ = ["create", "read", "write", "filter"]
+__all__ = ["create", "read", "write", "filter", "detect"]
 
 
 def _run_read(
@@ -307,3 +307,121 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
         input=plugins.get_hook().audio_bytes(obj=input),
         progress=progress,
     )
+
+
+def detect(
+    url,
+    *features,
+    ss=None,
+    t=None,
+    to=None,
+    start_at_zero=False,
+    time_units=None,
+    progress=None,
+    show_log=None,
+    **options,
+):
+    """detect audio stream features
+
+    :param url: audio file url
+    :type url: str
+    :param \*features: specify features to detect:
+
+        ============  ================  =========================================================
+        feature       FFmpeg filter     description
+        ============  ================  =========================================================
+        'silence'     `silencedetect`_  Detect silence in an audio stream
+        ============  ================  =========================================================
+
+        defaults to include all the features
+    :type \*features: tuple, a subset of ('silence',), optional
+    :param ss: start time to process, defaults to None
+    :type ss: int, float, str, optional
+    :param t: duration of data to process, defaults to None
+    :type t: int, float, str, optional
+    :param to: stop processing at this time (ignored if t is also specified), defaults to None
+    :type to: int, float, str, optional
+    :param start_at_zero: ignore start time, defaults to False
+    :type start_at_zero: bool, optional
+    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
+    :type time_units: 'seconds', 'frames', 'pts', optional
+    :param progress: progress callback function, defaults to None
+    :type progress: callable object, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+    :type show_log: bool, optional
+    :param \**options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
+        of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
+        options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
+        Any other arguments are treated as a common option to all FFmpeg filters. For the available options
+        for each filter, follow the link on the feature table above to the FFmpeg documentation.
+    :type \**options: dict, optional
+    :return: detection outcomes. A namedtuple is returned for each feature in the order specified.
+        All namedtuple fields contain a list with the element specified as below:
+
+        .. list-table::
+           :header-rows: 1
+           :widths: auto
+
+           * - feature
+             - named tuple field
+             - element type
+             - description
+           * - 'silence'
+             - 'interval'
+             - (numeric, numeric)
+             - (only if mono=False) Silent interval
+           * - 
+             - 'chX'
+             - (numeric, numeric)
+             - (only if mono=True) Silent interval of channel X (multiple)
+
+    :rtype: tuple of namedtuples
+
+    Examples
+    --------
+
+    .. code-block::python
+
+        ffmpegio.audio.detect('audio.mp3', 'silence')
+
+    .. _silencedetect: https://ffmpeg.org/ffmpeg-filters.html#silencedetect
+
+    """
+
+    all_detectors = {
+        "silence": analyze.SilenceDetect,
+    }
+
+    if not len(features):
+        features = [*all_detectors.keys()]
+
+    # pop detector-specific options
+    det_options = [options.pop(f"{k}_options", None) for k in features]
+
+    # create loggers
+    try:
+        loggers = [all_detectors[k](**options) for k in features]
+    except:
+        raise ValueError(f"Unknown feature(s) specified: {features}")
+
+    # add detector-specific options
+    for l, o in zip(loggers, det_options):
+        if o is not None:
+            l.options.update(**o)
+
+    # exclude unspecified input options
+    input_opts = {k: v for k, v in zip(("ss", "t", "to"), (ss, t, to)) if v is not None}
+
+    # run analysis
+    analyze.run(
+        url,
+        *loggers,
+        start_at_zero=start_at_zero,
+        time_units=time_units,
+        progress=progress,
+        show_log=show_log,
+        **input_opts,
+    )
+
+    return tuple((l.output for l in loggers))
