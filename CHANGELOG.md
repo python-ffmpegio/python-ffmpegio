@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Added
+
+- Added `extra_inputs` argument to `audio.write`, `image.write`, `video.write`, and `SimpleWriterBase` constructor to support extra source urls
+
 ### Fixed
 
 - `util.concat`: Moved `FFConcat.options` to `FFConcat.File`. Removed `FFConcat.add_option()` and `FFConcat.add_options()`

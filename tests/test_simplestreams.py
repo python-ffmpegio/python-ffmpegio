@@ -158,6 +158,47 @@ def test_audio_filter():
             process("end", f.flush())
 
 
+def test_write_extra_inputs():
+    url_aud = "tests/assets/testaudio-1m.mp3"
+
+    fs, F = ffmpegio.video.read(url, t=1)
+    F = {
+        "buffer": F["buffer"],
+        "shape": F["shape"],
+        "dtype": F["dtype"],
+    }
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
+        with ffmpegio.open(
+            out_url,
+            "wv",
+            rate_in=fs,
+            extra_inputs=[url_aud],
+            map=["0:v", "1:a"],
+            show_log=True,
+        ) as f:
+            f.write(F)
+
+        info = ffmpegio.probe.streams_basic(out_url)
+        assert len(info) == 2
+
+        with ffmpegio.open(
+            out_url,
+            "wv",
+            rate_in=fs,
+            extra_inputs=[("anoisesrc", {"f": "lavfi"})],
+            map=["0:v", "1:a"],
+            shortest=None,
+            show_log=True,
+            overwrite=True,
+        ) as f:
+            f.write(F)
+
+        info = ffmpegio.probe.streams_basic(out_url)
+        assert len(info) == 2
+
+
 if __name__ == "__main__":
     print("starting test")
     logging.debug("logging check")

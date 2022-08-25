@@ -169,7 +169,7 @@ def read(url, progress=None, show_log=None, **options):
             s_in = (info["width"], info["height"])
             r_in = info["frame_rate"]
         except:
-            pix_fmt_in = 'rgb24'
+            pix_fmt_in = "rgb24"
 
     input_options = utils.pop_extra_options(options, "_in")
 
@@ -204,6 +204,7 @@ def write(
     two_pass=False,
     pass1_omits=None,
     pass1_extras=None,
+    extra_inputs=None,
     **options,
 ):
     """Write Numpy array to a video file
@@ -227,6 +228,9 @@ def write(
     :type pass1_omits: seq(str), optional
     :param pass1_extras: list of additional output arguments to include in pass 1, defaults to None
     :type pass1_extras: dict(int:dict(str)), optional
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                         string or a pair of a url string and an option dict.
+    :type extra_inputs: seq(str|(str,dict))
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
@@ -241,6 +245,16 @@ def write(
         "input",
         *configure.array_to_video_input(rate_in, data=data, **input_options),
     )
+
+    # add extra input arguments if given
+    if extra_inputs is not None:
+        for input in extra_inputs:
+            if isinstance(input, str):
+                configure.add_url(ffmpeg_args, "input", input)
+            else:
+                configure.add_url(ffmpeg_args, "input", *input)
+
+
     configure.add_url(ffmpeg_args, "output", url, options)
 
     configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))

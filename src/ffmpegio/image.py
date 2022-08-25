@@ -124,7 +124,7 @@ def read(url, show_log=None, **options):
             pix_fmt_in = info["pix_fmt"]
             s_in = (info["width"], info["height"])
         except:
-            pix_fmt_in = 'rgb24'
+            pix_fmt_in = "rgb24"
 
     input_options = utils.pop_extra_options(options, "_in")
 
@@ -150,7 +150,7 @@ def read(url, show_log=None, **options):
     )
 
 
-def write(url, data, overwrite=None, show_log=None, **options):
+def write(url, data, overwrite=None, show_log=None, extra_inputs=None, **options):
     """Write a NumPy array to an image file.
 
     :param url: URL of the image file to write.
@@ -163,6 +163,9 @@ def write(url, data, overwrite=None, show_log=None, **options):
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                         string or a pair of a url string and an option dict.
+    :type extra_inputs: seq(str|(str,dict))
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
@@ -177,6 +180,15 @@ def write(url, data, overwrite=None, show_log=None, **options):
         "input",
         *configure.array_to_video_input(1, data=data, **input_options),
     )
+
+    # add extra input arguments if given
+    if extra_inputs is not None:
+        for input in extra_inputs:
+            if isinstance(input, str):
+                configure.add_url(ffmpeg_args, "input", input)
+            else:
+                configure.add_url(ffmpeg_args, "input", *input)
+
     outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
     outopts["frames:v"] = 1
 

@@ -88,7 +88,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -330,6 +330,7 @@ class SimpleWriterBase:
         show_log=None,
         progress=None,
         overwrite=None,
+        extra_inputs=None,
         **options,
     ) -> None:
 
@@ -346,6 +347,14 @@ class SimpleWriterBase:
         ffmpeg_args = configure.empty()
         configure.add_url(ffmpeg_args, "input", "-", input_options)
         configure.add_url(ffmpeg_args, "output", url, options)
+
+        # add extra input arguments if given
+        if extra_inputs is not None:
+            for input in extra_inputs:
+                if isinstance(input, str):
+                    configure.add_url(ffmpeg_args, "input", input)
+                else:
+                    configure.add_url(ffmpeg_args, "input", *input)
 
         # abstract method to finalize the options only if self.dtype and self.shape are given
         ready = self._finalize(ffmpeg_args)

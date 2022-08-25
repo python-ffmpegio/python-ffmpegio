@@ -184,7 +184,7 @@ def read(url, progress=None, show_log=None, **options):
             ac_in = info.get("ac", None)
             ar_in = info.get("ar", None)
         except:
-            sample_fmt = 's16'
+            sample_fmt = "s16"
 
     input_options = utils.pop_extra_options(options, "_in")
     url, stdin, input = configure.check_url(
@@ -207,7 +207,16 @@ def read(url, progress=None, show_log=None, **options):
     )
 
 
-def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **options):
+def write(
+    url,
+    rate_in,
+    data,
+    progress=None,
+    overwrite=None,
+    show_log=None,
+    extra_inputs=None,
+    **options,
+):
     """Write a NumPy array to an audio file.
 
     :param url: URL of the audio file to write.
@@ -224,6 +233,9 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                         string or a pair of a url string and an option dict.
+    :type extra_inputs: seq(str|(str,dict))
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
@@ -237,6 +249,15 @@ def write(url, rate_in, data, progress=None, overwrite=None, show_log=None, **op
         "input",
         *configure.array_to_audio_input(rate_in, data=data, **input_options),
     )
+
+    # add extra input arguments if given
+    if extra_inputs is not None:
+        for input in extra_inputs:
+            if isinstance(input, str):
+                configure.add_url(ffmpeg_args, "input", input)
+            else:
+                configure.add_url(ffmpeg_args, "input", *input)
+
     configure.add_url(ffmpeg_args, "output", url, options)
 
     out = ffmpegprocess.run(
