@@ -6,9 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.7.0] - 2022-08-24
+
 ### Added
 
-- Added `extra_inputs` argument to `audio.write`, `image.write`, `video.write`, and `SimpleWriterBase` constructor to support extra source urls
+- `analysis` module to extract the frame metadata set by video/audio analysis filters
+- `video.detect()` & `audio.detect()` to run the preset analyses
+- `extra_inputs` argument to `audio.write`, `image.write`, `video.write`, and `SimpleWriterBase` constructor to support extra source urls
 - `path.check_version()` to check FFmpeg version easily
 
 ### Fixed
