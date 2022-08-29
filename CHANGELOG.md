@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Changed
+
+- consolidate representation of input/output/internal links for filtergraphs, affecting `util.filter.parse_graph()` & `util.filter.compose_graph()`
+
 ## [0.7.0] - 2022-08-24
 
 ### Added

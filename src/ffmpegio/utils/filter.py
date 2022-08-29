@@ -169,34 +169,54 @@ def parse_graph(expr):
     :type expr: str
     :return: tuple of unescaped filter graph blob, input labels, output labels, chain links, and sws_flags list
     :rtype: (list of list of (name, args, id), dict, dict, dict, list)
+    :return: tuple of unescaped filter graph blob, pad link map, and sws_flags list
+    :rtype: (list of list of (name, args, id), dict, list)
 
     Note
     ----
 
-    - labels of the links connecting the filter chains are dropped
+    - the items of link map dict specifies the link name
+      - key: the link label str (no brackets)
+      - value: 2-element list: [dst, src]
+        - dst: 3-int tuple filter input pad specifier: (chain_id, filter_id, pad_id)
+        - src: 3-int tuple filter output pad specifier: (chain_id, filter_id, pad_id)
+    - exceptions:
+      - if key is input stream specifier str
+        - dst: filter input pad specifiers tuples or a list of filter input pad specifiers tuples
+        - src: None
+      - if key is filtergraph output stream label str
+        - dst: None
+        - src: filter output pad specifier tuple
 
     """
 
-    labels = {}
-    # key=pad label; value=[tuple(chain,filter,pad)|None,tuple(chain,filter,pad)|None]
+    links = {}
 
-    def add_pad(label, output, *ids):
-        sig = labels.get(label, None)
+    def add_pad(label, output, *padspec):
+        sig = links.get(label, None)
         if sig is None:
-            labels[label] = [None, ids] if output else [ids, None]
+            # new label
+            links[label] = [None, padspec] if output else [padspec, None]
         else:
-            if sig[output] is None:
-                sig[output] = ids
+            # existing label
+            padspecs = sig[output]
+            if padspecs is None:
+                sig[output] = padspec
+            elif not output and sig[1] is None:
+                if isinstance(sig[output], str):
+                    sig[output] = [padspecs, padspec]
+                else:
+                    padspecs.append(padspec)
             else:
                 raise ValueError(
                     f'Filter graph specifies multiple \'{label}\' {"output" if output else "input"} pads.'
                 )
 
-    def parse_labels(expr, i, output, *fid):
+    def parse_labels(expr, i, output, *cidfid):
         m = _re_labels.match(expr, i)
         p = 0
         while m:
-            add_pad(m[1], output, *fid, p)
+            add_pad(m[1], output, *cidfid, p)
             i = m.end()
             p += 1
             m = _re_labels.match(expr, i)
@@ -269,54 +289,16 @@ def parse_graph(expr):
                     fid += 1
                 fs = ""
 
-    # get input/output pads that requires streams
-    input_labels = {}
-    output_labels = {}
-    links = {}
-
-    for label, (inp, outp) in labels.items():
-        if outp is None:
-            input_labels[label] = inp
-        elif inp is None:
-            output_labels[label] = outp
-        else:
-            links[inp] = outp
-
-    return (
-        fg,
-        input_labels,
-        output_labels,
-        links,
-        sws_flags,
-    )
+    return (fg, links, sws_flags)
 
 
-def compose_graph(
-    filter_specs, input_labels=None, output_labels=None, links=None, sws_flags=None
-):
+def compose_graph(filter_specs, links=None, sws_flags=None):
     """Compose complex filter graph
     :param filter_specs: a nested sequence of argument sequences to compose_filter() to define
                a filter graph. The last element of each filter argument sequence
                may be a dict, defining its keyword arguments.
     :type filter_specs: seq(seq(filter_args))
-    :param input_labels: specifies labels of filter input pads which receives
-                         input streams. Keys are the link labels and values
-                         are sequences of (chain_id, filter_id, in_pad_id),
-                         chain_id and filter_id are ints, specifying the filter
-                         index in fg, and in_pad_id is an int specifying the
-                         input pad, defaults to None
-    :type input_labels: dict, optional
-    :param output_labels: specifies labels of filter output pads which connect
-                         to output streams. Keys are the link labels and values
-                         are sequences of (chain_id, filter_id, out_pad_id),
-                         chain_id and filter_id are ints, specifying the filter
-                         index in fg, and out_pad_id is an int specifying the
-                         output pad, defaults to None
-    :type output_labels: dict, optional
-    :param links: specifies inter-chain links. Key is a tuple of
-                  (chain_id, filter_id, in_pad_id) defining the input pad
-                  and value of a tuple of (chain_id, filter_id, out_pad_id)
-                  defining the output pad, defaults to None
+    :param links: specifies how non-sequential filters are linked. See below for the specification.
     :type links: dict, optional
     :param sws_flags: specify swscale flags for those automatically inserted
                       scalers, defaults to None
@@ -328,10 +310,18 @@ def compose_graph(
     Note
     ----
 
-    - All the pad_ids are used to sort the assigned labels and NOT the absolute
-      pad index. The lowest pad_id is assigned to the first pad and the highest
-      pad_id is assigned tot he last pad, regardless of their id value
-
+    - the items of link map dict specifies the link name
+      - key: the link label str (no brackets) or int. int key indicates internal links
+      - value: 2-element list: [dst, src]
+        - dst: 3-int tuple filter input pad specifier: (chain_id, filter_id, pad_id)
+        - src: 3-int tuple filter output pad specifier: (chain_id, filter_id, pad_id)
+    - exceptions:
+      - if key is input stream specifier str
+        - dst: filter input pad specifiers tuples or a list of filter input pad specifiers tuples
+        - src: None
+      - if key is filtergraph output stream label str
+        - dst: None
+        - src: filter output pad specifier tuple
 
     Examples
     --------
@@ -360,24 +350,20 @@ def compose_graph(
             [("vstack", {"inputs": 2})], # chain #5
         ]
 
-        input_labels = {
-            "1:v": (0, 0, 0), # feeds to negate
-            "2:v": (1, 0, 0), # feeds to hflip
-            "3:v": (2, 0, 0), # feeds to edgedetect
-            "0:v": (3, 0, 0), # feeds to the 1st input of 1st hstack
+        links = {
+            "1:v": [(0, 0, 0), None], # feeds to negate
+            "2:v": [(1, 0, 0), None], # feeds to hflip
+            "3:v": [(2, 0, 0), None], # feeds to edgedetect
+            "0:v": [(3, 0, 0), None], # feeds to the 1st input of 1st hstack
+            "out": [None, (5, 0, 0)], # feeds from vstack output
+            0: [(3, 0, 1), (0, 0, 0)], # 1st hstack gets its 2nd input from negate
+            1: [(4, 0, 0), (1, 0, 0)], # 2nd hstack gets its 1st input from hflip
+            2: [(4, 0, 1), (2, 0, 0)], # 2nd hstack gets its 2nd input from edgedetect
+            3: [(5, 0, 0), (3, 0, 0)], # vstack gets its 1st input from 1st hstack
+            4: [(5, 0, 1), (4, 0, 0)], # vstack gets its 2nd input from 2nd hstack
         }
 
-        output_labels = {"out": (5, 0, 0)} # feeds from vstack output
-
-        links = { # input: output
-            (3, 0, 1): (0, 0, 0), # 1st hstack gets its 2nd input from negate
-            (4, 0, 0): (1, 0, 0), # 2nd hstack gets its 1st input from hflip
-            (4, 0, 1): (2, 0, 0), # 2nd hstack gets its 2nd input from edgedetect
-            (5, 0, 0): (3, 0, 0), # vstack gets its 1st input from 1st hstack
-            (5, 0, 1): (4, 0, 0), # vstack gets its 2nd input from 2nd hstack
-        }
-
-        compose(fg, input_labels, output_labels, links)
+        compose(fg, links)
 
     ```
 
@@ -399,16 +385,12 @@ def compose_graph(
             [("edgedetect",), ("hstack",{"inputs": 2}), ("vstack", {"inputs": 2})], # chain 2
         ]
 
-        input_labels = {
-            "1:v": (1, 0, 0), # feeds to negate
-            "2:v": (0, 0, 0), # feeds to hflip
-            "3:v": (2, 0, 0), # feeds to edgedetect
-            "0:v": (1, 1, 0), # feeds to 1st input of hstack in chain 1
-        }
-
-        output_labels = {"out": (2, 0, 0)} # feeds from chain 2
-
         links = { # input: output
+            "1:v": [(1, 0, 0), None], # feeds to negate
+            "2:v": [(0, 0, 0), None], # feeds to hflip
+            "3:v": [(2, 0, 0), None], # feeds to edgedetect
+            "0:v": [(1, 1, 0), None], # feeds to 1st input of hstack in chain 1
+            "out": [None, (2, 0, 0)]
             (2, 1, 0): (0, 0, 0), # chain 0 output feeds to 1st input of hstack in chain 1
             (2, 2, 0): (1, 0, 0), # chain 1 output feeds to 1st input of vstack in chain 2
         }
@@ -456,29 +438,42 @@ def compose_graph(
     in_labels = {}  # labeled input pads
     out_labels = {}  # labeled input pads
     labels = set()  # collection of all the labels
-    if input_labels is not None:
-        labels = set(input_labels.keys())
-        for label, id in input_labels.items():
-            assign_link(in_labels, label, *id)
-
-    if output_labels is not None:
-        labels |= set(output_labels.keys())
-        for label, id in output_labels.items():
-            assign_link(out_labels, label, *id)
 
     if links is not None:
 
-        def set_link_label(i):
-            for j in itertools.count():
-                label = f"L{j+i}"
+        # log all named link labels
+        labels = {k for k in links.keys() if isinstance(k, str)}
+
+        # name unnamed labels
+        def set_link_label(k):
+            if not isinstance(k, int):
+                return k
+            for j in itertools.count(k):
+                label = f"L{j}"
                 if label not in labels:
                     labels.add(label)
                     return label
 
-        for n, (i, o) in enumerate(links.items()):
-            label = set_link_label(n)
-            assign_link(in_labels, label, *i)
-            assign_link(out_labels, label, *o)
+        links = {set_link_label(k): v for k, v in links.items()}
+
+        # set links
+        for label, (in_pad, out_pad) in links.items():
+            if out_pad is None:
+                # stream input
+                if isinstance(in_pad[0], int):
+                    # only 1 filter takes the stream as its input
+                    assign_link(in_labels, label, *in_pad)
+                else:
+                    # multiple filters take the stream as their inputs
+                    for id in in_pad:
+                        assign_link(in_labels, label, *id)
+            elif in_pad is None:
+                # fg output
+                assign_link(out_labels, label, *out_pad)
+            else:
+                # internal links
+                assign_link(in_labels, label, *in_pad)
+                assign_link(out_labels, label, *out_pad)
 
     # COMPOSE FILTER GRAPH
 
@@ -696,7 +691,7 @@ class FilterGraph:
 
     FilterGraph('...') to parse an FFmpeg filter graph expression
 
-    FilterGraph(filter_specs, input_labels, output_labels, links, sws_flags)
+    FilterGraph(filter_specs, links, sws_flags)
     to specify the compose_graph(...) arguments
 
     :param filter_specs: either an existing FilterGraph instance to copy, an FFmpeg
@@ -706,24 +701,7 @@ class FilterGraph:
                          sequence may be a dict, defining its keyword arguments,
                          defaults to None
     :type filter_specs: FilterGraph, str, or seq(seq(filter_args))
-    :param input_labels: specifies labels of filter input pads which receives
-                         input streams. Keys are the link labels and values
-                         are sequences of (chain_id, filter_id, in_pad_id),
-                         chain_id and filter_id are ints, specifying the filter
-                         index in fg, and in_pad_id is an int specifying the
-                         input pad, defaults to None
-    :type input_labels: dict, optional
-    :param output_labels: specifies labels of filter output pads which connect
-                         to output streams. Keys are the link labels and values
-                         are sequences of (chain_id, filter_id, out_pad_id),
-                         chain_id and filter_id are ints, specifying the filter
-                         index in fg, and out_pad_id is an int specifying the
-                         output pad, defaults to None
-    :type output_labels: dict, optional
-    :param links: specifies inter-chain links. Key is a tuple of
-                  (chain_id, filter_id, in_pad_id) defining the input pad
-                  and value of a tuple of (chain_id, filter_id, out_pad_id)
-                  defining the output pad, defaults to None
+    :param links: specifies filter links
     :type links: dict, optional
     :param sws_flags: specify swscale flags for those automatically inserted
                       scalers, defaults to None
@@ -733,25 +711,12 @@ class FilterGraph:
     Attributes:
 
         filter_specs (list of lists of tuples or None): list of chains of filters.
-        input_labels (dict(str:(int,int,int)) or None): input pad labels. label as key,
-                                                (chain, filter, pad) index as value.
-        output_labels (dict(str:(int,int,int)) or None): output pad labels. label as key,
-                                                 (chain, filter, pad) index as value
-        links (dict((int,int,int):(int,int,int)) or None): inter-chain filter pad links.
-                                                input (chain, filter, pad) index as key,
-                                                output (chain, filter, pad) index as value.
+        links (dict(str|int: [(int,int,int)|None|list((int,int,int)), (int,int,int)|None))
         sws_flags (tuple or None): tuple defining the sws flags
 
     """
 
-    def __init__(
-        self,
-        filter_specs=None,
-        input_labels=None,
-        output_labels=None,
-        links=None,
-        sws_flags=None,
-    ):
+    def __init__(self, filter_specs=None, links=None, sws_flags=None):
         if filter_specs is None:
             # set all variables to empty state
             self.clear()
@@ -761,34 +726,22 @@ class FilterGraph:
                 # copy constructor
                 other = filter_specs
                 self.filter_specs = deepcopy(other.filter_specs)
-                self.input_labels = deepcopy(other.input_labels)
-                self.output_labels = deepcopy(other.output_labels)
                 self.links = deepcopy(other.links)
                 self.sws_flags = deepcopy(other.sws_flags)
             else:
                 expr = (
                     filter_specs
                     if isinstance(filter_specs, str)
-                    else compose_graph(
-                        filter_specs, input_labels, output_labels, links, sws_flags
-                    )
+                    else compose_graph(filter_specs, links, sws_flags)
                 )
                 (
                     self.filter_specs,
-                    self.input_labels,
-                    self.output_labels,
                     self.links,
                     self.sws_flags,
                 ) = parse_graph(expr)
 
     def __str__(self) -> str:
-        return compose_graph(
-            self.filter_specs,
-            self.input_labels,
-            self.output_labels,
-            self.links,
-            self.sws_flags,
-        )
+        return compose_graph(self.filter_specs, self.links, self.sws_flags)
 
     def __len__(self):
         return len(self.filter_specs)
@@ -806,8 +759,6 @@ class FilterGraph:
 
     def clear(self):
         self.filter_specs = []
-        self.input_labels = {}
-        self.output_labels = {}
         self.links = {}
         self.sws_flags = None
 
@@ -1472,7 +1423,9 @@ def video_basic_filter(
     bg_color = fill_color or "white"
 
     if remove_alpha:
-        vfilters.append(f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay=shortest=1")
+        vfilters.append(
+            f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay=shortest=1"
+        )
 
     if square_pixels == "upscale":
         vfilters.append("scale='max(iw,ih*dar):max(iw/dar,ih):eval=init',setsar=1/1")

@@ -78,18 +78,16 @@ def test_compose_graph():
                 [("vstack", {"inputs": 2})],  # chain #5
             ],
             {
-                "1:v": (0, 0, 0),  # feeds to negate
-                "2:v": (1, 0, 0),  # feeds to hflip
-                "3:v": (2, 0, 0),  # feeds to edgedetect
-                "0:v": (3, 0, 0),  # feeds to the 1st input of 1st hstack
-            },
-            {"out": (5, 0, 0)},  # feeds from vstack output
-            {  # input: output
-                (3, 0, 1): (0, 0, 0),  # 1st hstack gets its 2nd input from negate
-                (4, 0, 0): (1, 0, 0),  # 2nd hstack gets its 1st input from hflip
-                (4, 0, 1): (2, 0, 0),  # 2nd hstack gets its 2nd input from edgedetect
-                (5, 0, 0): (3, 0, 0),  # vstack gets its 1st input from 1st hstack
-                (5, 0, 1): (4, 0, 0),  # vstack gets its 2nd input from 2nd hstack
+                "1:v": [(0, 0, 0), None],  # feeds to negate
+                "2:v": [(1, 0, 0), None],  # feeds to hflip
+                "3:v": [(2, 0, 0), None],  # feeds to edgedetect
+                "0:v": [(3, 0, 0), None],  # feeds to the 1st input of 1st hstack
+                "out": [None, (5, 0, 0)],  # feeds from vstack output
+                0: [(3, 0, 1), (0, 0, 0)],  # 1st hstack gets its 2nd input from negate
+                1: [(4, 0, 0), (1, 0, 0)],  # 2nd hstack gets its 1st input from hflip
+                2: [(4, 0, 1), (2, 0, 0)],  # 2nd hstack its 2nd input <- edgedetect
+                3: [(5, 0, 0), (3, 0, 0)],  # vstack gets its 1st input from 1st hstack
+                4: [(5, 0, 1), (4, 0, 0)],  # vstack gets its 2nd input from 2nd hstack
             },
         )
     )
@@ -113,15 +111,18 @@ def test_compose_graph():
                 [("overlay", "0", "h")],
                 [("overlay", "w", "h")],
             ],
-            {"0:v": (0, 0, 0), "1:v": (1, 0, 0), "2:v": (2, 0, 0), "3:v": (3, 0, 0)},
-            {"out": (6, 0, 0)},
             {
-                (4, 0, 0): (0, 0, 0),
-                (4, 0, 1): (1, 0, 0),
-                (5, 0, 0): (4, 0, 0),
-                (5, 0, 1): (2, 0, 0),
-                (6, 0, 0): (5, 0, 0),
-                (6, 0, 1): (3, 0, 0),
+                "0:v": [(0, 0, 0), None],
+                "1:v": [(1, 0, 0), None],
+                "2:v": [(2, 0, 0), None],
+                "3:v": [(3, 0, 0), None],
+                "out": [None, (6, 0, 0)],
+                0: [(4, 0, 0), (0, 0, 0)],
+                1: [(4, 0, 1), (1, 0, 0)],
+                2: [(5, 0, 0), (4, 0, 0)],
+                3: [(5, 0, 1), (2, 0, 0)],
+                4: [(6, 0, 0), (5, 0, 0)],
+                5: [(6, 0, 1), (3, 0, 0)],
             },
         )
     )
@@ -135,8 +136,12 @@ def test_compose_graph():
                 [("setpts", "PTS-STARTPTS")],
                 [("overlay",)],
             ],
-            {"0:v": (0, 0, 0), "1:v": (1, 0, 0)},
-            links={(2, 0, 0): (0, 1, 0), (2, 0, 1): (1, 0, 0)},
+            {
+                "0:v": [(0, 0, 0), None],
+                "1:v": [(1, 0, 0), None],
+                0: [(2, 0, 0), (0, 1, 0)],
+                1: [(2, 0, 1), (1, 0, 0)],
+            },
         )
     )
 
