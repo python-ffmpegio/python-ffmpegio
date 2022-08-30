@@ -2,6 +2,7 @@ import math
 from ffmpegio import utils
 import pytest
 
+
 def test_string_escaping():
     raw = "Crime d'Amour"
     esc = utils.escape(raw)
@@ -49,6 +50,9 @@ def test_parse_stream_spec():
     assert utils.parse_stream_spec("t:m:key") == {"type": "t", "tag": "key"}
     assert utils.parse_stream_spec("m:key:value") == {"tag": ("key", "value")}
     assert utils.parse_stream_spec("u") == {"usable": True}
+
+    assert utils.parse_stream_spec("0:1", True) == {"index": 1, "file_index": 0}
+    assert utils.parse_stream_spec([0, 1], True) == {"index": 1, "file_index": 0}
 
 
 def test_stream_spec():
@@ -111,4 +115,3 @@ def test_get_audio_format():
 
 if __name__ == "__main__":
     import re
-

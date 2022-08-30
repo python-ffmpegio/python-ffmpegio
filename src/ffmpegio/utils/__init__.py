@@ -7,6 +7,7 @@ from .._utils import *
 # import sys
 # sys.byteorder
 
+
 def escape(txt):
     """apply FFmpeg single quote escaping
 
@@ -83,10 +84,25 @@ def unescape(txt):
 
 
 def parse_stream_spec(spec, file_index=False):
+    """Parse stream specifier string
+
+    :param spec: stream specifier string. If file_index=False and given an int 
+                 value, it specifies the stream index. If file_index=True and given
+                 a 2-element sequence, it specifies the file index in spec[0] and 
+                 stream index in spec[1].
+    :type spec: str or int or [int,int]
+    :param file_index: True to expect spec to start with a file index, defaults to False
+    :type file_index: bool, optional
+    :return: stream spec dict
+    :rtype: dict
+
+    The reverse of `stream_spec()`
+    """
+
     if isinstance(spec, str):
         out = {}
         if file_index:
-            m = re.match(r"(\d+):")
+            m = re.match(r"(\d+):", spec)
             if m:
                 out["file_index"] = int(m[1])
                 spec = spec[m.end() :]
@@ -119,7 +135,27 @@ def parse_stream_spec(spec, file_index=False):
                 out["usable"] = True
         return out
     else:
-        return {"index": int(spec)}
+        if file_index:
+            return {"file_index": int(spec[0]), "index": int(spec[1])}
+        else:
+            return {"index": int(spec)}
+
+
+def is_stream_spec(spec, file_index=False):
+    """True if valid stream specifier string
+
+    :param spec: stream specifier string to be tested
+    :type spec: str
+    :param file_index: True if spec starts with a file index, defaults to False
+    :type file_index: bool, optional
+    :return: True if valid stream specifier
+    :rtype: bool
+    """
+    try:
+        parse_stream_spec(spec, file_index)
+        return True
+    except:
+        return False
 
 
 def stream_spec(
@@ -262,7 +298,7 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
 
     if pix_fmt == input_pix_fmt:
         n_out = n_in
-    elif n_in==1 and pix_fmt=='gray16le':
+    elif n_in == 1 and pix_fmt == "gray16le":
         # sub-16-bit pixel format, use the input format
         pix_fmt = input_pix_fmt
         n_out = n_in
