@@ -19,7 +19,7 @@ def array_to_video_input(rate, data, stream_id=None, **opts):
     :rtype: tuple(str, dict)
     """
 
-    spec = "" if stream_id is None else ":" + utils.spec_stream(stream_id, "v")
+    spec = "" if stream_id is None else ":" + utils.stream_spec(stream_id, "v")
 
     s, pix_fmt = utils.guess_video_format(*plugins.get_hook().video_info(obj=data))
 
@@ -59,7 +59,7 @@ def array_to_audio_input(
     sample_fmt, ac = utils.guess_audio_format(dtype, shape)
     codec, f = utils.get_audio_codec(sample_fmt)
 
-    spec = "" if stream_id is None else ":" + utils.spec_stream(stream_id, "a")
+    spec = "" if stream_id is None else ":" + utils.stream_spec(stream_id, "a")
 
     return (
         "-",

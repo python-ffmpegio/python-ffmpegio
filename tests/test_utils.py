@@ -34,37 +34,37 @@ def test_string_escaping():
     assert utils.unescape(esc) == raw
 
 
-def test_parse_spec_stream():
-    assert utils.parse_spec_stream(1) == {"index": 1}
-    assert utils.parse_spec_stream("1") == {"index": 1}
-    assert utils.parse_spec_stream("v") == {"type": "v"}
-    assert utils.parse_spec_stream("p:1") == {"program_id": 1}
-    assert utils.parse_spec_stream("p:1:V") == {"program_id": 1, "type": "V"}
-    assert utils.parse_spec_stream("p:1:a:#6") == {
+def test_parse_stream_spec():
+    assert utils.parse_stream_spec(1) == {"index": 1}
+    assert utils.parse_stream_spec("1") == {"index": 1}
+    assert utils.parse_stream_spec("v") == {"type": "v"}
+    assert utils.parse_stream_spec("p:1") == {"program_id": 1}
+    assert utils.parse_stream_spec("p:1:V") == {"program_id": 1, "type": "V"}
+    assert utils.parse_stream_spec("p:1:a:#6") == {
         "program_id": 1,
         "type": "a",
         "pid": 6,
     }
-    assert utils.parse_spec_stream("d:i:6") == {"type": "d", "pid": 6}
-    assert utils.parse_spec_stream("t:m:key") == {"type": "t", "tag": "key"}
-    assert utils.parse_spec_stream("m:key:value") == {"tag": ("key", "value")}
-    assert utils.parse_spec_stream("u") == {"usable": True}
+    assert utils.parse_stream_spec("d:i:6") == {"type": "d", "pid": 6}
+    assert utils.parse_stream_spec("t:m:key") == {"type": "t", "tag": "key"}
+    assert utils.parse_stream_spec("m:key:value") == {"tag": ("key", "value")}
+    assert utils.parse_stream_spec("u") == {"usable": True}
 
 
-def test_spec_stream():
-    assert utils.spec_stream() == ""
-    assert utils.spec_stream(0) == "0"
-    assert utils.spec_stream(type="a") == "a"
-    assert utils.spec_stream(1, type="v") == "v:1"
-    assert utils.spec_stream(program_id="1") == "p:1"
-    assert utils.spec_stream(1, type="v", program_id="1") == "v:p:1:1"
-    assert utils.spec_stream(pid=342) == "#342"
-    assert utils.spec_stream(tag="creation_time") == "m:creation_time"
+def test_stream_spec():
+    assert utils.stream_spec() == ""
+    assert utils.stream_spec(0) == "0"
+    assert utils.stream_spec(type="a") == "a"
+    assert utils.stream_spec(1, type="v") == "v:1"
+    assert utils.stream_spec(program_id="1") == "p:1"
+    assert utils.stream_spec(1, type="v", program_id="1") == "v:p:1:1"
+    assert utils.stream_spec(pid=342) == "#342"
+    assert utils.stream_spec(tag="creation_time") == "m:creation_time"
     assert (
-        utils.spec_stream(tag=("creation_time", "2018-05-26T19:36:24.000000Z"))
+        utils.stream_spec(tag=("creation_time", "2018-05-26T19:36:24.000000Z"))
         == "m:creation_time:2018-05-26T19:36:24.000000Z"
     )
-    assert utils.spec_stream(usable=True) == "u"
+    assert utils.stream_spec(usable=True) == "u"
 
 
 def test_get_pixel_config():

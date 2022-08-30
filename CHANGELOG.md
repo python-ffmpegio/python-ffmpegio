@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Changed
 
 - consolidate representation of input/output/internal links for filtergraphs, affecting `util.filter.parse_graph()` & `util.filter.compose_graph()`
+- corrected function names `util.*spec_stream` to `util.*stream_spec`
 
 ## [0.7.0] - 2022-08-24
 

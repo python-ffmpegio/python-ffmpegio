@@ -82,7 +82,7 @@ def unescape(txt):
     return "".join(blks)
 
 
-def parse_spec_stream(spec, file_index=False):
+def parse_stream_spec(spec, file_index=False):
     if isinstance(spec, str):
         out = {}
         if file_index:
@@ -122,7 +122,7 @@ def parse_spec_stream(spec, file_index=False):
         return {"index": int(spec)}
 
 
-def spec_stream(
+def stream_spec(
     index=None,
     type=None,
     program_id=None,
