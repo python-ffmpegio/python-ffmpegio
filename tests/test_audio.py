@@ -125,8 +125,7 @@ def test_filter():
     # complex filtergraph
     expr = FilterGraph(
         [[("anoisesrc", 44100, {"color": "pink"}), ("amerge",)]],
-        {"in": (0, 1, 0)},
-        {"out": (0, 1, 0)},
+        {"in": [(0, 1, 0), None], "out": [None, (0, 1, 0)]},
     )
     output_rate, output = audio.filter(expr, input_rate, input)
     assert output_rate == 44100
@@ -143,21 +142,21 @@ if __name__ == "__main__":
 
     logging.basicConfig(level=logging.DEBUG)
 
-    url = 'tests/assets/sample.mp4'
+    url = "tests/assets/sample.mp4"
     # url = "C:/Users/tikuma/Downloads/BigBuckBunny.mp4"
     # url = 'tests/assets/imgs/testimage-%d.png'
-    out = ffmpegio.audio.detect(url,d=0.5,noise=0.01,mono=False)
+    out = ffmpegio.audio.detect(url, d=0.5, noise=0.01, mono=False)
     print(out)
 
-    #silencedetect
+    # silencedetect
 
-    #volumedetect
+    # volumedetect
     # [Parsed_volumedetect_0 @ 0000022d711cabc0] n_samples: 5292000
     # [Parsed_volumedetect_0 @ 0000022d711cabc0] mean_volume: -23.0 dB
     # [Parsed_volumedetect_0 @ 0000022d711cabc0] max_volume: -19.9 dB
     # [Parsed_volumedetect_0 @ 0000022d711cabc0] histogram_19db: 84401
 
-    #astats
+    # astats
     # [Parsed_astats_0 @ 000002212ea9bb40] Channel: 1
     # [Parsed_astats_0 @ 000002212ea9bb40] DC offset: 0.000002
     # [Parsed_astats_0 @ 000002212ea9bb40] Min level: -0.101331
