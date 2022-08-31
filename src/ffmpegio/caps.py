@@ -147,6 +147,7 @@ FilterSummary = namedtuple(
 )
 # fmt:on
 
+
 def filters(type=None):
     """get FFmpeg filters
 
@@ -155,7 +156,7 @@ def filters(type=None):
     :return: dict of summary of the filters
     :rtype: dict(key,FilterSummary)
 
-    Each key of the returned dict is a name of a filter and its value is a 
+    Each key of the returned dict is a name of a filter and its value is a
     FilterSummary namedtuple with the following items:
 
     ================  ========  ===============================================
@@ -845,7 +846,7 @@ FilterInfo = namedtuple(
 )
 FilterOption = namedtuple(
     "FilterOption",
-    ["name", "type", "help", "ranges", "constants", "default", 
+    ["name", "alias", "type", "help", "ranges", "constants", "default", 
      "video", "audio", "runtime"],
 )
 # fmt:on
@@ -877,7 +878,7 @@ def _get_filter_option_constant(str):
         r"(?: (.+))?\n?",
         str,
     )
-    return m[1], (m[3] or "", m[2] and int(m[2]))
+    return m[1], (m[2] and int(m[2]), m[3] or "")
 
 
 def _get_filter_option(str, name):
@@ -929,12 +930,30 @@ def _get_filter_option(str, name):
         ]
     )
 
+    constants = [_get_filter_option_constant(l) for l in lines[1:] if l]
+
+    if len(constants):
+        # combines aliases
+        def chk_is_alias(i, o):
+            other = constants[i]
+            return other[1] == o[1]
+
+        has_alias = [chk_is_alias(i, o) for i, o in enumerate(constants[1:])]
+        has_alias.append(False)
+        for i, has in enumerate(has_alias):
+            k, v = constants[i]
+            constants[i] = (k, (constants[i + 1][0] if has else None, *v))
+
+        has_alias.insert(0, False)
+        constants = [o for o, isa in zip(constants, has_alias[:-1]) if not isa]
+
     return FilterOption(
         name,
+        None,
         type,
         help,
         ranges,
-        dict(_get_filter_option_constant(l) for l in lines[1:] if l),
+        dict(constants),
         conv(default),
         *(fl != "." for fl in flags),
     )
@@ -944,7 +963,25 @@ def _get_filter_options(str):
     m = re.match(r"(.+)? AVOptions:\n", str)
     name = m[1]
     blocks = re.split(r"\n(?!     |\n|$)", str[m.end() :])
-    return name, [_get_filter_option(line, name) for line in blocks if line]
+    opts = [_get_filter_option(line, name) for line in blocks if line]
+
+    # combines aliases
+    def chk_is_alias(i, o):
+        other = opts[i]
+        return other.type == o.type and other.help == o.help
+
+    has_alias = [chk_is_alias(i, o) for i, o in enumerate(opts[1:])]
+    has_alias.append(False)
+    for i, has in enumerate(has_alias):
+        if has:
+            v = list(opts[i])
+            v[1] = opts[i + 1].name
+            opts[i] = FilterOption(*v)
+
+    has_alias.insert(0, False)
+    opts = [o for o, isa in zip(opts, has_alias[:-1]) if not isa]
+
+    return name, opts
 
 
 def filter_info(name):
@@ -977,6 +1014,7 @@ def filter_info(name):
     Key       type                         description
     ========= ============================ ================================================
     name      str                          Name
+    alias     str                          Alias name
     type      str                          Data type
     help      str                          Help text
     ranges    list(tuple(any,any))|None    List of ranges of values
@@ -1107,18 +1145,6 @@ def bsfilter_info(name):
         _cache["filter"] = {}
     _cache["filter"][name] = data
     return data
-
-
-def _getFilterPortInfo(str):
-    if str.startswith("        none"):
-        return None
-    if str.startswith("        dynamic"):
-        return "dynamic"
-
-    matches = re.finditer(r"       #\d+: (\S+)(?= \() \((\S+)\)\s*?\n", str)
-    if not matches:
-        raise Exception("Failed to parse filter port info: %s" % str)
-    return [{"name": m[1], "type": m[2]} for m in matches]
 
 
 #:dict: list of video size presets with their sizes
