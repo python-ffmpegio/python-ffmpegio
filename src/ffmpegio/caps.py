@@ -887,7 +887,7 @@ def _get_filter_option(str, name):
 
     # first line is the main option definition
     m0 = re.match(
-        r"  (?: |-)([^ \n]+) {1,17}(?:\<([^ >]+)\> {1,12}| {13})"
+        r"  (?: |-)?([^ \n]+) {1,17}(?:\<([^ >]+)\> {1,12}| {13})"
         r"[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
         lines[0],
     )
