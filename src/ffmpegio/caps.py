@@ -1,6 +1,7 @@
 # TODO add function to guess media type given extension
 
 import re, fractions, subprocess as sp
+from collections import namedtuple
 
 from .path import where
 from .utils.error import FFmpegError
@@ -134,16 +135,24 @@ def options(type=None, name_only=False, return_desc=False):
     )
 
 
+# fmt:off
+FilterSummary = namedtuple(
+    "FilterSummary",
+    ["description", "input", "num_inputs", "output", "num_outputs",
+        "timeline_support", "slice_threading", "command_support"],
+)
+# fmt:on
+
 def filters(type=None):
     """get FFmpeg filters
 
     :param type: specify input or output stream type, defaults to None
     :type type: 'audio'|'video'|'dynamic', optional
-    :return: dict of filters
-    :rtype: dict(key=str, value=dict)
+    :return: dict of summary of the filters
+    :rtype: dict(key,FilterSummary)
 
-    Each key of the returned dict is a name of a filter and its value is a dict
-    with the following items:
+    Each key of the returned dict is a name of a filter and its value is a 
+    FilterSummary namedtuple with the following items:
 
     ================  ========  ===============================================
     Key               type      description
@@ -167,23 +176,21 @@ def filters(type=None):
         for match in _filterRegexp.finditer(stdout):
             intype = types[match[5][0]]
             outtype = types[match[6][0]]
-            data[match[4]] = {
-                "description": match[7],
-                "input": intype,
-                "num_inputs": len(match[5]) if intype != "dynamic" else None,
-                "output": outtype,
-                "num_outputs": len(match[6]) if outtype != "dynamic" else None,
-                "timeline_support": match[1] == "T",
-                "slice_threading": match[2] == "S",
-                "command_support": match[3] == "C",
-            }
+            data[match[4]] = FilterSummary(
+                description=match[7],
+                input=intype,
+                num_inputs=len(match[5]) if intype != "dynamic" else None,
+                output=outtype,
+                num_outputs=len(match[6]) if outtype != "dynamic" else None,
+                timeline_support=match[1] == "T",
+                slice_threading=match[2] == "S",
+                command_support=match[3] == "C",
+            )
 
         _cache["filters"] = data
 
     if type is not None:
-        data = {
-            k: v for k, v in data.items() if v["input"] == type or v["output"] == type
-        }
+        data = {k: v for k, v in data.items() if v.input == type or v.output == type}
 
     return data
 
