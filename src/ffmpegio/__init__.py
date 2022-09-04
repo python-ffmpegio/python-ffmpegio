@@ -40,6 +40,14 @@ try:
 except Exception as e:
     logging.warning(str(e))
 
+ffmpeg_info = path.versions
+ffmpeg_ver = path.FFMPEG_VER
+set_path = path.find
+get_path = path.where
+is_ready = path.found
+ffmpeg = path.ffmpeg
+ffprobe = path.ffprobe
+
 
 from . import ffmpegprocess
 
@@ -57,14 +65,6 @@ __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe
 # fmt:on
 
 __version__ = "0.7.0"
-
-ffmpeg_info = path.versions
-set_path = path.find
-get_path = path.where
-is_ready = path.found
-ffmpeg = path.ffmpeg
-ffprobe = path.ffprobe
-
 
 @contextmanager
 def open(
