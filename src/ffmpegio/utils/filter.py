@@ -2,7 +2,7 @@ import re, itertools
 from collections.abc import Sequence
 from copy import deepcopy
 
-from .. import utils
+from .. import utils, ffmpeg_ver
 from ..caps import filters as list_filters, filter_info, layouts
 
 
@@ -204,6 +204,160 @@ def get_filter_option_value(filter_spec, option_name):
         # if no unnamed options defined, return the default
         return opts[i] if num_unnamed_opts > i else opt_info.default
 
+
+def get_num_filter_inputs(filter_spec):
+    """get the number of input pads of a filter
+
+    :param filter_spec: filter specifier sequence. First item must be the filter
+                        name str or a [name, id] sequence. Last item could be a
+                        dict of named options
+    :type filter_spec: sequence
+    :return: number of input pads
+    :rtype: int
+    """
+    name = filter_spec[0]
+    if not isinstance(name, str):
+        # name@id
+        name = name[0]
+
+    nin = list_filters()[name].num_inputs
+    if nin is not None:  # fixed number
+        return nin
+
+    def _inplace():
+        return 1 if get_filter_option_value(filter_spec, "inplace") else 2
+
+    def _headphone():
+        if get_filter_option_value(filter_spec, "hrir") == "multich":
+            return 2
+        map = get_filter_option_value(filter_spec, "map")
+        return (
+            len(re.split(r"\s*\|\s*", map)) + 1
+            if isinstance(map, str)
+            else len(map) + 1
+        )
+
+    def _mergeplanes():
+        map = get_filter_option_value(filter_spec, "mapping")
+        return int(max(f'{int(map, 16 if map.startswith("0x") else 10):08x}'[::2])) + 1
+
+    option_name, inc = {
+        "afir": ("nbirs", 1),
+        "concat": ("n", 0),
+        "decimate": ("ppsrc", 1),
+        "fieldmatch": ("ppsrc", 1),
+        "headphone": (None, _headphone),
+        "interleave": ("nb_inputs", 0),
+        "limitdiff": ("reference", 1),
+        "mergeplanes": (None, _mergeplanes),
+        "premultiply": (None, _inplace),
+        "unpremultiply": (None, _inplace),
+        "signature": ("nb_inputs", 0),
+        "concat": ("n", 0),
+        # "astreamselect": ("inputs", 0),
+        # "bm3d": ("inputs", 0),
+        # "hstack": ("inputs", 0),
+        # "mix": ("inputs", 0),
+        # "streamselect": ("inputs", 0),
+        # "vstack": ("inputs", 0),
+        # "xmedian": ("inputs", 0),
+        # "xstack": ("inputs", 0),
+    }.get(name, ("inputs", 0))
+
+    try:
+        return (
+            get_filter_option_value(filter_spec, option_name) + inc
+            if isinstance(option_name, str)
+            else inc()
+        )
+    except:
+        if name in list_filters():
+            raise ValueError(
+                f"{name} filter's critical option ({option_name}) is not set properly."
+            )
+        else:
+            raise ValueError(f"FFmpeg (v{ffmpeg_ver}) does not support {name} filter.")
+
+
+def get_num_filter_outputs(filter_spec):
+    """get the number of output pads of a filter
+
+    :param filter_spec: filter specifier sequence. First item must be the filter
+                        name str or a [name, id] sequence. Last item could be a
+                        dict of named options
+    :type filter_spec: sequence
+    :return: number of output pads
+    :rtype: int
+    """
+    name = filter_spec[0]
+    if not isinstance(name, str):
+        # name@id
+        name = name[0]
+
+    nout = list_filters()[name].num_outputs
+    if nout is not None:  # arbitrary number allowed
+        return nout
+
+    def _concat():
+        return get_filter_option_value(filter_spec, "a") + get_filter_option_value(
+            filter_spec, "v"
+        )
+
+    def _list_var(opt, sep, inc):
+        v = get_filter_option_value(filter_spec, opt)
+        return (
+            len(v)
+            if sep == r"\|" and not isinstance(v, str)
+            else len(re.split(rf"\s*{sep}\s*", v))
+        ) + inc
+
+    def _channelsplit():
+        layout = get_filter_option_value(filter_spec, "channel_layout")
+        channels = get_filter_option_value(filter_spec, "channels")
+        return len(
+            re.split(
+                rf"\s*\+\s*",
+                layouts()["layouts"][layout] if channels == "all" else channels,
+            )
+        )
+
+    # fmt:off
+    option_name, inc = {
+        "afir": ("response", 1),  # +video stream
+        "aiir": ("response", 1),  # +video stream
+        "anequalizer": ("curves", 1),
+        "ebur128": ("video", 1),
+        "aphasemeter": ("video", 1),
+        "acrossover": ('split',partial( _list_var,"split", " ", 1)),  # split option (space-separated)
+        "asegment": ("timestamps", partial( _list_var,"timestamps", r"\|", 1)),
+        "segment": ("timestamps", partial( _list_var,"timestamps", r"\|", 1)),
+        "astreamselect": ("map", partial( _list_var,"map", " ", 0)),  # parse map?
+        "streamselect": ("map", partial( _list_var,"map", " ", 0)),  # parse map?
+        "extractplanes": ("planes", partial( _list_var,"planes", r"\+", 0)),  # parse planes
+        "amovie": ("streams",partial( _list_var,"streams", r"\+", 0)),
+        "movie": ("streams",partial( _list_var,"streams", r"\+", 0)),
+        "channelsplit": (('channel_layout', 'channels'),_channelsplit),  # parse channel_layout/channels
+        "concat": (('a', 'v'), _concat),  # sum a and v
+        # "aselect": (("output", "n"), 0),  # must resolve alias...
+        # "asplit": ("outputs", 0),
+        # "select": (("output", "n"), 0),
+        # "split": ("outputs", 0),
+    }.get(name, ("outputs", 0))
+    # fmt:on
+
+    try:
+        return (
+            get_filter_option_value(filter_spec, option_name) + inc
+            if isinstance(inc, int)
+            else inc()
+        )
+    except:
+        if name in list_filters():
+            raise ValueError(
+                f"{name} filter's critical option ({option_name}) is not set properly."
+            )
+        else:
+            raise ValueError(f"FFmpeg (v{ffmpeg_ver}) does not support {name} filter.")
 
 def parse_graph(expr):
     """parse filter graph expression
