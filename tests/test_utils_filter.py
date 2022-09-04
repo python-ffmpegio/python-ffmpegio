@@ -56,6 +56,14 @@ def test_compose_filter():
     )
 
 
+def test_get_filter_option_value():
+
+    assert filter_utils.get_filter_option_value(("concat", {"n": 3}), "n") == 3
+    assert filter_utils.get_filter_option_value(("concat", 3), "n") == 3
+    assert filter_utils.get_filter_option_value(("concat",), "n") == 2
+    assert filter_utils.get_filter_option_value((["concat", "one"],), "n") == 2
+    assert filter_utils.get_filter_option_value(("fade",), "t") == "in"
+
 def test_compose_graph():
     f = "yadif=0:0:0,scale=iw/2:-1"
     pprint(filter_utils.compose_graph([[("yadif", 0, 0, 0), ("scale", "iw/2", -1)]]))

@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from copy import deepcopy
 
 from .. import utils
+from ..caps import filters as list_filters, filter_info, layouts
 
 
 # various regexp objects used in the module
@@ -160,6 +161,48 @@ def compose_filter(name, *args):
 
 
 ###################################################################################################
+
+# FILTER TOOLS
+
+
+def get_filter_option_value(filter_spec, option_name):
+
+    name, *opts = filter_spec
+    if not isinstance(name, str):
+        name = name[0]  # name@id
+
+    num_unnamed_opts = len(opts)
+    named_opts = None
+    if num_unnamed_opts:
+        if isinstance(opts[-1], dict):
+            named_opts = opts[-1]
+            try:
+                # if defined in option dict, all is good
+                return named_opts[option_name]
+            except:
+                pass
+            num_unnamed_opts -= 1
+
+    # get the option info
+    i, opt_info = next(
+        (
+            (i, o)
+            for i, o in enumerate(filter_info(name).options)
+            if o.name == option_name or o.alias == option_name
+        ),
+        (None, None),
+    )
+
+    if i is None:
+        raise ValueError(f"Invalid option name ({option_name}) for {name} filter")
+
+    try:
+        # if optional
+        assert opt_info.alias is not None
+        return named_opts[opt_info.alias]
+    except:
+        # if no unnamed options defined, return the default
+        return opts[i] if num_unnamed_opts > i else opt_info.default
 
 
 def parse_graph(expr):
