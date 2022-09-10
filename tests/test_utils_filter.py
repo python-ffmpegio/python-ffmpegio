@@ -5,14 +5,30 @@ logging.basicConfig(level=logging.INFO)
 
 from ffmpegio.utils import filter as filter_utils
 from pprint import pprint
+import pytest
 
 
 def test_parse_filter():
     f = "loudnorm"
-    print(filter_utils.parse_filter(f))
+    assert filter_utils.parse_filter(f) == ("loudnorm",)
+
+    f = "loudnorm "
+    assert filter_utils.parse_filter(f) == ("loudnorm",)
+
+    with pytest.raises(ValueError):
+        f = "loudnorm,"
+        filter_utils.parse_filter(f) == ("loudnorm",)
 
     f = "loudnorm=print_format=summary:linear=true"
     print(filter_utils.parse_filter(f))
+
+    with pytest.raises(ValueError):
+        f = "loudnorm=print_format=summary:linear=true:"
+        filter_utils.parse_filter(f)
+
+    with pytest.raises(ValueError):
+        f = "loudnorm=print_format=summary:linear=true,"
+        filter_utils.parse_filter(f)
 
     f = "scale=iw/2:-1"
     print(filter_utils.parse_filter(f))

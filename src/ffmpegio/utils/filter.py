@@ -1,3 +1,4 @@
+from fractions import Fraction
 import re, itertools
 from collections.abc import Sequence
 from copy import deepcopy
@@ -7,7 +8,7 @@ from ..caps import filters as list_filters, filter_info, layouts
 
 
 # various regexp objects used in the module
-_re_name_id = re.compile(r"\s*([a-zA-Z0-9_]+)(?:\s*@\s*([a-zA-Z0-9_]+))?\s*(=)?")
+_re_name_id = re.compile(r"\s*([a-zA-Z0-9_]+)(?:\s*@\s*([a-zA-Z0-9_]+))?\s*(?:=|$)")
 _re_labels = re.compile(r"\s*\[\s*(.+?)\s*\]")
 _re_graph = re.compile(r"(?<!\\)(?:\\\\)*('|;|,|\[)|$")
 _re_esc2 = re.compile(r"([\\\'\[\];,])")
@@ -25,18 +26,25 @@ def parse_filter_args(expr):
     :return: list of argument strings; last element may be a dict of key-value pairs
     :rtype: list of str + dict
     """
+
+    # remove escaped single quotes
     arg_iter = (s for s in _re_quote.split(expr))
     all_args = [""]
 
     def conv_val(s):
+        # convert a numeric option value
         try:
             return int(s)
         except:
             try:
                 return float(s)
             except:
-                return s
+                try:
+                    return Fraction(s)
+                except:
+                    return s
 
+    # separate options
     while True:
         s = next(arg_iter, None)
         if s is None:
@@ -49,21 +57,24 @@ def parse_filter_args(expr):
             break
         all_args[-1] += s
 
+    # identify the first named option position
     ikw = next(
         (i for i, arg in enumerate(all_args) if _re_args_kw.match(arg)),
         None,
     )
 
+    # gather ordered options
     args = [conv_val(s.rstrip()) for s in (all_args if ikw is None else all_args[:ikw])]
 
     if ikw is not None:
-
+        # if named options are given, form a dict
         def get_kw(arg):
             m = _re_args_kw.match(arg)
             return m[1], conv_val(m[2].rstrip())
 
         kwargs = {k: v for k, v in (get_kw(arg) for arg in all_args[ikw:])}
         args = [*args, kwargs]
+
     return args
 
 
@@ -128,14 +139,25 @@ def parse_filter(expr):
     :rtype: tuple(str, *args, {['id':str]})
     """
 
-    i = 0
+    m = _re_name_id.match(expr, 0)
 
-    m = _re_name_id.match(expr, i)
-    name = m[1]
-    id = m[2]
-    i = m.end()
+    if not m:
+        raise ValueError(
+            f'"{expr}" does not start with a valid filter name or not terminated "=" character.'
+        )
 
-    args = parse_filter_args(expr[i:]) if m[3] else []
+    name, id = m.groups()
+    s_args = expr[m.end() :]
+
+    if s_args and re.search(r"[\[\]=;,]\s*$", s_args):
+        raise ValueError(
+            f'"{expr}" does not start with a valid filter name or not terminated "=" character.'
+        )
+
+    try:
+        args = parse_filter_args(s_args) if s_args else []
+    except:
+        raise ValueError(f'"{expr}" is not a valid filter expression.')
 
     return (((name, id) if id else name), *args)
 
