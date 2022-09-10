@@ -40,20 +40,16 @@ try:
 except Exception as e:
     logging.warning(str(e))
 
-ffmpeg_info = path.versions
-ffmpeg_ver = path.FFMPEG_VER
-set_path = path.find
-get_path = path.where
-is_ready = path.found
-ffmpeg = path.ffmpeg
-ffprobe = path.ffprobe
-
+def __getattr__(name):
+    if name == "ffmpeg_ver":
+        return path.FFMPEG_VER
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 from . import ffmpegprocess
 
 from .utils.error import FFmpegError
 from .utils.concat import FFConcat
-from .utils.filter import FilterGraph
+from .filtergraph import FilterGraph
 from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
 from . import streams as _streams
@@ -65,6 +61,14 @@ __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe
 # fmt:on
 
 __version__ = "0.7.0"
+
+ffmpeg_info = path.versions
+set_path = path.find
+get_path = path.where
+is_ready = path.found
+ffmpeg = path.ffmpeg
+ffprobe = path.ffprobe
+
 
 @contextmanager
 def open(
@@ -305,7 +309,7 @@ def open(
         ("rate", rate),
         ("shape", shape),
     ):
-    
+
         if v is not None:
             kwds[k] = v
 
