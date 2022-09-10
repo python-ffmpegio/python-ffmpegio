@@ -106,6 +106,8 @@ def parse_stream_spec(spec, file_index=False):
             if m:
                 out["file_index"] = int(m[1])
                 spec = spec[m.end() :]
+            else:
+                raise ValueError("Missing file index.")
 
         while len(spec):
             if spec.startswith("p:"):
