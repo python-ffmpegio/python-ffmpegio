@@ -858,7 +858,7 @@ def _get_filter_pad_info(str):
     elif str.startswith("        none"):
         return None
 
-    matches = re.finditer(r"       #\d+: (\S+)(?= \() \((\S+)\)\s*?\n", str)
+    matches = re.finditer(r"       #\d+: (\S+)(?= \() \((\S+)\)\s*?(?:\n|$)", str)
     if not matches:
         raise Exception("Failed to parse filter port info: %s" % str)
     return [{"name": m[1], "type": m[2]} for m in matches]
