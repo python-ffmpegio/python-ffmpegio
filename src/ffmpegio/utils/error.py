@@ -1,5 +1,10 @@
 import re
 
+
+class FFmpegioError(Exception):
+    pass
+
+
 ERROR_MESSAGES = (
     # cmdutils.c::parse_optgroup()
     r"Option %s (%s) cannot be applied to %s %s",
@@ -193,7 +198,7 @@ FINAL_ERROR_MESSAGES = (
 # endswith("aborting.")
 
 
-class FFmpegError(RuntimeError):
+class FFmpegError(FFmpegioError, RuntimeError):
     def __init__(self, logs=None, log_shown=None):
 
         if logs is not None and isinstance(logs, str):
