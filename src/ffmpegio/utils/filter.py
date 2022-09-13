@@ -448,7 +448,7 @@ def parse_graph(expr):
     n = len(expr)
 
     # get scale flags if given
-    m = re.match(r"\s*sws_flags=(.+);", expr)
+    m = re.match(r"\s*sws_flags=(.+?);", expr)
     if m:
         sws_flags = parse_filter_args(m[1])
         i = m.end()
