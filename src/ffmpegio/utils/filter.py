@@ -27,10 +27,6 @@ def parse_filter_args(expr):
     :rtype: list of str + dict
     """
 
-    # remove escaped single quotes
-    arg_iter = (s for s in _re_quote.split(expr))
-    all_args = [""]
-
     def conv_val(s):
         # convert a numeric option value
         try:
@@ -44,18 +40,30 @@ def parse_filter_args(expr):
                 except:
                     return s
 
+    # remove escaped single quotes
+    arg_iter = (s for s in _re_quote.split(expr))
+    all_args = [""]
+
     # separate options
+    in_quote = False
     while True:
         s = next(arg_iter, None)
+
+        if not in_quote and any((c in s for c in ",;[]")):
+            raise ValueError("filter specification includes reserved characters ',;[]'")
+
         if s is None:
             break
         ss = _re_args.split(s)
+
         all_args[-1] += ss[0]
         all_args.extend(_re_esc.sub(r"\1", a) for a in ss[1:])
         s = next(arg_iter, None)
         if s is None:
             break
         all_args[-1] += s
+
+        in_quote = not in_quote
 
     # identify the first named option position
     ikw = next(
@@ -148,11 +156,6 @@ def parse_filter(expr):
 
     name, id = m.groups()
     s_args = expr[m.end() :]
-
-    if s_args and re.search(r"[\[\]=;,]\s*$", s_args):
-        raise ValueError(
-            f'"{expr}" does not start with a valid filter name or not terminated "=" character.'
-        )
 
     try:
         args = parse_filter_args(s_args) if s_args else []
