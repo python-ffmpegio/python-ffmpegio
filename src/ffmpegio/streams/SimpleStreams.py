@@ -88,7 +88,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -190,7 +190,7 @@ class SimpleReaderBase:
         blocking-mode, and has no data available at the moment."""
 
         return (
-            self._proc.stdout.readinto(self._memoryviewer(array).cast("b"))
+            self._proc.stdout.readinto(self._memoryviewer(obj=array).cast("b"))
             // self.samplesize
         )
 
