@@ -424,10 +424,12 @@ def parse_graph(expr):
             padspecs = sig[output]
             if padspecs is None:
                 sig[output] = padspec
-            elif not output and sig[1] is None:
-                if isinstance(sig[output], str):
+            elif not output and sig[1] is None: # new input label with the same name as existing input label
+                if isinstance(sig[output][0], int):
+                    # second matching input label
                     sig[output] = [padspecs, padspec]
                 else:
+                    # more matching labels
                     padspecs.append(padspec)
             else:
                 raise ValueError(
