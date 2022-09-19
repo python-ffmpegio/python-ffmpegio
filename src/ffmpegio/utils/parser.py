@@ -147,14 +147,25 @@ def compose(args, command="", shell_command=False):
     def finalize_output(key, val):
         if key in ("vf", "af") or re.match(r"filter(?:\:|$)?", key):
             val = filter_utils.compose(val)
-        elif re.match(r"s(?:\:|$)", key) and not isinstance(val, str):
-            val = "x".join((str(v) for v in val))
-        elif key == "map" and not isinstance(val, str):
-            # if an entry is a seq, join with ':'
-            val = [
-                v if isinstance(v, str) else ":".join((str(vi) for vi in v))
-                for v in val
-            ]
+        elif not isinstance(val, str):
+            if re.match(r"s(?:\:|$)", key):
+                val = "x".join((str(v) for v in val))
+            elif key == "map":
+                # if an entry is a seq, join with ':'
+                val = [
+                    v if isinstance(v, str) else ":".join((str(vi) for vi in v))
+                    for v in val
+                ]
+            elif re.match(r"metadata(?:\:|$)?", key) and isinstance(val, dict):
+
+                def format(v):
+                    v = str(v)
+                    if re.search(r"\s", v):
+                        v = f'"{v}"'
+                    return v
+
+                val = [f"{k}={format(v)}" for k, v in val.items()]
+
         return key, val
 
     def finalize_input(key, val):

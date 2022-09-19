@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Added
+- `utils.parser.compose()` - support dict value for `-metadata` output option
+
 ### Fixed
 
 - `SimpleStreams.SimpleReaderBase.readinto()` - fixed plugin invocation bug
