@@ -186,7 +186,7 @@ def filters(type=None):
                 input=intype,
                 num_inputs=len(match[5]) if intype != "dynamic" else None,
                 output=outtype,
-                num_outputs=len(match[6]) if outtype != "dynamic" else None,
+                if outtype == "none"
                 timeline_support=match[1] == "T",
                 slice_threading=match[2] == "S",
                 command_support=match[3] == "C",
