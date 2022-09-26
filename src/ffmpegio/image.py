@@ -206,13 +206,16 @@ def write(url, data, overwrite=None, show_log=None, extra_inputs=None, **options
         raise FFmpegError(out.stderr, show_log)
 
 
-def filter(expr, input, **options):
+def filter(expr, input, show_log=None, **options):
     """Filter image pixels.
 
     :param expr: SISO filter graph.
     :type expr: str
     :param input: input image data, accessed by `video_info` and `video_bytes` plugin hooks
     :type input: object
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+    :type show_log: bool, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :return: output sampling rate and data, created by `bytes_to_video` plugin hook
@@ -235,5 +238,5 @@ def filter(expr, input, **options):
     return _run_read(
         ffmpeg_args,
         input=plugins.get_hook().video_bytes(obj=input),
-        show_log=True,
+        show_log=show_log,
     )
