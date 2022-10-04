@@ -27,6 +27,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - `analyze` module, updated to use `filtergraph.Graph`
 - `analyze.MetadataLogger`: changed `filter_spec` property to `filter` to return a `Filter` object
 - moved `utils.error` module to `errors`
+- `path.where()` to raise `FFmpegNotFound`
 - 
 ### Fixed
 

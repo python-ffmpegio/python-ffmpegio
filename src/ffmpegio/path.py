@@ -4,13 +4,25 @@ from subprocess import run, DEVNULL, PIPE, STDOUT
 import re, shlex, logging
 from packaging.version import Version
 
+from ffmpegio.errors import FFmpegioError
+
 from . import plugins
 
 # fmt:off
 __all__ = [
-    "found", "where", "find", "ffmpeg", "ffprobe", "versions", "DEVNULL", "PIPE", "STDOUT", "devnull"
+    "found", "where", "find", "ffmpeg", "ffprobe", "versions", "DEVNULL", 
+    "PIPE", "STDOUT", "devnull", "FFmpegNotFound"
 ]
 # fmt:on
+
+
+class FFmpegNotFound(FFmpegioError):
+    def __init__(self):
+        super().__init__(
+            "FFmpeg executables not found. Run `ffmpegio.set_path()` first or "
+            "place FFmpeg executables in auto-detectable path locations."
+        )
+
 
 # add FFmpeg directory to the system path as given in system environment variable FFMPEG_DIR
 FFMPEG_BIN = None
@@ -48,9 +60,7 @@ def where(probe=False):
     path = FFPROBE_BIN if probe else FFMPEG_BIN
 
     if not path:
-        raise Exception(
-            "FFmpeg executables not found. Run `ffmpegio.set_path()` first or place FFmpeg executables in auto-detectable path locations."
-        )
+        raise FFmpegNotFound()
 
     return path
 
