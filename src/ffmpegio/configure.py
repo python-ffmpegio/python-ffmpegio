@@ -671,7 +671,7 @@ def config_input_fg(expr, args, kwargs):
     opts = set()  #
     for o in info.options:
         if not dopt and o.name == "duration":
-            dopt = (o.name, o.default)
+            dopt = (o.name, o.aliases, o.default)
         opts.add(o.name)
         opts.update(o.aliases)
 
@@ -682,7 +682,17 @@ def config_input_fg(expr, args, kwargs):
         (fargs if k in opts else oargs)[k] = v
 
     if dopt is not None:
-        dopt = utils.parse_time_duration(fargs.get(*dopt))
+        name, aliases, default = dopt
+        val = fargs.get(name, None)
+        if val is None:
+            for a in aliases:
+                val = fargs.get(a, None)
+                if val is not None:
+                    break
+        if val is None:
+            val = default
+
+        dopt = utils.parse_time_duration(val)
         if dopt <= 0:
             dopt = None  # infinite
 
