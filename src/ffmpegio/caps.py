@@ -6,7 +6,6 @@ from collections import namedtuple
 from fractions import Fraction
 from functools import partial
 
-
 from .path import where
 from .utils.error import FFmpegError
 
@@ -854,7 +853,7 @@ FilterInfo = namedtuple(
 )
 FilterOption = namedtuple(
     "FilterOption",
-    ["name", "alias", "type", "help", "ranges", "constants", "default", 
+    ["name", "aliases", "type", "help", "ranges", "constants", "default", 
      "video", "audio", "runtime"],
 )
 # fmt:on
@@ -957,7 +956,7 @@ def _get_filter_option(str, name):
 
     return FilterOption(
         name,
-        None,
+        [],
         type,
         help,
         ranges,
@@ -974,20 +973,28 @@ def _get_filter_options(str):
     opts = [_get_filter_option(line, name) for line in blocks if line]
 
     # combines aliases
-    def chk_is_alias(i, o):
+    def is_alias(i, o):
         other = opts[i]
         return other.type == o.type and other.help == o.help
 
-    has_alias = [chk_is_alias(i, o) for i, o in enumerate(opts[1:])]
-    has_alias.append(False)
-    for i, has in enumerate(has_alias):
-        if has:
-            v = list(opts[i])
-            v[1] = opts[i + 1].name
-            opts[i] = FilterOption(*v)
+    n = len(opts)
+    i = 0
+    alias_of = [-1] * n
+    for j, o in enumerate(opts[1:]):
+        if is_alias(i, o):
+            alias_of[j + 1] = i
+        else:
+            i = j + 1
 
-    has_alias.insert(0, False)
-    opts = [o for o, isa in zip(opts, has_alias[:-1]) if not isa]
+    im = [*[i for i, j in enumerate(alias_of) if j < 0], n]
+
+    for i0, i1 in zip(im[:-1], im[1:]):
+        if i1 - i0 > 1:
+            v = list(opts[i0])
+            v[1] = [o.name for o in opts[i0 + 1 : i1]]
+            opts[i0] = FilterOption(*v)
+
+    opts = [o for o, isa in zip(opts, alias_of) if isa<0]
 
     return name, opts
 
