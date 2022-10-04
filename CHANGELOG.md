@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - `ffmpeg_ver` for easy access to linked FFmpeg version
 - `FFmpegioError` exception class
+- `utils.is_stream_spec`: new option `file_index=None` to search with or without filter index
 
 ### Changed
 

@@ -153,15 +153,21 @@ def is_stream_spec(spec, file_index=False):
 
     :param spec: stream specifier string to be tested
     :type spec: str
-    :param file_index: True if spec starts with a file index, defaults to False
-    :type file_index: bool, optional
+    :param file_index: True if spec starts with a file index, None to allow with or without file_index defaults to False
+    :type file_index: bool|None, optional
     :return: True if valid stream specifier
     :rtype: bool
     """
     try:
-        parse_stream_spec(spec, file_index)
+        parse_stream_spec(spec, True if file_index is None else file_index)
         return True
     except:
+        if file_index is None:
+            try:
+                parse_stream_spec(spec, False)
+                return True
+            except:
+                pass
         return False
 
 
