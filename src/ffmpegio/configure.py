@@ -292,13 +292,13 @@ def _build_video_basic_filter(
     )
 
     if square_pixels == "upscale":
-        vfilters += "scale='max(iw,ih*dar):max(iw/dar,ih):eval=init',setsar=1/1"
+        vfilters += "scale='max(iw,ih*dar)':'max(iw/dar,ih)':eval=init,setsar=1/1"
     elif square_pixels == "downscale":
-        vfilters += "scale='min(iw,ih*dar):min(iw/dar,ih):eval=init',setsar=1/1"
+        vfilters += "scale='min(iw,ih*dar)':'min(iw/dar,ih)':eval=init,setsar=1/1"
     elif square_pixels == "upscale_even":
-        vfilters += "scale='trunc(max(iw,ih*dar)/2)*2:trunc(max(iw/dar,ih)/2)*2:eval=init',setsar=1/1"
+        vfilters += "scale='trunc(max(iw,ih*dar)/2)*2':'trunc(max(iw/dar,ih)/2)*2':eval=init,setsar=1/1"
     elif square_pixels == "downscale_even":
-        vfilters += "scale='trunc(min(iw,ih*dar)/2)*2:trunc(min(iw/dar,ih)/2)*2:eval=init',setsar=1/1"
+        vfilters += "scale='trunc(min(iw,ih*dar)/2)*2':'trunc(min(iw/dar,ih)/2)*2':eval=init,setsar=1/1"
     elif square_pixels is not None:
         raise ValueError(f"unknown `square_pixels` option value given: {square_pixels}")
 
