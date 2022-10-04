@@ -1,7 +1,7 @@
 import re, os, shlex
 from collections import abc
 
-from . import filter as filter_utils
+from ..filtergraph import Graph, Chain, Filter
 from .. import devices
 
 __all__ = ["parse", "compose", "FLAG"]
@@ -140,14 +140,10 @@ def compose(args, command="", shell_command=False):
     """
 
     def finalize_global(key, val):
-        if key in ("filter_complex", "lavfi"):
-            val = filter_utils.compose(val)
         return key, val
 
     def finalize_output(key, val):
-        if key in ("vf", "af") or re.match(r"filter(?:\:|$)?", key):
-            val = filter_utils.compose(val)
-        elif re.match(r"s(?:\:|$)", key) and not isinstance(val, str):
+        if re.match(r"s(?:\:|$)", key) and not isinstance(val, str):
             val = "x".join((str(v) for v in val))
         elif key == "map" and not isinstance(val, str):
             # if an entry is a seq, join with ':'
@@ -168,7 +164,9 @@ def compose(args, command="", shell_command=False):
             key, val = finalize(*itm)
 
             karg = f"-{key}"
-            if not isinstance(val, str) and isinstance(val, abc.Sequence):
+            if not isinstance(val, (str, Graph, Chain, Filter)) and isinstance(
+                val, abc.Sequence
+            ):
                 for v in val:
                     args.extend([karg, str(v)])
             else:
@@ -189,11 +187,7 @@ def compose(args, command="", shell_command=False):
             args.extend(
                 [
                     "-i",
-                    str(url)
-                    if opts is not None and opts.get("f", None) != "lavfi"
-                    else str(filter_utils.compose(url))
-                    if url is not None
-                    else os.devnull,
+                    str(url) if url is not None else os.devnull,
                 ]
             )
         return args

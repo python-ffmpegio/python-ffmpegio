@@ -1,8 +1,9 @@
 """Audio Read/Write Module
 """
 
+import warnings
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, analyze
-from .utils import filter as filter_utils, log as log_utils
+from .utils import log as log_utils
 import logging
 
 __all__ = ["create", "read", "write", "filter", "detect"]
@@ -69,81 +70,69 @@ def _run_read(
     )
 
 
-def create(
-    expr,
-    *args,
-    progress=None,
-    show_log=None,
-    t_in=None,
-    ar=None,
-    ac=None,
-    sample_fmt=None,
-    af=None,
-    **kwargs,
-):
+def create(expr, *args, progress=None, show_log=None, **options):
     """Create audio data using an audio source filter
 
     :param expr: name of the source filter or full filter expression
     :type expr: str
-    :param \\*args: filter arguments
-    :type \\*args: tuple, optional
+    :param \\*args: sequential filter option arguments. Only valid for 
+                    a single-filter expr, and they will overwrite the 
+                    options set by expr.
+    :type \\*args: seq, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param t_in: duration of the video in seconds, defaults to None
-    :type t_in: float, optional
-    :param ar: sampling rate in samples/second, defaults to None
-    :type ar: int, optional
-    :param ac: number of channels, defaults to None
-    :type ac: int, optional
-    :param sample_fmt: sample format, defaults to None
-    :type sample_fmt: str, optional
-    :param af: additional filter, defaults to None
-    :type af: FilterGraph or str, optional
-    :param \\**options: FFmpeg options (see :doc:`options`)
+    :param \\**options: Named filter options or FFmpeg options. Items are
+                        only considered as the filter options if expr is a
+                        single-filter graph, and take the precedents over
+                        general FFmpeg options. Append '_in' for input
+                        option names (see :doc:`options`), and '_out' for
+                        output option names if they conflict with the filter
+                        options.
     :type \\**options: dict, optional
-    :return: sampling rate and audio data
+    :return: sampling rate and audio data (a plugin may change this behavior
+             with the `bytes_to_audio` hook.)
     :rtype: tuple[int, object]
 
-    .. note:: Either `duration` or `nb_samples` filter options must be set.
+    .. seealso::
+        https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources for available
+        audio source filters
 
-    See https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources for available video source filters
+    .. warning::
+        Nearly all the source filters by default continue outputting
+        indefinitely. Set its  `duration` option or FFmpeg's `t` (duration)
+        or `to` (end time) input/output options to make sure the function
+        returns properly.
 
-    ouptut data object is determined by the selected `bytes_to_audio` hook
+    .. note::
+        output data object is determined by the selected  hook
 
     """
 
-    url, (ar_in, ac_in) = filter_utils.compose_source("audio", expr, *args, **kwargs)
+    input_options = utils.pop_extra_options(options, "_in")
+    output_options = utils.pop_extra_options(options, "_out")
 
-    if sample_fmt is None:
-        sample_fmt = "dbl"
+    url, t_, options = configure.config_input_fg(expr, args, options)
 
-    # need_t = ("mandelbrot", "life")
-    # if t_in is None and any((expr.startswith(f) for f in need_t)):
-    #     raise ValueError(f"Some sources {need_t} must have t_in specified")
+    if t_ is not None or not any(a in options for a in ("t", "to", "t_in", "to_in", "frames:a", "aframes")):
+        warnings.warn(
+            "neither input nor output duration specified. this function call may hang."
+        )
+
+    options = {**options, **output_options}
 
     ffmpeg_args = configure.empty()
-    inopts = configure.add_url(ffmpeg_args, "input", url, {"f": "lavfi"})[1][1]
-    outopts = configure.add_url(ffmpeg_args, "output", "-", {})[1][1]
-
-    if t_in:
-        inopts["t"] = t_in
-
-    for k, v in zip(
-        ("ar", "ac", "sample_fmt", "filter:a"),
-        (ar or ar_in, ac or ac_in, sample_fmt, af),
-    ):
-        if v is not None:
-            outopts[k] = v
+    inopts = configure.add_url(
+        ffmpeg_args, "input", url, {**input_options, "f": "lavfi"}
+    )[1][1]
+    configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
 
     return _run_read(
         ffmpeg_args,
-        sample_fmt_in=sample_fmt,
-        ac_in=ac_in,
-        ar_in=ar_in,
+        sample_fmt_in=inopts.get("sample_fmt", "dbl"),
         show_log=show_log,
         progress=progress,
     )
@@ -371,7 +360,7 @@ def detect(
              - 'interval'
              - (numeric, numeric)
              - (only if mono=False) Silent interval
-           * - 
+           * -
              - 'chX'
              - (numeric, numeric)
              - (only if mono=True) Silent interval of channel X (multiple)

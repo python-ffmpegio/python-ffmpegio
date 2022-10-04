@@ -1000,7 +1000,7 @@ class SimpleVideoFilter(SimpleFilterBase):
         self._loggertimeout = False
 
     def _pre_open(self, ffmpeg_args):
-        # append basic video filter chain (only enabled with _force_basic_vf ffmpeg output option)
+        # append basic video filter chain
         configure.build_basic_vf(
             ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
         )

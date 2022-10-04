@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ### Added
 
+- `filtergraph` module with `Filter`, `Chain`, and `Graph` classes as FFmpeg filtergraph construction and manipulation tools
 - `ffmpeg_ver` for easy access to linked FFmpeg version
 - `FFmpegioError` exception class
 - `utils.is_stream_spec`: new option `file_index=None` to search with or without filter index
@@ -20,6 +21,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - `caps.filter_info()` outputs `FilterInfo` named tuple
 - `caps.filter_info()` outputs' `inputs` and `outputs` fields returns None if dynamic and [] if none
 - `caps.filters()` outputs' `num_inputs` and `num_outputs` fields returns None if dynamic and 0 if none
+- `FilterGraph` class is now redirected to the new `filtergraph.Graph`
+- improved `audio.create()`, `image.create()`, and `video.create()`
+- `configure.build_basic_vf()` to use `filtergraph.Graph` and can be appended to user specified `vf`
 
 ### Fixed
 
