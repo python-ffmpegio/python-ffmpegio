@@ -75,8 +75,8 @@ def create(expr, *args, progress=None, show_log=None, **options):
 
     :param expr: name of the source filter or full filter expression
     :type expr: str
-    :param \\*args: sequential filter option arguments. Only valid for 
-                    a single-filter expr, and they will overwrite the 
+    :param \\*args: sequential filter option arguments. Only valid for
+                    a single-filter expr, and they will overwrite the
                     options set by expr.
     :type \\*args: seq, optional
     :param progress: progress callback function, defaults to None
@@ -114,15 +114,17 @@ def create(expr, *args, progress=None, show_log=None, **options):
 
     input_options = utils.pop_extra_options(options, "_in")
     output_options = utils.pop_extra_options(options, "_out")
-
     url, t_, options = configure.config_input_fg(expr, args, options)
+    options = {**options, **output_options}
 
-    if t_ is not None or not any(a in options for a in ("t", "to", "t_in", "to_in", "frames:a", "aframes")):
+    if (
+        t_ is None
+        and not any(a in input_options for a in ("t", "to"))
+        and not any(a in options for a in ("t", "to", "frames:a", "aframes"))
+    ):
         warnings.warn(
             "neither input nor output duration specified. this function call may hang."
         )
-
-    options = {**options, **output_options}
 
     ffmpeg_args = configure.empty()
     inopts = configure.add_url(

@@ -90,17 +90,17 @@ def create(expr, *args, progress=None, show_log=None, **options):
 
     input_options = utils.pop_extra_options(options, "_in")
     output_options = utils.pop_extra_options(options, "_out")
-
     url, t_, options = configure.config_input_fg(expr, args, options)
+    options = {**options, **output_options}
 
-    if t_ is not None or not any(
-        a in options for a in ("t", "to", "t_in", "to_in", "frames:v", "vframes")
+    if (
+        t_ is None
+        and not any(a in input_options for a in ("t", "to"))
+        and not any(a in options for a in ("t", "to", "frames:v", "vframes"))
     ):
         warnings.warn(
             "neither input nor output duration specified. this function call may hang."
         )
-
-    options = {**options, **output_options}
 
     ffmpeg_args = configure.empty()
     configure.add_url(ffmpeg_args, "input", url, {**input_options, "f": "lavfi"})
