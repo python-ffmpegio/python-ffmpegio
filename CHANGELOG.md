@@ -6,14 +6,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Added
+
+- `ffmpeg_ver` for easy access to linked FFmpeg version
+- `FFmpegioError` exception class
+
 ### Changed
 
 - consolidate representation of input/output/internal links for filtergraphs, affecting `util.filter.parse_graph()` & `util.filter.compose_graph()`
 - corrected function names `util.*spec_stream` to `util.*stream_spec`
+- `caps.filters()` outputs `FilterSummary` named tuple
+- `caps.filter_info()` outputs `FilterInfo` named tuple
 
 ### Fixed
 
 - `caps.filters()` - fixed reporting incorrect # of pads for source and sink filters
+- `utils.parse_stream_spec()` - fixed file_index handling
+- `utils.filter` - fixed filter and filtergraph parsing bugs
 
 ## [0.7.0] - 2022-08-24
 
