@@ -184,9 +184,17 @@ def filters(type=None):
             data[match[4]] = FilterSummary(
                 description=match[7],
                 input=intype,
-                num_inputs=len(match[5]) if intype != "dynamic" else None,
+                num_inputs=0
+                if intype == "none"
+                else len(match[5])
+                if intype != "dynamic"
+                else None,
                 output=outtype,
+                num_outputs=0
                 if outtype == "none"
+                else len(match[6])
+                if outtype != "dynamic"
+                else None,
                 timeline_support=match[1] == "T",
                 slice_threading=match[2] == "S",
                 command_support=match[3] == "C",
@@ -854,9 +862,9 @@ FilterOption = namedtuple(
 
 def _get_filter_pad_info(str):
     if str.startswith("        dynamic"):
-        return "dynamic"
-    elif str.startswith("        none"):
         return None
+    elif str.startswith("        none"):
+        return []
 
     matches = re.finditer(r"       #\d+: (\S+)(?= \() \((\S+)\)\s*?(?:\n|$)", str)
     if not matches:

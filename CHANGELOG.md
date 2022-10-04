@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - corrected function names `util.*spec_stream` to `util.*stream_spec`
 - `caps.filters()` outputs `FilterSummary` named tuple
 - `caps.filter_info()` outputs `FilterInfo` named tuple
+- `caps.filter_info()` outputs' `inputs` and `outputs` fields returns None if dynamic and [] if none
+- `caps.filters()` outputs' `num_inputs` and `num_outputs` fields returns None if dynamic and 0 if none
 
 ### Fixed
 
