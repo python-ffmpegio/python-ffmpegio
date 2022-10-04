@@ -84,3 +84,24 @@ def test_get_option():
     assert configure.get_option(args, "output", "c", stream_type="v") == 1
     assert configure.get_option(args, "output", "c", stream_id=0, stream_type="v") == 2
     assert configure.get_option(args, "output", "ac", file_id=1) == 2
+
+
+def test_video_basic_filter():
+    print(
+        configure._build_video_basic_filter(
+            fill_color=None,
+            remove_alpha=None,
+            crop=None,
+            flip=None,
+            transpose=None,
+        )
+    )
+    print(
+        configure._build_video_basic_filter(
+            fill_color="red",
+            remove_alpha=True,
+            # crop=(100, 100, 5, 10),
+            # flip="horizontal",
+            # transpose="clock",
+        )
+    )

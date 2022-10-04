@@ -166,27 +166,5 @@ def test_compose_graph():
         )
     )
 
-
-def test_video_basic_filter():
-    print(
-        filter_utils.video_basic_filter(
-            fill_color=None,
-            remove_alpha=None,
-            crop=None,
-            flip=None,
-            transpose=None,
-        )
-    )
-    print(
-        filter_utils.video_basic_filter(
-            fill_color="red",
-            remove_alpha=True,
-            # crop=(100, 100, 5, 10),
-            # flip="horizontal",
-            # transpose="clock",
-        )
-    )
-
-
 if __name__ == "__main__":
     from pprint import pprint
