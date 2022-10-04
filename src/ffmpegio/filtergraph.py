@@ -2326,11 +2326,15 @@ _filters = {}
 def __getattr__(name):
     func = _filters.get(name, None)
     if func is None:
+        try:
+            notfound = name not in list_filters()
+        except path.FFmpegNotFound:
+            notfound = True
 
-        if name not in list_filters():
+        if notfound:
             raise AttributeError(
-                f"{name} is not ffmpegio.filtergraph module's instance attribute or a valid FFmpeg filter name."
-            )
+                    f"{name} is not ffmpegio.filtergraph module's instance attribute or a valid FFmpeg filter name."
+                )
 
         func = partial(Filter, name)
         func.__name__ = name
