@@ -24,6 +24,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 - `caps.filters()` - fixed reporting incorrect # of pads for source and sink filters
 - `utils.parse_stream_spec()` - fixed file_index handling
+- `utils.parse_stream_spec()` - fixed pid stream (`#`) regex
 - `utils.filter` - fixed filter and filtergraph parsing bugs
 
 ## [0.7.0] - 2022-08-24

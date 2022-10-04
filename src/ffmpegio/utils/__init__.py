@@ -86,9 +86,9 @@ def unescape(txt):
 def parse_stream_spec(spec, file_index=False):
     """Parse stream specifier string
 
-    :param spec: stream specifier string. If file_index=False and given an int 
+    :param spec: stream specifier string. If file_index=False and given an int
                  value, it specifies the stream index. If file_index=True and given
-                 a 2-element sequence, it specifies the file index in spec[0] and 
+                 a 2-element sequence, it specifies the file index in spec[0] and
                  stream index in spec[1].
     :type spec: str or int or [int,int]
     :param file_index: True to expect spec to start with a file index, defaults to False
@@ -125,16 +125,21 @@ def parse_stream_spec(spec, file_index=False):
         try:
             out["index"] = int(spec)
         except:
-            m = re.match(r"#(\d+)$|i\:(\d+)$|m\:(.+?)(?:\:(.+?))?$|(u)$", spec)
+            m = re.match(
+                r"#(\d+)$|i\:(\d+)$|m\:(.+?)(?:\:(.+?))?$|(u)$|#(0x[\da-f]+)$|i\:(0x[\da-f]+)$",
+                spec,
+            )
             if not m:
                 raise ValueError("Invalid stream specifier.")
 
-            if m[1] is not None or m[2] is not None:
-                out["pid"] = int(m[1] if m[2] is None else m[2])
+            if m[1] or m[2]:
+                out["pid"] = int(m[1] or m[2])
             elif m[3] is not None:
                 out["tag"] = m[3] if m[4] is None else (m[3], m[4])
             elif m[5]:
                 out["usable"] = True
+            elif m[6] or m[7]:
+                out["pid"] = m[6] or m[7]
         return out
     else:
         if file_index:
