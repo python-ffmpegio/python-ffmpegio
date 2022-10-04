@@ -4,9 +4,6 @@ from . import is_stream_spec
 from ..errors import FFmpegioError
 
 
-FilterPadId = tuple[int, int, int]
-
-
 class FilterGraphLinks(UserDict):
     class Error(FFmpegioError):
         pass
@@ -840,7 +837,10 @@ class FilterGraphLinks(UserDict):
         chains = list(enumerate(sorted(set(chains))))[::-1]
 
         def adj(pid):
-            return pid[0] - next((i + 1 for i, v in chains if v < pid[0]), 0), *pid[1:]
+            return (
+                pid[0] - next((i + 1 for i, v in chains if v < pid[0]), 0),
+                *pid[1:],
+            )
 
         select = lambda pid: pid[0] >= chains[0][1]  # select all chains at or above pos
         self._modify_pad_ids(select, adj)
