@@ -2,7 +2,7 @@ import re, logging
 
 from . import utils, plugins
 from .filtergraph import Graph, Filter, Chain
-from .utils.error import FFmpegioError
+from .errors import FFmpegioError
 
 
 def array_to_video_input(rate, data, stream_id=None, **opts):

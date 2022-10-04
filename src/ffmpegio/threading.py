@@ -12,7 +12,7 @@ from math import ceil
 
 from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream
-from .utils.error import FFmpegError
+from .errors import FFmpegError
 
 # fmt:off
 __all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',

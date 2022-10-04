@@ -7,7 +7,7 @@ from fractions import Fraction
 from functools import partial
 
 from .path import where
-from .utils.error import FFmpegError
+from .errors import FFmpegError
 
 # fmt:off
 __all__ = ["options", "filters", "codecs", "coders", "formats", "devices",

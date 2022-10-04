@@ -47,7 +47,7 @@ def __getattr__(name):
 
 from . import ffmpegprocess
 
-from .utils.error import FFmpegError
+from .errors import FFmpegError
 from .utils.concat import FFConcat
 from .filtergraph import Graph as FilterGraph
 from . import devices, ffmpegprocess, caps, probe, audio, image, video, media

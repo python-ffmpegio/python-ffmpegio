@@ -26,7 +26,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - `configure.build_basic_vf()` to use `filtergraph.Graph` and can be appended to user specified `vf`
 - `analyze` module, updated to use `filtergraph.Graph`
 - `analyze.MetadataLogger`: changed `filter_spec` property to `filter` to return a `Filter` object
-
+- moved `utils.error` module to `errors`
+- 
 ### Fixed
 
 - `caps.filters()` - fixed reporting incorrect # of pads for source and sink filters

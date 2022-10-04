@@ -1,7 +1,7 @@
 import re
 from collections import UserDict, abc
 from . import is_stream_spec
-from .error import FFmpegioError
+from ..errors import FFmpegioError
 
 
 FilterPadId = tuple[int, int, int]

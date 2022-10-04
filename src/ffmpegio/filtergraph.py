@@ -105,7 +105,7 @@ from . import path
 from .caps import filters as list_filters, filter_info, layouts
 from .utils import filter as filter_utils, is_stream_spec
 from .utils.fglinks import FilterGraphLinks
-from .utils.error import FFmpegioError
+from .errors import FFmpegioError
 
 
 class FilterOperatorTypeError(TypeError, FFmpegioError):

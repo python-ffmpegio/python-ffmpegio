@@ -8,7 +8,7 @@ import logging
 from . import configure
 from .filtergraph import Graph, Filter, Chain, as_filtergraph
 from .utils.filter import compose_filter
-from .utils.error import FFmpegError
+from .errors import FFmpegError
 from .path import devnull
 from . import ffmpegprocess as fp
 import re
