@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ## [Unreleased]
 
 ### Added
+
 - `utils.parser.compose()` - support dict value for `-metadata` output option
 
 ### Fixed
@@ -34,7 +35,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - `analyze.MetadataLogger`: changed `filter_spec` property to `filter` to return a `Filter` object
 - moved `utils.error` module to `errors`
 - `path.where()` to raise `FFmpegNotFound`
-- 
+
 ### Fixed
 
 - `caps.filters()` - fixed reporting incorrect # of pads for source and sink filters
@@ -91,6 +92,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Changed
 
 - `probe` outputs Fraction for compatible entries
+### Changed
+
+- `transcode()` allowed to take multiple inputs or outputs
 
 ## [0.5.0] - 2022-04-03
 

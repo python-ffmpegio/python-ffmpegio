@@ -3,6 +3,7 @@ import tempfile, re
 from os import path
 import pytest
 
+
 def test_transcode():
     url = "tests/assets/testmulti-1m.mp4"
     outext = ".flac"
@@ -19,6 +20,16 @@ def test_transcode():
         with pytest.raises(FFmpegError):
             transcode(url, out_url, overwrite=False)
         transcode(url, out_url, overwrite=True, show_log=True, progress=progress)
+
+        # test mimo
+        url1 = "tests/assets/testvideo-1m.mp4"
+        out_url1 = path.join(tmpdirname, "vid1.mp4")
+        out_url2 = path.join(tmpdirname, "vid2.mp4")
+        transcode(
+            [url, url1],
+            [(out_url1, {"map": "1:v:0"}), (out_url2, {"map": "0:v:0"})],
+            vframes=10,
+        )
 
 
 def test_transcode_from_filter():
