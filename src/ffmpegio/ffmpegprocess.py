@@ -19,6 +19,7 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
+from collections import abc
 import logging
 from os import path
 from threading import Thread
@@ -235,9 +236,9 @@ class Popen(sp.Popen):
     :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
     :type \\**other_popen_args: dict, optional
 
-    If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen` 
+    If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen`
     automatically sets `stdin=PIPE` or `stdout=PIPE`. Alternately, a file-stream object could be
-    specified in the argument for each of :code:`stdin`, :code:`stdout`, and :code:`stderr` 
+    specified in the argument for each of :code:`stdin`, :code:`stdout`, and :code:`stderr`
     to redirect pipes to existing file streams. If files aren't already open in Python,
     specify their urls in :ref:`ffmpeg_args<adv_args>` instead of using the pipes.
 
@@ -458,11 +459,11 @@ def run_two_pass(
     :param pass1_omits: per-file list of output arguments to ignore in pass 1. If not applicable to every
                         output file, use a nested dict with int keys to specify which output,
                         defaults to None (remove 'c:a' or 'acodec').
-    :type pass1_omits: seq(seq(str)) or dict(int:seq(str)) optional
+    :type pass1_omits: seq(str) or seq(seq(str)) or dict(int:seq(str)) optional
     :param pass1_extras: per-file list of additional output arguments to include in pass 1. If it does
                          not apply to every output files, use a nested dict with int keys to specify
                          which output, defaults to None (add 'an' if `pass1_omits` also None)
-    :type pass1_extras: seq(dict(str)) or dict(int:dict(str)), optional
+    :type pass1_extras: dict(str) or seq(dict(str)) or dict(int:dict(str)), optional
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
     :param progress: progress callback function, defaults to None. This function
@@ -506,7 +507,22 @@ def run_two_pass(
     # ref: https://trac.ffmpeg.org/wiki/Encode/H.264#twopass
     pass1_args = deepcopy(ffmpeg_args)
 
-    def mod_pass1_outopts(i, opts):
+    if pass1_extras is None:
+        pass1_extras = {} if pass1_omits is None else {"an": None}
+    if pass1_omits is None:
+        pass1_omits = ["c:a", "acodec"]
+
+    nouts = len(pass1_args["outputs"])
+    if (
+        isinstance(pass1_omits, abc.Sequence)
+        and len(pass1_omits)
+        and type(pass1_omits[0]) == str
+    ):
+        pass1_omits = [pass1_omits] * nouts
+    if isinstance(pass1_extras, abc.Mapping):
+        pass1_extras = [pass1_extras] * nouts
+
+    def mod_pass1_outopts(opts, omits, extras):
         opts = opts or {}
         opts["f"] = "null"
         opts["pass"] = 1
@@ -517,29 +533,20 @@ def run_two_pass(
             except:
                 pass
 
-        if pass1_omits is None:
-            omit_opt("c:a")
-            omit_opt("acodec")
-        else:
-            try:
-                for k in pass1_omits[i]:
-                    omit_opt(k)
-            except:
-                pass
+        for k in omits:
+            omit_opt(k)
 
-        if pass1_extras is not None:
-            try:
-                for k, v in pass1_extras.items():
-                    opts[k] = v
-            except:
-                pass
-        elif pass1_omits is None:
-            opts["an"] = None
+        try:
+            for k, v in extras.items():
+                opts[k] = v
+        except:
+            pass
 
         return None, opts
 
     pass1_args["outputs"] = [
-        mod_pass1_outopts(i, o[1]) for i, o in enumerate(pass1_args["outputs"])
+        mod_pass1_outopts(o[1], omits, extras)
+        for o, omits, extras in zip(pass1_args["outputs"], pass1_omits, pass1_extras)
     ]
     pass1_opts = pass1_args["global_options"] = pass1_args["global_options"] or {}
     pass1_opts["y"] = None
