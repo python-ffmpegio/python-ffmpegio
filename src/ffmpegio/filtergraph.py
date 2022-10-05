@@ -96,10 +96,12 @@ Both input and output filter pads can be specified in a number of ways:
 
 """
 from collections import UserList, abc
+from contextlib import contextmanager
 from functools import partial, reduce
 from copy import deepcopy
 import re
 from subprocess import PIPE
+from tempfile import NamedTemporaryFile
 
 from . import path
 from .caps import filters as list_filters, filter_info, layouts
@@ -2318,6 +2320,46 @@ class Graph(UserList):
         right_on = self._resolve_index(True, right_on)
         return left.connect(self, [left_on], [right_on], chain_if_possible=True)
 
+    @contextmanager
+    def as_script_file(self):
+        """return file-like object with filtergraph description
+
+        :yield: temporary file with written filtergraph description
+        :rtype: file-like object
+
+        The created file-like object can be used just like a normal file within
+        a `with` statement. Use this function to pipe in a long filtergraph
+        description with `filter_complex_script` or `filter_script` FFmpeg options.
+        The option value shall be set to `'pipe:x'` where x is the pipe's descriptor.
+        (`'pipe:0'` if using standard input).
+
+        ..note::
+          Only use this function when the filtergraph description is too long for
+          OS to handle it as an command argument. Presenting the filtergraph with
+          a `filter_complex` or `filter` option is a faster solution.
+
+        ..example::
+            
+          ..codeblock::python
+
+            fg = ffmpegio.FilterGraph(...) # a very long filtergraph
+
+            with fg.as_script_file(self) as f:
+                ffmpegio.ffmpegprocess.run(
+                    {
+                        'inputs':  [('input.mp4', None)]
+                        'outputs': [('output.mp4', {'filter_script:v': f})]
+                    }, stdin=f)
+        """
+
+        # populate the file with filtergraph expression
+        temp_file = NamedTemporaryFile("w+t", delete=False)
+        temp_file.write(str(self))
+        temp_file.seek(0)
+
+        # present the file to the caller in the context
+        yield temp_file
+
 
 # dict: stores filter construction functions
 _filters = {}
@@ -2333,8 +2375,8 @@ def __getattr__(name):
 
         if notfound:
             raise AttributeError(
-                    f"{name} is not ffmpegio.filtergraph module's instance attribute or a valid FFmpeg filter name."
-                )
+                f"{name} is not ffmpegio.filtergraph module's instance attribute or a valid FFmpeg filter name."
+            )
 
         func = partial(Filter, name)
         func.__name__ = name

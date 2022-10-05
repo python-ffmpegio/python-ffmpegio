@@ -1,4 +1,6 @@
-from ffmpegio import filtergraph as fgb
+from os import path
+from tempfile import TemporaryDirectory
+from ffmpegio import ffmpegprocess, filtergraph as fgb
 from pprint import pprint
 import pytest
 
@@ -269,20 +271,35 @@ def test_filter_arithmetics():
     fg1 = "trim" >> fgb.crop()
     assert str(fg1) == "trim,crop"
 
+
 def test_filter_empty_handling():
     fg1 = fgb.trim() + fgb.crop()
     fg2 = fgb.fps() | fgb.scale()
     fg3 = fgb.Chain()
     fg4 = fgb.Graph()
 
-    assert str(fg3*2)==''
-    assert str(fg4*2) == ""
+    assert str(fg3 * 2) == ""
+    assert str(fg4 * 2) == ""
 
-    assert str(fg1+fg3) == "trim,crop"
-    assert str(fg1|fg3) == "trim,crop"
+    assert str(fg1 + fg3) == "trim,crop"
+    assert str(fg1 | fg3) == "trim,crop"
 
-    assert str(fg2+fg3) == "fps;scale"
-    assert str(fg2|fg3) == "fps;scale"
+    assert str(fg2 + fg3) == "fps;scale"
+    assert str(fg2 | fg3) == "fps;scale"
+
+
+def test_script():
+    fg = fgb.Graph("trim=duration=1")
+    with fg.as_script_file() as f, TemporaryDirectory() as dir:
+        out = ffmpegprocess.run(
+            {
+                "inputs": [(path.join("tests", "assets", "sample.mp4"), None)],
+                "outputs": [(path.join(dir, "output.mp4"), {"filter_script:v": "pipe:0"})],
+            },
+            stdin=f,
+        )
+    assert not out.returncode
+
 
 if __name__ == "__main__":
     from pprint import pprint
@@ -296,13 +313,15 @@ if __name__ == "__main__":
         # print(info.options)
         d = None
         for o in info.options:
-            if o.name=='duration' or 'duration' in o.aliases:
+            if o.name == "duration" or "duration" in o.aliases:
                 d = o.default
-                print(f'{k} found {o.name} option with default {d} ')
+                print(f"{k} found {o.name} option with default {d} ")
                 break
 
         if d is None:
-            print(f'{k} has no apparent duration option:\n{[o.name for o in info.options]}')
+            print(
+                f"{k} has no apparent duration option:\n{[o.name for o in info.options]}"
+            )
 
     pprint(srcs)
     exit()
