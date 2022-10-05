@@ -263,7 +263,7 @@ def write(
         raise FFmpegError(out.stderr, show_log)
 
 
-def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
+def filter(expr, input_rate, input, sample_fmt=None, progress=None, show_log=None, **options):
     """Filter audio samples.
 
     :param expr: SISO filter graph.
@@ -274,6 +274,9 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
     :type input: object
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
+    :param show_log: True to show FFmpeg log messages on the console,
+                     defaults to None (no show/capture)
+    :type show_log: bool, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :return: output sampling rate and audio data object, created by `bytes_to_audio` plugin hook
@@ -297,6 +300,7 @@ def filter(expr, input_rate, input, progress=None, sample_fmt=None, **options):
         ffmpeg_args,
         input=plugins.get_hook().audio_bytes(obj=input),
         progress=progress,
+        show_log=show_log
     )
 
 
