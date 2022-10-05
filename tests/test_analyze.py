@@ -7,6 +7,26 @@ import pytest
 logging.basicConfig(level=logging.DEBUG)
 
 
+def test_run_multi():
+    loggers = [analyze.APhaseMeter(d=0.5), analyze.BBox(), analyze.BlackDetect()]
+    analyze.run("tests/assets/sample.mp4", *loggers, t=10, show_log=True)
+    print(loggers[0].output)
+    print(loggers[1].output)
+    print(loggers[2].output)
+
+
+def test_run_ref():
+    logger = analyze.PSNR("1:v:0")
+    analyze.run(
+        "tests/assets/sample.mp4",
+        logger,
+        references=[("tests/assets/sample.mp4", {"t": 10})],
+        t=10,
+        show_log=True,
+    )
+    print(logger.output)
+
+
 def test_aphasemeter():
     url = "amovie=tests/assets/sample.mp4,asplit[stereo],aformat=channel_layouts=mono,aformat=channel_layouts=stereo[mono];\
            [stereo]asendcmd='15.0 astreamselect map 0;17.0 astreamselect map 1',[mono]astreamselect=map=1"

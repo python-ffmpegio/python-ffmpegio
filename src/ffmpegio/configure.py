@@ -1,7 +1,8 @@
 import re, logging
 
 from . import utils, plugins
-from .utils.filter import video_basic_filter
+from .filtergraph import Graph, Filter, Chain
+from .errors import FFmpegioError
 
 
 def array_to_video_input(rate, data, stream_id=None, **opts):
@@ -19,7 +20,7 @@ def array_to_video_input(rate, data, stream_id=None, **opts):
     :rtype: tuple(str, dict)
     """
 
-    spec = "" if stream_id is None else ":" + utils.spec_stream(stream_id, "v")
+    spec = "" if stream_id is None else ":" + utils.stream_spec(stream_id, "v")
 
     s, pix_fmt = utils.guess_video_format(*plugins.get_hook().video_info(obj=data))
 
@@ -59,7 +60,7 @@ def array_to_audio_input(
     sample_fmt, ac = utils.guess_audio_format(dtype, shape)
     codec, f = utils.get_audio_codec(sample_fmt)
 
-    spec = "" if stream_id is None else ":" + utils.spec_stream(stream_id, "a")
+    spec = "" if stream_id is None else ":" + utils.stream_spec(stream_id, "a")
 
     return (
         "-",
@@ -98,7 +99,7 @@ def check_url(url, nodata=True, nofileobj=False, format=None):
     Custom Pipe Class
     -----------------
 
-    `url` may be a class instance of which `str(url)` call yields a stdin pipe expression 
+    `url` may be a class instance of which `str(url)` call yields a stdin pipe expression
     (i.e., '-' or 'pipe:' or 'pipe:0') with `url.input` returns the input data. For such `url`,
     `check_url()` returns url and data objects, accordingly.
 
@@ -121,12 +122,11 @@ def check_url(url, nodata=True, nofileobj=False, format=None):
                     raise ValueError("File-like object cannot be specified as url.")
                 fileobj = url
                 url = "-"
-            elif str(url) in ('-','pipe:','pipe:0'):
+            elif str(url) in ("-", "pipe:", "pipe:0"):
                 try:
                     data = url.input
                 except:
                     pass
-
 
         if nodata and data is not None:
             raise ValueError("Bytes-like object cannot be specified as url.")
@@ -134,7 +134,7 @@ def check_url(url, nodata=True, nofileobj=False, format=None):
     return url, fileobj, data
 
 
-def add_url(args, type, url, opts=None):
+def add_url(args, type, url, opts=None, update=False):
     """add new or modify existing url to input or output list
 
     :param args: ffmpeg arg dict (modified in place)
@@ -145,6 +145,8 @@ def add_url(args, type, url, opts=None):
     :type url: str
     :param opts: FFmpeg options associated with the url, defaults to None
     :type opts: dict, optional
+    :param update: True to update existing input of the same url, default to False
+    :type update: bool, optional
     :return: file index and its entry
     :rtype: tuple(int, tuple(str, dict or None))
     """
@@ -154,7 +156,7 @@ def add_url(args, type, url, opts=None):
     if filelist is None:
         filelist = args[type] = []
     n = len(filelist)
-    id = next((i for i in range(n) if filelist[i][0] == url), None)
+    id = next((i for i in range(n) if filelist[i][0] == url), None) if update else None
     if id is None:
         id = n
         filelist.append((url, opts and {**opts}))
@@ -193,7 +195,10 @@ def has_filtergraph(args, type):
 
     # input filter
     if any(
-        (opts is not None and opts.get("f", None) == "lavfi" for _, opts in args["inputs"])
+        (
+            opts is not None and opts.get("f", None) == "lavfi"
+            for _, opts in args["inputs"]
+        )
     ):
         return True
 
@@ -202,10 +207,7 @@ def has_filtergraph(args, type):
     other_st = {"video": "a", "audio": "v"}[type]
     re_opt = re.compile(rf"{short_opt}$|filter(?::(?=[^{other_st}]).*?)?$")
     if any(
-        (
-            any((re_opt.match(key) for key in opts.keys()))
-            for _, opts in args["outputs"]
-        )
+        (any((re_opt.match(key) for key in opts.keys())) for _, opts in args["outputs"])
     ):
         return True
 
@@ -271,6 +273,73 @@ def check_alpha_change(args, dir=None, ifile=0, ofile=0):
     return utils.alpha_change(inopts.get("pix_fmt", None), outopts.get("pix_fmt", None))
 
 
+def _build_video_basic_filter(
+    fill_color=None,
+    remove_alpha=None,
+    scale=None,
+    crop=None,
+    flip=None,
+    transpose=None,
+    square_pixels=None,
+):
+
+    bg_color = fill_color or "white"
+
+    vfilters = (
+        Graph(f"color=c={bg_color}[l1];[l1][in]scale2ref[l2],[l2]overlay=shortest=1")
+        if remove_alpha
+        else Chain()
+    )
+
+    if square_pixels == "upscale":
+        vfilters += "scale='max(iw,ih*dar)':'max(iw/dar,ih)':eval=init,setsar=1/1"
+    elif square_pixels == "downscale":
+        vfilters += "scale='min(iw,ih*dar)':'min(iw/dar,ih)':eval=init,setsar=1/1"
+    elif square_pixels == "upscale_even":
+        vfilters += "scale='trunc(max(iw,ih*dar)/2)*2':'trunc(max(iw/dar,ih)/2)*2':eval=init,setsar=1/1"
+    elif square_pixels == "downscale_even":
+        vfilters += "scale='trunc(min(iw,ih*dar)/2)*2':'trunc(min(iw/dar,ih)/2)*2':eval=init,setsar=1/1"
+    elif square_pixels is not None:
+        raise ValueError(f"unknown `square_pixels` option value given: {square_pixels}")
+
+    if crop:
+        try:
+            assert not isinstance(crop, str)
+            vfilters += Filter("crop", *crop)
+        except:
+            vfilters += Filter("crop", crop)
+
+    if flip:
+        try:
+            ftype = ("", "horizontal", "vertical", "both").index(flip)
+        except:
+            raise Exception("Invalid flip filter specified.")
+        if ftype % 2:
+            vfilters += "hflip"
+        if ftype >= 2:
+            vfilters += "vflip"
+
+    if transpose is not None:
+        try:
+            assert not isinstance(transpose, str)
+            vfilters += Filter("transpose", *transpose)
+        except:
+            vfilters += Filter("transpose", transpose)
+
+    if scale:
+        try:
+            scale = [int(s) for s in scale.split("x")]
+        except:
+            pass
+        try:
+            assert not isinstance(scale, str)
+            vfilters += Filter("scale", *scale)
+        except:
+            vfilters += Filter("scale", scale)
+
+    return vfilters
+
+
 def build_basic_vf(args, remove_alpha=None, ofile=0):
     """convert basic VF options to vf option
 
@@ -302,8 +371,6 @@ def build_basic_vf(args, remove_alpha=None, ofile=0):
         if name in outopts
     }
 
-    force = outopts.pop("_force_basic_vf", False)
-
     # check if output needs to be scaled
     scale = outopts.get("s", None)
     do_scale = scale is not None
@@ -327,21 +394,15 @@ def build_basic_vf(args, remove_alpha=None, ofile=0):
         if remove_alpha and "remove_alpha" not in fopts:
             fopts["remove_alpha"] = True
 
-        bvf = video_basic_filter(**fopts)
+        bvf = _build_video_basic_filter(**fopts)  # Graph is remove alpha else Chain
         vf = outopts.get("vf", None)
         if vf:
-            if not force:
-                raise ValueError(
-                    f"cannot specify `vf` and video basic filter options {tuple(fopts.keys())}"
+            try:
+                outopts["vf"] = vf + bvf
+            except Exception as e:
+                raise FFmpegioError(
+                    f"Cannot append the basic video filter to the user specified video filter (vf):\n  {e}"
                 )
-            if isinstance(vf, str):
-                vf += f",{bvf}"
-            else:
-                # TODO support for FilterGraph
-                raise ValueError(
-                    f"only str filtergraph description is currently supported"
-                )
-            outopts["vf"] = vf
         else:
             outopts["vf"] = bvf
 
@@ -362,10 +423,11 @@ def finalize_audio_read_opts(
     if sample_fmt is None:
         # get pixel format from input
         sample_fmt = inopts.get("sample_fmt", sample_fmt_in)
-        if sample_fmt[-1] == "p":
-            # planar format is not supported
-            sample_fmt = sample_fmt[:-1]
-        outopts["sample_fmt"] = sample_fmt  # set the format
+        if sample_fmt:
+            if sample_fmt[-1] == "p":
+                # planar format is not supported
+                sample_fmt = sample_fmt[:-1]
+            outopts["sample_fmt"] = sample_fmt  # set the format
 
     # set output format and codec
     outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
@@ -375,6 +437,7 @@ def finalize_audio_read_opts(
         ac = outopts.get("ac", inopts.get("ac", ac_in))
         ar = outopts.get("ar", inopts.get("ar", ar_in))
 
+    # sample_fmt must be given
     dtype, shape = utils.get_audio_format(sample_fmt, ac)
 
     return dtype, ac, ar
@@ -569,3 +632,68 @@ def finalize_media_read_opts(args):
         options[f"c:a" + k[10:]] = utils.get_audio_codec(options[k])[0]
 
     return ya8 > 0
+
+
+def config_input_fg(expr, args, kwargs):
+    """configure input filtergraph
+
+    :param expr: filtergraph expression
+    :type expr: str
+    :param args: input argument sequence, all arguments are intended to be
+                 used with the filter. Errors if expr yields a multi-filter
+                 filtergraph.
+    :type args: seq
+    :param kwargs: input keyword argument dict. Only keys matching the
+                   filter's options are consumed. The rest are returned.
+    :type kwargs: dict
+    :return: original expression or a Filter object, duration in seconds if
+             known and finite, and unprocessed kwarg items.
+    :rtype: (str|Filter,float|None,dict)
+    """
+    fg = Graph(expr)
+    dopt = None  # duration option
+
+    if len(fg) != 1 or len(fg[0]) != 1:
+        # multi-filter input filtergraph, cannot take arguments
+        if len(args):
+            raise FFmpegioError(
+                f"filtergraph input expresion cannot take ordered options."
+            )
+        return expr, dopt, kwargs
+
+    # single-filter graph, can apply its options given in the arguments
+    f = fg[0][0]
+    info = f.info
+    if info.inputs is None or len(info.inputs) > 0:
+        raise FFmpegioError(f"{f.name} filter is not a source filter")
+
+    # get the full list of filter options
+    opts = set()  #
+    for o in info.options:
+        if not dopt and o.name == "duration":
+            dopt = (o.name, o.aliases, o.default)
+        opts.add(o.name)
+        opts.update(o.aliases)
+
+    # split filter named option andn other keyword arguments
+    fargs = {i: v for i, v in enumerate(args)}
+    oargs = {}
+    for k, v in kwargs.items():
+        (fargs if k in opts else oargs)[k] = v
+
+    if dopt is not None:
+        name, aliases, default = dopt
+        val = fargs.get(name, None)
+        if val is None:
+            for a in aliases:
+                val = fargs.get(a, None)
+                if val is not None:
+                    break
+        if val is None:
+            val = default
+
+        dopt = utils.parse_time_duration(val)
+        if dopt <= 0:
+            dopt = None  # infinite
+
+    return f.apply(fargs), dopt, oargs

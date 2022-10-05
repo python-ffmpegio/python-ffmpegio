@@ -7,6 +7,7 @@ from .._utils import *
 # import sys
 # sys.byteorder
 
+
 def escape(txt):
     """apply FFmpeg single quote escaping
 
@@ -82,14 +83,31 @@ def unescape(txt):
     return "".join(blks)
 
 
-def parse_spec_stream(spec, file_index=False):
+def parse_stream_spec(spec, file_index=False):
+    """Parse stream specifier string
+
+    :param spec: stream specifier string. If file_index=False and given an int
+                 value, it specifies the stream index. If file_index=True and given
+                 a 2-element sequence, it specifies the file index in spec[0] and
+                 stream index in spec[1].
+    :type spec: str or int or [int,int]
+    :param file_index: True to expect spec to start with a file index, defaults to False
+    :type file_index: bool, optional
+    :return: stream spec dict
+    :rtype: dict
+
+    The reverse of `stream_spec()`
+    """
+
     if isinstance(spec, str):
         out = {}
         if file_index:
-            m = re.match(r"(\d+):")
+            m = re.match(r"(\d+):", spec)
             if m:
                 out["file_index"] = int(m[1])
                 spec = spec[m.end() :]
+            else:
+                raise ValueError("Missing file index.")
 
         while len(spec):
             if spec.startswith("p:"):
@@ -107,22 +125,53 @@ def parse_spec_stream(spec, file_index=False):
         try:
             out["index"] = int(spec)
         except:
-            m = re.match(r"#(\d+)$|i\:(\d+)$|m\:(.+?)(?:\:(.+?))?$|(u)$", spec)
+            m = re.match(
+                r"#(\d+)$|i\:(\d+)$|m\:(.+?)(?:\:(.+?))?$|(u)$|#(0x[\da-f]+)$|i\:(0x[\da-f]+)$",
+                spec,
+            )
             if not m:
                 raise ValueError("Invalid stream specifier.")
 
-            if m[1] is not None or m[2] is not None:
-                out["pid"] = int(m[1] if m[2] is None else m[2])
+            if m[1] or m[2]:
+                out["pid"] = int(m[1] or m[2])
             elif m[3] is not None:
                 out["tag"] = m[3] if m[4] is None else (m[3], m[4])
             elif m[5]:
                 out["usable"] = True
+            elif m[6] or m[7]:
+                out["pid"] = m[6] or m[7]
         return out
     else:
-        return {"index": int(spec)}
+        if file_index:
+            return {"file_index": int(spec[0]), "index": int(spec[1])}
+        else:
+            return {"index": int(spec)}
 
 
-def spec_stream(
+def is_stream_spec(spec, file_index=False):
+    """True if valid stream specifier string
+
+    :param spec: stream specifier string to be tested
+    :type spec: str
+    :param file_index: True if spec starts with a file index, None to allow with or without file_index defaults to False
+    :type file_index: bool|None, optional
+    :return: True if valid stream specifier
+    :rtype: bool
+    """
+    try:
+        parse_stream_spec(spec, True if file_index is None else file_index)
+        return True
+    except:
+        if file_index is None:
+            try:
+                parse_stream_spec(spec, False)
+                return True
+            except:
+                pass
+        return False
+
+
+def stream_spec(
     index=None,
     type=None,
     program_id=None,
@@ -262,7 +311,7 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
 
     if pix_fmt == input_pix_fmt:
         n_out = n_in
-    elif n_in==1 and pix_fmt=='gray16le':
+    elif n_in == 1 and pix_fmt == "gray16le":
         # sub-16-bit pixel format, use the input format
         pix_fmt = input_pix_fmt
         n_out = n_in

@@ -1,5 +1,5 @@
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
-from .utils import filter as filter_utils, log as log_utils
+from .utils import log as log_utils
 import logging
 
 __all__ = ["create", "read", "write", "filter"]
@@ -54,48 +54,50 @@ def _run_read(*args, shape=None, pix_fmt_in=None, s_in=None, show_log=None, **kw
     )
 
 
-def create(expr, *args, pix_fmt=None, vf=None, vframe=None, show_log=None, **kwargs):
+def create(expr, *args, show_log=None, **options):
     """Create an image using a source video filter
 
     :param name: name of the source filter
     :type name: str
-    :param \\*args: filter arguments
-    :type \\*args: tuple, optional
-    :param pix_fmt: RGB/grayscale pixel format name, defaults to None (rgb24)
-    :type pix_fmt: str, optional
-    :param vf: additional video filter, defaults to None
-    :type vf: FilterGraph or str, optional
-    :param vframe: video frame index to capture, defaults to None (=0)
-    :type vframe: int, optional
+    :param \\*args: sequential filter option arguments. Only valid for
+                    a single-filter expr, and they will overwrite the
+                    options set by expr.
+    :type \\*args: seq, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
-    :param \\**options: filter keyword arguments
+    :param \\**options: Named filter options or FFmpeg options. Items are
+                        only considered as the filter options if expr is a
+                        single-filter graph, and take the precedents over
+                        general FFmpeg options. Append '_in' for input
+                        option names (see :doc:`options`), and '_out' for
+                        output option names if they conflict with the filter
+                        options.
     :type \\**options: dict, optional
     :return: image data, created by `bytes_to_video` plugin hook
     :rtype: object
 
-    See https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for available video source filters
+    .. seealso::
+        See https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for
+        available video source filters
 
     """
 
-    url, (_, s_in) = filter_utils.compose_source("video", expr, *args, **kwargs)
+    input_options = utils.pop_extra_options(options, "_in")
+    output_options = utils.pop_extra_options(options, "_out")
+
+    url, _, options = configure.config_input_fg(expr, args, options)
+
+    options = {**options, **output_options, "frames:v": 1}
 
     ffmpeg_args = configure.empty()
-    configure.add_url(ffmpeg_args, "input", url, {"f": "lavfi"})
-    outopts = configure.add_url(ffmpeg_args, "output", "-", {"f": "rawvideo"})[1][1]
+    configure.add_url(ffmpeg_args, "input", url, {**input_options, "f": "lavfi"})
+    configure.add_url(ffmpeg_args, "output", "-", {**options, "f": "rawvideo"})
 
-    for k, v in zip(
-        ("pix_fmt", "filter:v"),
-        (pix_fmt or "rgb24", vf),
-    ):
-        if v is not None:
-            outopts[k] = v
-
-    outopts["frames:v"] = vframe if vframe else 1
-
-    return _run_read(ffmpeg_args, s_in=s_in, show_log=show_log)
+    return _run_read(
+        ffmpeg_args, pix_fmt_in=input_options.get("pix_fmt", "rgb24"), show_log=show_log
+    )
 
 
 def read(url, show_log=None, **options):

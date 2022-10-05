@@ -40,12 +40,16 @@ try:
 except Exception as e:
     logging.warning(str(e))
 
+def __getattr__(name):
+    if name == "ffmpeg_ver":
+        return path.FFMPEG_VER
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 from . import ffmpegprocess
 
-from .utils.error import FFmpegError
+from .errors import FFmpegError
 from .utils.concat import FFConcat
-from .utils.filter import FilterGraph
+from .filtergraph import Graph as FilterGraph
 from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
 from . import streams as _streams
@@ -305,7 +309,7 @@ def open(
         ("rate", rate),
         ("shape", shape),
     ):
-    
+
         if v is not None:
             kwds[k] = v
 

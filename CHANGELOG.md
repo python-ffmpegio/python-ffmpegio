@@ -14,6 +14,34 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - `SimpleStreams.SimpleReaderBase.readinto()` - fixed plugin invocation bug
 - added missing `show_log` argument to `image.filter()`
 
+- `filtergraph` module with `Filter`, `Chain`, and `Graph` classes as FFmpeg filtergraph construction and manipulation tools
+- `ffmpeg_ver` for easy access to linked FFmpeg version
+- `FFmpegioError` exception class
+- `utils.is_stream_spec`: new option `file_index=None` to search with or without filter index
+
+### Changed
+
+- consolidate representation of input/output/internal links for filtergraphs, affecting `util.filter.parse_graph()` & `util.filter.compose_graph()`
+- corrected function names `util.*spec_stream` to `util.*stream_spec`
+- `caps.filters()` outputs `FilterSummary` named tuple
+- `caps.filter_info()` outputs `FilterInfo` named tuple
+- `caps.filter_info()` outputs' `inputs` and `outputs` fields returns None if dynamic and [] if none
+- `caps.filters()` outputs' `num_inputs` and `num_outputs` fields returns None if dynamic and 0 if none
+- `FilterGraph` class is now redirected to the new `filtergraph.Graph`
+- improved `audio.create()`, `image.create()`, and `video.create()`
+- `configure.build_basic_vf()` to use `filtergraph.Graph` and can be appended to user specified `vf`
+- `analyze` module, updated to use `filtergraph.Graph`
+- `analyze.MetadataLogger`: changed `filter_spec` property to `filter` to return a `Filter` object
+- moved `utils.error` module to `errors`
+- `path.where()` to raise `FFmpegNotFound`
+- 
+### Fixed
+
+- `caps.filters()` - fixed reporting incorrect # of pads for source and sink filters
+- `utils.parse_stream_spec()` - fixed file_index handling
+- `utils.parse_stream_spec()` - fixed pid stream (`#`) regex
+- `utils.filter` - fixed filter and filtergraph parsing bugs
+
 ## [0.7.0] - 2022-08-24
 
 ### Added

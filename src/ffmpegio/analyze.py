@@ -6,12 +6,11 @@ from __future__ import annotations
 from collections import namedtuple
 import logging
 from . import configure
-from .utils import pop_extra_options
-from .utils.filter import FilterGraph, compose_filter
-from .utils.error import FFmpegError
-from .threading import ProgressMonitorThread
-from .path import ffmpeg, DEVNULL, PIPE, devnull
-from . import ffmpegprocess
+from .filtergraph import Graph, Filter, Chain, as_filtergraph
+from .utils.filter import compose_filter
+from .errors import FFmpegError
+from .path import devnull
+from . import ffmpegprocess as fp
 import re
 from json import loads
 
@@ -65,6 +64,7 @@ def loudnorm(
     :return: second pass loudnorm filter spec str or analysis stats
     :rtype: str or dict
     """
+
     loudnorm_opts = {
         k: v
         for k, v in zip(
@@ -74,15 +74,9 @@ def loudnorm(
         if v is not None
     }
 
-    loundness_f = compose_filter(
-        "loudnorm",
-        {**loudnorm_opts, "print_format": "json"},
-    )
+    loundness_f = Filter("loudnorm", **loudnorm_opts, print_format="json")
 
-    if af:
-        af += f",{loundness_f}"
-    else:
-        af = loundness_f
+    af = (Graph(af) + loundness_f) if af else loundness_f
 
     args = configure.empty()
     configure.add_url(args, "input", url, options)
@@ -100,7 +94,7 @@ def loudnorm(
         },
     )
 
-    log = ffmpegprocess.run(
+    log = fp.run(
         args,
         progress=progress,
         overwrite=overwrite,
@@ -131,7 +125,7 @@ class MetadataLogger(Protocol):
     options: dict[str, Any]  # FFmpeg filter options (value must be stringifiable)
 
     @property
-    def filter_spec(self) -> str or Tuple:
+    def filter(self) -> Filter:
         """filter specification expression to be used in FilterGraph"""
         ...
 
@@ -174,8 +168,9 @@ def run(
     :type url: str
     :param \*loggers: class object with the metadata logging interface
     :type \*loggers: MetadataLogger
-    :param references: reference input urls, defaults to None
-    :type references: list of str
+    :param references: reference input urls or pairs of url and input option
+                       dict, defaults to None
+    :type references: seq of str or seq of (str, dict), optional
     :param ss: start time to process, defaults to None
     :type ss: int, float, str, optional
     :param t: duration of data to process, defaults to None
@@ -203,7 +198,9 @@ def run(
     if not len(loggers):
         raise ValueError("At least one logger object must be present.")
 
-    if isinstance(references, str):
+    if references is None:
+        references = ()
+    elif isinstance(references, str):
         references = [references]
 
     try:
@@ -213,78 +210,81 @@ def run(
             f'time_units "{time_units}" is invalid. Must be one of ("frames", "pts", "seconds")'
         )
 
-    # filtspecs = [{"video": [], "audio": []}, {"video": [], "audio": []}]
-    # for l in loggers:
-    #     try:  # just logger (no reference src specified)
-    #         ref = 0 if l.require_reference else None
-    #     except:  # expect 2-element seq (logger, index to references)
-    #         try:
-    #             l, ref = l
-    #         except:
-    #             raise ValueError(
-    #                 "Each logger argument must be either a logger instance alone or "
-    #                 "a sequence of the instance and reference url index."
-    #             )
+    fchains = {"video": Chain([]), "audio": Chain([])}
+    for l in loggers:
+        # filterchain under consturction
+        c = fchains[l.media_type]
 
-    #     ref = f"{ref+1}:{l.media_type[0]}"if l.require_reference else None
+        # logging filter (may need to convert to filtergraph if uses a reference stream)
+        f = (
+            l.filter
+            if l.ref_in is None
+            else Graph([l.filter], {l.ref_in: ((0, 0, 1), None)})
+        )
+        # if requires reference stream, make sure the fchain is a Graph object, too
+        if l.ref_in and type(c) != Graph:
+            fchains[l.media_type] = c = as_filtergraph(c)
 
-    #     filtspecs[l.require_reference][l.media_type].append(l.filter_spec)
+        # assign the logger to get the output of the previous logger
+        c >>= f
 
-    # def create_fg(filtchain, metadata):
-    #     return (
-    #         FilterGraph(
-    #             [[*filtchain, (metadata, "print", {"file": "-", "direct": True})]]
-    #         )
-    #         if len(filtchain)
-    #         else None
-    #     )
+    if len(fchains["video"]):
+        fchains["video"] >>= Filter("metadata", "print", file="-")
 
-    # vf, af = (
-    #     create_fg(filtspecs[mediatype], metadata)
-    #     for mediatype, metadata in zip(("video", "audio"), ("metadata", "ametadata"))
-    # )
+    if len(fchains["audio"]):
+        fchains["audio"] >>= Filter("ametadata", "print", file="-")
 
-    l = loggers[0]
-    vf = af = None
-    if l.media_type == "video":
-        vf = compose_filter(*l.filter_spec) + ",metadata=print:file=-"
+    oopts = {"f": "null"}
+    gopts = {"copyts": fp.FLAG}
+    if start_at_zero:
+        gopts["start_at_zero"] = fp.FLAG
+
+    vf, af = fchains.values()
+    if isinstance(vf, Graph) or isinstance(af, Graph):
+        # at least one logger requires reference input, must use filter_complex
+        if len(vf):
+            vf = "[0:v:0]" >> vf >> "nullsink"
+        if len(af):
+            af = "[0:a:0]" >> af >> "anullsink"
+        gopts["filter_complex"] = vf | af
     else:
-        af = compose_filter(*l.filter_spec) + ",ametadata=print:file=-"
-
-    progmon = ProgressMonitorThread(progress)
+        # set filter chains
+        for k, fg in zip(("vf", "af"), fchains.values()):
+            if len(fg):
+                oopts[k] = fg
 
     # create FFmpeg arguments
-    args = ["-hide_banner"]
-    if progress:
-        args.extend("-progress", progmon.url)
-    for k, v in input_options.items():
-        args.extend((f"-{k}", str(v)))
-    args.extend(("-i", str(url), "-copyts"))
-    if start_at_zero:
-        args.append("-start_at_zero")
-    if vf:
-        args.extend(("-vf", str(vf)))
-    if af:
-        args.extend(("-af", str(af)))
-    args.extend(("-f", "null", devnull))
+    ffmpeg_args = configure.empty()
+    configure.add_url(ffmpeg_args, "input", url, input_options)
+    for ref in references:
+        if isinstance(ref, str):
+            configure.add_url(ffmpeg_args, "input", ref)
+        else:
+            configure.add_url(ffmpeg_args, "input", *ref)
+    configure.add_url(ffmpeg_args, "output", devnull, oopts)
+    ffmpeg_args["global_options"] = gopts
 
     # run FFmpeg
-    with progmon:
-        out = ffmpeg(
-            args,
-            stdout=PIPE,
-            stderr=None if show_log else PIPE,
-            universal_newlines=True,
-        )
+    out = fp.run(
+        ffmpeg_args,
+        progress=progress,
+        capture_log=True,
+        universal_newlines=True,
+        stdout=fp.PIPE,
+    )
+
+    # print the collected log data if requested
+    if show_log:
+        print(out.stderr)
+
     # if FFmpeg terminated abnormally, return error
     if out.returncode:
-        raise FFmpegError(out.stderr, show_log)
-
-    # stdout analysis
+        raise FFmpegError(out.stderr, False)
 
     # link a logger to each metadata field names (trailing "lavifi.")
     meta_logger = {name: l for l in loggers for name in l.meta_names}
 
+    # stdout analysis
     re_metadata = re.compile(r"lavfi\.(.+?)(?:\.(.+?))?=(.+)")
     for m in re.finditer(
         r"frame:(\d+)\s+pts:(\d+)\s+pts_time:(\d+(?:\.\d+)?)\s*\n(.+?)(?=\nframe:|$)",
@@ -309,7 +309,6 @@ class ScDet:
     media_type = "video"  # the stream media type
     meta_names = ("scd",)  # metadata primary names
     filter_name = "scdet"
-    require_reference = False
     Output = namedtuple("Scenes", ["time", "score", "mafd"])
     OutputAll = namedtuple("AllSceneScores", ["time", "changed", "score", "mafd"])
 
@@ -319,8 +318,12 @@ class ScDet:
         self.data = {}
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, value):
         if key == "mafd":  # always the first entry / frame
@@ -355,7 +358,6 @@ class BlackDetect:
     media_type = "video"  # the stream media type
     meta_names = ("black_start", "black_end")  # metadata primary names
     filter_name = "blackdetect"
-    require_reference = False
     Output = namedtuple("Black", ["interval"])
 
     def __init__(self, **options):
@@ -363,8 +365,12 @@ class BlackDetect:
         self.interval = []
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, key, *_):
         if key == "black_start":
@@ -383,7 +389,6 @@ class BlackFrame:
     media_type = "video"  # the stream media type
     meta_names = ("blackframe",)  # metadata primary names
     filter_name = "blackframe"
-    require_reference = False
     Output = namedtuple("BlackFrames", ["time", "pblack"])
 
     def __init__(self, **options):
@@ -391,8 +396,12 @@ class BlackFrame:
         self.frames = []
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, value):
         if key != "pblack":
@@ -408,7 +417,6 @@ class FreezeDetect:
     media_type = "video"  # the stream media type
     meta_names = ("freeze",)  # metadata primary names
     filter_name = "freezedetect"
-    require_reference = False
     Output = namedtuple("Frozen", ["interval"])
 
     def __init__(self, **options):
@@ -416,8 +424,12 @@ class FreezeDetect:
         self.interval = []
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, __):
         if key == "freeze_start":
@@ -437,7 +449,6 @@ class BBox:
     media_type = "video"  # the stream media type
     meta_names = ("bbox",)  # metadata primary names
     filter_name = "bbox"
-    require_reference = False
     Output = namedtuple("BBox", ["time", "position"])
     pos_keys = {"y1": 1, "w": 2, "h": 3}
 
@@ -447,8 +458,12 @@ class BBox:
         self.position = []
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, value):
         if key == "x1":
@@ -470,7 +485,6 @@ class BlurDetect:
     media_type = "video"  # the stream media type
     meta_names = ("blur",)  # metadata primary names
     filter_name = "blurdetect"
-    require_reference = False
     Output = namedtuple("Blur", ["time", "blur"])
 
     def __init__(self, **options):
@@ -478,8 +492,12 @@ class BlurDetect:
         self.frames = []
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, key, _, value):
         if key != "blur":
@@ -502,19 +520,23 @@ class PSNR:
     media_type = "video"  # the stream media type
     meta_names = ("psnr",)  # metadata primary names
     filter_name = "psnr"
-    require_reference = True
     re_key = re.compile(r"(.+)(?:\.(.))?")
 
-    def __init__(self, **options):
+    def __init__(self, ref_stream_spec, **options):
         self.options = options
         self.time = []
         self.comps = []
         self.stats = {}
         self._first = None
+        self._ref = ref_stream_spec
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return self._ref
 
     def log(self, t, _, key, value):
 
@@ -562,7 +584,6 @@ class SilenceDetect:
     media_type = "audio"  # the stream media type
     meta_names = ("silence_start", "silence_end")  # metadata primary names
     filter_name = "silencedetect"
-    require_reference = False
     Output = namedtuple("Silent", ["interval"])
 
     def __init__(self, **options):
@@ -571,8 +592,12 @@ class SilenceDetect:
         self.mono_intervals = {}  # mono intervals
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, self.options)
+    def filter(self):
+        return Filter(self.filter_name, **self.options)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, key, ch, _):
 
@@ -607,7 +632,6 @@ class APhaseMeter:
     media_type = "audio"  # the stream media type
     meta_names = ("aphasemeter",)  # metadata primary names
     filter_name = "aphasemeter"
-    require_reference = False
     Output = namedtuple(
         "Phase", ["time", "value", "mono_interval", "out_phase_interval"]
     )
@@ -620,8 +644,12 @@ class APhaseMeter:
         self.out_phase = []
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, {**self.options, "video": False, "phasing": True})
+    def filter(self):
+        return Filter(self.filter_name, **self.options, video=False, phasing=True)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, val):
 
@@ -649,7 +677,6 @@ class AStats:
     media_type = "audio"  # the stream media type
     meta_names = ("astats",)  # metadata primary names
     filter_name = "astats"
-    require_reference = False
     re_key = re.compile(
         r"(?:(\d+)|Overall)\.(.+)|(Number of NaNs|Number of Infs|Number of denormals)"
     )
@@ -677,8 +704,12 @@ class AStats:
             setattr(self, meas, {})
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, {**self.options, "metadata": True})
+    def filter(self):
+        return Filter(self.filter_name, **self.options, metadata=True)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, value):
 
@@ -725,7 +756,6 @@ class ASpectralStats:
     media_type = "audio"  # the stream media type
     meta_names = ("aspectralstats",)  # metadata primary names
     filter_name = "aspectralstats"
-    require_reference = False
     re_key = re.compile(r"(?:(\d+)\.)?(.+)")
 
     def __init__(self, **options):
@@ -735,8 +765,12 @@ class ASpectralStats:
         self._first = None
 
     @property
-    def filter_spec(self):
-        return (self.filter_name, {**self.options, "metadata": True})
+    def filter(self):
+        return Filter(self.filter_name, **self.options, metadata=True)
+
+    @property
+    def ref_in(self):
+        return None
 
     def log(self, t, _, key, value):
 

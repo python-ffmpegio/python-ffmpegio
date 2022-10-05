@@ -4,7 +4,7 @@ from struct import Struct
 from collections import namedtuple
 from itertools import accumulate
 
-from ..utils import get_video_format, get_audio_format, spec_stream, get_samplesize
+from ..utils import get_video_format, get_audio_format, stream_spec, get_samplesize
 from .. import plugins
 
 # https://docs.microsoft.com/en-us/previous-versions//dd183376(v=vs.85)?redirectedfrom=MSDN
@@ -485,7 +485,7 @@ class AviReader:
             id = cnt[st_type]
             cnt[st_type] += 1
             return {
-                "spec": spec_stream(id, st_type),
+                "spec": stream_spec(id, st_type),
                 **hdr,
             }
 

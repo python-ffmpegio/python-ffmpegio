@@ -1,9 +1,13 @@
 # TODO add function to guess media type given extension
 
+import logging
 import re, fractions, subprocess as sp
+from collections import namedtuple
+from fractions import Fraction
+from functools import partial
 
 from .path import where
-from .utils.error import FFmpegError
+from .errors import FFmpegError
 
 # fmt:off
 __all__ = ["options", "filters", "codecs", "coders", "formats", "devices",
@@ -134,16 +138,25 @@ def options(type=None, name_only=False, return_desc=False):
     )
 
 
+# fmt:off
+FilterSummary = namedtuple(
+    "FilterSummary",
+    ["description", "input", "num_inputs", "output", "num_outputs",
+        "timeline_support", "slice_threading", "command_support"],
+)
+# fmt:on
+
+
 def filters(type=None):
     """get FFmpeg filters
 
     :param type: specify input or output stream type, defaults to None
     :type type: 'audio'|'video'|'dynamic', optional
-    :return: dict of filters
-    :rtype: dict(key=str, value=dict)
+    :return: dict of summary of the filters
+    :rtype: dict(key,FilterSummary)
 
-    Each key of the returned dict is a name of a filter and its value is a dict
-    with the following items:
+    Each key of the returned dict is a name of a filter and its value is a
+    FilterSummary namedtuple with the following items:
 
     ================  ========  ===============================================
     Key               type      description
@@ -167,23 +180,29 @@ def filters(type=None):
         for match in _filterRegexp.finditer(stdout):
             intype = types[match[5][0]]
             outtype = types[match[6][0]]
-            data[match[4]] = {
-                "description": match[7],
-                "input": intype,
-                "num_inputs": len(match[5]) if intype != "dynamic" else None,
-                "output": outtype,
-                "num_outputs": len(match[6]) if outtype != "dynamic" else None,
-                "timeline_support": match[1] == "T",
-                "slice_threading": match[2] == "S",
-                "command_support": match[3] == "C",
-            }
+            data[match[4]] = FilterSummary(
+                description=match[7],
+                input=intype,
+                num_inputs=0
+                if intype == "none"
+                else len(match[5])
+                if intype != "dynamic"
+                else None,
+                output=outtype,
+                num_outputs=0
+                if outtype == "none"
+                else len(match[6])
+                if outtype != "dynamic"
+                else None,
+                timeline_support=match[1] == "T",
+                slice_threading=match[2] == "S",
+                command_support=match[3] == "C",
+            )
 
         _cache["filters"] = data
 
     if type is not None:
-        data = {
-            k: v for k, v in data.items() if v["input"] == type or v["output"] == type
-        }
+        data = {k: v for k, v in data.items() if v.input == type or v.output == type}
 
     return data
 
@@ -825,27 +844,201 @@ def _getCodecInfo(name, encoder):
     return data
 
 
+# fmt: off
+FilterInfo = namedtuple(
+    "FilterInfo",
+    [ "name", "description", "threading", "inputs", "outputs",
+      "options", "extra_options", "timeline_support",
+    ],
+)
+FilterOption = namedtuple(
+    "FilterOption",
+    ["name", "aliases", "type", "help", "ranges", "constants", "default", 
+     "video", "audio", "runtime"],
+)
+# fmt:on
+
+
+def _get_filter_pad_info(str):
+    if str.startswith("        dynamic"):
+        return None
+    elif str.startswith("        none"):
+        return []
+
+    matches = re.finditer(r"       #\d+: (\S+)(?= \() \((\S+)\)\s*?(?:\n|$)", str)
+    if not matches:
+        raise Exception("Failed to parse filter port info: %s" % str)
+    return [{"name": m[1], "type": m[2]} for m in matches]
+
+
+def _conv_func(type, s):
+    try:
+        return type(s)
+    except:
+        return s
+
+
+def _get_filter_option_constant(str):
+    m = re.match(
+        r"     ([^ \n]+) {1,16}(?:([^ ]+) {1,12}| {13})"
+        r"[.E][.D][.F][.V][.A][.S][.X][.R][.B][.T][.P]"
+        r"(?: (.+))?\n?",
+        str,
+    )
+    return m[1], (m[2] and int(m[2]), m[3] or "")
+
+
+def _get_filter_option(str, name):
+    # libavutil/opt.c/opt_list
+    lines = str.splitlines()
+
+    # first line is the main option definition
+    m0 = re.match(
+        r"  (?: |-)?([^ \n]+) {1,17}(?:\<([^ >]+)\> {1,12}| {13})"
+        r"[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
+        lines[0],
+    )
+    if not m0:
+        # likely deprecated
+        logging.info(
+            f"_get_filter_option(): invalid option line found for {name} filter. Likely deprecated:\n{lines[0]}"
+        )
+        return None
+    name, type, *flags = m0.groups()
+
+    m1 = re.search(r"( \(from \S+? to \S+?\))*(?: \(default (.+)\))?$", lines[0])
+    ranges_str, default = m1.groups()
+
+    help = lines[0][m0.end() + 1 : m1.start()]
+
+    if default:
+        if type == "string":
+            # remove quotes
+            default = default[1:-1]
+        elif type == "boolean":
+            default = {"true": True, "false": False}.get(default, default)
+
+    conv = (
+        partial(_conv_func, int)
+        if type in ("int", "int64", "uint64")
+        else partial(_conv_func, float)
+        if type in ("float", "double")
+        else partial(_conv_func, Fraction)
+        if type == "rational"
+        else (lambda s: s)
+    )
+
+    ranges = (
+        None
+        if ranges_str is None
+        else [
+            (conv(m[1]), conv(m[2]))
+            for m in re.finditer(r"\(from (\S+?) to (\S+?)\)", ranges_str)
+        ]
+    )
+
+    constants = [_get_filter_option_constant(l) for l in lines[1:] if l]
+
+    if len(constants):
+        # combines aliases
+        def chk_is_alias(i, o):
+            other = constants[i]
+            return other[1] == o[1]
+
+        has_alias = [chk_is_alias(i, o) for i, o in enumerate(constants[1:])]
+        has_alias.append(False)
+        for i, has in enumerate(has_alias):
+            k, v = constants[i]
+            constants[i] = (k, (constants[i + 1][0] if has else None, *v))
+
+        has_alias.insert(0, False)
+        constants = [o for o, isa in zip(constants, has_alias[:-1]) if not isa]
+
+    return FilterOption(
+        name,
+        [],
+        type,
+        help,
+        ranges,
+        dict(constants),
+        conv(default),
+        *(fl != "." for fl in flags),
+    )
+
+
+def _get_filter_options(str):
+    m = re.match(r"(.+)? AVOptions:\n", str)
+    name = m[1]
+    blocks = re.split(r"\n(?!     |\n|$)", str[m.end() :])
+    opts = [_get_filter_option(line, name) for line in blocks if line]
+
+    # combines aliases
+    def is_alias(i, o):
+        other = opts[i]
+        return other.type == o.type and other.help == o.help
+
+    n = len(opts)
+    i = 0
+    alias_of = [-1] * n
+    for j, o in enumerate(opts[1:]):
+        if is_alias(i, o):
+            alias_of[j + 1] = i
+        else:
+            i = j + 1
+
+    im = [*[i for i, j in enumerate(alias_of) if j < 0], n]
+
+    for i0, i1 in zip(im[:-1], im[1:]):
+        if i1 - i0 > 1:
+            v = list(opts[i0])
+            v[1] = [o.name for o in opts[i0 + 1 : i1]]
+            opts[i0] = FilterOption(*v)
+
+    opts = [o for o, isa in zip(opts, alias_of) if isa<0]
+
+    return name, opts
+
+
 def filter_info(name):
     """get detailed info of a filter
 
     :return: list of features
-    :rtype: dict
+    :rtype: FilterInfo (namedtuple)
 
-    The returned dict has following entries:
+    The returned FilterInfo named tuple has following entries:
 
-    ===========  ==============  ================================================
-    Key          type            description
-    ===========  ==============  ================================================
-    name         str             Name
-    description  str             Description
-    threading    list(str)       List of threading capabilities
-    inputs       list(dict)|str  List of input pads or 'dynamic' if variable
-    outputs      list(dict)|str  List of output pads or 'dynamic' if variable
-    options      str             Unparsed string, listing supported options
-    ===========  ==============  ================================================
+    ================ ===========================  ================================================
+    Key              type                         description
+    ================ ============================ ================================================
+    name             str                          Name
+    description      str                          Description
+    threading        list(str)                    List of threading capabilities
+    inputs           list(dict)|str               List of input pads or 'dynamic' if variable
+    outputs          list(dict)|str               List of output pads or 'dynamic' if variable
+    options          list(FilterOption)           List of filter options
+    extra_options    dict(str,list(FilterOption)) Extra options co-listed
+    timeline_support bool                         True if `enable` timeline option is supported
+    =============--- ============================ ================================================
 
-    The dict iterms of 'inputs' and 'outputs' entries has two keys: 'name' and 'type'
+    'inputs' and 'outputs' entries has two keys: 'name' and 'type'
     defining the pad name and pad stream type ('audio' or 'video')
+
+    FilterOption is a namedtuple with the following entries:
+
+    ========= ===========================  ================================================
+    Key       type                         description
+    ========= ============================ ================================================
+    name      str                          Name
+    alias     str                          Alias name
+    type      str                          Data type
+    help      str                          Help text
+    ranges    list(tuple(any,any))|None    List of ranges of values
+    constants dict(str:any)                List of defined constant/enum values
+    default   any                          Default value
+    video     bool                         True if option for video stream
+    audio     bool                         True if option for audio stream
+    runtime   bool                         True if modifiable during runtime
+    ========= ============================ ================================================
 
     """
 
@@ -854,24 +1047,70 @@ def filter_info(name):
     if data:
         return data
 
+    blocks = re.split(r"\n(?! |\n|$)", stdout)
+
     m = re.match(
         r"Filter (\S+)\s*?\n"
         r"(?:  (.+?)\s*?\n)?"
         r"(?:    (slice threading supported)\s*?\n)?"
-        r"    Inputs:\s*?\n([\s\S]*?)(?=    Outputs)"
-        r"    Outputs:\s*?\n([\s\S]*?\s*?\n)(?!S)"
+        r"    Inputs:\n"
+        r"([\s\S]*)"
+        r"    Outputs:\n"
         r"([\s\S]*)",
-        stdout,
+        blocks[0],
+    )
+    name = m[1]
+    desc = m[2]
+    threading = ["slice"] if m[3] else []
+    inputs = _get_filter_pad_info(m[4])
+    outputs = _get_filter_pad_info(m[5])
+    timeline = (
+        blocks[-1].rstrip()
+        == "This filter has support for timeline through the 'enable' option."
     )
 
-    data = {
-        "name": m[1],
-        "description": m[2],
-        "threading": ["slice"] if m[3] else [],
-        "inputs": _getFilterPortInfo(m[4]),
-        "outputs": _getFilterPortInfo(m[5]),
-        "options": m[6],
-    }
+    extra_options = dict(
+        (_get_filter_options(b) for b in (blocks[1:-1] if timeline else blocks[1:]))
+    )
+
+    options = extra_options.pop(name, None)
+    if options is None and len(extra_options):
+        opt_name = next(
+            (
+                o_name
+                for o_name in extra_options.keys()
+                # if (o_name == f"(a){name}")
+                # or (name[0] == "a" and o_name == f"(a){name[1:]}")
+                # or re.match(o_name, name)
+                # or re.search(rf"(?:^|[^a-z]){name}($|[^a-z])", o_name)
+                # or (name == "highshelf" and o_name == "treble/high/tiltshelf")
+                # or (name == "chromakey_cuda" and o_name == "cudachromakey")
+                # or (name == "hwupload_cuda" and o_name == "cudaupload")
+            ),
+            None,
+        )
+        if opt_name:
+            options = extra_options.pop(opt_name)
+        elif len(extra_options) == 1:
+            o_name, options = extra_options.popitem()
+            logging.info(
+                f"filter_info({name}): assigned mismatched AVOptions {o_name}."
+            )
+        else:
+            logging.warning(
+                f"filter_info({name}): none of the AVOption sets appears to be the main option set:\n   {[k for k in extra_options]}"
+            )
+
+    data = FilterInfo(
+        name,
+        desc,
+        threading,
+        inputs,
+        outputs,
+        options,
+        extra_options,
+        timeline,
+    )
 
     if not "filter" in _cache:
         _cache["filter"] = {}
@@ -921,18 +1160,6 @@ def bsfilter_info(name):
         _cache["filter"] = {}
     _cache["filter"][name] = data
     return data
-
-
-def _getFilterPortInfo(str):
-    if str.startswith("        none"):
-        return None
-    if str.startswith("        dynamic"):
-        return "dynamic"
-
-    matches = re.finditer(r"       #\d+: (\S+)(?= \() \((\S+)\)\s*?\n", str)
-    if not matches:
-        raise Exception("Failed to parse filter port info: %s" % str)
-    return [{"name": m[1], "type": m[2]} for m in matches]
 
 
 #:dict: list of video size presets with their sizes

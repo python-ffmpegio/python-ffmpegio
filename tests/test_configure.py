@@ -4,6 +4,7 @@ vid_url = "tests/assets/testvideo-1m.mp4"
 img_url = "tests/assets/ffmpeg-logo.png"
 aud_url = "tests/assets/testaudio-1m.wav"
 
+
 def test_array_to_audio_input():
     fs = 44100
     N = 44100
@@ -40,7 +41,6 @@ def test_array_to_video_input():
     assert input[0] == "-" and input[1] == cfg
 
 
-
 def test_add_url():
 
     url = "test.mp4"
@@ -50,11 +50,13 @@ def test_add_url():
     args_expected["inputs"] = [(url, None)]
     assert idx == 0 and entry == args_expected["inputs"][0] and args == args_expected
 
-    idx, entry = configure.add_url(args, "input", url, {"f": "rawvideo"})
+    idx, entry = configure.add_url(args, "input", url, {"f": "rawvideo"}, update=True)
     args_expected["inputs"][0] = (url, {"f": "rawvideo"})
     assert idx == 0 and entry == args_expected["inputs"][0] and args == args_expected
 
-    idx, entry = configure.add_url(args, "input", url, {"f": "mp4", "codec": "h264"})
+    idx, entry = configure.add_url(
+        args, "input", url, {"f": "mp4", "codec": "h264"}, update=True
+    )
     args_expected["inputs"][0] = (url, {"f": "mp4", "codec": "h264"})
     assert idx == 0 and entry == args_expected["inputs"][0] and args == args_expected
 
@@ -82,3 +84,24 @@ def test_get_option():
     assert configure.get_option(args, "output", "c", stream_type="v") == 1
     assert configure.get_option(args, "output", "c", stream_id=0, stream_type="v") == 2
     assert configure.get_option(args, "output", "ac", file_id=1) == 2
+
+
+def test_video_basic_filter():
+    print(
+        configure._build_video_basic_filter(
+            fill_color=None,
+            remove_alpha=None,
+            crop=None,
+            flip=None,
+            transpose=None,
+        )
+    )
+    print(
+        configure._build_video_basic_filter(
+            fill_color="red",
+            remove_alpha=True,
+            # crop=(100, 100, 5, 10),
+            # flip="horizontal",
+            # transpose="clock",
+        )
+    )

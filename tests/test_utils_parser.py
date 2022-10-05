@@ -1,4 +1,5 @@
 from ffmpegio.utils import parser
+from ffmpegio import FilterGraph
 
 
 def test_ffmpeg():
@@ -63,7 +64,9 @@ def test_compose():
     assert parser.compose(
         {
             "global_options": {
-                "filter_complex": "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay"
+                "filter_complex": FilterGraph(
+                    "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay"
+                )
             },
             "inputs": [("input.ts", {})],
             "outputs": [("output.mkv", {"sn": None, "map": ["#0x2dc", "a"]})],
@@ -72,7 +75,7 @@ def test_compose():
     ) == [
         "ffmpeg",
         "-filter_complex",
-        "[#0x2ef] setpts=PTS+1/TB [sub] ; [#0x2d0] [sub] overlay",
+        "[#0x2ef]setpts=PTS+1/TB[sub];[#0x2d0][sub]overlay",
         "-i",
         "input.ts",
         "-sn",
