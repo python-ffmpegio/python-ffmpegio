@@ -21,7 +21,7 @@ class SimpleReaderBase:
         show_log=None,
         progress=None,
         blocksize=None,
-        bufsize=-1,
+        sp_kwargs=None,
         **options,
     ) -> None:
 
@@ -52,14 +52,11 @@ class SimpleReaderBase:
         # create logger without assigning the source stream
         self._logger = LoggerThread(None, show_log)
 
+        kwargs = {**sp_kwargs} if sp_kwargs else {}
+        kwargs.update({"stdin": stdin, "progress": progress, "capture_log": True})
+
         # start FFmpeg
-        self._proc = ffmpegprocess.Popen(
-            ffmpeg_args,
-            stdin=stdin,
-            progress=progress,
-            capture_log=True,
-            bufsize=bufsize,
-        )
+        self._proc = ffmpegprocess.Popen(ffmpeg_args, **kwargs)
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
@@ -88,7 +85,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -201,7 +198,9 @@ class SimpleVideoReader(SimpleReaderBase):
     multi_read = False
     multi_write = False
 
-    def __init__(self, url, show_log=None, progress=None, blocksize=1, **options):
+    def __init__(
+        self, url, show_log=None, progress=None, blocksize=1, sp_kwargs=None, **options
+    ):
         hook = plugins.get_hook()
         super().__init__(
             hook.bytes_to_video,
@@ -210,6 +209,7 @@ class SimpleVideoReader(SimpleReaderBase):
             show_log,
             progress,
             blocksize,
+            sp_kwargs,
             **options,
         )
 
@@ -265,7 +265,15 @@ class SimpleAudioReader(SimpleReaderBase):
     multi_read = False
     multi_write = False
 
-    def __init__(self, url, show_log=None, progress=None, blocksize=None, **options):
+    def __init__(
+        self,
+        url,
+        show_log=None,
+        progress=None,
+        blocksize=None,
+        sp_kwargs=None,
+        **options,
+    ):
         hook = plugins.get_hook()
         super().__init__(
             hook.bytes_to_audio,
@@ -274,6 +282,7 @@ class SimpleAudioReader(SimpleReaderBase):
             show_log,
             progress,
             blocksize,
+            sp_kwargs,
             **options,
         )
 
@@ -331,6 +340,7 @@ class SimpleWriterBase:
         progress=None,
         overwrite=None,
         extra_inputs=None,
+        sp_kwargs=None,
         **options,
     ) -> None:
 
@@ -363,13 +373,16 @@ class SimpleWriterBase:
         self._logger = LoggerThread(None, show_log)
 
         # FFmpeg Popen arguments
-        self._cfg = {
-            "ffmpeg_args": ffmpeg_args,
-            "progress": progress,
-            "capture_log": True,
-            "overwrite": overwrite,
-            "stdout": stdout,
-        }
+        self._cfg = {**sp_kwargs} if sp_kwargs else {}
+        self._cfg.update(
+            {
+                "ffmpeg_args": ffmpeg_args,
+                "progress": progress,
+                "capture_log": True,
+                "overwrite": overwrite,
+                "stdout": stdout,
+            }
+        )
 
         if ready:
             self._open()
@@ -467,6 +480,9 @@ class SimpleVideoWriter(SimpleWriterBase):
         dtype_in=None,
         show_log=None,
         progress=None,
+        overwrite=None,
+        extra_inputs=None,
+        sp_kwargs=None,
         **options,
     ):
         options["r_in"] = rate_in
@@ -480,6 +496,9 @@ class SimpleVideoWriter(SimpleWriterBase):
             dtype_in,
             show_log,
             progress,
+            overwrite,
+            extra_inputs,
+            sp_kwargs,
             **options,
         )
 
@@ -538,6 +557,9 @@ class SimpleAudioWriter(SimpleWriterBase):
         dtype_in=None,
         show_log=None,
         progress=None,
+        overwrite=None,
+        extra_inputs=None,
+        sp_kwargs=None,
         **options,
     ):
         options["ar_in"] = rate_in
@@ -551,6 +573,9 @@ class SimpleAudioWriter(SimpleWriterBase):
             dtype_in,
             show_log,
             progress,
+            overwrite,
+            extra_inputs,
+            sp_kwargs,
             **options,
         )
 
@@ -629,7 +654,8 @@ class SimpleFilterBase:
         # fmt:off
         self, converter, data_viewer, info_viewer, expr, rate_in, shape_in=None, dtype_in=None, 
         rate=None, shape=None, dtype=None, block_size=None, defaulttimeout=None,
-        progress=None, show_log=None, **options,
+        progress=None, show_log=None,         sp_kwargs=None,
+**options,
         # fmt:on
     ) -> None:
 
@@ -712,11 +738,14 @@ class SimpleFilterBase:
         self._logger = LoggerThread(None, show_log)
 
         # FFmpeg Popen arguments
-        self._cfg = {
-            "ffmpeg_args": ffmpeg_args,
-            "progress": progress,
-            "capture_log": True,
-        }
+        self._cfg = {**sp_kwargs} if sp_kwargs else {}
+        self._cfg.update(
+            {
+                "ffmpeg_args": ffmpeg_args,
+                "progress": progress,
+                "capture_log": True,
+            }
+        )
 
         # if input is fully configured, start FFmpeg now
         if self.shape_in is not None and self.dtype_in is not None:
@@ -986,7 +1015,8 @@ class SimpleVideoFilter(SimpleFilterBase):
     def __init__(
         # fmt:off
         self, expr, rate_in, shape_in=None, dtype_in=None, rate=None, shape=None, dtype=None,
-        block_size=None, defaulttimeout=None, progress=None, show_log=None, **options,
+        block_size=None, defaulttimeout=None, progress=None, show_log=None,         sp_kwargs=None,
+**options,
         # fmt:on
     ) -> None:
         hook = plugins.get_hook()
@@ -994,7 +1024,7 @@ class SimpleVideoFilter(SimpleFilterBase):
         super().__init__(
             hook.bytes_to_video, hook.video_bytes, hook.video_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype,
-            block_size, defaulttimeout, progress, show_log, **options,
+            block_size, defaulttimeout, progress, show_log, sp_kwargs,**options,
         )
         # fmt:on
         self._loggertimeout = False
@@ -1097,13 +1127,14 @@ class SimpleAudioFilter(SimpleFilterBase):
         defaulttimeout=None,
         progress=None,
         show_log=None,
+        sp_kwargs=None,
         **options,
     ) -> None:
         hook = plugins.get_hook()
         # fmt: off
         super().__init__(hook.bytes_to_audio, hook.audio_bytes, hook.audio_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype, 
-            block_size, defaulttimeout, progress, show_log, **options)
+            block_size, defaulttimeout, progress, show_log, sp_kwargs,**options)
         # fmt: on
 
     def _pre_open(self, ffmpeg_args):

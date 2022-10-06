@@ -10,7 +10,13 @@ __all__ = ["create", "read", "write", "filter", "detect"]
 
 
 def _run_read(
-    *args, sample_fmt_in=None, ac_in=None, ar_in=None, show_log=None, **kwargs
+    *args,
+    sample_fmt_in=None,
+    ac_in=None,
+    ar_in=None,
+    show_log=None,
+    sp_kwargs=None,
+    **kwargs,
 ):
     """run FFmpeg and retrieve audio stream data
     :param *args ffmpegprocess.run arguments
@@ -25,6 +31,10 @@ def _run_read(
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param **kwargs ffmpegprocess.run keyword arguments
     :type **kwargs: tuple
     :return: [description]
@@ -42,6 +52,9 @@ def _run_read(
     dtype, ac, rate = configure.finalize_audio_read_opts(
         args[0], sample_fmt_in, ac_in, ar_in
     )
+
+    if sp_kwargs is not None:
+        kwargs = {**sp_kwargs, **kwargs}
 
     if dtype is None or ac is None or rate is None:
         configure.clear_loglevel(args[0])
@@ -70,7 +83,7 @@ def _run_read(
     )
 
 
-def create(expr, *args, progress=None, show_log=None, **options):
+def create(expr, *args, progress=None, show_log=None, sp_kwargs=None, **options):
     """Create audio data using an audio source filter
 
     :param expr: name of the source filter or full filter expression
@@ -85,6 +98,10 @@ def create(expr, *args, progress=None, show_log=None, **options):
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param \\**options: Named filter options or FFmpeg options. Items are
                         only considered as the filter options if expr is a
                         single-filter graph, and take the precedents over
@@ -135,12 +152,13 @@ def create(expr, *args, progress=None, show_log=None, **options):
     return _run_read(
         ffmpeg_args,
         sample_fmt_in=inopts.get("sample_fmt", "dbl"),
-        show_log=show_log,
         progress=progress,
+        show_log=show_log,
+        sp_kwargs=sp_kwargs,
     )
 
 
-def read(url, progress=None, show_log=None, **options):
+def read(url, progress=None, show_log=None, sp_kwargs=None, **options):
     """Read audio samples.
 
     :param url: URL of the audio file to read.
@@ -151,6 +169,10 @@ def read(url, progress=None, show_log=None, **options):
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :return: sample rate in samples/second and audio data object specified by `bytes_to_audio` plugin hook
@@ -186,15 +208,19 @@ def read(url, progress=None, show_log=None, **options):
     configure.add_url(ffmpeg_args, "input", url, input_options)[1][1]
     configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
 
+    # override user specified stdin and input if given
+    sp_kwargs = {**sp_kwargs} if sp_kwargs else {}
+    sp_kwargs["stdin"] = stdin
+    sp_kwargs["input"] = input
+
     return _run_read(
         ffmpeg_args,
-        stdin=stdin,
-        input=input,
         sample_fmt_in=sample_fmt,
         ac_in=ac_in,
         ar_in=ar_in,
         progress=progress,
         show_log=show_log,
+        sp_kwargs=sp_kwargs,
     )
 
 
@@ -206,6 +232,7 @@ def write(
     overwrite=None,
     show_log=None,
     extra_inputs=None,
+    sp_kwargs=None,
     **options,
 ):
     """Write a NumPy array to an audio file.
@@ -227,6 +254,10 @@ def write(
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
     :type extra_inputs: seq(str|(str,dict))
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     """
@@ -251,19 +282,33 @@ def write(
 
     configure.add_url(ffmpeg_args, "output", url, options)
 
-    out = ffmpegprocess.run(
-        ffmpeg_args,
-        input=plugins.get_hook().audio_bytes(obj=data),
-        stdout=stdout,
-        progress=progress,
-        overwrite=overwrite,
-        capture_log=None if show_log else True,
+    kwargs = {**sp_kwargs} if sp_kwargs else {}
+    kwargs.update(
+        {
+            "input": plugins.get_hook().audio_bytes(obj=data),
+            "stdout": stdout,
+            "progress": progress,
+            "overwrite": overwrite,
+        }
     )
+    if show_log:
+        kwargs["capture_log"] = True
+
+    out = ffmpegprocess.run(ffmpeg_args, **kwargs)
     if out.returncode:
         raise FFmpegError(out.stderr, show_log)
 
 
-def filter(expr, input_rate, input, sample_fmt=None, progress=None, show_log=None, **options):
+def filter(
+    expr,
+    input_rate,
+    input,
+    sample_fmt=None,
+    progress=None,
+    show_log=None,
+    sp_kwargs=None,
+    **options,
+):
     """Filter audio samples.
 
     :param expr: SISO filter graph.
@@ -277,6 +322,10 @@ def filter(expr, input_rate, input, sample_fmt=None, progress=None, show_log=Non
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
     :return: output sampling rate and audio data object, created by `bytes_to_audio` plugin hook
@@ -300,7 +349,7 @@ def filter(expr, input_rate, input, sample_fmt=None, progress=None, show_log=Non
         ffmpeg_args,
         input=plugins.get_hook().audio_bytes(obj=input),
         progress=progress,
-        show_log=show_log
+        show_log=show_log,
     )
 
 

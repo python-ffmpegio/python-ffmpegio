@@ -12,6 +12,7 @@ def transcode(
     two_pass=False,
     pass1_omits=None,
     pass1_extras=None,
+    sp_kwargs=None,
     **options,
 ):
     """Transcode media files to another format/encoding
@@ -40,6 +41,10 @@ def transcode(
     :param pass1_extras: list of additional output arguments to include in pass 1,
                          defaults to None (add 'an' if `pass1_omits` also None)
     :type pass1_extras: dict(int:dict(str)), optional
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options. For output and global options, use FFmpeg
                         option names as is. For input options, append "_in" to the
                         option name. For example, r_in=2000 to force the input frame
@@ -97,19 +102,22 @@ def transcode(
         # convert basic VF options to vf option
         configure.build_basic_vf(args, None, i)
 
-    kwargs = (
-        {"pass1_omits": pass1_omits, "pass1_extras": pass1_extras} if two_pass else {}
+    kwargs = {**sp_kwargs} if sp_kwargs else {}
+    kwargs.update(
+        {
+            "progress": progress,
+            "overwrite": overwrite,
+            "stdin": stdin,
+            "stdout": stdout,
+            "input": input,
+        }
     )
+    if show_log:
+        kwargs["capture_log"] = True
+    if two_pass:
+        kwargs["pass1_omits"] = pass1_omits
+        kwargs["pass1_extras"] = pass1_extras
 
-    pout = (fp.run_two_pass if two_pass else fp.run)(
-        args,
-        progress=progress,
-        overwrite=overwrite,
-        capture_log=None if show_log else True,
-        stdin=stdin,
-        stdout=stdout,
-        input=input,
-        **kwargs,
-    )
+    pout = (fp.run_two_pass if two_pass else fp.run)(args, **kwargs)
     if pout.returncode:
         raise FFmpegError(pout.stderr, show_log)

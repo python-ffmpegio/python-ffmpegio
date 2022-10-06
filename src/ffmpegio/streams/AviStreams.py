@@ -17,6 +17,10 @@ class AviMediaReader:
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :type show_log: bool, optional
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                      `subprocess.Popen()` call used to run the FFmpeg, defaults
+                      to None
+    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                         input url or '_in' to be applied to all inputs. The url-specific option gets the
                         preference (see :doc:`options` for custom options)
@@ -52,6 +56,7 @@ class AviMediaReader:
         progress=None,
         show_log=None,
         queuesize=0,
+        sp_kwargs=None,
         **options
     ):
 

@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Added
 
 - `utils.parser.compose()` - support dict value for `-metadata` output option
+- `sp_kwargs` argument to all the `read`, `write`, and `filter` functions and classes.
 
 ### Fixed
 
