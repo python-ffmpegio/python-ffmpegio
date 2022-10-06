@@ -99,6 +99,7 @@ from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
 from copy import deepcopy
+import os
 import re
 from subprocess import PIPE
 from tempfile import NamedTemporaryFile
@@ -2322,43 +2323,71 @@ class Graph(UserList):
 
     @contextmanager
     def as_script_file(self):
-        """return file-like object with filtergraph description
+        """return script file containing the filtergraph description
 
-        :yield: temporary file with written filtergraph description
-        :rtype: file-like object
+        :yield: path of a temporary text file with filtergraph description
+        :rtype: str
 
-        The created file-like object can be used just like a normal file within
-        a `with` statement. Use this function to pipe in a long filtergraph
-        description with `filter_complex_script` or `filter_script` FFmpeg options.
-        The option value shall be set to `'pipe:x'` where x is the pipe's descriptor.
-        (`'pipe:0'` if using standard input).
+        This method is intended to work with the `filter_script` and
+        `filter_complex_script` FFmpeg options, by creating a temporary text file
+        containing the filtergraph description.
 
         ..note::
           Only use this function when the filtergraph description is too long for
-          OS to handle it as an command argument. Presenting the filtergraph with
-          a `filter_complex` or `filter` option is a faster solution.
+          OS to handle it. Presenting the filtergraph with a `filter_complex` or
+          `filter` option to FFmpeg is always a faster solution.
+
+          Moreover, if `stdin` is available, i.e., not for a write or filter
+          operation, it is more performant to pass the long filtergraph object
+          to the subprocess' `input` argument instead of using this method.
+
+        Use this method with a `with` statement. How to incorporate its output
+        with `ffmpegprocess` depends on the `as_file_obj` argument.
 
         ..example::
-            
-          ..codeblock::python
 
-            fg = ffmpegio.FilterGraph(...) # a very long filtergraph
+            The following example illustrates a usecase for a video SISO filtergraph:
 
-            with fg.as_script_file(self) as f:
+            ..codeblock::python
+
+                # assume `fg` is a SISO video filter Graph object
+
+                with fg.as_script_file() as script_path:
+                    ffmpegio.ffmpegprocess.run(
+                        {
+                            'inputs':  [('input.mp4', None)]
+                            'outputs': [('output.mp4', {'filter_script:v': script_path})]
+                        })
+
+            As noted above, a performant alternative is to use an input pipe and 
+            feed the filtergraph description directly:
+
+            ..codeblock::python
+
                 ffmpegio.ffmpegprocess.run(
                     {
                         'inputs':  [('input.mp4', None)]
-                        'outputs': [('output.mp4', {'filter_script:v': f})]
-                    }, stdin=f)
+                        'outputs': [('output.mp4', {'filter_script:v': 'pipe:0'})]
+                    },
+                    input=str(fg))
+
+            Note that `pipe:0` must be used and not the shorthand `'-'` unlike
+            the input url.
+
         """
 
         # populate the file with filtergraph expression
-        temp_file = NamedTemporaryFile("w+t", delete=False)
+        temp_file = NamedTemporaryFile("wt", delete=False)
         temp_file.write(str(self))
-        temp_file.seek(0)
+        temp_file.close()
 
-        # present the file to the caller in the context
-        yield temp_file
+        try:
+            # present the file to the caller in the context
+            yield temp_file.name
+
+        finally:
+            if temp_file:
+                os.remove(temp_file.name)
 
 
 # dict: stores filter construction functions
