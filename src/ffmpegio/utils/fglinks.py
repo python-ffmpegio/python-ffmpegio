@@ -742,14 +742,30 @@ class GraphLinks(UserDict):
 
         # process each input item
         def process_item(label, dsts, src):
-            if auto_link and label in self.data:
-                if dsts is None and self.data[label][1] is None:
-                    self.data[label] = (self.data[label][0], src)
-                    return label
-                elif src is None and self.data[label][0] is None:
-                    self.data[label] = (dsts, self.data[label][1])
-                    return label
-            label = self._register_label(label)
+            new_label = True
+            if label in self.data:
+                dsts_self, src_self = self.data[label]
+                if auto_link:
+                    # try to link matching input & output pads
+                    if dsts is None and src_self is None:
+                        self.data[label] = (dsts_self, src)
+                        return label
+                    elif src is None and dsts_self is None:
+                        self.data[label] = (dsts, src_self)
+                        return label
+
+                if src == src_self:
+                    # if links from the same source, merge
+                    dsts = tuple(
+                        (
+                            *self.iter_dst_ids(dsts_self, True),
+                            *self.iter_dst_ids(dsts, True),
+                        )
+                    )
+                    new_label = False
+
+            if new_label:
+                label = self._register_label(label)
             self.data[label] = (dsts, src)
             return label
 
