@@ -2376,10 +2376,13 @@ def __getattr__(name):
 
         if notfound:
             raise AttributeError(
-                f"{name} is not ffmpegio.filtergraph module's instance attribute or a valid FFmpeg filter name."
+                f"{name} is neither a valid ffmpegio.filtergraph module's instance attribute "
+                "nor a valid FFmpeg filter name."
             )
 
-        func = partial(Filter, name)
+        def func(*args, filter_id=None, **kwargs):
+            return Filter(name, *args, filter_id=filter_id, **kwargs)
+
         func.__name__ = name
         func.__doc__ = path.ffmpeg(
             f"-hide_banner -h filter={name}", universal_newlines=True, stdout=PIPE
