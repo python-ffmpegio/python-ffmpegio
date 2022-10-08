@@ -1381,7 +1381,7 @@ class Graph(UserList):
             other = as_filtergraph_object(other)
         except Exception:
             return NotImplemented
-        return self.join(other)
+        return self.join(other, "auto")
 
     def __radd__(self, other):
         # join
@@ -1389,7 +1389,7 @@ class Graph(UserList):
             other = as_filtergraph(other)
         except Exception:
             return NotImplemented
-        return other.join(self)
+        return other.join(self, "auto")
 
     def __or__(self, other):
         # create filtergraph with self and other as parallel chains, self first
@@ -2224,12 +2224,7 @@ class Graph(UserList):
         :type right: Graph|Chain|Filter
         :param how: method on how to mate input and output, defaults to "per_chain".
 
-                    -----------  -------------------------------------------------------------------
-                    'chainable'  joins only chainable input pads and output pads.
-                    'per_chain'  |joins one pair of first available input pad and output pad of each
-                                 |mating chains. Source and sink chains are ignored.
-                    'all'        joins all input pads and output pads
-                    -----------  -------------------------------------------------------------------
+            'auto'       tries 'per_chain' first, if fails, then tries 'all'.
 
         :type how: "chainable"|"per_chain"|"all"
         :param match_scalar: True to multiply self if SO-MI connection or right if MO-SI connection
@@ -2251,6 +2246,27 @@ class Graph(UserList):
 
         if not len(self):
             return Graph(right)
+
+        # auto-mode, 1-deep recursion
+        if how == "auto":
+            try:
+                return self.join(
+                    right,
+                    "per_chain",
+                    match_scalar,
+                    ignore_labels,
+                    chain_siso,
+                    replace_sws_flags,
+                )
+            except:
+                return self.join(
+                    right,
+                    "all",
+                    match_scalar,
+                    ignore_labels,
+                    chain_siso,
+                    replace_sws_flags,
+                )
 
         # list all the unconnected output pads of left fg
         # [(index, label, filter)]
