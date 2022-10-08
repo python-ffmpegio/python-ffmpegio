@@ -102,7 +102,7 @@ def parse_stream_spec(spec, file_index=False):
     if isinstance(spec, str):
         out = {}
         if file_index:
-            m = re.match(r"(\d+):", spec)
+            m = re.match(r"(\d+)(?::|$)", spec)
             if m:
                 out["file_index"] = int(m[1])
                 spec = spec[m.end() :]
