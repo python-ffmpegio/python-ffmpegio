@@ -1954,7 +1954,7 @@ class Graph(UserList):
             return self  # if none found, good to go as is
 
         # retrieve all the output pads of the filterchains
-        chainable_outputs = [v[0] for v in fg.iter_chainable_output_pads()]
+        chainable_outputs = [v[0] for v in self.iter_chainable_output_pads()]
 
         # create a clone to modify and output
         fg = Graph(self)
