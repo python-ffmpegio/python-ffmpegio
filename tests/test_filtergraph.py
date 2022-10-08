@@ -57,8 +57,8 @@ def test_resolve_index():
             "fps,trim;crop",
         ),
         ("fps[L];[L]crop", "trim", None, None, "fps[L];[L]crop,trim"),
-        ("split=2[C];[C]crop", "trim", None, None, "split=2[C],trim;[C]crop"),
-        ("split=2[C][out];[C]crop", "trim", "out", None, "split=2[C],trim;[C]crop"),
+        ("split=2[C];[C]crop", "trim", None, None, "split=2[C][L0];[C]crop;[L0]trim"),
+        ("split=2[C][out];[C]crop", "trim", "out", None, "split=2[C][out];[C]crop;[out]trim"),
     ],
 )
 def test_attach(fg, fc, left_on, right_on, out):
@@ -79,8 +79,8 @@ def test_attach(fg, fc, left_on, right_on, out):
         ("fps;crop", "trim", (1, 0, 0), None, "trim,crop;fps"),
         ("fps;[in]crop", "trim", "in", None, "trim,crop;fps"),
         ("[L]fps;crop[L]", "trim", None, None, "trim,crop[L];[L]fps"),
-        ("[C]overlay;crop[C]", "trim", None, None, "trim,[C]overlay;crop[C]"),
-        ("[C][in]overlay;crop[C]", "trim", "in", None, "trim,[C]overlay;crop[C]"),
+        ("[C]overlay;crop[C]", "trim", None, None, "trim[L0];[C][L0]overlay;crop[C]"),
+        ("[C][in]overlay;crop[C]", "trim", "in", None, "trim[L1];[C][L1]overlay;crop[C]"),
     ],
 )
 def test_rattach(fg, fc, left_on, skip_named, out):
@@ -219,8 +219,8 @@ def test_connect(fg, r, to_l, to_r, chain, out):
         ("fps;crop", "trim", None, True, False, "fps,trim;crop,trim"),
         ("fps", "trim;crop", None, True, False, "fps,trim;fps,crop"),
         ("fps", "overlay", 'per_chain', False, False, "fps[L0];[L0]overlay"),
-        ("fps", "overlay", 'all', True, False, "fps,[L0]overlay;fps[L0]"),
-        ("fps", "overlay", 'chainable', True, False, "fps,overlay"),
+        ("fps", "overlay", 'all', True, False, "fps[L0];fps[L1];[L0][L1]overlay"),
+        ("fps", "overlay", 'chainable', True, False, "fps[L0];[L0]overlay"),
         # fmt: on
     ],
 )

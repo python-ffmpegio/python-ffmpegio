@@ -2066,7 +2066,7 @@ class Graph(UserList):
         right,
         from_left,
         to_right,
-        chain_if_possible=False,
+        chain_siso=True,
         replace_sws_flags=None,
     ):
         """stack another Graph and make connection from left to right
@@ -2077,8 +2077,8 @@ class Graph(UserList):
         :type from_left: seq(tuple(int,int,int)|str)
         :param to_right: input pad ids or labels of the `right` fg
         :type to_right: seq(tuple(int,int,int)|str)
-        :param chain_if_possible: True to chain the connecting filters if possible, default: False
-        :type chain_if_possible: bool, optional
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :type chain_siso: bool, optional
         :param replace_sws_flags: True to use `right` sws_flags if present,
                                   False to drop `right` sws_flags,
                                   None to throw an exception (default)
@@ -2121,19 +2121,17 @@ class Graph(UserList):
         chain_pairs = []
         rm_chains = set()
         n0 = len(self)  # chain index offset
-        if chain_if_possible:
-            # list all the interfacing unconnected filter pads which could be joined in series
-            chain_left = tuple(
-                (v[0] for v in self.iter_chainable_output_pads(include_named=True))
-            )
-            chain_right = tuple(
-                (v[0] for v in right.iter_chainable_input_pads(include_named=True))
-            )
 
         for (dst, dst_label), (src, src_label) in zip(dsts_info, srcs_info):
             new_dst = (dst[0] + n0, *dst[1:])
 
-            if chain_if_possible and src in chain_left and dst in chain_right:
+            do_chain = (
+                chain_siso
+                and self.data[src[0]][src[1]].get_num_outputs() == 1
+                and right.data[dst[0]][dst[1]].get_num_inputs() == 1
+            )
+
+            if do_chain:
                 if dst_label is not None:
                     right._links.remove_label(dst_label, dst)
                 chain_pairs.append((new_dst, src, src_label))
@@ -2215,7 +2213,7 @@ class Graph(UserList):
         how="per_chain",
         match_scalar=False,
         ignore_labels=False,
-        chain_if_possible=True,
+        chain_siso=True,
         replace_sws_flags=None,
     ):
         """append another Graph object and connect all inputs to the outputs of this filtergraph
@@ -2230,6 +2228,8 @@ class Graph(UserList):
         :param match_scalar: True to multiply self if SO-MI connection or right if MO-SI connection
                               to single-ended entity to the other, defaults to False
         :type match_scalar: bool
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :type chain_siso: bool, optional
         :param replace_sws_flags: True to use other's sws_flags if present,
                                   False to ignore other's sws_flags,
                                   None to throw an exception (default)
@@ -2296,7 +2296,7 @@ class Graph(UserList):
             right,
             [index for index, *_ in src_info],
             [index for index, *_ in dst_info],
-            chain_if_possible,
+            chain_siso,
             replace_sws_flags,
         )
 
@@ -2317,7 +2317,7 @@ class Graph(UserList):
         right = as_filtergraph_object(right)
         right_on = right._resolve_index(True, right_on)
         left_on = self._resolve_index(False, left_on)
-        return self.connect(right, [left_on], [right_on], chain_if_possible=True)
+        return self.connect(right, [left_on], [right_on], chain_siso=True)
 
     def rattach(self, left, right_on=None, left_on=None):
         """prepend an input filterchain to an existing filter chain of the filtergraph
@@ -2336,7 +2336,7 @@ class Graph(UserList):
         left = as_filtergraph(left)
         left_on = left._resolve_index(False, left_on)
         right_on = self._resolve_index(True, right_on)
-        return left.connect(self, [left_on], [right_on], chain_if_possible=True)
+        return left.connect(self, [left_on], [right_on], chain_siso=True)
 
     @contextmanager
     def as_script_file(self):
