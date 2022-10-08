@@ -106,7 +106,7 @@ from tempfile import NamedTemporaryFile
 from . import path
 from .caps import filters as list_filters, filter_info, layouts
 from .utils import filter as filter_utils, is_stream_spec
-from .utils.fglinks import FilterGraphLinks
+from .utils.fglinks import GraphLinks
 from .errors import FFmpegioError
 
 
@@ -1219,7 +1219,8 @@ class Graph(UserList):
             else (Chain(fspec) for fspec in filter_specs)
         )
 
-        """_summary_
+        self.links = GraphLinks(links)
+        """utils.fglinks.GraphLinks: filtergraph link specifications
         """
         self.links = FilterGraphLinks(links)
 
@@ -1683,15 +1684,15 @@ class Graph(UserList):
 
     def validate_input_index(self, dst):
         try:
-            FilterGraphLinks.validate_pad_id_pair((dst, None))
-            for index in FilterGraphLinks.iter_dst_ids(dst):
+            GraphLinks.validate_pad_id_pair((dst, None))
+            for index in GraphLinks.iter_dst_ids(dst):
                 self[index[0]].validate_input_index(*index[1:])
         except:
             raise Graph.InvalidFilterPadId("input", dst)
 
     def validate_output_index(self, index):
         try:
-            FilterGraphLinks.validate_pad_id_pair((None, index))
+            GraphLinks.validate_pad_id_pair((None, index))
             self[index[0]].validate_output_index(*index[1:])
         except:
             raise Graph.InvalidFilterPadId("output", index)
@@ -1839,16 +1840,16 @@ class Graph(UserList):
         """
 
         if label is not None:
-            FilterGraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
+            GraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
         if dst is not None:
-            FilterGraphLinks.validate_pad_id(dst)
+            GraphLinks.validate_pad_id(dst)
             try:
                 f = self.data[dst[0]][dst[1]]
                 assert dst[2] >= 0 and dst[2] < f.get_num_inputs()
             except:
                 raise Graph.InvalidFilterPadId("input", dst)
         if src is not None:
-            FilterGraphLinks.validate_pad_id(src)
+            GraphLinks.validate_pad_id(src)
             try:
                 f = self.data[src[0]][src[1]]
                 assert src[2] >= 0 and src[2] < f.get_num_outputs()
@@ -1880,12 +1881,12 @@ class Graph(UserList):
 
         """
 
-        FilterGraphLinks.validate_label(
+        GraphLinks.validate_label(
             label, named_only=True, no_stream_spec=src is not None
         )
         if dst is not None:
-            FilterGraphLinks.validate_pad_id_pair((dst, None))
-            for d in FilterGraphLinks.iter_dst_ids(dst):
+            GraphLinks.validate_pad_id_pair((dst, None))
+            for d in GraphLinks.iter_dst_ids(dst):
                 try:
                     f = self.data[d[0]][d[1]]
                     n = f.get_num_inputs()
@@ -1893,7 +1894,7 @@ class Graph(UserList):
                 except:
                     raise Graph.InvalidFilterPadId("input", d)
         elif src is not None:
-            FilterGraphLinks.validate_pad_id(src)
+            GraphLinks.validate_pad_id(src)
             try:
                 f = self.data[src[0]][src[1]]
                 assert src[2] >= 0 and src[2] < f.get_num_outputs()

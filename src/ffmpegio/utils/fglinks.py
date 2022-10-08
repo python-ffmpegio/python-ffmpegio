@@ -4,7 +4,7 @@ from . import is_stream_spec
 from ..errors import FFmpegioError
 
 
-class FilterGraphLinks(UserDict):
+class GraphLinks(UserDict):
     class Error(FFmpegioError):
         pass
 
@@ -39,7 +39,7 @@ class FilterGraphLinks(UserDict):
         except:
             if named_only or not isinstance(label, int):
                 msg = f'{label} is not a valid link label. A link label must be a string with only alphanumeric and "_" characters'
-                raise FilterGraphLinks.Error(
+                raise GraphLinks.Error(
                     msg + "."
                     if named_only
                     else msg + " or an int for unnamed internal link."
@@ -56,7 +56,7 @@ class FilterGraphLinks(UserDict):
             and len(id) == 3
             and all((isinstance(i, int) and i >= 0 for i in id))
         ):
-            raise FilterGraphLinks.Error(
+            raise GraphLinks.Error(
                 f"{id} is not a valid filter pad ID. Filter pad ID must be a 3-element tuple: (chain id, filter id, pad id)"
             )
 
@@ -66,47 +66,47 @@ class FilterGraphLinks(UserDict):
         try:
             assert len(ids) == 2
         except:
-            raise FilterGraphLinks.Error(
+            raise GraphLinks.Error(
                 f"Link value must be a 2-element tuple with dst and src pad ids"
             )
 
         (dst, src) = ids
-        FilterGraphLinks.validate_pad_id(src)
+        GraphLinks.validate_pad_id(src)
 
         i = -1
-        for i, d in enumerate(FilterGraphLinks.iter_dst_ids(dst, True)):
+        for i, d in enumerate(GraphLinks.iter_dst_ids(dst, True)):
             if d is None and src is None:
-                raise FilterGraphLinks.Error(
+                raise GraphLinks.Error(
                     f"multi-id input label item cannot be None."
                 )
-            FilterGraphLinks.validate_pad_id(d)
+            GraphLinks.validate_pad_id(d)
         nel = i + 1
 
         if src is None and nel == 0:
-            raise FilterGraphLinks.Error(f"both src and dst cannot be None.")
+            raise GraphLinks.Error(f"both src and dst cannot be None.")
 
         if dst is not None and not isinstance(dst[0], int) and nel < 2:
-            raise FilterGraphLinks.Error(
+            raise GraphLinks.Error(
                 f"multi-id dst link item must define more than 1 element."
             )
 
     @staticmethod
     def validate_item(label, pads):
-        FilterGraphLinks.validate_pad_id_pair(pads)  # this fails if None-None pair
+        GraphLinks.validate_pad_id_pair(pads)  # this fails if None-None pair
 
-        FilterGraphLinks.validate_label(label, no_stream_spec=pads[1] is not None)
+        GraphLinks.validate_label(label, no_stream_spec=pads[1] is not None)
 
         # stream specifier can only be used as input label
         if is_stream_spec(label, True) and pads[1] is not None:
-            raise FilterGraphLinks.Error(
+            raise GraphLinks.Error(
                 f"Input stream specifier ({label}) can only be used as an input label."
             )
 
         # unnamed link cannot be a pad label
         if isinstance(label, int) and (
-            not len(list(FilterGraphLinks.iter_dst_ids(pads[0]))) or pads[1] is None
+            not len(list(GraphLinks.iter_dst_ids(pads[0]))) or pads[1] is None
         ):
-            raise FilterGraphLinks.Error(
+            raise GraphLinks.Error(
                 f"Unnamed (integer) links must specify both dst and src."
             )
 
@@ -117,11 +117,11 @@ class FilterGraphLinks(UserDict):
 
         # validate each link
         for label, pads in data.items():
-            FilterGraphLinks.validate_item(label, pads)
-            for d in FilterGraphLinks.iter_dst_ids(pads[0]):
+            GraphLinks.validate_item(label, pads)
+            for d in GraphLinks.iter_dst_ids(pads[0]):
                 # dst pad id must be unique
                 if d in dsts:
-                    raise FilterGraphLinks.Error(
+                    raise GraphLinks.Error(
                         f"Duplicate entries of dst pad id {d} found (must be unique)"
                     )
                 if d is not None:
@@ -136,7 +136,7 @@ class FilterGraphLinks(UserDict):
             modified = tuple(
                 (
                     d if d is None else modifier(d)
-                    for d in FilterGraphLinks.iter_dst_ids(dsts, True)
+                    for d in GraphLinks.iter_dst_ids(dsts, True)
                 )
             )
             n = len(modified)
@@ -152,10 +152,10 @@ class FilterGraphLinks(UserDict):
 
     def __init__(self, links=None):
         # validate input arg
-        if links is not None and not isinstance(links, FilterGraphLinks):
+        if links is not None and not isinstance(links, GraphLinks):
             try:
                 self.validate(links)
-            except FilterGraphLinks.Error as e:
+            except GraphLinks.Error as e:
                 raise e
             except:
                 raise TypeError(
@@ -501,13 +501,13 @@ class FilterGraphLinks(UserDict):
         """
 
         if src is None or dst is None:
-            raise FilterGraphLinks.Error(f"both src and dst ids must not be Nones.")
+            raise GraphLinks.Error(f"both src and dst ids must not be Nones.")
 
         # check if dst already exists and resolve conflict if there is one
         dst_label = self.find_dst_label(dst)
         if dst_label is not None:
             if not (force or self.is_input(dst_label)):
-                raise FilterGraphLinks.Error(f"input pad {dst} already linked.")
+                raise GraphLinks.Error(f"input pad {dst} already linked.")
             if force or isinstance(self.data[dst_label][0][0], tuple):
                 # if dst_label has multi-dsts, cannot reuse it
                 self.unlink(dst=dst)
@@ -597,7 +597,7 @@ class FilterGraphLinks(UserDict):
                         self.unlink(dst=d)
                 else:
                     # or throw an error
-                    raise FilterGraphLinks.Error(
+                    raise GraphLinks.Error(
                         f"the input pad(s) {dst} already linked."
                     )
 
@@ -606,7 +606,7 @@ class FilterGraphLinks(UserDict):
 
         else:
             if is_stream_spec(label):
-                raise FilterGraphLinks.Error(
+                raise GraphLinks.Error(
                     f"the output label [{label}] cannot be a stream specifier."
                 )
 
@@ -634,7 +634,7 @@ class FilterGraphLinks(UserDict):
         try:
             dsts, src = self.data[label]
         except:
-            raise FilterGraphLinks.Error(f"{label} is not a valid link label.")
+            raise GraphLinks.Error(f"{label} is not a valid link label.")
 
         if dsts is None or (src is None and dst is None):
             # simple in/out label
@@ -649,7 +649,7 @@ class FilterGraphLinks(UserDict):
             )
             n = len(new_dsts)
             if n == len(dsts):
-                raise FilterGraphLinks.Error(
+                raise GraphLinks.Error(
                     f"no specified input labels found: {label} (dst={dst})."
                 )
 
@@ -684,7 +684,7 @@ class FilterGraphLinks(UserDict):
         """Update the links with the label/id-pair pairs from other, overwriting existing keys. Return None.
 
         :param other: other object to copy existing items from
-        :type other: FilterGraphLinks or a dict-like object with valid items
+        :type other: GraphLinks or a dict-like object with valid items
         :param offset: channel id offset of the copied items, defaults to 0
         :type offset: int, optional
         :param auto_link: True to connect matching input-output labels, defaults to False
@@ -694,11 +694,11 @@ class FilterGraphLinks(UserDict):
         :returns: dict of given key to the actual labels assigned
         :rtype: dict
         """
-        if not isinstance(other, FilterGraphLinks):
+        if not isinstance(other, GraphLinks):
             try:
                 assert isinstance(other, abc.Mapping)
             except Exception as e:
-                raise FilterGraphLinks.Error(
+                raise GraphLinks.Error(
                     f"Other must be a dict-like mapping object"
                 )
             self.validate(other)
@@ -718,7 +718,7 @@ class FilterGraphLinks(UserDict):
                 if force:
                     to_unlink.append(d)
                 else:
-                    raise FilterGraphLinks.Error(
+                    raise GraphLinks.Error(
                         f"dst id {do} with chain id offset {offset or 0} conflicts with existing dst "
                     )
 
