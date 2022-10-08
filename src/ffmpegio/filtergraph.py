@@ -1180,7 +1180,7 @@ class Graph(UserList):
 
         filter_specs (list of lists of tuples or None): list of chains of filters.
         links (dict(str|int: [(int,int,int)|None|list((int,int,int)), (int,int,int)|None))
-        sws_flags (tuple or None): tuple defining the sws flags
+        sws_flags (Filter or None): swscale flags for automatically inserted scalers
 
     """
 
@@ -1206,7 +1206,7 @@ class Graph(UserList):
             filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
         elif isinstance(filter_specs, Graph):
             links = filter_specs.links
-            sws_flags = filter_specs.sws_flags
+            sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
             autosplit_output = filter_specs.autosplit_output
         elif isinstance(filter_specs, Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
@@ -1222,11 +1222,10 @@ class Graph(UserList):
         self.links = GraphLinks(links)
         """utils.fglinks.GraphLinks: filtergraph link specifications
         """
-        self.links = FilterGraphLinks(links)
 
-        """_summary_
+        self.sws_flags = None if sws_flags is None else Filter(["scale", *sws_flags])
+        """Filter|None: swscale flags for automatically inserted scalers
         """
-        self.sws_flags = sws_flags
 
         """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
         self.autosplit_output = autosplit_output
@@ -1299,7 +1298,9 @@ class Graph(UserList):
     def __str__(self) -> str:
         # insert split filters if autosplit_output is True
         fg = self.split_sources() if self.autosplit_output else self
-        return filter_utils.compose_graph(fg, fg.links, fg.sws_flags)
+        return filter_utils.compose_graph(
+            fg, fg.links, fg.sws_flags and fg.sws_flags[1:]
+        )
 
     def __setitem__(self, key, value):
         super().__setitem__(key, as_filterchain(value, copy=True))
