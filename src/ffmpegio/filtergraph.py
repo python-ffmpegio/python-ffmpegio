@@ -2094,14 +2094,14 @@ class Graph(UserList):
         right = as_filtergraph(right, copy=True)
 
         # resolve from_left and to_right to pad ids (raises if invalid)
-        srcs_info = set(self._resolve_index(False, index) for index in from_left)
+        srcs_info = [self._resolve_index(False, index) for index in from_left]
         nout = len(srcs_info)
-        if nout != len(from_left):
+        if nout != len(set(srcs_info)):
             raise ValueError(f"from_left pad indices are not unique.")
 
-        dsts_info = set(right._resolve_index(True, index) for index in to_right)
+        dsts_info = [right._resolve_index(True, index) for index in to_right]
         ndst = len(dsts_info)
-        if nout != len(to_right):
+        if nout != len(set(dsts_info)):
             raise ValueError(f"to_right pad indices are not unique.")
 
         if nout != ndst:
