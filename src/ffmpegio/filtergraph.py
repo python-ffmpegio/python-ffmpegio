@@ -1205,7 +1205,7 @@ class Graph(UserList):
         if isinstance(filter_specs, str):
             filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
         elif isinstance(filter_specs, Graph):
-            links = filter_specs.links
+            links = filter_specs._links
             sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
             autosplit_output = filter_specs.autosplit_output
         elif isinstance(filter_specs, Chain):
@@ -1219,7 +1219,7 @@ class Graph(UserList):
             else (Chain(fspec) for fspec in filter_specs)
         )
 
-        self.links = GraphLinks(links)
+        self._links = GraphLinks(links)
         """utils.fglinks.GraphLinks: filtergraph link specifications
         """
 
@@ -1240,12 +1240,12 @@ class Graph(UserList):
                     if len(index) > 2 and index[0] == "[" and index[-1] == "]"
                     else index
                 )
-                dsts, src = self.links[label]
+                dsts, src = self._links[label]
                 if is_input:  # src=None, dst=not None
-                    assert self.links.is_input(label)
-                    return next(self.links.iter_dst_ids(dsts))
+                    assert self._links.is_input(label)
+                    return next(self._links.iter_dst_ids(dsts))
                 else:  # dst=None, src=not None
-                    assert self.links.is_output(label)
+                    assert self._links.is_output(label)
                     return src
 
             if isinstance(index, tuple):
@@ -1299,7 +1299,7 @@ class Graph(UserList):
         # insert split filters if autosplit_output is True
         fg = self.split_sources() if self.autosplit_output else self
         return filter_utils.compose_graph(
-            fg, fg.links, fg.sws_flags and fg.sws_flags[1:]
+            fg, fg._links, fg.sws_flags and fg.sws_flags[1:]
         )
 
     def __setitem__(self, key, value):
@@ -1332,21 +1332,21 @@ class Graph(UserList):
 
     def extend(self, other, auto_link=False, force_link=False):
         other = as_filtergraph(other)
-        self.links.update(other.links, len(self), auto_link=auto_link, force=force_link)
+        self._links.update(other._links, len(self), auto_link=auto_link, force=force_link)
         self.data.extend(other)
 
     def insert(self, i, item):
         self.data.insert(i, as_filterchain(item))
-        self.links.adjust_chains(i, 1)
+        self._links.adjust_chains(i, 1)
 
     def __delitem__(self, i):
         # identify which indices are to be deleted
 
         indices = range(len(self.data))[i]
         if isinstance(indices, int):
-            (k for k, v in self.links.items() if v[1] is not None and v[1][0] == i)
-            self.links.iter_dsts()
-            self.links.adjust_chains(i, -1)
+            (k for k, v in self._links.items() if v[1] is not None and v[1][0] == i)
+            self._links.iter_dsts()
+            self._links.adjust_chains(i, -1)
         else:  # slice
 
             indices = sorted(indices)
@@ -1494,30 +1494,30 @@ class Graph(UserList):
     def __iadd__(self, other):
         fg = self + other
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def __imul__(self, __n):
         fg = self * __n
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def __ior__(self, other):
         fg = self | other
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def __irshift__(self, other):
         fg = self >> other
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def _screen_input_pads(self, iter_pads, include_named, include_connected):
 
-        links = self.links
+        links = self._links
         for index, f in iter_pads():  # for each input pad
             label = links.find_dst_label(index)  # get link label if exists
             if (
@@ -1598,7 +1598,7 @@ class Graph(UserList):
         return self._screen_input_pads(iter_pads, include_named, include_connected)
 
     def _screen_output_pads(self, iter_pads, include_named):
-        links = self.links
+        links = self._links
         for index, f in iter_pads():  # for each output pad
             labels = links.find_src_labels(index)  # get link label if exists
             if labels is None or not len(labels):
@@ -1712,24 +1712,24 @@ class Graph(UserList):
         if isinstance(index, tuple):
             # given pad index
             dst = index
-            label = self.links.find_dst_label(index)
+            label = self._links.find_dst_label(index)
             desc = f"input pad {index}"
 
-            if label is not None and self.links[label][1] is not None:
+            if label is not None and self._links[label][1] is not None:
                 raise Graph.Error(f"{desc} is not an input label.")
 
         else:
             # given label
             desc = f"link label [{index}]"
             try:
-                dsts, src = self.links[index]
+                dsts, src = self._links[index]
             except:
                 raise Graph.Error(f"{desc} does not exist.")
 
             if src is not None:
                 raise Graph.Error(f"{desc} is not an input label.")
 
-            dsts = [d for d in self.links.iter_dst_ids(dsts)]
+            dsts = [d for d in self._links.iter_dst_ids(dsts)]
             n = len(dsts)
 
             if not n:
@@ -1766,7 +1766,7 @@ class Graph(UserList):
             # given label
             desc = f"link label [{index}]"
             try:
-                src = self.links[index][1]
+                src = self._links[index][1]
                 assert src is not None
             except:
                 raise Graph.Error(f"{desc} does not exist, or it is an input label.")
@@ -1776,11 +1776,11 @@ class Graph(UserList):
             desc = f"output pad {index}"
             src = index
             label = None
-            labels = self.links.find_src_labels(src)
+            labels = self._links.find_src_labels(src)
 
             # if labels found, only 1 must be an output
             if len(labels):
-                labels = [label for label in labels if not self.links.is_linked(label)]
+                labels = [label for label in labels if not self._links.is_linked(label)]
                 if len(labels) != 1:
                     raise Graph.Error(
                         f"{desc} is already labeled but associated to no ouput label or multiple output labels"
@@ -1797,7 +1797,7 @@ class Graph(UserList):
 
     def are_linked(self, dst, src):
 
-        self.links.are_linked(dst, src)
+        self._links.are_linked(dst, src)
 
     def unlink(self, label=None, dst=None, src=None):
         """unlink specified links
@@ -1809,7 +1809,7 @@ class Graph(UserList):
         :param src: specify all the links with this src pad, defaults to None
         :type src: tuple(int,int,int), optional
         """
-        self.links.unlink(label, dst, src)
+        self._links.unlink(label, dst, src)
 
     def link(self, dst, src, label=None, preserve_src_label=False, force=False):
         """set a filtergraph link
@@ -1857,7 +1857,7 @@ class Graph(UserList):
             except:
                 raise Graph.InvalidFilterPadId("output", src)
 
-        return self.links.link(dst, src, label, preserve_src_label, force)
+        return self._links.link(dst, src, label, preserve_src_label, force)
 
     def add_label(self, label, dst=None, src=None, force=None):
         """label a filter pad
@@ -1904,7 +1904,7 @@ class Graph(UserList):
         else:
             raise Graph.Error("filter pad index is not given")
 
-        return self.links.create_label(label, dst, src, force)
+        return self._links.create_label(label, dst, src, force)
 
     def remove_label(self, label):
         """remove an input/output label
@@ -1913,7 +1913,7 @@ class Graph(UserList):
         :type label: str
         """
 
-        self.links.remove_label(label)
+        self._links.remove_label(label)
 
     def rename_label(self, old_label, new_label):
         """rename an existing link label
@@ -1938,7 +1938,7 @@ class Graph(UserList):
             raise Graph.Error(f"new_label [{new_label}] must be None or a string.")
 
         # return the actual label or None if unnamed
-        return new_label or self.links.rename(old_label, new_label)
+        return new_label or self._links.rename(old_label, new_label)
 
     def split_sources(self):
         """possibly create a new filtergraph with all duplicate sources
@@ -1949,7 +1949,7 @@ class Graph(UserList):
         """
 
         # analyze the links to get a list of srcs which are connected to multiple dst's/labels
-        srcs_info = self.links.get_repeated_src_info()
+        srcs_info = self._links.get_repeated_src_info()
         if not len(srcs_info):
             return self  # if none found, good to go as is
 
@@ -1994,14 +1994,14 @@ class Graph(UserList):
                 fg.append([split_filter])
                 new_src = (len(fg) - 1, 0)
                 # create a new link from src to split input
-                fg.links.link(src, (*new_src, 0), force=True)
+                fg._links.link(src, (*new_src, 0), force=True)
 
             # relink to dst pad and label
             for pid, (label, index) in enumerate(dsts.items()):
                 if isinstance(index, str):  # to output label
-                    fg.links.add_label(label, dst=(*new_src, pid), force=True)
+                    fg._links.add_label(label, dst=(*new_src, pid), force=True)
                 else:  # to input of a filter
-                    fg.links.link((*new_src, pid), index, label=label, force=True)
+                    fg._links.link((*new_src, pid), index, label=label, force=True)
 
         return fg
 
@@ -2051,7 +2051,7 @@ class Graph(UserList):
                     raise Graph.Error(
                         f"sws_flags are defined on both FilterGraphs. Specify replace_sws_flags option to True or False to avoid this error."
                     )
-            fg.links.update(other.links, len(self), auto_link=auto_link)
+            fg._links.update(other._links, len(self), auto_link=auto_link)
             fg.data.extend(other)
 
         else:
@@ -2135,14 +2135,14 @@ class Graph(UserList):
 
             if chain_if_possible and src in chain_left and dst in chain_right:
                 if dst_label is not None:
-                    right.links.remove_label(dst_label, dst)
+                    right._links.remove_label(dst_label, dst)
                 chain_pairs.append((new_dst, src, src_label))
                 rm_chains.add(new_dst[0])
             else:
                 link_pairs.append((new_dst, src))
                 if isinstance(dst_label, str):
                     # if labeled, remove the label
-                    right.links.rename(dst_label, None)
+                    right._links.rename(dst_label, None)
 
         # stack 2 filtergraphs
         fg = self.stack(right, False, replace_sws_flags)
@@ -2150,7 +2150,7 @@ class Graph(UserList):
         if nout > 0:
             # link marked chains
             for (dst, src) in link_pairs:
-                fg.links.link(dst, src)
+                fg._links.link(dst, src)
 
             # combine chainable chains
             for (dst, src, src_label) in reversed(
@@ -2160,9 +2160,9 @@ class Graph(UserList):
                 n_src = len(fc_src)
                 fc_src.extend(fg.pop(dst[0]))
                 if src_label is not None:
-                    fg.links.remove_label(src_label)
-                fg.links.merge_chains(dst[0], src[0], n_src)
-            fg.links.remove_chains(rm_chains)
+                    fg._links.remove_label(src_label)
+                fg._links.merge_chains(dst[0], src[0], n_src)
+            fg._links.remove_chains(rm_chains)
 
         return fg
 
