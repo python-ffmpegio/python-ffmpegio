@@ -822,7 +822,7 @@ class GraphLinks(UserDict):
                     if select(dsts):
                         dsts = adjust(dsts)
                 else:
-                    dsts = (adjust(d) if select(d) else d for d in dsts)
+                    dsts = tuple(adjust(d) if select(d) else d for d in dsts)
             return (dsts, src)
 
         self.data = {label: adjust_pair(*value) for label, value in self.data.items()}
