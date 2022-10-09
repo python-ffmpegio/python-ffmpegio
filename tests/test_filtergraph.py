@@ -290,13 +290,14 @@ def test_filter_empty_handling():
 
 def test_script():
     fg = fgb.Graph("trim=duration=1")
-    with fg.as_script_file() as f, TemporaryDirectory() as dir:
+    with fg.as_script_file() as script, TemporaryDirectory() as dir:
         out = ffmpegprocess.run(
             {
                 "inputs": [(path.join("tests", "assets", "sample.mp4"), None)],
-                "outputs": [(path.join(dir, "output.mp4"), {"filter_script:v": "pipe:0"})],
+                "outputs": [
+                    (path.join(dir, "output.mp4"), {"filter_script:v": script})
+                ],
             },
-            stdin=f,
         )
     assert not out.returncode
 
