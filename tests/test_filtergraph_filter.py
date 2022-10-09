@@ -101,9 +101,14 @@ def test_apply():
     f = fg_lib.Filter("fade=in:5:20:color=yellow")
     print(str(f))
 
-    f1 = f.apply({1: 'in', 2: 4, "color": "red"})
+    f1 = f.apply({1: "in", 2: 4, "color": "red"})
 
     print(str(f1))
+
+
+def test_ops():
+    assert str(fg_lib.Filter("scale") + "overlay") == "scale[L0];[L0]overlay"
+    assert str("scale" + fg_lib.Filter("overlay")) == "scale[L0];[L0]overlay"
 
 
 if __name__ == "__name__":

@@ -130,6 +130,7 @@ def _check_joinable(src, dst):
     m = dst.get_num_inputs()
     if not (n and m):
         raise FiltergraphMismatchError(n, m)
+    return n == 1 and m == 1
 
 
 class FiltergraphPadNotFoundError(FFmpegioError):
@@ -688,8 +689,12 @@ class Filter(tuple):
             other = as_filter(other)
         except Exception:
             return NotImplemented
-        _check_joinable(self, other)
-        return Chain([self, other])
+        if _check_joinable(self, other):
+            # one-to-one -> chain
+            return Chain([self, other])
+        else:
+            # one-to-many or many-to-one -> stack and link
+            return Graph([[self], [other]], {0: ((1, 0, 0), (0, 0, 0))})
 
     def __radd__(self, other):
         # join
@@ -697,8 +702,12 @@ class Filter(tuple):
             other = as_filter(other)
         except Exception:
             return NotImplemented
-        _check_joinable(other, self)
-        return Chain([other, self])
+        if _check_joinable(other, self):
+            # one-to-one -> chain
+            return Chain([other, self])
+        else:
+            # one-to-many or many-to-one -> stack and link
+            return Graph([[other], [self]], {0: ((1, 0, 0), (0, 0, 0))})
 
     def __mul__(self, __n):
         return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
@@ -869,8 +878,10 @@ class Chain(UserList):
             return NotImplemented
         n = len(self)
         if n and len(other):
-            _check_joinable(self, other)
-            return Chain([*self, *other])
+            if _check_joinable(self, other):
+                return Chain([*self, *other])
+            else:
+                return Graph([self]).join(other)
         return self if n else other
 
     def __radd__(self, other):
@@ -882,8 +893,10 @@ class Chain(UserList):
 
         n = len(self)
         if n and len(other):
-            _check_joinable(other, self)
-            return Chain([*other, *self])
+            if _check_joinable(other, self):
+                return Chain([*other, *self])
+            else:
+                return Graph([other]).join(self)
         return self if n else other
 
     def __mul__(self, __n):

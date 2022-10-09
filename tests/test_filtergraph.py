@@ -1,6 +1,7 @@
 from os import path
 from tempfile import TemporaryDirectory
 from ffmpegio import ffmpegprocess, filtergraph as fgb
+from ffmpegio.filtergraph import Chain
 from pprint import pprint
 import pytest
 
@@ -300,6 +301,9 @@ def test_script():
             },
         )
     assert not out.returncode
+def test_ops():
+    assert str(Chain("scale") + "overlay") == "scale[L0];[L0]overlay"
+    assert str("scale" + Chain("overlay")) == "scale[L0];[L0]overlay"
 
 
 if __name__ == "__main__":
@@ -343,3 +347,4 @@ if __name__ == "__main__":
     opts = info.options
 
     print(len(opts))
+
