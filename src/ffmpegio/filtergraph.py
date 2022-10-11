@@ -757,9 +757,15 @@ class Filter(tuple):
 
         # resolve the index
         if type(other) == tuple:
-            other, index = other
+            if len(other) > 2:
+                index, other_index, other = other
+            else:
+                index, other = other
+                other_index = None
         else:
             index = None
+            other_index = None
+
         index = self._resolve_index(False, index)
 
         # if label
@@ -771,9 +777,13 @@ class Filter(tuple):
 
         # if other is Filter object, do add operation
         try:
-            other = as_filter(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        # if not Chain or Graph, use other's >> operator
+        if not isinstance(other, Filter):
+            return other.__rrshift__((self, index, other_index))
 
         if other.get_num_inputs() == 0:
             raise FiltergraphMismatchError(self.get_num_outputs(), 0)
@@ -790,9 +800,15 @@ class Filter(tuple):
 
         # resolve the index
         if type(other) == tuple:
-            index, other = other
+            if len(other) > 2:
+                other, other_index, index = other
+            else:
+                other, index = other
+                other_index = None
         else:
             index = None
+            other_index = None
+
         index = self._resolve_index(True, index)
 
         # if label
@@ -804,9 +820,13 @@ class Filter(tuple):
 
         # if other is Filter object, do add operation
         try:
-            other = as_filter(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        # if not Chain or Graph, use other's >> operator
+        if not isinstance(other, Filter):
+            return other.__rshift__((other_index, index, self))
 
         if other.get_num_outputs() == 0:
             raise FiltergraphMismatchError(0, self.get_num_inputs())
@@ -960,11 +980,20 @@ class Chain(UserList):
         return Graph([other, self]) if n and m else self if n else other
 
     def __rshift__(self, other):
-        """self >> other | self >> (index, other)"""
+
+        if type(other) == tuple:
+            if len(other) > 2:
+                index, other_index, other = other
+            else:
+                index, other = other
+                other_index = None
+        else:
+            index = None
+            other_index = None
 
         # resolve the index
         if type(other) == tuple:
-            other, index = other
+            index, other = other
         else:
             index = None
 
@@ -992,9 +1021,12 @@ class Chain(UserList):
 
         # if other is Filter object, do add operation
         try:
-            other = as_filterchain(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        if isinstance(other, Graph):
+            return other.__rrshift__((self, index, other_index))
 
         if other.get_num_inputs() == 0:
             raise FiltergraphMismatchError(self.get_num_outputs(), 0)
@@ -1011,9 +1043,14 @@ class Chain(UserList):
 
         # resolve the index
         if type(other) == tuple:
-            index, other = other
+            if len(other) > 2:
+                other, other_index, index = other
+            else:
+                other, index = other
+                other_index = None
         else:
             index = None
+            other_index = None
 
         if not len(self):
             if index is not None:
@@ -1039,9 +1076,12 @@ class Chain(UserList):
 
         # if other is Filter object, do add operation
         try:
-            other = as_filterchain(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        if isinstance(other, Graph):
+            return other.__rshift__((other_index, index, self))
 
         if other.get_num_outputs() == 0:
             raise FiltergraphMismatchError(0, self.get_num_inputs())
