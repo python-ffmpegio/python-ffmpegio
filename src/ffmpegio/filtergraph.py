@@ -198,13 +198,23 @@ def as_filtergraph(filter_specs, copy=False):
 def as_filtergraph_object(filter_specs):
     if isinstance(filter_specs, (Filter, Chain, Graph)):
         return filter_specs
+
     try:
-        return as_filter(filter_specs)
+        assert isinstance(filter_specs, str)
+        specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+        n = len(specs)
+        if links or sws_flags or n > 1:
+            return Graph(specs, links, sws_flags)
+        specs = specs[0]
+        return Filter(specs[0]) if len(specs) == 1 else Chain(specs)
     except:
         try:
-            return as_filterchain(filter_specs)
+            return as_filter(filter_specs)
         except:
-            return as_filtergraph(filter_specs)
+            try:
+                return as_filterchain(filter_specs)
+            except:
+                return as_filtergraph(filter_specs)
 
 
 ###################################################################################################
