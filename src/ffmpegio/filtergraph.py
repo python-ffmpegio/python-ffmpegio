@@ -125,12 +125,20 @@ class FiltergraphMismatchError(TypeError, FFmpegioError):
         )
 
 
+class FiltergraphInvalidIndex(TypeError, FFmpegioError):
+    pass
+
+
 def _check_joinable(src, dst):
     n = src.get_num_outputs()
     m = dst.get_num_inputs()
     if not (n and m):
         raise FiltergraphMismatchError(n, m)
     return n == 1 and m == 1
+
+
+def _is_label(expr):
+    return re.match(r"\[[^\[\]]+\]$", expr)
 
 
 class FiltergraphPadNotFoundError(FFmpegioError):
@@ -745,8 +753,11 @@ class Filter(tuple):
         index = self._resolve_index(False, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[":
-            return self.add_labels(output_labels={index: other})
+        if isinstance(other, str) and _is_label(other):
+            if other_index is None:
+                return self.add_labels(output_labels={index: other})
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -775,8 +786,11 @@ class Filter(tuple):
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[":
-            return self.add_labels(input_labels={index: other})
+        if isinstance(other, str) and _is_label(other):
+            if other_index is None:
+                return self.add_labels(input_labels={index: other})
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -949,7 +963,7 @@ class Chain(UserList):
                 raise Chain.Error(
                     "attempting to specify a pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if isinstance(other, str) and _is_label(other):
                 raise Chain.Error(
                     "attempting to set a pad label specified to an empty chain."
                 )
@@ -958,10 +972,13 @@ class Chain(UserList):
         index = self._resolve_index(False, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph([self])
-            fg.add_label(other[1:-1], src=(0, *index))
-            return fg
+        if isinstance(other, str) and _is_label(other):
+            if other_index is None:
+                fg = Graph([self])
+                fg.add_label(other[1:-1], src=(0, *index))
+                return fg
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -993,7 +1010,7 @@ class Chain(UserList):
                 raise Chain.Error(
                     "attempting to specify a pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if isinstance(other, str) and _is_label(other):
                 raise Chain.Error(
                     "attempting to set a pad label specified to an empty chain."
                 )
@@ -1002,10 +1019,13 @@ class Chain(UserList):
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph([self])
-            fg.add_label(other[1:-1], dst=(0, *index))
-            return fg
+        if isinstance(other, str) and _is_label(other):
+            if other_index is None:
+                fg = Graph([self])
+                fg.add_label(other[1:-1], dst=(0, *index))
+                return fg
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -1441,7 +1461,7 @@ class Graph(UserList):
                 raise Chain.Error(
                     "attempting to specify a filter pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if isinstance(other, str) and _is_label(other):
                 raise Chain.Error(
                     "attempting to set a filter pad label specified to an empty chain."
                 )
@@ -1450,10 +1470,13 @@ class Graph(UserList):
         index = self._resolve_index(False, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph(self)  # copy
-            fg.add_label(other[1:-1], src=index)
-            return fg
+        if isinstance(other, str) and _is_label(other):
+            if other_index is None:
+                fg = Graph(self)  # copy
+                fg.add_label(other[1:-1], src=index)
+                return fg
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -1482,7 +1505,7 @@ class Graph(UserList):
                 raise Chain.Error(
                     "attempting to specify a filter pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if isinstance(other, str) and _is_label(other):
                 raise Chain.Error(
                     "attempting to set a filter pad label specified to an empty chain."
                 )
@@ -1491,10 +1514,13 @@ class Graph(UserList):
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph(self)  # copy
-            fg.add_label(other[1:-1], dst=index)
-            return fg
+        if isinstance(other, str) and _is_label(other):
+            if other_index is None:
+                fg = Graph(self)  # copy
+                fg.add_label(other[1:-1], dst=index)
+                return fg
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
