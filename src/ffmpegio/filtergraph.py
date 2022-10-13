@@ -138,7 +138,7 @@ def _check_joinable(src, dst):
 
 
 def _is_label(expr):
-    return re.match(r"\[[^\[\]]+\]$", expr)
+    return isinstance(expr, str) and re.match(r"\[[^\[\]]+\]$", expr)
 
 
 class FiltergraphPadNotFoundError(FFmpegioError):
@@ -769,7 +769,7 @@ class Filter(tuple):
         index = self._resolve_index(False, index)
 
         # if label
-        if isinstance(other, str) and _is_label(other):
+        if _is_label(other):
             if other_index is None:
                 return self.add_labels(output_labels={index: other})
             else:
@@ -812,7 +812,7 @@ class Filter(tuple):
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and _is_label(other):
+        if _is_label(other):
             if other_index is None:
                 return self.add_labels(input_labels={index: other})
             else:
@@ -1002,7 +1002,7 @@ class Chain(UserList):
                 raise Chain.Error(
                     "attempting to specify a pad index of an empty chain."
                 )
-            if isinstance(other, str) and _is_label(other):
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a pad label specified to an empty chain."
                 )
@@ -1011,7 +1011,7 @@ class Chain(UserList):
         index = self._resolve_index(False, index)
 
         # if label
-        if isinstance(other, str) and _is_label(other):
+        if _is_label(other):
             if other_index is None:
                 fg = Graph([self])
                 fg.add_label(other[1:-1], src=(0, *index))
@@ -1057,7 +1057,7 @@ class Chain(UserList):
                 raise Chain.Error(
                     "attempting to specify a pad index of an empty chain."
                 )
-            if isinstance(other, str) and _is_label(other):
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a pad label specified to an empty chain."
                 )
@@ -1066,7 +1066,7 @@ class Chain(UserList):
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and _is_label(other):
+        if _is_label(other):
             if other_index is None:
                 fg = Graph([self])
                 fg.add_label(other[1:-1], dst=(0, *index))
@@ -1511,7 +1511,7 @@ class Graph(UserList):
                 raise Chain.Error(
                     "attempting to specify a filter pad index of an empty chain."
                 )
-            if isinstance(other, str) and _is_label(other):
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a filter pad label specified to an empty chain."
                 )
@@ -1520,7 +1520,7 @@ class Graph(UserList):
         index = self._resolve_index(False, index)
 
         # if label
-        if isinstance(other, str) and _is_label(other):
+        if _is_label(other):
             if other_index is None:
                 fg = Graph(self)  # copy
                 fg.add_label(other[1:-1], src=index)
@@ -1555,7 +1555,7 @@ class Graph(UserList):
                 raise Chain.Error(
                     "attempting to specify a filter pad index of an empty chain."
                 )
-            if isinstance(other, str) and _is_label(other):
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a filter pad label specified to an empty chain."
                 )
@@ -1564,7 +1564,7 @@ class Graph(UserList):
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and _is_label(other):
+        if _is_label(other):
             if other_index is None:
                 fg = Graph(self)  # copy
                 fg.add_label(other[1:-1], dst=index)
