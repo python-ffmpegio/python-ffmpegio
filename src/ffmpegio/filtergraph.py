@@ -2227,7 +2227,7 @@ class Graph(UserList):
                 chain_pairs.append((new_dst, src, src_label))
                 rm_chains.add(new_dst[0])
             else:
-                link_pairs.append((new_dst, src))
+                link_pairs.append((new_dst, src, src_label or dst_label))
                 if isinstance(dst_label, str):
                     # if labeled, remove the label
                     right._links.rename(dst_label, None)
@@ -2237,8 +2237,8 @@ class Graph(UserList):
 
         if nout > 0:
             # link marked chains
-            for (dst, src) in link_pairs:
-                fg._links.link(dst, src)
+            for link_args in link_pairs:
+                fg._links.link(*link_args)
 
             # combine chainable chains
             for (dst, src, src_label) in reversed(

@@ -81,7 +81,7 @@ def test_attach(fg, fc, left_on, right_on, out):
         ("fps;[in]crop", "trim", "in", None, "trim,crop;fps"),
         ("[L]fps;crop[L]", "trim", None, None, "trim,crop[L];[L]fps"),
         ("[C]overlay;crop[C]", "trim", None, None, "trim[L0];[C][L0]overlay;crop[C]"),
-        ("[C][in]overlay;crop[C]", "trim", "in", None, "trim[L1];[C][L1]overlay;crop[C]"),
+        ("[C][in]overlay;crop[C]", "trim", "in", None, "trim[in];[C][in]overlay;crop[C]"),
     ],
 )
 def test_rattach(fg, fc, left_on, skip_named, out):
