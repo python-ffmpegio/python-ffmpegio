@@ -217,6 +217,17 @@ def as_filtergraph_object(filter_specs):
                 return as_filtergraph(filter_specs)
 
 
+def _shift_labels(obj, label_type, args):
+    if _is_label(args):
+        return obj.add_labels(label_type, args)
+
+    if all(_is_label(arg) for arg in args):
+        return obj.add_labels(label_type, [arg for arg in args])
+
+    assert len(args) == 2 and _is_label(args[0])
+    return obj.add_labels(label_type, {args[1]: args[0]})
+
+
 ###################################################################################################
 
 # FILTER TOOLS
@@ -613,26 +624,25 @@ class Filter(tuple):
             else inc()
         )
 
-    def add_labels(self, input_labels=None, output_labels=None):
+    def add_labels(self, pad_type, labels):
         """turn into filtergraph and add labels
 
-        :param input_labels: input pad labels keyed by pad index, defaults to None
-        :type input_labels: dict(int:str), optional
-        :param output_labels: output pad labels keyed by pad index, defaults to None
-        :type output_labels: dict(int:str), optional
+        :param pad_type: filter pad type
+        :type pad_type: 'dst'|'src'
+        :param labels: pad label(s) and optionally pad id
+        :type labels: str|seq(str)|dict(int:str), optional
         """
 
         fg = Graph([[self]])
-        if input_labels is not None:
-            for pad, label in input_labels.items():
-                if label[0] == "[" and label[-1] == "]":
-                    label = label[1:-1]
-                fg.add_label(label, dst=(0, 0, pad))
-        if output_labels is not None:
-            for pad, label in output_labels.items():
-                if label[0] == "[" and label[-1] == "]":
-                    label = label[1:-1]
-                fg.add_label(label, src=(0, 0, pad))
+        if labels is not None:
+            if isinstance(labels, str):
+                fg.add_label(labels, **{pad_type: (0, 0, 0)})
+            elif isinstance(labels, dict):
+                for pad, label in labels.items():
+                    fg.add_label(label, **{pad_type: fg._resolve_index(pad)})
+            else:
+                for pad, label in enumerate(labels):
+                    fg.add_label(label, **{pad_type: (0, 0, pad)})
         return fg
 
     def apply(self, options, filter_id=None):
@@ -755,6 +765,14 @@ class Filter(tuple):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)"""
 
+        # try labeling first
+        try:
+            return _shift_labels(self, "src", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
             if len(other) > 2:
@@ -767,13 +785,6 @@ class Filter(tuple):
             other_index = None
 
         index = self._resolve_index(False, index)
-
-        # if label
-        if _is_label(other):
-            if other_index is None:
-                return self.add_labels(output_labels={index: other})
-            else:
-                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -798,6 +809,14 @@ class Filter(tuple):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
 
+        # try to label first
+        try:
+            return _shift_labels(self, "dst", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
             if len(other) > 2:
@@ -814,7 +833,7 @@ class Filter(tuple):
         # if label
         if _is_label(other):
             if other_index is None:
-                return self.add_labels(input_labels={index: other})
+                return self.add_labels("dst", {index: other})
             else:
                 raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
@@ -980,6 +999,15 @@ class Chain(UserList):
         return Graph([other, self]) if n and m else self if n else other
 
     def __rshift__(self, other):
+        """self >> other | self >> (index, other)  | self >> (index, other_index, other)"""
+
+        # try to label first
+        try:
+            return _shift_labels(self, "src", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
 
         if type(other) == tuple:
             if len(other) > 2:
@@ -1010,15 +1038,6 @@ class Chain(UserList):
 
         index = self._resolve_index(False, index)
 
-        # if label
-        if _is_label(other):
-            if other_index is None:
-                fg = Graph([self])
-                fg.add_label(other[1:-1], src=(0, *index))
-                return fg
-            else:
-                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
-
         # if other is Filter object, do add operation
         try:
             other = as_filtergraph_object(other)
@@ -1040,6 +1059,14 @@ class Chain(UserList):
 
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
+
+        # try to label first
+        try:
+            return _shift_labels(self, "dst", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
 
         # resolve the index
         if type(other) == tuple:
@@ -1064,15 +1091,6 @@ class Chain(UserList):
             return as_filterchain(other, True)
 
         index = self._resolve_index(True, index)
-
-        # if label
-        if _is_label(other):
-            if other_index is None:
-                fg = Graph([self])
-                fg.add_label(other[1:-1], dst=(0, *index))
-                return fg
-            else:
-                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -1229,6 +1247,30 @@ class Chain(UserList):
         n = self[pos].get_num_outputs()
         if pad_pos < 0 or pad_pos >= (n - 1 if pos < len(self.data) - 1 else n):
             raise Chain.Error(f"invliad output pad position #{pos} for {self[pos]}.")
+
+    def add_labels(self, pad_type, labels):
+        """turn into filtergraph and add labels
+
+        :param input_labels: input pad labels keyed by pad index, defaults to None
+        :type input_labels: dict(int:str), optional
+        :param output_labels: output pad labels keyed by pad index, defaults to None
+        :type output_labels: dict(int:str), optional
+        """
+
+        fg = Graph([self])
+        is_input = pad_type == "dst"
+        if isinstance(labels, str):
+            pad = fg._resolve_index(is_input, None)
+            fg.add_label(labels, **{pad_type: pad})
+        elif isinstance(labels, dict):
+            for pad, label in labels.items():
+                pad = fg._resolve_index(is_input, pad)
+                fg.add_label(label, **{pad_type: pad})
+        else:
+            for pad, label in enumerate(labels):
+                pad = fg._resolve_index(is_input, pad)
+                fg.add_label(label, **{pad_type: pad})
+        return fg
 
 
 ####################################################################################
@@ -1495,6 +1537,14 @@ class Graph(UserList):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)  | self >> (index, other_index, other)"""
 
+        # try to label first
+        try:
+            return _shift_labels(self, "src", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
             if len(other) > 2:
@@ -1519,15 +1569,6 @@ class Graph(UserList):
 
         index = self._resolve_index(False, index)
 
-        # if label
-        if _is_label(other):
-            if other_index is None:
-                fg = Graph(self)  # copy
-                fg.add_label(other[1:-1], src=index)
-                return fg
-            else:
-                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
-
         # if other is Filter object, do add operation
         try:
             other = as_filtergraph_object(other)
@@ -1538,6 +1579,14 @@ class Graph(UserList):
 
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self, (other, other_index, index) >> self : attach input label or filter"""
+
+        # try to label first
+        try:
+            return _shift_labels(self, "dst", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
 
         # resolve the index
         if type(other) == tuple:
@@ -1562,15 +1611,6 @@ class Graph(UserList):
             return as_filtergraph(other, True)
 
         index = self._resolve_index(True, index)
-
-        # if label
-        if _is_label(other):
-            if other_index is None:
-                fg = Graph(self)  # copy
-                fg.add_label(other[1:-1], dst=index)
-                return fg
-            else:
-                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
@@ -1952,7 +1992,7 @@ class Graph(UserList):
     def add_label(self, label, dst=None, src=None, force=None):
         """label a filter pad
 
-        :param label: name of the new label
+        :param label: name of the new label. Square brackets are optional.
         :type label: str
         :param dst: input filter pad index or a sequence of pads, defaults to None
         :type dst: tuple(int,int,int) | seq(tuple(int,int,int)), optional
@@ -1971,6 +2011,9 @@ class Graph(UserList):
         internally assigned label number.
 
         """
+
+        if label[0] == "[" and label[-1] == "]":
+            label = label[1:-1]
 
         GraphLinks.validate_label(
             label, named_only=True, no_stream_spec=src is not None
@@ -2427,6 +2470,30 @@ class Graph(UserList):
         left_on = left._resolve_index(False, left_on)
         right_on = self._resolve_index(True, right_on)
         return left.connect(self, [left_on], [right_on], chain_siso=True)
+
+    def add_labels(self, pad_type, labels):
+        """turn into filtergraph and add labels
+
+        :param input_labels: input pad labels keyed by pad index, defaults to None
+        :type input_labels: dict(int:str), optional
+        :param output_labels: output pad labels keyed by pad index, defaults to None
+        :type output_labels: dict(int:str), optional
+        """
+
+        fg = Graph(self)
+        is_input = pad_type == "dst"
+        if isinstance(labels, str):
+            pad = fg._resolve_index(is_input, None)
+            fg.add_label(labels, **{pad_type: pad})
+        elif isinstance(labels, dict):
+            for pad, label in labels.items():
+                pad = fg._resolve_index(is_input, None)
+                fg.add_label(label, **{pad_type: pad})
+        else:
+            for label in labels:
+                pad = fg._resolve_index(is_input, None)
+                fg.add_label(label, **{pad_type: pad})
+        return fg
 
     @contextmanager
     def as_script_file(self):
