@@ -1395,18 +1395,18 @@ class Graph(UserList):
                 else:
                     assert False
 
-            if j is None and i is None:  # if filter & pad are not specified
-                # first try to pick the first available chainable pad
-                try:
-                    return next(
-                        (
-                            self.iter_chainable_input_pads
-                            if is_input
-                            else self.iter_chainable_output_pads
-                        )(chain=k)
-                    )[0]
-                except:
-                    pass
+            # if j is None and i is None:  # if filter & pad are not specified
+            #     # first try to pick the first available chainable pad
+            #     try:
+            #         return next(
+            #             (
+            #                 self.iter_chainable_input_pads
+            #                 if is_input
+            #                 else self.iter_chainable_output_pads
+            #             )(chain=k)
+            #         )[0]
+            #     except:
+            #         pass
 
             # if any index is None, pick the first available
             return (
