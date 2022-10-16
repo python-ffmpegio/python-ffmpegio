@@ -2270,10 +2270,8 @@ class Graph(UserList):
                 chain_pairs.append((new_dst, src, src_label))
                 rm_chains.add(new_dst[0])
             else:
+                # reuse the src or dst label if given
                 link_pairs.append((new_dst, src, src_label or dst_label))
-                if isinstance(dst_label, str):
-                    # if labeled, remove the label
-                    right._links.rename(dst_label, None)
 
         # stack 2 filtergraphs
         fg = self.stack(right, False, replace_sws_flags)
