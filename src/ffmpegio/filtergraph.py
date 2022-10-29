@@ -1187,7 +1187,9 @@ class Chain(UserList):
             for i, f in enumerate(self.data):
                 for v in iter_base(i, f):
                     yield v
-        elif filter >= 0 and filter < len(self.data):
+        else:
+            if filter < 0:
+                filter += len(self.data)
             for v in iter_base(filter, self.data[filter]):
                 yield v
 
@@ -1217,6 +1219,8 @@ class Chain(UserList):
                 for v in iter_base(i, f):
                     yield v
         else:
+            if filter < 0:
+                filter += len(self.data)
             for v in iter_base(filter, self.data[filter]):
                 yield v
 
