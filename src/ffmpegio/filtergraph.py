@@ -881,11 +881,15 @@ class Chain(UserList):
     def __init__(self, filter_specs=None):
         # convert str to a list of filter_specs
         if isinstance(filter_specs, str):
-            if filter_specs.startswith("sws_flags="):
+            filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+            if links:
+                raise ValueError(
+                    "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
+                )
+            if sws_flags:
                 raise ValueError(
                     "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph."
                 )
-            filter_specs = filter_utils.parse_graph(filter_specs)[0]
             if len(filter_specs) != 1:
                 raise ValueError(
                     "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
