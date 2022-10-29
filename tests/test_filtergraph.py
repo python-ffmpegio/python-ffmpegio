@@ -40,9 +40,9 @@ def test_resolve_index():
     "fg,fc,left_on,right_on,out",
     [
         ("fps;crop", "trim", None, None, "fps,trim;crop"),
-        ("fps[out];crop", "trim", None, None, "fps[out];crop,trim"),
+        ("fps[out];crop", "trim", None, None, "fps,trim;crop"),
         ("fps;crop", "trim", (1, 0, 0), None, "fps;crop,trim"),
-        ("fps[out];crop", "trim", "out", None, "fps,trim;crop"),
+        ("fps;crop[out]", "trim", "out", None, "fps;crop,trim"),
         (
             fgb.Graph(["fps", "crop"], {"out": ((None, (1, 0, 0)), (0, 0, 0))}),
             "trim",
@@ -76,7 +76,7 @@ def test_attach(fg, fc, left_on, right_on, out):
     "fg,fc,left_on,skip_named,out",
     [
         ("fps;crop", "trim", None, None, "trim,fps;crop"),
-        ("[in]fps;crop", "trim", None, None, "trim,crop;[in]fps"),
+        ("[in]fps;crop", "trim", None, None, "trim,fps;crop"),
         ("fps;crop", "trim", (1, 0, 0), None, "trim,crop;fps"),
         ("fps;[in]crop", "trim", "in", None, "trim,crop;fps"),
         ("[L]fps;crop[L]", "trim", None, None, "trim,crop[L];[L]fps"),
