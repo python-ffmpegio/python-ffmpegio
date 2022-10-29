@@ -1,11 +1,10 @@
 import logging
-from ffmpegio.caps import filters
 
 logging.basicConfig(level=logging.INFO)
 
 from ffmpegio import filtergraph as fg_lib
-from pprint import pprint
 import pytest
+import operator
 
 
 def test_Filter():
@@ -101,9 +100,31 @@ def test_apply():
     f = fg_lib.Filter("fade=in:5:20:color=yellow")
     print(str(f))
 
-    f1 = f.apply({1: 'in', 2: 4, "color": "red"})
+    f1 = f.apply({1: "in", 2: 4, "color": "red"})
 
     print(str(f1))
+
+
+@pytest.mark.parametrize(
+    "op, lhs,rhs,expected",
+    [
+        (operator.__add__, fg_lib.Filter("scale"), "overlay", "scale[L0];[L0]overlay"),
+        (operator.__add__, "scale", fg_lib.Filter("overlay"), "scale[L0];[L0]overlay"),
+        (operator.__rshift__, fg_lib.Filter("split"), "hflip", "split[L0];[L0]hflip"),
+        (operator.__rshift__, fg_lib.Filter("split"), (1, "overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, fg_lib.Filter("split"), (1, "[in]overlay"), "split[in];[in]overlay"),
+        (operator.__rshift__, fg_lib.Filter("split"), (1, 1, "overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, fg_lib.Filter("split"), (None, '[over]', "[base][over]overlay"), "split[over];[base][over]overlay"),
+        (operator.__rshift__, "hflip", fg_lib.Filter("overlay"), "hflip[L0];[L0]overlay"),
+        (operator.__rshift__, ("split",1), fg_lib.Filter("overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, ("split",(0,1)), fg_lib.Filter("overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, ("split[out]",1), fg_lib.Filter("overlay"), "split[out];[out]overlay"),
+        (operator.__rshift__, ("split[out]", '[out]',None), fg_lib.Filter("overlay"), "split[out];[out]overlay"),
+        # (operator.__rshift__, fg_lib.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
+    ],
+)
+def test_ops(op, lhs, rhs, expected):
+    assert str(op(lhs, rhs)) == expected
 
 
 if __name__ == "__name__":

@@ -661,7 +661,7 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
     :type stream: str or int, optional
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
     :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
-    :param accurate_time: True to return all '*_time' attributes to be computed from associated timestamps and
+    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param accurate_time: bool, optional
     :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
@@ -684,7 +684,7 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
        - 'start_offset' - (str|float) start time offset from the previous read. Ignored if 'start' is present.
        - 'end'          - (str|float) end time
        - 'end_offset'   - (str|float|int) end time offset from the start time. Ignored if 'end' is present.
-    6) - ``seq[dict]`` - specify multiple intervals
+    6) - ``seq[dict]``  - specify multiple intervals
 
     """
 

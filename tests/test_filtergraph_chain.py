@@ -1,5 +1,5 @@
 import logging
-from ffmpegio.caps import filters
+import operator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -52,7 +52,7 @@ def test_iter_pads():
 # if __name__ == "__main__":
 def test_resolve_index():
     with pytest.raises(fg_lib.FiltergraphPadNotFoundError):
-        fg_lib.Chain('color')._resolve_index(True,None)
+        fg_lib.Chain("color")._resolve_index(True, None)
 
     fchain = fg_lib.Chain("fps,scale2ref,overlay,split=3,concat=3")
 
@@ -61,8 +61,32 @@ def test_resolve_index():
 
     assert fchain._resolve_index(True, None) == (0, 0)
     assert fchain._resolve_index(False, None) == (4, 0)
-    assert fchain._resolve_index(True, 1)==(4,1)
-    assert fchain._resolve_index(False, 1)==(3,1)
+    assert fchain._resolve_index(True, 1) == (4, 1)
+    assert fchain._resolve_index(False, 1) == (3, 1)
     assert fchain._resolve_index(True, (1, 0)) == (1, 0)
     assert fchain._resolve_index(True, (4, None)) == (4, 0)
     assert fchain._resolve_index(True, (4, 1)) == (4, 1)
+
+
+@pytest.mark.parametrize(
+    "op, lhs,rhs,expected",
+    [
+        # fmt:off
+        (operator.__add__, fg_lib.Chain("scale"), "overlay", "scale[L0];[L0]overlay"),
+        (operator.__add__, "scale", fg_lib.Chain("overlay"), "scale[L0];[L0]overlay"),
+        (operator.__rshift__, fg_lib.Chain("split"), "hflip", "split[L0];[L0]hflip"),
+        (operator.__rshift__, fg_lib.Chain("split"), (1, "overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, fg_lib.Chain("split"), (1, "[in]overlay"), "split[in];[in]overlay"),
+        (operator.__rshift__, fg_lib.Chain("split"), (1, 1, "overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, fg_lib.Chain("split"), (None, '[over]', "[base][over]overlay"), "split[over];[base][over]overlay"),
+        (operator.__rshift__, "hflip", fg_lib.Chain("overlay"), "hflip[L0];[L0]overlay"),
+        (operator.__rshift__, ("split",1), fg_lib.Chain("overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, ("split",(0,1)), fg_lib.Chain("overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, ("split[out]",1), fg_lib.Chain("overlay"), "split[out];[out]overlay"),
+        (operator.__rshift__, ("split[out]", '[out]',None), fg_lib.Chain("overlay"), "split[out];[out]overlay"),
+        # (operator.__rshift__, fg_lib.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
+        # fmt:on
+    ],
+)
+def test_ops(op, lhs, rhs, expected):
+    assert str(op(lhs, rhs)) == expected

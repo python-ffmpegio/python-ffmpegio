@@ -99,6 +99,8 @@ from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
 from copy import deepcopy
+import itertools
+from math import floor, log10
 import os
 import re
 from subprocess import PIPE
@@ -107,7 +109,7 @@ from tempfile import NamedTemporaryFile
 from . import path
 from .caps import filters as list_filters, filter_info, layouts
 from .utils import filter as filter_utils, is_stream_spec
-from .utils.fglinks import FilterGraphLinks
+from .utils.fglinks import GraphLinks
 from .errors import FFmpegioError
 
 
@@ -121,8 +123,13 @@ class FilterOperatorTypeError(TypeError, FFmpegioError):
 class FiltergraphMismatchError(TypeError, FFmpegioError):
     def __init__(self, n, m) -> None:
         super().__init__(
-            f"cannot append mismatched filtergraphs: the first has {n} outputs while the second has {m} outputs availble."
+            f"cannot append mismatched filtergraphs: the first has {n} input "
+            f"while the second has {m} outputs available."
         )
+
+
+class FiltergraphInvalidIndex(TypeError, FFmpegioError):
+    pass
 
 
 def _check_joinable(src, dst):
@@ -130,6 +137,11 @@ def _check_joinable(src, dst):
     m = dst.get_num_inputs()
     if not (n and m):
         raise FiltergraphMismatchError(n, m)
+    return n == 1 and m == 1
+
+
+def _is_label(expr):
+    return isinstance(expr, str) and re.match(r"\[[^\[\]]+\]$", expr)
 
 
 class FiltergraphPadNotFoundError(FFmpegioError):
@@ -189,19 +201,57 @@ def as_filtergraph(filter_specs, copy=False):
 def as_filtergraph_object(filter_specs):
     if isinstance(filter_specs, (Filter, Chain, Graph)):
         return filter_specs
+
     try:
-        return as_filter(filter_specs)
+        assert isinstance(filter_specs, str)
+        specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+        n = len(specs)
+        if links or sws_flags or n > 1:
+            return Graph(specs, links, sws_flags)
+        specs = specs[0]
+        return Filter(specs[0]) if len(specs) == 1 else Chain(specs)
     except:
         try:
-            return as_filterchain(filter_specs)
+            return as_filter(filter_specs)
         except:
-            return as_filtergraph(filter_specs)
+            try:
+                return as_filterchain(filter_specs)
+            except:
+                return as_filtergraph(filter_specs)
+
+
+def _shift_labels(obj, label_type, args):
+    if _is_label(args):
+        return obj.add_labels(label_type, args)
+
+    if all(_is_label(arg) for arg in args):
+        return obj.add_labels(label_type, args)
+
+    is_dst = label_type == "dst"
+    assert len(args) == 2 and _is_label(args[0 if is_dst else 1])
+    return obj.add_labels(
+        label_type, {obj._resolve_index(is_dst, args[is_dst]): args[not is_dst]}
+    )
 
 
 ###################################################################################################
 
 # FILTER TOOLS
 class Filter(tuple):
+    """FFmpeg filter definition immutable class
+
+    :param filter_spec: _description_
+    :type filter_spec: _type_
+    :param filter_id: _description_, defaults to None
+    :type filter_id: _type_, optional
+    :param \\*opts: filter option values assigned in the order options are
+                    declared
+    :type \\*opts: dict, optional
+    :param \\**kwopts: filter options in key=value pairs
+    :type \\**kwopts: dict, optional
+
+    """
+
     class Error(FFmpegioError):
         pass
 
@@ -219,7 +269,7 @@ class Filter(tuple):
             super().__init__(f"{feature} not yet supported feature for {name} filter.")
 
     def __new__(self, filter_spec, *args, filter_id=None, **kwargs):
-
+        """_summary_"""
         proto = []
         if isinstance(filter_spec, Filter):
             if filter_spec.id and filter_id is not None:  # new id
@@ -314,6 +364,14 @@ class Filter(tuple):
 
     def __str__(self):
         return filter_utils.compose_filter(*self)
+
+    def __repr__(self):
+        type_ = type(self)
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of inputs: {self.get_num_inputs()}
+    Number of outputs: {self.get_num_outputs()}
+"""
 
     @property
     def name(self):
@@ -500,9 +558,14 @@ class Filter(tuple):
 
             return int(max(f"{map:08x}"[::2])) + 1
 
+        def _concat():
+            return self.get_option_value("n") * (
+                self.get_option_value("v") + self.get_option_value("a")
+            )
+
         option_name, inc = {
             "afir": ("nbirs", 1),
-            "concat": ("n", 0),
+            "concat": (None, _concat),
             "decimate": ("ppsrc", 1),
             "fieldmatch": ("ppsrc", 1),
             "headphone": (None, _headphone),
@@ -512,7 +575,6 @@ class Filter(tuple):
             "premultiply": (None, _inplace),
             "unpremultiply": (None, _inplace),
             "signature": ("nb_inputs", 0),
-            "concat": ("n", 0),
             # "astreamselect": ("inputs", 0),
             # "bm3d": ("inputs", 0),
             # "hstack": ("inputs", 0),
@@ -594,26 +656,25 @@ class Filter(tuple):
             else inc()
         )
 
-    def add_labels(self, input_labels=None, output_labels=None):
+    def add_labels(self, pad_type, labels):
         """turn into filtergraph and add labels
 
-        :param input_labels: input pad labels keyed by pad index, defaults to None
-        :type input_labels: dict(int:str), optional
-        :param output_labels: output pad labels keyed by pad index, defaults to None
-        :type output_labels: dict(int:str), optional
+        :param pad_type: filter pad type
+        :type pad_type: 'dst'|'src'
+        :param labels: pad label(s) and optionally pad id
+        :type labels: str|seq(str)|dict(int:str), optional
         """
 
         fg = Graph([[self]])
-        if input_labels is not None:
-            for pad, label in input_labels.items():
-                if label[0] == "[" and label[-1] == "]":
-                    label = label[1:-1]
-                fg.add_label(label, dst=(0, 0, pad))
-        if output_labels is not None:
-            for pad, label in output_labels.items():
-                if label[0] == "[" and label[-1] == "]":
-                    label = label[1:-1]
-                fg.add_label(label, src=(0, 0, pad))
+        if labels is not None:
+            if isinstance(labels, str):
+                fg.add_label(labels, **{pad_type: (0, 0, 0)})
+            elif isinstance(labels, dict):
+                for pad, label in labels.items():
+                    fg.add_label(label, **{pad_type: fg._resolve_index(pad)})
+            else:
+                for pad, label in enumerate(labels):
+                    fg.add_label(label, **{pad_type: (0, 0, pad)})
         return fg
 
     def apply(self, options, filter_id=None):
@@ -630,8 +691,9 @@ class Filter(tuple):
         :rtype: Filter
 
         .. note::
-        To add new ordered options, int-keyed options item must be presented in
-        the increasing key order so the option can be expanded one at a time.
+
+            To add new ordered options, int-keyed options item must be presented in
+            the increasing key order so the option can be expanded one at a time.
 
         """
 
@@ -688,8 +750,12 @@ class Filter(tuple):
             other = as_filter(other)
         except Exception:
             return NotImplemented
-        _check_joinable(self, other)
-        return Chain([self, other])
+        if _check_joinable(self, other):
+            # one-to-one -> chain
+            return Chain([self, other])
+        else:
+            # one-to-many or many-to-one -> stack and link
+            return Graph([[self], [other]], {0: ((1, 0, 0), (0, 0, 0))})
 
     def __radd__(self, other):
         # join
@@ -697,8 +763,12 @@ class Filter(tuple):
             other = as_filter(other)
         except Exception:
             return NotImplemented
-        _check_joinable(other, self)
-        return Chain([other, self])
+        if _check_joinable(other, self):
+            # one-to-one -> chain
+            return Chain([other, self])
+        else:
+            # one-to-many or many-to-one -> stack and link
+            return Graph([[other], [self]], {0: ((1, 0, 0), (0, 0, 0))})
 
     def __mul__(self, __n):
         return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
@@ -728,22 +798,36 @@ class Filter(tuple):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)"""
 
+        # try labeling first
+        try:
+            return _shift_labels(self, "src", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
-            other, index = other
+            if len(other) > 2:
+                index, other_index, other = other
+            else:
+                index, other = other
+                other_index = None
         else:
             index = None
-        index = self._resolve_index(False, index)
+            other_index = None
 
-        # if label
-        if isinstance(other, str) and other[0] == "[":
-            return self.add_labels(output_labels={index: other})
+        index = self._resolve_index(False, index)
 
         # if other is Filter object, do add operation
         try:
-            other = as_filter(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        # if not Chain or Graph, use other's >> operator
+        if not isinstance(other, Filter):
+            return other.__rrshift__((self, index, other_index))
 
         if other.get_num_inputs() == 0:
             raise FiltergraphMismatchError(self.get_num_outputs(), 0)
@@ -758,22 +842,43 @@ class Filter(tuple):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
 
+        # try to label first
+        try:
+            return _shift_labels(self, "dst", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
-            index, other = other
+            if len(other) > 2:
+                other, other_index, index = other
+            else:
+                other, index = other
+                other_index = None
         else:
             index = None
+            other_index = None
+
         index = self._resolve_index(True, index)
 
         # if label
-        if isinstance(other, str) and other[0] == "[":
-            return self.add_labels(input_labels={index: other})
+        if _is_label(other):
+            if other_index is None:
+                return self.add_labels("dst", {index: other})
+            else:
+                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
 
         # if other is Filter object, do add operation
         try:
-            other = as_filter(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        # if not Chain or Graph, use other's >> operator
+        if not isinstance(other, Filter):
+            return other.__rshift__((other_index, index, self))
 
         if other.get_num_outputs() == 0:
             raise FiltergraphMismatchError(0, self.get_num_inputs())
@@ -790,17 +895,34 @@ class Filter(tuple):
 
 
 class Chain(UserList):
+    """List of FFmpeg filters, connected in series
+
+    Chain() to instantiate empty Graph object
+
+    Chain(obj) to copy-instantiate Graph object from another
+
+    Chain('...') to parse an FFmpeg filtergraph expression
+
+    :param filter_specs: single-in-single-out filtergraph description without
+                         labels, defaults to None
+    :type filter_specs: str or seq(Filter), optional
+    """
+
     class Error(FFmpegioError):
         pass
 
     def __init__(self, filter_specs=None):
         # convert str to a list of filter_specs
         if isinstance(filter_specs, str):
-            if filter_specs.startswith("sws_flags="):
+            filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+            if links:
+                raise ValueError(
+                    "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
+                )
+            if sws_flags:
                 raise ValueError(
                     "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph."
                 )
-            filter_specs = filter_utils.parse_graph(filter_specs)[0]
             if len(filter_specs) != 1:
                 raise ValueError(
                     "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
@@ -837,6 +959,15 @@ class Chain(UserList):
     def __str__(self):
         return filter_utils.compose_graph([self.data])
 
+    def __repr__(self):
+        type_ = type(self)
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of filters: {len(self.data)}
+    Input pads ({self.get_num_inputs()}): {', '.join((str(id[:-1]) for id in self.iter_input_pads()))}
+    Output pads: ({self.get_num_outputs()}): {', '.join((str(id[:-1]) for id in self.iter_output_pads()))}
+"""
+
     def __setitem__(self, key, value):
         super().__setitem__(key, as_filter(value))
 
@@ -869,8 +1000,10 @@ class Chain(UserList):
             return NotImplemented
         n = len(self)
         if n and len(other):
-            _check_joinable(self, other)
-            return Chain([*self, *other])
+            if _check_joinable(self, other):
+                return Chain([*self, *other])
+            else:
+                return Graph([self]).join(other)
         return self if n else other
 
     def __radd__(self, other):
@@ -882,8 +1015,10 @@ class Chain(UserList):
 
         n = len(self)
         if n and len(other):
-            _check_joinable(other, self)
-            return Chain([*other, *self])
+            if _check_joinable(other, self):
+                return Chain([*other, *self])
+            else:
+                return Graph([other]).join(self)
         return self if n else other
 
     def __mul__(self, __n):
@@ -923,11 +1058,29 @@ class Chain(UserList):
         return Graph([other, self]) if n and m else self if n else other
 
     def __rshift__(self, other):
-        """self >> other | self >> (index, other)"""
+        """self >> other | self >> (index, other)  | self >> (index, other_index, other)"""
+
+        # try to label first
+        try:
+            return _shift_labels(self, "src", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
+        if type(other) == tuple:
+            if len(other) > 2:
+                index, other_index, other = other
+            else:
+                index, other = other
+                other_index = None
+        else:
+            index = None
+            other_index = None
 
         # resolve the index
         if type(other) == tuple:
-            other, index = other
+            index, other = other
         else:
             index = None
 
@@ -936,7 +1089,7 @@ class Chain(UserList):
                 raise Chain.Error(
                     "attempting to specify a pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a pad label specified to an empty chain."
                 )
@@ -944,17 +1097,14 @@ class Chain(UserList):
 
         index = self._resolve_index(False, index)
 
-        # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph([self])
-            fg.add_label(other[1:-1], src=(0, *index))
-            return fg
-
         # if other is Filter object, do add operation
         try:
-            other = as_filterchain(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        if isinstance(other, Graph):
+            return other.__rrshift__((self, index, other_index))
 
         if other.get_num_inputs() == 0:
             raise FiltergraphMismatchError(self.get_num_outputs(), 0)
@@ -969,18 +1119,31 @@ class Chain(UserList):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
 
+        # try to label first
+        try:
+            return _shift_labels(self, "dst", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
-            index, other = other
+            if len(other) > 2:
+                other, other_index, index = other
+            else:
+                other, index = other
+                other_index = None
         else:
             index = None
+            other_index = None
 
         if not len(self):
             if index is not None:
                 raise Chain.Error(
                     "attempting to specify a pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a pad label specified to an empty chain."
                 )
@@ -988,17 +1151,14 @@ class Chain(UserList):
 
         index = self._resolve_index(True, index)
 
-        # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph([self])
-            fg.add_label(other[1:-1], dst=(0, *index))
-            return fg
-
         # if other is Filter object, do add operation
         try:
-            other = as_filterchain(other)
+            other = as_filtergraph_object(other)
         except:
             return NotImplemented
+
+        if isinstance(other, Graph):
+            return other.__rshift__((other_index, index, self))
 
         if other.get_num_outputs() == 0:
             raise FiltergraphMismatchError(0, self.get_num_inputs())
@@ -1056,13 +1216,19 @@ class Chain(UserList):
             elif pad < (n - 1 if i else n):
                 yield (i, pad, f)
 
-        if filter is None:
-            for i, f in enumerate(self.data):
-                for v in iter_base(i, f):
+        try:
+            if filter is None:
+                for i, f in enumerate(self.data):
+                    for v in iter_base(i, f):
+                        yield v
+            else:
+                if filter < 0:
+                    filter += len(self.data)
+                for v in iter_base(filter, self.data[filter]):
                     yield v
-        elif filter >= 0 and filter < len(self.data):
-            for v in iter_base(filter, self.data[filter]):
-                yield v
+        except:
+            # invalid index
+            pass
 
     def iter_output_pads(self, filter=None, pad=None):
         """Iterate over output pads of the filters
@@ -1085,13 +1251,18 @@ class Chain(UserList):
             elif pad < (n if i == imax else n - 1):
                 yield (i, pad, f)
 
-        if filter is None:
-            for i, f in reversed(tuple(enumerate(self.data))):
-                for v in iter_base(i, f):
+        try:
+            if filter is None:
+                for i, f in reversed(tuple(enumerate(self.data))):
+                    for v in iter_base(i, f):
+                        yield v
+            else:
+                if filter < 0:
+                    filter += len(self.data)
+                for v in iter_base(filter, self.data[filter]):
                     yield v
-        else:
-            for v in iter_base(filter, self.data[filter]):
-                yield v
+        except:
+            pass
 
     def get_chainable_input_pad(self):
         """get first filter's input pad, which can be chained
@@ -1147,25 +1318,49 @@ class Chain(UserList):
         if pad_pos < 0 or pad_pos >= (n - 1 if pos < len(self.data) - 1 else n):
             raise Chain.Error(f"invliad output pad position #{pos} for {self[pos]}.")
 
+    def add_labels(self, pad_type, labels):
+        """turn into filtergraph and add labels
+
+        :param input_labels: input pad labels keyed by pad index, defaults to None
+        :type input_labels: dict(int:str), optional
+        :param output_labels: output pad labels keyed by pad index, defaults to None
+        :type output_labels: dict(int:str), optional
+        """
+
+        fg = Graph([self])
+        is_input = pad_type == "dst"
+        if isinstance(labels, str):
+            pad = fg._resolve_index(is_input, None)
+            fg.add_label(labels, **{pad_type: pad})
+        elif isinstance(labels, dict):
+            for pad, label in labels.items():
+                pad = fg._resolve_index(is_input, pad)
+                fg.add_label(label, **{pad_type: pad})
+        else:
+            for pad, label in enumerate(labels):
+                pad = fg._resolve_index(is_input, pad)
+                fg.add_label(label, **{pad_type: pad})
+        return fg
+
 
 ####################################################################################
 
 
 class Graph(UserList):
-    """FFmpeg filter graph
+    """List of FFmpeg filterchains in parallel with interchain link specifications
 
     Graph() to instantiate empty Graph object
 
     Graph(obj) to copy-instantiate Graph object from another
 
-    Graph('...') to parse an FFmpeg filter graph expression
+    Graph('...') to parse an FFmpeg filtergraph expression
 
     Graph(filter_specs, links, sws_flags)
     to specify the compose_graph(...) arguments
 
     :param filter_specs: either an existing Graph instance to copy, an FFmpeg
-                         filter graph expression, or a nested sequence of argument
-                         sequences to compose_filter() to define a filter graph.
+                         filtergraph expression, or a nested sequence of argument
+                         sequences to compose_filter() to define a filtergraph.
                          For the latter option, The last element of each filter argument
                          sequence may be a dict, defining its keyword arguments,
                          defaults to None
@@ -1176,12 +1371,6 @@ class Graph(UserList):
                       scalers, defaults to None
     :type sws_flags: seq of stringifyable elements with optional dict as the last
                      element for the keyword flags, optional
-
-    Attributes:
-
-        filter_specs (list of lists of tuples or None): list of chains of filters.
-        links (dict(str|int: [(int,int,int)|None|list((int,int,int)), (int,int,int)|None))
-        sws_flags (tuple or None): tuple defining the sws flags
 
     """
 
@@ -1206,8 +1395,8 @@ class Graph(UserList):
         if isinstance(filter_specs, str):
             filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
         elif isinstance(filter_specs, Graph):
-            links = filter_specs.links
-            sws_flags = filter_specs.sws_flags
+            links = filter_specs._links
+            sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
             autosplit_output = filter_specs.autosplit_output
         elif isinstance(filter_specs, Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
@@ -1220,16 +1409,16 @@ class Graph(UserList):
             else (Chain(fspec) for fspec in filter_specs)
         )
 
-        """_summary_
+        self._links = GraphLinks(links)
+        """utils.fglinks.GraphLinks: filtergraph link specifications
         """
-        self.links = FilterGraphLinks(links)
 
-        """_summary_
+        self.sws_flags = None if sws_flags is None else Filter(["scale", *sws_flags])
+        """Filter|None: swscale flags for automatically inserted scalers
         """
-        self.sws_flags = sws_flags
 
-        """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
         self.autosplit_output = autosplit_output
+        """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
     def _resolve_index(self, is_input, index):
         # call if index needs to be autocompleted
@@ -1241,12 +1430,12 @@ class Graph(UserList):
                     if len(index) > 2 and index[0] == "[" and index[-1] == "]"
                     else index
                 )
-                dsts, src = self.links[label]
+                dsts, src = self._links[label]
                 if is_input:  # src=None, dst=not None
-                    assert self.links.is_input(label)
-                    return next(self.links.iter_dst_ids(dsts))
+                    assert self._links.is_input(label)
+                    return next(self._links.iter_dst_ids(dsts))
                 else:  # dst=None, src=not None
-                    assert self.links.is_output(label)
+                    assert self._links.is_output(label)
                     return src
 
             if isinstance(index, tuple):
@@ -1270,36 +1459,63 @@ class Graph(UserList):
                 else:
                     assert False
 
-            if j is None and i is None:  # if filter & pad are not specified
-                # first try to pick the first available chainable pad
-                try:
-                    return next(
-                        (
-                            self.iter_chainable_input_pads
-                            if is_input
-                            else self.iter_chainable_output_pads
-                        )(chain=k)
-                    )[0]
-                except:
-                    pass
-
             # if any index is None, pick the first available
-            return (
-                next(
-                    (self.iter_input_pads if is_input else self.iter_output_pads)(
-                        chain=k, filter=j, pad=i
-                    )
-                )[0]
-                if i is None or j is None or k is None
-                else (k, j, i)
-            )
+            return next(
+                (self.iter_input_pads if is_input else self.iter_output_pads)(
+                    chain=k, filter=j, pad=i
+                )
+            )[0]
         except:
             raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
     def __str__(self) -> str:
         # insert split filters if autosplit_output is True
         fg = self.split_sources() if self.autosplit_output else self
-        return filter_utils.compose_graph(fg, fg.links, fg.sws_flags)
+        return filter_utils.compose_graph(
+            fg, fg._links, fg.sws_flags and fg.sws_flags[1:]
+        )
+
+    def __repr__(self):
+        type_ = type(self)
+        expr = str(self)
+        nchains = len(self.data)
+        pos = [0] * nchains
+        i = n = 0
+        for j, chain in enumerate(self):
+            for k, filter in enumerate(chain):
+                fstr = str(filter)
+                i += n
+                i = expr[i:].find(fstr) + i
+                n = len(fstr)
+                pos[j] = i
+
+        pos = [expr.rfind(";", 0, i) + 1 for i in pos]
+        pos.append(len(expr))
+
+        prefix = "      chain"
+        nzeros = floor(log10(nchains)) + 1
+        fmt = f"0{nzeros}"
+        chain_list = [
+            f"{prefix}[{j:{fmt}}]: {expr[i0:i1]}"
+            for j, (i0, i1) in enumerate(zip(pos[:-1], pos[1:]))
+        ]
+        if self.sws_flags:
+            chain_list = [f"{[' ']*(len(prefix)+3+nzeros)}{expr[:pos[0]]}", *chain_list]
+        if len(chain_list) > 12:
+            chain_list = [
+                chain_list[:-4],
+                f"{[' ']*(len(prefix)+3+nzeros)}{expr[:pos[0]]}",
+                chain_list[-3:],
+            ]
+        chain_list = "\n".join(chain_list)
+
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of chains: {len(self)}
+{chain_list}      
+    Available input pads ({self.get_num_inputs()}): {', '.join((str(id[0]) for id in self.iter_input_pads()))}
+    Available output pads: ({self.get_num_outputs()}): {', '.join((str(id[0]) for id in self.iter_output_pads()))}
+"""
 
     def __setitem__(self, key, value):
         super().__setitem__(key, as_filterchain(value, copy=True))
@@ -1331,21 +1547,23 @@ class Graph(UserList):
 
     def extend(self, other, auto_link=False, force_link=False):
         other = as_filtergraph(other)
-        self.links.update(other.links, len(self), auto_link=auto_link, force=force_link)
+        self._links.update(
+            other._links, len(self), auto_link=auto_link, force=force_link
+        )
         self.data.extend(other)
 
     def insert(self, i, item):
         self.data.insert(i, as_filterchain(item))
-        self.links.adjust_chains(i, 1)
+        self._links.adjust_chains(i, 1)
 
     def __delitem__(self, i):
         # identify which indices are to be deleted
 
         indices = range(len(self.data))[i]
         if isinstance(indices, int):
-            (k for k, v in self.links.items() if v[1] is not None and v[1][0] == i)
-            self.links.iter_dsts()
-            self.links.adjust_chains(i, -1)
+            (k for k, v in self._links.items() if v[1] is not None and v[1][0] == i)
+            self._links.iter_dsts()
+            self._links.adjust_chains(i, -1)
         else:  # slice
 
             indices = sorted(indices)
@@ -1380,7 +1598,7 @@ class Graph(UserList):
             other = as_filtergraph_object(other)
         except Exception:
             return NotImplemented
-        return self.join(other)
+        return self.join(other, "auto")
 
     def __radd__(self, other):
         # join
@@ -1388,7 +1606,7 @@ class Graph(UserList):
             other = as_filtergraph(other)
         except Exception:
             return NotImplemented
-        return other.join(self)
+        return other.join(self, "auto")
 
     def __or__(self, other):
         # create filtergraph with self and other as parallel chains, self first
@@ -1410,6 +1628,14 @@ class Graph(UserList):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)  | self >> (index, other_index, other)"""
 
+        # try to label first
+        try:
+            return _shift_labels(self, "src", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
+
         # resolve the index
         if type(other) == tuple:
             if len(other) > 2:
@@ -1426,19 +1652,13 @@ class Graph(UserList):
                 raise Chain.Error(
                     "attempting to specify a filter pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a filter pad label specified to an empty chain."
                 )
             return as_filtergraph(other, True)
 
         index = self._resolve_index(False, index)
-
-        # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph(self)  # copy
-            fg.add_label(other[1:-1], src=index)
-            return fg
 
         # if other is Filter object, do add operation
         try:
@@ -1450,6 +1670,14 @@ class Graph(UserList):
 
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self, (other, other_index, index) >> self : attach input label or filter"""
+
+        # try to label first
+        try:
+            return _shift_labels(self, "dst", other)
+        except FFmpegioError:
+            raise
+        except:
+            pass
 
         # resolve the index
         if type(other) == tuple:
@@ -1467,19 +1695,13 @@ class Graph(UserList):
                 raise Chain.Error(
                     "attempting to specify a filter pad index of an empty chain."
                 )
-            if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
+            if _is_label(other):
                 raise Chain.Error(
                     "attempting to set a filter pad label specified to an empty chain."
                 )
             return as_filtergraph(other, True)
 
         index = self._resolve_index(True, index)
-
-        # if label
-        if isinstance(other, str) and other[0] == "[" and other[-1] == "]":
-            fg = Graph(self)  # copy
-            fg.add_label(other[1:-1], dst=index)
-            return fg
 
         # if other is Filter object, do add operation
         try:
@@ -1493,36 +1715,36 @@ class Graph(UserList):
     def __iadd__(self, other):
         fg = self + other
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def __imul__(self, __n):
         fg = self * __n
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def __ior__(self, other):
         fg = self | other
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
     def __irshift__(self, other):
         fg = self >> other
         self.data = fg.data
-        self.links = fg.links
+        self._links = fg._links
         return self
 
-    def _screen_input_pads(self, iter_pads, include_named, include_connected):
+    def _screen_input_pads(self, iter_pads, exclude_named, include_connected):
 
-        links = self.links
+        links = self._links
         for index, f in iter_pads():  # for each input pad
             label = links.find_dst_label(index)  # get link label if exists
             if (
                 (label is None)
                 or (
-                    include_named
+                    not exclude_named
                     and links.is_input(label)
                     and not is_stream_spec(label, True)
                 )
@@ -1532,7 +1754,7 @@ class Graph(UserList):
 
     def iter_input_pads(
         self,
-        include_named=False,
+        exclude_named=False,
         include_connected=False,
         chain=None,
         filter=None,
@@ -1540,8 +1762,8 @@ class Graph(UserList):
     ):
         """Iterate over filtergraph's filter output pads
 
-        :param include_named: True to consider named inputs, defaults to False to return only unnamed inputs
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :type exclude_named: bool, optional
         :param include_connected: True to include pads connected to input streams, defaults to False
         :type include_connected: bool, optional
         :yield: filter pad index, link label, & source filter object
@@ -1549,29 +1771,29 @@ class Graph(UserList):
         """
 
         def iter_pads():
-            if chain is None:
-                for cid, obj in enumerate(self.data):
-                    for j, i, f in obj.iter_input_pads(filter=filter, pad=pad):
-                        yield (cid, j, i), f
-            else:
-                cid = chain + len(self.data) if chain < 0 else chain
-                try:
-                    for j, i, f in self.data[chain].iter_input_pads(
+            try:
+                if chain is None:
+                    for cid, obj in enumerate(self.data):
+                        for j, i, f in obj.iter_input_pads(filter=filter, pad=pad):
+                            yield (cid, j, i), f
+                else:
+                    cid = chain + len(self.data) if chain < 0 else chain
+                    for j, i, f in self.data[cid].iter_input_pads(
                         filter=filter, pad=pad
                     ):
                         yield (cid, j, i), f
-                except:
-                    pass
+            except:
+                pass
 
-        return self._screen_input_pads(iter_pads, include_named, include_connected)
+        return self._screen_input_pads(iter_pads, exclude_named, include_connected)
 
     def iter_chainable_input_pads(
-        self, include_named=False, include_connected=False, chain=None
+        self, exclude_named=False, include_connected=False, chain=None
     ):
         """Iterate over filtergraph's chainable filter output pads
 
-        :param include_named: True to consider named input pads, defaults to False (only unnamed pads)
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out named input pads, defaults to False (all avail pads)
+        :type exclude_named: bool, optional
         :param include_connected: True to include input streams, which are already connected to input streams, defaults to False
         :type include_connected: bool, optional
         :yield: filter pad index, link label, & source filter object
@@ -1594,16 +1816,16 @@ class Graph(UserList):
                 except:
                     pass
 
-        return self._screen_input_pads(iter_pads, include_named, include_connected)
+        return self._screen_input_pads(iter_pads, exclude_named, include_connected)
 
-    def _screen_output_pads(self, iter_pads, include_named):
-        links = self.links
+    def _screen_output_pads(self, iter_pads, exclude_named):
+        links = self._links
         for index, f in iter_pads():  # for each output pad
             labels = links.find_src_labels(index)  # get link label if exists
             if labels is None or not len(labels):
                 # unlabeled output pad
                 yield (index, None, f)
-            elif include_named:
+            elif not exclude_named:
                 # all labeled output pads are by definition named
                 for label in labels:
                     # if multiple input link slots are reserved
@@ -1611,38 +1833,38 @@ class Graph(UserList):
                     for _ in range(links.num_outputs(label)):
                         yield (index, label, f)
 
-    def iter_output_pads(self, include_named=False, chain=None, filter=None, pad=None):
+    def iter_output_pads(self, exclude_named=False, chain=None, filter=None, pad=None):
         """Iterate over filtergraph's filter output pads
 
-        :param include_named: True to consider named outputs, defaults to False, only unnamed only
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out named outputs, defaults to False
+        :type exclude_named: bool, optional
         :yield: filter pad index,  link label, and source filter object
         :rtype: tuple(tuple(int,int,int), str, Filter)
         """
 
         def iter_pads():
-            # iterate over all input pads
-            if chain is None:
-                for cid, obj in enumerate(self.data):
-                    for j, i, f in obj.iter_output_pads(filter=filter, pad=pad):
-                        yield (cid, j, i), f
-            else:
-                cid = chain + len(self.data) if chain < 0 else chain
-                try:
-                    for j, i, f in self.data[chain].iter_output_pads(
+            try:
+                # iterate over all input pads
+                if chain is None:
+                    for cid, obj in enumerate(self.data):
+                        for j, i, f in obj.iter_output_pads(filter=filter, pad=pad):
+                            yield (cid, j, i), f
+                else:
+                    cid = chain + len(self.data) if chain < 0 else chain
+                    for j, i, f in self.data[cid].iter_output_pads(
                         filter=filter, pad=pad
                     ):
                         yield (cid, j, i), f
-                except:
-                    pass
+            except:
+                pass
 
-        return self._screen_output_pads(iter_pads, include_named)
+        return self._screen_output_pads(iter_pads, exclude_named)
 
-    def iter_chainable_output_pads(self, include_named=False, chain=None):
+    def iter_chainable_output_pads(self, exclude_named=False, chain=None):
         """Iterate over filtergraph's chainable filter output pads
 
-        :param include_named: True to consider unnamed outputs only, defaults to False
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out unnamed outputs, defaults to False
+        :type exclude_named: bool, optional
         :yield: filter pad index, link label (if any), & source filter object
         :rtype: tuple(tuple(int,int,int), str, Filter)
         """
@@ -1662,7 +1884,7 @@ class Graph(UserList):
                 except:
                     pass
 
-        return self._screen_output_pads(iter_pads, include_named)
+        return self._screen_output_pads(iter_pads, exclude_named)
 
     def get_num_inputs(self, chainable_only=False):
         return len(
@@ -1684,15 +1906,15 @@ class Graph(UserList):
 
     def validate_input_index(self, dst):
         try:
-            FilterGraphLinks.validate_pad_id_pair((dst, None))
-            for index in FilterGraphLinks.iter_dst_ids(dst):
+            GraphLinks.validate_pad_id_pair((dst, None))
+            for index in GraphLinks.iter_dst_ids(dst):
                 self[index[0]].validate_input_index(*index[1:])
         except:
             raise Graph.InvalidFilterPadId("input", dst)
 
     def validate_output_index(self, index):
         try:
-            FilterGraphLinks.validate_pad_id_pair((None, index))
+            GraphLinks.validate_pad_id_pair((None, index))
             self[index[0]].validate_output_index(*index[1:])
         except:
             raise Graph.InvalidFilterPadId("output", index)
@@ -1711,24 +1933,24 @@ class Graph(UserList):
         if isinstance(index, tuple):
             # given pad index
             dst = index
-            label = self.links.find_dst_label(index)
+            label = self._links.find_dst_label(index)
             desc = f"input pad {index}"
 
-            if label is not None and self.links[label][1] is not None:
+            if label is not None and self._links[label][1] is not None:
                 raise Graph.Error(f"{desc} is not an input label.")
 
         else:
             # given label
             desc = f"link label [{index}]"
             try:
-                dsts, src = self.links[index]
+                dsts, src = self._links[index]
             except:
                 raise Graph.Error(f"{desc} does not exist.")
 
             if src is not None:
                 raise Graph.Error(f"{desc} is not an input label.")
 
-            dsts = [d for d in self.links.iter_dst_ids(dsts)]
+            dsts = [d for d in self._links.iter_dst_ids(dsts)]
             n = len(dsts)
 
             if not n:
@@ -1765,7 +1987,7 @@ class Graph(UserList):
             # given label
             desc = f"link label [{index}]"
             try:
-                src = self.links[index][1]
+                src = self._links[index][1]
                 assert src is not None
             except:
                 raise Graph.Error(f"{desc} does not exist, or it is an input label.")
@@ -1775,11 +1997,11 @@ class Graph(UserList):
             desc = f"output pad {index}"
             src = index
             label = None
-            labels = self.links.find_src_labels(src)
+            labels = self._links.find_src_labels(src)
 
             # if labels found, only 1 must be an output
             if len(labels):
-                labels = [label for label in labels if not self.links.is_linked(label)]
+                labels = [label for label in labels if not self._links.is_linked(label)]
                 if len(labels) != 1:
                     raise Graph.Error(
                         f"{desc} is already labeled but associated to no ouput label or multiple output labels"
@@ -1796,7 +2018,7 @@ class Graph(UserList):
 
     def are_linked(self, dst, src):
 
-        self.links.are_linked(dst, src)
+        self._links.are_linked(dst, src)
 
     def unlink(self, label=None, dst=None, src=None):
         """unlink specified links
@@ -1808,7 +2030,7 @@ class Graph(UserList):
         :param src: specify all the links with this src pad, defaults to None
         :type src: tuple(int,int,int), optional
         """
-        self.links.unlink(label, dst, src)
+        self._links.unlink(label, dst, src)
 
     def link(self, dst, src, label=None, preserve_src_label=False, force=False):
         """set a filtergraph link
@@ -1828,40 +2050,41 @@ class Graph(UserList):
                  unique integer value assigned to it.
         :rtype: str|int
 
-        notes:
-        - Unless `force=True`, dst pad must not be already connected
-        - User-supplied label name is a suggested name, and the function could
-          modify the name to maintain integrity.
-        - If dst or src were previously named, their names will be dropped
-          unless one matches the user-supplied label.
-        - No guarantee on consistency of the link label (both named and unnamed)
-          during the life of the object
+        ..notes:
+
+            - Unless `force=True`, dst pad must not be already connected
+            - User-supplied label name is a suggested name, and the function could
+              modify the name to maintain integrity.
+            - If dst or src were previously named, their names will be dropped
+              unless one matches the user-supplied label.
+            - No guarantee on consistency of the link label (both named and unnamed)
+              during the life of the object
 
         """
 
         if label is not None:
-            FilterGraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
+            GraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
         if dst is not None:
-            FilterGraphLinks.validate_pad_id(dst)
+            dst = self._resolve_index(True, dst)
             try:
                 f = self.data[dst[0]][dst[1]]
                 assert dst[2] >= 0 and dst[2] < f.get_num_inputs()
             except:
                 raise Graph.InvalidFilterPadId("input", dst)
         if src is not None:
-            FilterGraphLinks.validate_pad_id(src)
+            src = self._resolve_index(False, src)
             try:
                 f = self.data[src[0]][src[1]]
                 assert src[2] >= 0 and src[2] < f.get_num_outputs()
             except:
                 raise Graph.InvalidFilterPadId("output", src)
 
-        return self.links.link(dst, src, label, preserve_src_label, force)
+        return self._links.link(dst, src, label, preserve_src_label, force)
 
     def add_label(self, label, dst=None, src=None, force=None):
         """label a filter pad
 
-        :param label: name of the new label
+        :param label: name of the new label. Square brackets are optional.
         :type label: str
         :param dst: input filter pad index or a sequence of pads, defaults to None
         :type dst: tuple(int,int,int) | seq(tuple(int,int,int)), optional
@@ -1881,12 +2104,15 @@ class Graph(UserList):
 
         """
 
-        FilterGraphLinks.validate_label(
+        if label[0] == "[" and label[-1] == "]":
+            label = label[1:-1]
+
+        GraphLinks.validate_label(
             label, named_only=True, no_stream_spec=src is not None
         )
         if dst is not None:
-            FilterGraphLinks.validate_pad_id_pair((dst, None))
-            for d in FilterGraphLinks.iter_dst_ids(dst):
+            GraphLinks.validate_pad_id_pair((dst, None))
+            for d in GraphLinks.iter_dst_ids(dst):
                 try:
                     f = self.data[d[0]][d[1]]
                     n = f.get_num_inputs()
@@ -1894,7 +2120,7 @@ class Graph(UserList):
                 except:
                     raise Graph.InvalidFilterPadId("input", d)
         elif src is not None:
-            FilterGraphLinks.validate_pad_id(src)
+            GraphLinks.validate_pad_id(src)
             try:
                 f = self.data[src[0]][src[1]]
                 assert src[2] >= 0 and src[2] < f.get_num_outputs()
@@ -1903,7 +2129,7 @@ class Graph(UserList):
         else:
             raise Graph.Error("filter pad index is not given")
 
-        return self.links.create_label(label, dst, src, force)
+        return self._links.create_label(label, dst, src, force)
 
     def remove_label(self, label):
         """remove an input/output label
@@ -1912,7 +2138,7 @@ class Graph(UserList):
         :type label: str
         """
 
-        self.links.remove_label(label)
+        self._links.remove_label(label)
 
     def rename_label(self, old_label, new_label):
         """rename an existing link label
@@ -1937,7 +2163,7 @@ class Graph(UserList):
             raise Graph.Error(f"new_label [{new_label}] must be None or a string.")
 
         # return the actual label or None if unnamed
-        return new_label or self.links.rename(old_label, new_label)
+        return new_label or self._links.rename(old_label, new_label)
 
     def split_sources(self):
         """possibly create a new filtergraph with all duplicate sources
@@ -1948,12 +2174,12 @@ class Graph(UserList):
         """
 
         # analyze the links to get a list of srcs which are connected to multiple dst's/labels
-        srcs_info = self.links.get_repeated_src_info()
+        srcs_info = self._links.get_repeated_src_info()
         if not len(srcs_info):
             return self  # if none found, good to go as is
 
         # retrieve all the output pads of the filterchains
-        chainable_outputs = [v[0] for v in fg.iter_chainable_output_pads()]
+        chainable_outputs = [v[0] for v in self.iter_chainable_output_pads()]
 
         # create a clone to modify and output
         fg = Graph(self)
@@ -1993,14 +2219,14 @@ class Graph(UserList):
                 fg.append([split_filter])
                 new_src = (len(fg) - 1, 0)
                 # create a new link from src to split input
-                fg.links.link(src, (*new_src, 0), force=True)
+                fg._links.link(src, (*new_src, 0), force=True)
 
             # relink to dst pad and label
             for pid, (label, index) in enumerate(dsts.items()):
                 if isinstance(index, str):  # to output label
-                    fg.links.add_label(label, dst=(*new_src, pid), force=True)
+                    fg._links.add_label(label, dst=(*new_src, pid), force=True)
                 else:  # to input of a filter
-                    fg.links.link((*new_src, pid), index, label=label, force=True)
+                    fg._links.link((*new_src, pid), index, label=label, force=True)
 
         return fg
 
@@ -2050,7 +2276,7 @@ class Graph(UserList):
                     raise Graph.Error(
                         f"sws_flags are defined on both FilterGraphs. Specify replace_sws_flags option to True or False to avoid this error."
                     )
-            fg.links.update(other.links, len(self), auto_link=auto_link)
+            fg._links.update(other._links, len(self), auto_link=auto_link)
             fg.data.extend(other)
 
         else:
@@ -2065,7 +2291,7 @@ class Graph(UserList):
         right,
         from_left,
         to_right,
-        chain_if_possible=False,
+        chain_siso=True,
         replace_sws_flags=None,
     ):
         """stack another Graph and make connection from left to right
@@ -2076,8 +2302,8 @@ class Graph(UserList):
         :type from_left: seq(tuple(int,int,int)|str)
         :param to_right: input pad ids or labels of the `right` fg
         :type to_right: seq(tuple(int,int,int)|str)
-        :param chain_if_possible: True to chain the connecting filters if possible, default: False
-        :type chain_if_possible: bool, optional
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :type chain_siso: bool, optional
         :param replace_sws_flags: True to use `right` sws_flags if present,
                                   False to drop `right` sws_flags,
                                   None to throw an exception (default)
@@ -2093,14 +2319,14 @@ class Graph(UserList):
         right = as_filtergraph(right, copy=True)
 
         # resolve from_left and to_right to pad ids (raises if invalid)
-        srcs_info = set(self._resolve_index(False, index) for index in from_left)
+        srcs_info = [self._resolve_index(False, index) for index in from_left]
         nout = len(srcs_info)
-        if nout != len(from_left):
+        if nout != len(set(srcs_info)):
             raise ValueError(f"from_left pad indices are not unique.")
 
-        dsts_info = set(right._resolve_index(True, index) for index in to_right)
+        dsts_info = [right._resolve_index(True, index) for index in to_right]
         ndst = len(dsts_info)
-        if nout != len(to_right):
+        if nout != len(set(dsts_info)):
             raise ValueError(f"to_right pad indices are not unique.")
 
         if nout != ndst:
@@ -2120,36 +2346,32 @@ class Graph(UserList):
         chain_pairs = []
         rm_chains = set()
         n0 = len(self)  # chain index offset
-        if chain_if_possible:
-            # list all the interfacing unconnected filter pads which could be joined in series
-            chain_left = tuple(
-                (v[0] for v in self.iter_chainable_output_pads(include_named=True))
-            )
-            chain_right = tuple(
-                (v[0] for v in right.iter_chainable_input_pads(include_named=True))
-            )
 
         for (dst, dst_label), (src, src_label) in zip(dsts_info, srcs_info):
             new_dst = (dst[0] + n0, *dst[1:])
 
-            if chain_if_possible and src in chain_left and dst in chain_right:
+            do_chain = (
+                chain_siso
+                and self.data[src[0]][src[1]].get_num_outputs() == 1
+                and right.data[dst[0]][dst[1]].get_num_inputs() == 1
+            )
+
+            if do_chain:
                 if dst_label is not None:
-                    right.links.remove_label(dst_label, dst)
+                    right._links.remove_label(dst_label, dst)
                 chain_pairs.append((new_dst, src, src_label))
                 rm_chains.add(new_dst[0])
             else:
-                link_pairs.append((new_dst, src))
-                if isinstance(dst_label, str):
-                    # if labeled, remove the label
-                    right.links.rename(dst_label, None)
+                # reuse the src or dst label if given
+                link_pairs.append((new_dst, src, src_label or dst_label))
 
         # stack 2 filtergraphs
         fg = self.stack(right, False, replace_sws_flags)
 
         if nout > 0:
             # link marked chains
-            for (dst, src) in link_pairs:
-                fg.links.link(dst, src)
+            for link_args in link_pairs:
+                fg._links.link(*link_args)
 
             # combine chainable chains
             for (dst, src, src_label) in reversed(
@@ -2159,9 +2381,9 @@ class Graph(UserList):
                 n_src = len(fc_src)
                 fc_src.extend(fg.pop(dst[0]))
                 if src_label is not None:
-                    fg.links.remove_label(src_label)
-                fg.links.merge_chains(dst[0], src[0], n_src)
-            fg.links.remove_chains(rm_chains)
+                    fg._links.remove_label(src_label)
+                fg._links.merge_chains(dst[0], src[0], n_src)
+            fg._links.remove_chains(rm_chains)
 
         return fg
 
@@ -2193,7 +2415,7 @@ class Graph(UserList):
                 else (
                     info
                     for info in (
-                        next(generator(include_named=ignore_labels, chain=c), None)
+                        next(generator(exclude_named=not ignore_labels, chain=c), None)
                         for c in range(len(self.data))
                     )
                     if info is not None
@@ -2204,7 +2426,7 @@ class Graph(UserList):
                 self.iter_chainable_input_pads
                 if is_input
                 else self.iter_chainable_output_pads
-            )(include_named=ignore_labels)
+            )(exclude_named=not ignore_labels)
         else:
             raise ValueError(f"unknown how argument value: {how}")
 
@@ -2214,26 +2436,31 @@ class Graph(UserList):
         how="per_chain",
         match_scalar=False,
         ignore_labels=False,
-        chain_if_possible=True,
+        chain_siso=True,
         replace_sws_flags=None,
     ):
         """append another Graph object and connect all inputs to the outputs of this filtergraph
 
-        :param right: right filter graph to be appended
+        :param right: right filtergraph to be appended
         :type right: Graph|Chain|Filter
         :param how: method on how to mate input and output, defaults to "per_chain".
 
-                    -----------  -------------------------------------------------------------------
-                    'chainable'  joins only chainable input pads and output pads.
-                    'per_chain'  |joins one pair of first available input pad and output pad of each
-                                 |mating chains. Source and sink chains are ignored.
-                    'all'        joins all input pads and output pads
-                    -----------  -------------------------------------------------------------------
+            ===========  ===================================================================
+            'chainable'  joins only chainable input pads and output pads.
+            'per_chain'  joins one pair of first available input pad and output pad of each
+                         mating chains. Source and sink chains are ignored.
+            'all'        joins all input pads and output pads
+            'auto'       tries 'per_chain' first, if fails, then tries 'all'.
+            ===========  ===================================================================
 
         :type how: "chainable"|"per_chain"|"all"
         :param match_scalar: True to multiply self if SO-MI connection or right if MO-SI connection
                               to single-ended entity to the other, defaults to False
         :type match_scalar: bool
+        :param ignore_labels: True to pair pads w/out checking pad labels, default: True
+        :type ignore_labels: bool, optional
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :type chain_siso: bool, optional
         :param replace_sws_flags: True to use other's sws_flags if present,
                                   False to ignore other's sws_flags,
                                   None to throw an exception (default)
@@ -2250,6 +2477,27 @@ class Graph(UserList):
 
         if not len(self):
             return Graph(right)
+
+        # auto-mode, 1-deep recursion
+        if how == "auto":
+            try:
+                return self.join(
+                    right,
+                    "per_chain",
+                    match_scalar,
+                    ignore_labels,
+                    chain_siso,
+                    replace_sws_flags,
+                )
+            except:
+                return self.join(
+                    right,
+                    "all",
+                    match_scalar,
+                    ignore_labels,
+                    chain_siso,
+                    replace_sws_flags,
+                )
 
         # list all the unconnected output pads of left fg
         # [(index, label, filter)]
@@ -2279,7 +2527,7 @@ class Graph(UserList):
             right,
             [index for index, *_ in src_info],
             [index for index, *_ in dst_info],
-            chain_if_possible,
+            chain_siso,
             replace_sws_flags,
         )
 
@@ -2300,7 +2548,7 @@ class Graph(UserList):
         right = as_filtergraph_object(right)
         right_on = right._resolve_index(True, right_on)
         left_on = self._resolve_index(False, left_on)
-        return self.connect(right, [left_on], [right_on], chain_if_possible=True)
+        return self.connect(right, [left_on], [right_on], chain_siso=True)
 
     def rattach(self, left, right_on=None, left_on=None):
         """prepend an input filterchain to an existing filter chain of the filtergraph
@@ -2319,7 +2567,38 @@ class Graph(UserList):
         left = as_filtergraph(left)
         left_on = left._resolve_index(False, left_on)
         right_on = self._resolve_index(True, right_on)
-        return left.connect(self, [left_on], [right_on], chain_if_possible=True)
+        return left.connect(self, [left_on], [right_on], chain_siso=True)
+
+    def add_labels(self, pad_type, labels):
+        """turn into filtergraph and add labels
+
+        :param input_labels: input pad labels keyed by pad index, defaults to None
+        :type input_labels: dict(int:str), optional
+        :param output_labels: output pad labels keyed by pad index, defaults to None
+        :type output_labels: dict(int:str), optional
+        """
+
+        fg = Graph(self)
+        is_input = pad_type == "dst"
+        if isinstance(labels, str):
+            pad = fg._resolve_index(is_input, None)
+            fg.add_label(labels, **{pad_type: pad})
+        elif isinstance(labels, dict):
+            for pad, label in labels.items():
+                pad = fg._resolve_index(is_input, None)
+                fg.add_label(label, **{pad_type: pad})
+        else:
+            pads = list(
+                itertools.islice(
+                    fg.iter_input_pads(exclude_named=True)
+                    if pad_type == "dst"
+                    else fg.iter_output_pads(exclude_named=True),
+                    len(labels),
+                )
+            )
+            for label, pad in zip(labels, pads):
+                fg.add_label(label, **{pad_type: pad[0]})
+        return fg
 
     @contextmanager
     def as_script_file(self):
@@ -2332,7 +2611,7 @@ class Graph(UserList):
         `filter_complex_script` FFmpeg options, by creating a temporary text file
         containing the filtergraph description.
 
-        ..note::
+        .. note::
           Only use this function when the filtergraph description is too long for
           OS to handle it. Presenting the filtergraph with a `filter_complex` or
           `filter` option to FFmpeg is always a faster solution.
@@ -2344,35 +2623,35 @@ class Graph(UserList):
         Use this method with a `with` statement. How to incorporate its output
         with `ffmpegprocess` depends on the `as_file_obj` argument.
 
-        ..example::
+        :Example:
 
-            The following example illustrates a usecase for a video SISO filtergraph:
+          The following example illustrates a usecase for a video SISO filtergraph:
 
-            ..codeblock::python
+          .. code-block:: python
 
-                # assume `fg` is a SISO video filter Graph object
+             # assume `fg` is a SISO video filter Graph object
 
-                with fg.as_script_file() as script_path:
-                    ffmpegio.ffmpegprocess.run(
-                        {
-                            'inputs':  [('input.mp4', None)]
-                            'outputs': [('output.mp4', {'filter_script:v': script_path})]
-                        })
+             with fg.as_script_file() as script_path:
+                 ffmpegio.ffmpegprocess.run(
+                     {
+                         'inputs':  [('input.mp4', None)]
+                         'outputs': [('output.mp4', {'filter_script:v': script_path})]
+                     })
 
-            As noted above, a performant alternative is to use an input pipe and 
-            feed the filtergraph description directly:
+          As noted above, a performant alternative is to use an input pipe and
+          feed the filtergraph description directly:
 
-            ..codeblock::python
+          .. code-block:: python
 
-                ffmpegio.ffmpegprocess.run(
-                    {
-                        'inputs':  [('input.mp4', None)]
-                        'outputs': [('output.mp4', {'filter_script:v': 'pipe:0'})]
-                    },
-                    input=str(fg))
+             ffmpegio.ffmpegprocess.run(
+                 {
+                     'inputs':  [('input.mp4', None)]
+                     'outputs': [('output.mp4', {'filter_script:v': 'pipe:0'})]
+                 },
+                 input=str(fg))
 
-            Note that `pipe:0` must be used and not the shorthand `'-'` unlike
-            the input url.
+          Note that ``pipe:0`` must be used and not the shorthand ``'-'`` unlike
+          the input url.
 
         """
 
@@ -2404,10 +2683,13 @@ def __getattr__(name):
 
         if notfound:
             raise AttributeError(
-                f"{name} is not ffmpegio.filtergraph module's instance attribute or a valid FFmpeg filter name."
+                f"{name} is neither a valid ffmpegio.filtergraph module's instance attribute "
+                "nor a valid FFmpeg filter name."
             )
 
-        func = partial(Filter, name)
+        def func(*args, filter_id=None, **kwargs):
+            return Filter(name, *args, filter_id=filter_id, **kwargs)
+
         func.__name__ = name
         func.__doc__ = path.ffmpeg(
             f"-hide_banner -h filter={name}", universal_newlines=True, stdout=PIPE

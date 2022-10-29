@@ -3,7 +3,7 @@ from ffmpegio.caps import filters
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio.utils.fglinks import FilterGraphLinks
+from ffmpegio.utils.fglinks import GraphLinks
 from pprint import pprint
 import pytest
 
@@ -17,7 +17,7 @@ import pytest
     ],
 )
 def test_iter_dst_ids(dsts, expects):
-    assert len(list(FilterGraphLinks.iter_dst_ids(dsts))) == expects
+    assert len(list(GraphLinks.iter_dst_ids(dsts))) == expects
 
 
 @pytest.mark.parametrize(
@@ -33,10 +33,10 @@ def test_iter_dst_ids(dsts, expects):
 )
 def test_validate_label(args, ok):
     if ok:
-        FilterGraphLinks.validate_label(*args)
+        GraphLinks.validate_label(*args)
     else:
-        with pytest.raises(FilterGraphLinks.Error):
-            FilterGraphLinks.validate_label(*args)
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate_label(*args)
 
 
 @pytest.mark.parametrize(
@@ -50,10 +50,10 @@ def test_validate_label(args, ok):
 )
 def test_validate_pad_id(id, ok):
     if ok:
-        FilterGraphLinks.validate_pad_id(id)
+        GraphLinks.validate_pad_id(id)
     else:
-        with pytest.raises(FilterGraphLinks.Error):
-            FilterGraphLinks.validate_pad_id(id)
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate_pad_id(id)
 
 
 @pytest.mark.parametrize(
@@ -68,10 +68,10 @@ def test_validate_pad_id(id, ok):
 )
 def test_validate_pad_id_pair(ids, ok):
     if ok:
-        FilterGraphLinks.validate_pad_id_pair(ids)
+        GraphLinks.validate_pad_id_pair(ids)
     else:
-        with pytest.raises(FilterGraphLinks.Error):
-            FilterGraphLinks.validate_pad_id_pair(ids)
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate_pad_id_pair(ids)
 
 
 @pytest.mark.parametrize(
@@ -85,10 +85,10 @@ def test_validate_pad_id_pair(ids, ok):
 )
 def test_validate_item(label, ids, ok):
     if ok:
-        FilterGraphLinks.validate_item(label, ids)
+        GraphLinks.validate_item(label, ids)
     else:
-        with pytest.raises(FilterGraphLinks.Error):
-            FilterGraphLinks.validate_item(label, ids)
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate_item(label, ids)
 
 
 @pytest.mark.parametrize(
@@ -100,10 +100,10 @@ def test_validate_item(label, ids, ok):
 )
 def test_validate(data, ok):
     if ok:
-        FilterGraphLinks.validate(data)
+        GraphLinks.validate(data)
     else:
-        with pytest.raises(FilterGraphLinks.Error):
-            FilterGraphLinks.validate(data)
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate(data)
 
 @pytest.mark.parametrize(
 
@@ -120,16 +120,16 @@ def test_validate(data, ok):
 )
 def test_format_value(args, expects):
     if expects is None:
-        with pytest.raises(FilterGraphLinks.Error):
-            FilterGraphLinks.format_value(*args)
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.format_value(*args)
     else:
-        assert FilterGraphLinks.format_value(*args) == expects
+        assert GraphLinks.format_value(*args) == expects
 
 
 # fixture links with one of each type of link items
 @pytest.fixture()
 def base_links():
-    yield FilterGraphLinks(
+    yield GraphLinks(
         {
             "l": ((0, 0, 0), (0, 0, 0)),  # regular link
             0: ((1, 1, 0), (0, 1, 0)),  # unnamed link
@@ -143,7 +143,7 @@ def base_links():
 
 
 def test_init(base_links):
-    FilterGraphLinks()
+    GraphLinks()
     base_links
 
 
@@ -161,7 +161,7 @@ def test_init(base_links):
     ],
 )
 def test_register_label(labels, expects):
-    links = FilterGraphLinks()
+    links = GraphLinks()
 
     def update(label):
         links.data[links._register_label(label)] = None
@@ -356,7 +356,7 @@ def test_link(args, ok, unlinked, base_links):
             assert unlinked not in base_links
 
     else:
-        with pytest.raises(FilterGraphLinks.Error):
+        with pytest.raises(GraphLinks.Error):
             base_links.link(*args)
 
 
@@ -382,7 +382,7 @@ def test_create_label(args, ok, unlinked, base_links):
             assert unlinked not in base_links
 
     else:
-        with pytest.raises(FilterGraphLinks.Error):
+        with pytest.raises(GraphLinks.Error):
             base_links.create_label(*args)
 
 
@@ -394,7 +394,7 @@ def test_update(base_links):
     assert "test" in base_links
 
     # existing dst
-    with pytest.raises(FilterGraphLinks.Error):
+    with pytest.raises(GraphLinks.Error):
         base_links.update({"test": ((4, 0, 0), (4, 0, 0))})
     assert base_links.update({"l": ((4, 0, 0), (4, 0, 0))}, force=True)["l"] == "l2"
 
@@ -433,7 +433,7 @@ def test_get_repeated_src_info(base_links):
 )
 def test_remove_label(links, n, nin):
     label = "label"
-    o = FilterGraphLinks({label: links})
+    o = GraphLinks({label: links})
     o.remove_label(label)
     assert len(o) == n
     assert len(list(o.iter_inputs())) == nin
