@@ -4,12 +4,17 @@
 FFmpeg Option References
 ========================
 
-All open/read/write/filter functions in :py:mod:`ffmpegio` accepts any `FFmpeg options <https://ffmpeg.org/ffmpeg.html#Options>`__ as their keyword arguments. Two rules apply to construct Python function argument: 
+All open/read/write/filter functions in :py:mod:`ffmpegio` accepts any 
+`FFmpeg options <https://ffmpeg.org/ffmpeg.html#Options>`__ as their keyword arguments. Two rules 
+apply to construct Python function argument: 
 
-(1) Drop the `-` from FFmpeg option name, e.g., enter `-ss 50` as `(..., ss=50, ...)`; and 
-(2) All the options are by default assumed output options. To specify input options, append `_in` to the option name. To apply `-ss 50` to input url, enter `(..., ss_in=50, ...)`. Global options are automatically identified.
+(1) Drop the ``-`` from FFmpeg option name, e.g., enter ``-ss 50`` as ``(..., ss=50, ...)``; and 
+(2) All the options are assumed output options by default. To specify input options, append ``_in`` 
+    to the option name. To apply ``-ss 50`` to input url, enter ``(..., ss_in=50, ...)``. Global 
+    options are automatically identified.
 
-The option values can be specified in any data type, but it must have a `__str__` function defined to convert Python data to correct FFmpeg string expression.
+The option values can be specified in any data type, but it must have a ``__str__`` function defined 
+to convert Python data to correct FFmpeg string expression.
 
 Common FFmpeg Options
 ---------------------

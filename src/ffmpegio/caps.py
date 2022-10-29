@@ -1007,38 +1007,38 @@ def filter_info(name):
 
     The returned FilterInfo named tuple has following entries:
 
-    ================ ===========================  ================================================
-    Key              type                         description
-    ================ ============================ ================================================
-    name             str                          Name
-    description      str                          Description
-    threading        list(str)                    List of threading capabilities
-    inputs           list(dict)|str               List of input pads or 'dynamic' if variable
-    outputs          list(dict)|str               List of output pads or 'dynamic' if variable
-    options          list(FilterOption)           List of filter options
-    extra_options    dict(str,list(FilterOption)) Extra options co-listed
-    timeline_support bool                         True if `enable` timeline option is supported
-    =============--- ============================ ================================================
+    ================ ============================  ================================================
+    Key              type                          description
+    ================ ============================  ================================================
+    name             str                           Name
+    description      str                           Description
+    threading        list(str)                     List of threading capabilities
+    inputs           list(dict)|str                List of input pads or 'dynamic' if variable
+    outputs          list(dict)|str                List of output pads or 'dynamic' if variable
+    options          list(FilterOption)            List of filter options
+    extra_options    dict(str,list(FilterOption))  Extra options co-listed
+    timeline_support bool                          True if `enable` timeline option is supported
+    ================ ============================  ================================================
 
     'inputs' and 'outputs' entries has two keys: 'name' and 'type'
     defining the pad name and pad stream type ('audio' or 'video')
 
     FilterOption is a namedtuple with the following entries:
 
-    ========= ===========================  ================================================
-    Key       type                         description
-    ========= ============================ ================================================
-    name      str                          Name
-    alias     str                          Alias name
-    type      str                          Data type
-    help      str                          Help text
-    ranges    list(tuple(any,any))|None    List of ranges of values
-    constants dict(str:any)                List of defined constant/enum values
-    default   any                          Default value
-    video     bool                         True if option for video stream
-    audio     bool                         True if option for audio stream
-    runtime   bool                         True if modifiable during runtime
-    ========= ============================ ================================================
+    =========  ===========================  ================================================
+    Key        type                         description
+    =========  ===========================  ================================================
+    name       str                          Name
+    alias      str                          Alias name
+    type       str                          Data type
+    help       str                          Help text
+    ranges     list(tuple(any,any))|None    List of ranges of values
+    constants  dict(str:any)                List of defined constant/enum values
+    default    any                          Default value
+    video      bool                         True if option for video stream
+    audio      bool                         True if option for audio stream
+    runtime    bool                         True if modifiable during runtime
+    =========  ===========================  ================================================
 
     """
 

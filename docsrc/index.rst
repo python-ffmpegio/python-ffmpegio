@@ -74,6 +74,7 @@ To import :py:mod:`ffmpegio`
 - :ref:`ex_read_media`
 - :ref:`ex_write`
 - :ref:`ex_filter`
+- :ref:`ex_filter`
 - :ref:`ex_stream`
 - :ref:`ex_devices`
 - :ref:`ex_progress`
@@ -327,8 +328,9 @@ High-level API Reference
     basicio
     probe
     options
-    filters
+    filtergraph
     caps
+    analysis
     devices
     concat
 

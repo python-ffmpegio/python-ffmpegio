@@ -66,19 +66,18 @@ To import `ffmpegio`
 
   >>> import ffmpegio
 
-- `Transcoding <ex_trancode>`__
-- `Read Audio Files <ex_read_audio>`__
-- `Read Image Files / Capture Video Frames <ex_read_image>`__
-- `Read Video Files <ex_read_video>`__
-- `Read Multiple Files or Streams <ex_read_media>`__
-- `Write Audio, Image, & Video Files <ex_write>`__
-- `Filter Audio, Image, & Video Data <ex_filter>`__
-- `Stream I/O <ex_stream>`__
-- `Device I/O Enumeration <ex_devices>`__
-- `Progress Callback <ex_progress>`__
-- `Run FFmpeg and FFprobe Directly <ex_direct>`__
-
-.. _ex_trancode:
+- `Transcoding <transcoding_>`_
+- `Read Audio Files <Read Audio Files_>`_
+- `Read Image Files / Capture Video Frames <Read Image Files / Capture Video Frames_>`_
+- `Read Video Files <Read Video Files_>`_
+- `Read Multiple Files or Streams <Read Multiple Files or Streams_>`_
+- `Write Audio, Image, & Video Files <Write Audio, Image, & Video Files_>`_
+- `Filter Audio, Image, & Video Data <Filter Audio, Image, & Video Data_>`_
+- `Stream I/O <Stream I/O_>`_
+- `Device I/O Enumeration <Device I/O Enumeration_>`_
+- `Progress Callback <Progress Callback_>`_
+- `Filtergraph Builder`_
+- `Run FFmpeg and FFprobe Directly <Run FFmpeg and FFprobe Directly_>`_
 
 Transcoding
 ^^^^^^^^^^^
@@ -103,8 +102,6 @@ Transcoding
   >>> with ffconcat: # generates temporary ffconcat file
   >>>     ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat', codec='copy', safe_in=0)
 
-.. _ex_read_audio:
-
 Read Audio Files
 ^^^^^^^^^^^^^^^^
 
@@ -120,8 +117,6 @@ Read Audio Files
   >>> # read filtered audio samples first 10 seconds
   >>> #   filter: equalizer which attenuate 10 dB at 1 kHz with a bandwidth of 200 Hz 
   >>> fs, x = ffmpegio.audio.read('myaudio.mp3', t=10.0, af='equalizer=f=1000:t=h:width=200:g=-10')
-
-.. _ex_read_image:
 
 Read Image Files / Capture Video Frames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -153,8 +148,6 @@ Read Image Files / Capture Video Frames
   >>> I = ffmpegio.image.read('myaudio.mp3', filter_complex='showspectrumpic=s=960x540', pix_fmt='rgb24')
 
 
-.. _ex_read_video:
-
 Read Video Files
 ^^^^^^^^^^^^^^^^
 
@@ -167,8 +160,6 @@ Read Video Files
   >>> # get running spectrogram of audio input (must specify pix_fmt if input is audio)
   >>> fs, F = ffmpegio.video.read('myvideo.mp4', pix_fmt='rgb24', filter_complex='showspectrum=s=1280x480')
   
-
-.. _ex_read_media:
 
 Read Multiple Files or Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -189,8 +180,6 @@ Read Multiple Files or Streams
   >>> #  rates: dict of frame rates: keys="v:0" and "v:1"
   >>> #  data: dict of video frame arrays: keys="v:0" and "v:1"
 
-.. _ex_write:
-
 Write Audio, Image, & Video Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -204,8 +193,6 @@ Write Audio, Image, & Video Files
 
   >>> # create an audio file from a numpy array
   >>> ffmpegio.audio.write('myaudio.mp3', rate, x)
-
-.. _ex_filter:
 
 Filter Audio, Image, & Video Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -222,8 +209,6 @@ Filter Audio, Image, & Video Data
   >>> filter = "drawtext=fontsize=30:fontfile=FreeSerif.ttf:text='hello world':x=(w-text_w)/2:y=(h-text_h)/2"
   >>> fs_out, F_out = ffmpegio.video.filter(filter, fs_in, F_in)
 
-.. _ex_stream:
-
 Stream I/O
 ^^^^^^^^^^
 
@@ -236,7 +221,30 @@ Stream I/O
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
 
-.. _ex_devices:
+Filtergraph Builder
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   >>> # build complex filtergraph
+   >>> from ffmpegio import filtergraph as fgb
+   >>>
+   >>> v0 = "[0]" >> fgb.trim(start_frame=10, end_frame=20)
+   >>> v1 = "[0]" >> fgb.trim(start_frame=30, end_frame=40)
+   >>> v3 = "[1]" >> fgb.hflip()
+   >>> v2 = (v0 | v1) + fgb.concat(2)
+   >>> v5 = (v2|v3) + fgb.overlay(eof_action='repeat') + fgb.drawbox(50, 50, 120, 120, 'red', t=5)
+   >>> v5
+   <ffmpegio.filtergraph.Graph object at 0x1e67f955b80>
+       FFmpeg expression: "[0]trim=start_frame=10:end_frame=20[L0];[0]trim=start_frame=30:end_frame=40[L1];[L0][L1]concat=2[L2];[1]hflip[L3];[L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5"
+       Number of chains: 5
+         chain[0]: [0]trim=start_frame=10:end_frame=20[L0];
+         chain[1]: [0]trim=start_frame=30:end_frame=40[L1];
+         chain[2]: [L0][L1]concat=2[L2];
+         chain[3]: [1]hflip[L3];
+         chain[4]: [L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5      
+       Available input pads (0): 
+       Available output pads: (1): (4, 1, 0)
 
 Device I/O Enumeration
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -250,8 +258,6 @@ Device I/O Enumeration
   >>> with ffmpegio.open('v:0', 'rv', f_in='dshow') as webcam,
   >>>     for frame in webcam:
   >>>         process_frame(frame)
-
-.. _ex_progress:
 
 Progress Callback
 ^^^^^^^^^^^^^^^^^
@@ -275,8 +281,6 @@ Progress Callback
   >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100, progress=progress) as fin:
   >>>     for frames in fin:
   >>>         myprocess(frames)
-
-.. _ex_direct:
 
 Run FFmpeg and FFprobe Directly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

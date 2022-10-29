@@ -123,7 +123,8 @@ class FilterOperatorTypeError(TypeError, FFmpegioError):
 class FiltergraphMismatchError(TypeError, FFmpegioError):
     def __init__(self, n, m) -> None:
         super().__init__(
-            f"cannot append mismatched filtergraphs: the first has {n} outputs while the second has {m} outputs availble."
+            f"cannot append mismatched filtergraphs: the first has {n} input "
+            f"while the second has {m} outputs available."
         )
 
 
@@ -237,6 +238,20 @@ def _shift_labels(obj, label_type, args):
 
 # FILTER TOOLS
 class Filter(tuple):
+    """FFmpeg filter definition immutable class
+
+    :param filter_spec: _description_
+    :type filter_spec: _type_
+    :param filter_id: _description_, defaults to None
+    :type filter_id: _type_, optional
+    :param \\*opts: filter option values assigned in the order options are
+                    declared
+    :type \\*opts: dict, optional
+    :param \\**kwopts: filter options in key=value pairs
+    :type \\**kwopts: dict, optional
+
+    """
+
     class Error(FFmpegioError):
         pass
 
@@ -254,7 +269,7 @@ class Filter(tuple):
             super().__init__(f"{feature} not yet supported feature for {name} filter.")
 
     def __new__(self, filter_spec, *args, filter_id=None, **kwargs):
-
+        """_summary_"""
         proto = []
         if isinstance(filter_spec, Filter):
             if filter_spec.id and filter_id is not None:  # new id
@@ -676,8 +691,9 @@ class Filter(tuple):
         :rtype: Filter
 
         .. note::
-        To add new ordered options, int-keyed options item must be presented in
-        the increasing key order so the option can be expanded one at a time.
+
+            To add new ordered options, int-keyed options item must be presented in
+            the increasing key order so the option can be expanded one at a time.
 
         """
 
@@ -879,6 +895,19 @@ class Filter(tuple):
 
 
 class Chain(UserList):
+    """List of FFmpeg filters, connected in series
+
+    Chain() to instantiate empty Graph object
+
+    Chain(obj) to copy-instantiate Graph object from another
+
+    Chain('...') to parse an FFmpeg filtergraph expression
+
+    :param filter_specs: single-in-single-out filtergraph description without
+                         labels, defaults to None
+    :type filter_specs: str or seq(Filter), optional
+    """
+
     class Error(FFmpegioError):
         pass
 
@@ -1198,6 +1227,7 @@ class Chain(UserList):
                 for v in iter_base(filter, self.data[filter]):
                     yield v
         except:
+            # invalid index
             pass
 
     def iter_output_pads(self, filter=None, pad=None):
@@ -1317,20 +1347,20 @@ class Chain(UserList):
 
 
 class Graph(UserList):
-    """FFmpeg filter graph
+    """List of FFmpeg filterchains in parallel with interchain link specifications
 
     Graph() to instantiate empty Graph object
 
     Graph(obj) to copy-instantiate Graph object from another
 
-    Graph('...') to parse an FFmpeg filter graph expression
+    Graph('...') to parse an FFmpeg filtergraph expression
 
     Graph(filter_specs, links, sws_flags)
     to specify the compose_graph(...) arguments
 
     :param filter_specs: either an existing Graph instance to copy, an FFmpeg
-                         filter graph expression, or a nested sequence of argument
-                         sequences to compose_filter() to define a filter graph.
+                         filtergraph expression, or a nested sequence of argument
+                         sequences to compose_filter() to define a filtergraph.
                          For the latter option, The last element of each filter argument
                          sequence may be a dict, defining its keyword arguments,
                          defaults to None
@@ -1341,12 +1371,6 @@ class Graph(UserList):
                       scalers, defaults to None
     :type sws_flags: seq of stringifyable elements with optional dict as the last
                      element for the keyword flags, optional
-
-    Attributes:
-
-        filter_specs (list of lists of tuples or None): list of chains of filters.
-        links (dict(str|int: [(int,int,int)|None|list((int,int,int)), (int,int,int)|None))
-        sws_flags (Filter or None): swscale flags for automatically inserted scalers
 
     """
 
@@ -1393,8 +1417,8 @@ class Graph(UserList):
         """Filter|None: swscale flags for automatically inserted scalers
         """
 
-        """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
         self.autosplit_output = autosplit_output
+        """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
     def _resolve_index(self, is_input, index):
         # call if index needs to be autocompleted
@@ -1523,7 +1547,9 @@ class Graph(UserList):
 
     def extend(self, other, auto_link=False, force_link=False):
         other = as_filtergraph(other)
-        self._links.update(other._links, len(self), auto_link=auto_link, force=force_link)
+        self._links.update(
+            other._links, len(self), auto_link=auto_link, force=force_link
+        )
         self.data.extend(other)
 
     def insert(self, i, item):
@@ -2024,14 +2050,15 @@ class Graph(UserList):
                  unique integer value assigned to it.
         :rtype: str|int
 
-        notes:
-        - Unless `force=True`, dst pad must not be already connected
-        - User-supplied label name is a suggested name, and the function could
-          modify the name to maintain integrity.
-        - If dst or src were previously named, their names will be dropped
-          unless one matches the user-supplied label.
-        - No guarantee on consistency of the link label (both named and unnamed)
-          during the life of the object
+        ..notes:
+
+            - Unless `force=True`, dst pad must not be already connected
+            - User-supplied label name is a suggested name, and the function could
+              modify the name to maintain integrity.
+            - If dst or src were previously named, their names will be dropped
+              unless one matches the user-supplied label.
+            - No guarantee on consistency of the link label (both named and unnamed)
+              during the life of the object
 
         """
 
@@ -2414,16 +2441,24 @@ class Graph(UserList):
     ):
         """append another Graph object and connect all inputs to the outputs of this filtergraph
 
-        :param right: right filter graph to be appended
+        :param right: right filtergraph to be appended
         :type right: Graph|Chain|Filter
         :param how: method on how to mate input and output, defaults to "per_chain".
 
+            ===========  ===================================================================
+            'chainable'  joins only chainable input pads and output pads.
+            'per_chain'  joins one pair of first available input pad and output pad of each
+                         mating chains. Source and sink chains are ignored.
+            'all'        joins all input pads and output pads
             'auto'       tries 'per_chain' first, if fails, then tries 'all'.
+            ===========  ===================================================================
 
         :type how: "chainable"|"per_chain"|"all"
         :param match_scalar: True to multiply self if SO-MI connection or right if MO-SI connection
                               to single-ended entity to the other, defaults to False
         :type match_scalar: bool
+        :param ignore_labels: True to pair pads w/out checking pad labels, default: True
+        :type ignore_labels: bool, optional
         :param chain_siso: True to chain the single-input single-output connection, default: True
         :type chain_siso: bool, optional
         :param replace_sws_flags: True to use other's sws_flags if present,
@@ -2576,7 +2611,7 @@ class Graph(UserList):
         `filter_complex_script` FFmpeg options, by creating a temporary text file
         containing the filtergraph description.
 
-        ..note::
+        .. note::
           Only use this function when the filtergraph description is too long for
           OS to handle it. Presenting the filtergraph with a `filter_complex` or
           `filter` option to FFmpeg is always a faster solution.
@@ -2588,35 +2623,35 @@ class Graph(UserList):
         Use this method with a `with` statement. How to incorporate its output
         with `ffmpegprocess` depends on the `as_file_obj` argument.
 
-        ..example::
+        :Example:
 
-            The following example illustrates a usecase for a video SISO filtergraph:
+          The following example illustrates a usecase for a video SISO filtergraph:
 
-            ..codeblock::python
+          .. code-block:: python
 
-                # assume `fg` is a SISO video filter Graph object
+             # assume `fg` is a SISO video filter Graph object
 
-                with fg.as_script_file() as script_path:
-                    ffmpegio.ffmpegprocess.run(
-                        {
-                            'inputs':  [('input.mp4', None)]
-                            'outputs': [('output.mp4', {'filter_script:v': script_path})]
-                        })
+             with fg.as_script_file() as script_path:
+                 ffmpegio.ffmpegprocess.run(
+                     {
+                         'inputs':  [('input.mp4', None)]
+                         'outputs': [('output.mp4', {'filter_script:v': script_path})]
+                     })
 
-            As noted above, a performant alternative is to use an input pipe and 
-            feed the filtergraph description directly:
+          As noted above, a performant alternative is to use an input pipe and
+          feed the filtergraph description directly:
 
-            ..codeblock::python
+          .. code-block:: python
 
-                ffmpegio.ffmpegprocess.run(
-                    {
-                        'inputs':  [('input.mp4', None)]
-                        'outputs': [('output.mp4', {'filter_script:v': 'pipe:0'})]
-                    },
-                    input=str(fg))
+             ffmpegio.ffmpegprocess.run(
+                 {
+                     'inputs':  [('input.mp4', None)]
+                     'outputs': [('output.mp4', {'filter_script:v': 'pipe:0'})]
+                 },
+                 input=str(fg))
 
-            Note that `pipe:0` must be used and not the shorthand `'-'` unlike
-            the input url.
+          Note that ``pipe:0`` must be used and not the shorthand ``'-'`` unlike
+          the input url.
 
         """
 
