@@ -539,9 +539,14 @@ class Filter(tuple):
 
             return int(max(f"{map:08x}"[::2])) + 1
 
+        def _concat():
+            return self.get_option_value("n") * (
+                self.get_option_value("v") + self.get_option_value("a")
+            )
+
         option_name, inc = {
             "afir": ("nbirs", 1),
-            "concat": ("n", 0),
+            "concat": (None, _concat),
             "decimate": ("ppsrc", 1),
             "fieldmatch": ("ppsrc", 1),
             "headphone": (None, _headphone),
@@ -551,7 +556,6 @@ class Filter(tuple):
             "premultiply": (None, _inplace),
             "unpremultiply": (None, _inplace),
             "signature": ("nb_inputs", 0),
-            "concat": ("n", 0),
             # "astreamselect": ("inputs", 0),
             # "bm3d": ("inputs", 0),
             # "hstack": ("inputs", 0),
