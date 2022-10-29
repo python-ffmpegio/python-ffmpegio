@@ -2,6 +2,7 @@ sphinx
 sphinx-rtd-theme
 sphinx-autopackagesummary
 sphinxcontrib-blockdiag
+sphinxcontrib-repl
 sphinx-exec-directive
 PyQt5-sip
 PyQt5
