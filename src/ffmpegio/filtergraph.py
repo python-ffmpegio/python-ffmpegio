@@ -1645,7 +1645,7 @@ class Graph(UserList):
         self._links = fg._links
         return self
 
-    def _screen_input_pads(self, iter_pads, include_named, include_connected):
+    def _screen_input_pads(self, iter_pads, exclude_named, include_connected):
 
         links = self._links
         for index, f in iter_pads():  # for each input pad
@@ -1653,7 +1653,7 @@ class Graph(UserList):
             if (
                 (label is None)
                 or (
-                    include_named
+                    not exclude_named
                     and links.is_input(label)
                     and not is_stream_spec(label, True)
                 )
@@ -1663,7 +1663,7 @@ class Graph(UserList):
 
     def iter_input_pads(
         self,
-        include_named=False,
+        exclude_named=False,
         include_connected=False,
         chain=None,
         filter=None,
@@ -1671,8 +1671,8 @@ class Graph(UserList):
     ):
         """Iterate over filtergraph's filter output pads
 
-        :param include_named: True to consider named inputs, defaults to False to return only unnamed inputs
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :type exclude_named: bool, optional
         :param include_connected: True to include pads connected to input streams, defaults to False
         :type include_connected: bool, optional
         :yield: filter pad index, link label, & source filter object
@@ -1694,15 +1694,15 @@ class Graph(UserList):
                 except:
                     pass
 
-        return self._screen_input_pads(iter_pads, include_named, include_connected)
+        return self._screen_input_pads(iter_pads, exclude_named, include_connected)
 
     def iter_chainable_input_pads(
-        self, include_named=False, include_connected=False, chain=None
+        self, exclude_named=False, include_connected=False, chain=None
     ):
         """Iterate over filtergraph's chainable filter output pads
 
-        :param include_named: True to consider named input pads, defaults to False (only unnamed pads)
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out named input pads, defaults to False (all avail pads)
+        :type exclude_named: bool, optional
         :param include_connected: True to include input streams, which are already connected to input streams, defaults to False
         :type include_connected: bool, optional
         :yield: filter pad index, link label, & source filter object
@@ -1725,16 +1725,16 @@ class Graph(UserList):
                 except:
                     pass
 
-        return self._screen_input_pads(iter_pads, include_named, include_connected)
+        return self._screen_input_pads(iter_pads, exclude_named, include_connected)
 
-    def _screen_output_pads(self, iter_pads, include_named):
+    def _screen_output_pads(self, iter_pads, exclude_named):
         links = self._links
         for index, f in iter_pads():  # for each output pad
             labels = links.find_src_labels(index)  # get link label if exists
             if labels is None or not len(labels):
                 # unlabeled output pad
                 yield (index, None, f)
-            elif include_named:
+            elif not exclude_named:
                 # all labeled output pads are by definition named
                 for label in labels:
                     # if multiple input link slots are reserved
@@ -1742,11 +1742,11 @@ class Graph(UserList):
                     for _ in range(links.num_outputs(label)):
                         yield (index, label, f)
 
-    def iter_output_pads(self, include_named=False, chain=None, filter=None, pad=None):
+    def iter_output_pads(self, exclude_named=False, chain=None, filter=None, pad=None):
         """Iterate over filtergraph's filter output pads
 
-        :param include_named: True to consider named outputs, defaults to False, only unnamed only
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out named outputs, defaults to False
+        :type exclude_named: bool, optional
         :yield: filter pad index,  link label, and source filter object
         :rtype: tuple(tuple(int,int,int), str, Filter)
         """
@@ -1767,13 +1767,13 @@ class Graph(UserList):
                 except:
                     pass
 
-        return self._screen_output_pads(iter_pads, include_named)
+        return self._screen_output_pads(iter_pads, exclude_named)
 
-    def iter_chainable_output_pads(self, include_named=False, chain=None):
+    def iter_chainable_output_pads(self, exclude_named=False, chain=None):
         """Iterate over filtergraph's chainable filter output pads
 
-        :param include_named: True to consider unnamed outputs only, defaults to False
-        :type include_named: bool, optional
+        :param exclude_named: True to leave out unnamed outputs, defaults to False
+        :type exclude_named: bool, optional
         :yield: filter pad index, link label (if any), & source filter object
         :rtype: tuple(tuple(int,int,int), str, Filter)
         """
@@ -1793,7 +1793,7 @@ class Graph(UserList):
                 except:
                     pass
 
-        return self._screen_output_pads(iter_pads, include_named)
+        return self._screen_output_pads(iter_pads, exclude_named)
 
     def get_num_inputs(self, chainable_only=False):
         return len(
@@ -2323,7 +2323,7 @@ class Graph(UserList):
                 else (
                     info
                     for info in (
-                        next(generator(include_named=ignore_labels, chain=c), None)
+                        next(generator(exclude_named=ignore_labels, chain=c), None)
                         for c in range(len(self.data))
                     )
                     if info is not None
@@ -2334,7 +2334,7 @@ class Graph(UserList):
                 self.iter_chainable_input_pads
                 if is_input
                 else self.iter_chainable_output_pads
-            )(include_named=ignore_labels)
+            )(exclude_named=ignore_labels)
         else:
             raise ValueError(f"unknown how argument value: {how}")
 
