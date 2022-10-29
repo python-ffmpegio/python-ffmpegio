@@ -1687,7 +1687,7 @@ class Graph(UserList):
             else:
                 cid = chain + len(self.data) if chain < 0 else chain
                 try:
-                    for j, i, f in self.data[chain].iter_input_pads(
+                    for j, i, f in self.data[cid].iter_input_pads(
                         filter=filter, pad=pad
                     ):
                         yield (cid, j, i), f
@@ -1760,7 +1760,7 @@ class Graph(UserList):
             else:
                 cid = chain + len(self.data) if chain < 0 else chain
                 try:
-                    for j, i, f in self.data[chain].iter_output_pads(
+                    for j, i, f in self.data[cid].iter_output_pads(
                         filter=filter, pad=pad
                     ):
                         yield (cid, j, i), f
