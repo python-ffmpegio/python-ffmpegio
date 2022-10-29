@@ -99,6 +99,7 @@ from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
 from copy import deepcopy
+from math import floor, log10
 import os
 import re
 from subprocess import PIPE
@@ -344,6 +345,14 @@ class Filter(tuple):
 
     def __str__(self):
         return filter_utils.compose_filter(*self)
+
+    def __repr__(self):
+        type_ = type(self)
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of inputs: {self.get_num_inputs()}
+    Number of outputs: {self.get_num_outputs()}
+"""
 
     @property
     def name(self):
@@ -909,6 +918,15 @@ class Chain(UserList):
     def __str__(self):
         return filter_utils.compose_graph([self.data])
 
+    def __repr__(self):
+        type_ = type(self)
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of filters: {len(self.data)}
+    Input pads ({self.get_num_inputs()}): {', '.join((str(id[:-1]) for id in self.iter_input_pads()))}
+    Output pads: ({self.get_num_outputs()}): {', '.join((str(id[:-1]) for id in self.iter_output_pads()))}
+"""
+
     def __setitem__(self, key, value):
         super().__setitem__(key, as_filter(value))
 
@@ -1427,6 +1445,48 @@ class Graph(UserList):
         return filter_utils.compose_graph(
             fg, fg._links, fg.sws_flags and fg.sws_flags[1:]
         )
+
+    def __repr__(self):
+        type_ = type(self)
+        expr = str(self)
+        nchains = len(self.data)
+        pos = [0] * nchains
+        i = n = 0
+        for j, chain in enumerate(self):
+            for k, filter in enumerate(chain):
+                fstr = str(filter)
+                i += n
+                i = expr[i:].find(fstr) + i
+                n = len(fstr)
+                pos[j] = i
+
+        pos = [expr.rfind(";", 0, i) + 1 for i in pos]
+        pos.append(len(expr))
+
+        prefix = "      chain"
+        nzeros = floor(log10(nchains)) + 1
+        fmt = f"0{nzeros}"
+        chain_list = [
+            f"{prefix}[{j:{fmt}}]: {expr[i0:i1]}"
+            for j, (i0, i1) in enumerate(zip(pos[:-1], pos[1:]))
+        ]
+        if self.sws_flags:
+            chain_list = [f"{[' ']*(len(prefix)+3+nzeros)}{expr[:pos[0]]}", *chain_list]
+        if len(chain_list) > 12:
+            chain_list = [
+                chain_list[:-4],
+                f"{[' ']*(len(prefix)+3+nzeros)}{expr[:pos[0]]}",
+                chain_list[-3:],
+            ]
+        chain_list = "\n".join(chain_list)
+
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of chains: {len(self)}
+{chain_list}      
+    Available input pads ({self.get_num_inputs()}): {', '.join((str(id[0]) for id in self.iter_input_pads()))}
+    Available output pads: ({self.get_num_outputs()}): {', '.join((str(id[0]) for id in self.iter_output_pads()))}
+"""
 
     def __setitem__(self, key, value):
         super().__setitem__(key, as_filterchain(value, copy=True))
