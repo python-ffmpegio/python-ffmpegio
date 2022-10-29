@@ -99,6 +99,7 @@ from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
 from copy import deepcopy
+import itertools
 from math import floor, log10
 import os
 import re
@@ -223,10 +224,13 @@ def _shift_labels(obj, label_type, args):
         return obj.add_labels(label_type, args)
 
     if all(_is_label(arg) for arg in args):
-        return obj.add_labels(label_type, [arg for arg in args])
+        return obj.add_labels(label_type, args)
 
-    assert len(args) == 2 and _is_label(args[0])
-    return obj.add_labels(label_type, {args[1]: args[0]})
+    is_dst = label_type == "dst"
+    assert len(args) == 2 and _is_label(args[0 if is_dst else 1])
+    return obj.add_labels(
+        label_type, {obj._resolve_index(is_dst, args[is_dst]): args[not is_dst]}
+    )
 
 
 ###################################################################################################
@@ -2543,9 +2547,16 @@ class Graph(UserList):
                 pad = fg._resolve_index(is_input, None)
                 fg.add_label(label, **{pad_type: pad})
         else:
-            for label in labels:
-                pad = fg._resolve_index(is_input, None)
-                fg.add_label(label, **{pad_type: pad})
+            pads = list(
+                itertools.islice(
+                    fg.iter_input_pads(exclude_named=True)
+                    if pad_type == "dst"
+                    else fg.iter_output_pads(exclude_named=True),
+                    len(labels),
+                )
+            )
+            for label, pad in zip(labels, pads):
+                fg.add_label(label, **{pad_type: pad[0]})
         return fg
 
     @contextmanager
