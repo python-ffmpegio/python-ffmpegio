@@ -2382,7 +2382,7 @@ class Graph(UserList):
                 else (
                     info
                     for info in (
-                        next(generator(exclude_named=ignore_labels, chain=c), None)
+                        next(generator(exclude_named=not ignore_labels, chain=c), None)
                         for c in range(len(self.data))
                     )
                     if info is not None
@@ -2393,7 +2393,7 @@ class Graph(UserList):
                 self.iter_chainable_input_pads
                 if is_input
                 else self.iter_chainable_output_pads
-            )(exclude_named=ignore_labels)
+            )(exclude_named=not ignore_labels)
         else:
             raise ValueError(f"unknown how argument value: {how}")
 
