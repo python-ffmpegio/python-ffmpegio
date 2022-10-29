@@ -2032,14 +2032,14 @@ class Graph(UserList):
         if label is not None:
             GraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
         if dst is not None:
-            GraphLinks.validate_pad_id(dst)
+            dst = self._resolve_index(True, dst)
             try:
                 f = self.data[dst[0]][dst[1]]
                 assert dst[2] >= 0 and dst[2] < f.get_num_inputs()
             except:
                 raise Graph.InvalidFilterPadId("input", dst)
         if src is not None:
-            GraphLinks.validate_pad_id(src)
+            src = self._resolve_index(False, src)
             try:
                 f = self.data[src[0]][src[1]]
                 assert src[2] >= 0 and src[2] < f.get_num_outputs()
