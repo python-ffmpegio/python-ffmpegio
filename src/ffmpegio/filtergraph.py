@@ -1187,15 +1187,18 @@ class Chain(UserList):
             elif pad < (n - 1 if i else n):
                 yield (i, pad, f)
 
-        if filter is None:
-            for i, f in enumerate(self.data):
-                for v in iter_base(i, f):
+        try:
+            if filter is None:
+                for i, f in enumerate(self.data):
+                    for v in iter_base(i, f):
+                        yield v
+            else:
+                if filter < 0:
+                    filter += len(self.data)
+                for v in iter_base(filter, self.data[filter]):
                     yield v
-        else:
-            if filter < 0:
-                filter += len(self.data)
-            for v in iter_base(filter, self.data[filter]):
-                yield v
+        except:
+            pass
 
     def iter_output_pads(self, filter=None, pad=None):
         """Iterate over output pads of the filters
@@ -1218,15 +1221,18 @@ class Chain(UserList):
             elif pad < (n if i == imax else n - 1):
                 yield (i, pad, f)
 
-        if filter is None:
-            for i, f in reversed(tuple(enumerate(self.data))):
-                for v in iter_base(i, f):
+        try:
+            if filter is None:
+                for i, f in reversed(tuple(enumerate(self.data))):
+                    for v in iter_base(i, f):
+                        yield v
+            else:
+                if filter < 0:
+                    filter += len(self.data)
+                for v in iter_base(filter, self.data[filter]):
                     yield v
-        else:
-            if filter < 0:
-                filter += len(self.data)
-            for v in iter_base(filter, self.data[filter]):
-                yield v
+        except:
+            pass
 
     def get_chainable_input_pad(self):
         """get first filter's input pad, which can be chained
@@ -1739,19 +1745,19 @@ class Graph(UserList):
         """
 
         def iter_pads():
-            if chain is None:
-                for cid, obj in enumerate(self.data):
-                    for j, i, f in obj.iter_input_pads(filter=filter, pad=pad):
-                        yield (cid, j, i), f
-            else:
-                cid = chain + len(self.data) if chain < 0 else chain
-                try:
+            try:
+                if chain is None:
+                    for cid, obj in enumerate(self.data):
+                        for j, i, f in obj.iter_input_pads(filter=filter, pad=pad):
+                            yield (cid, j, i), f
+                else:
+                    cid = chain + len(self.data) if chain < 0 else chain
                     for j, i, f in self.data[cid].iter_input_pads(
                         filter=filter, pad=pad
                     ):
                         yield (cid, j, i), f
-                except:
-                    pass
+            except:
+                pass
 
         return self._screen_input_pads(iter_pads, exclude_named, include_connected)
 
@@ -1811,20 +1817,20 @@ class Graph(UserList):
         """
 
         def iter_pads():
-            # iterate over all input pads
-            if chain is None:
-                for cid, obj in enumerate(self.data):
-                    for j, i, f in obj.iter_output_pads(filter=filter, pad=pad):
-                        yield (cid, j, i), f
-            else:
-                cid = chain + len(self.data) if chain < 0 else chain
-                try:
+            try:
+                # iterate over all input pads
+                if chain is None:
+                    for cid, obj in enumerate(self.data):
+                        for j, i, f in obj.iter_output_pads(filter=filter, pad=pad):
+                            yield (cid, j, i), f
+                else:
+                    cid = chain + len(self.data) if chain < 0 else chain
                     for j, i, f in self.data[cid].iter_output_pads(
                         filter=filter, pad=pad
                     ):
                         yield (cid, j, i), f
-                except:
-                    pass
+            except:
+                pass
 
         return self._screen_output_pads(iter_pads, exclude_named)
 

@@ -24,13 +24,13 @@ def test_resolve_index():
     print(fg)
     pprint(tuple(fg._iter_io_pads(True, "all")))
     # pprint(tuple(fg._iter_io_pads(False, "all")))
-    pprint(fg._resolve_index(True, 0))
+    assert fg._resolve_index(True, 0) == (1, 0, 0)
 
-    pprint(fg._resolve_index(True, None))
-    pprint(fg._resolve_index(True, "in"))
-    pprint(fg._resolve_index(True, "[in]"))
-    pprint(fg._resolve_index(True, 1))
-    pprint(fg._resolve_index(True, (1, None)))
+    assert fg._resolve_index(True, None) == (1, 0, 0)
+    assert fg._resolve_index(True, "in") == (2, 0, 0)
+    assert fg._resolve_index(True, "[in]") == (2, 0, 0)
+    assert fg._resolve_index(True, 1) == (3, 0, 1)
+    assert fg._resolve_index(True, (1, None)) == (5, 1, 0)
 
     # pprint(fg._resolve_index(False, 0))
     # pprint(fg._resolve_index(False, 1))
@@ -59,7 +59,13 @@ def test_resolve_index():
         ),
         ("fps[L];[L]crop", "trim", None, None, "fps[L];[L]crop,trim"),
         ("split=2[C];[C]crop", "trim", None, None, "split=2[C][L0];[C]crop;[L0]trim"),
-        ("split=2[C][out];[C]crop", "trim", "out", None, "split=2[C][out];[C]crop;[out]trim"),
+        (
+            "split=2[C][out];[C]crop",
+            "trim",
+            "out",
+            None,
+            "split=2[C][out];[C]crop;[out]trim",
+        ),
     ],
 )
 def test_attach(fg, fc, left_on, right_on, out):
@@ -81,7 +87,13 @@ def test_attach(fg, fc, left_on, right_on, out):
         ("fps;[in]crop", "trim", "in", None, "trim,crop;fps"),
         ("[L]fps;crop[L]", "trim", None, None, "trim,crop[L];[L]fps"),
         ("[C]overlay;crop[C]", "trim", None, None, "trim[L0];[C][L0]overlay;crop[C]"),
-        ("[C][in]overlay;crop[C]", "trim", "in", None, "trim[in];[C][in]overlay;crop[C]"),
+        (
+            "[C][in]overlay;crop[C]",
+            "trim",
+            "in",
+            None,
+            "trim[in];[C][in]overlay;crop[C]",
+        ),
     ],
 )
 def test_rattach(fg, fc, left_on, skip_named, out):
@@ -301,6 +313,8 @@ def test_script():
             },
         )
     assert not out.returncode
+
+
 def test_ops():
     assert str(Chain("scale") + "overlay") == "scale[L0];[L0]overlay"
     assert str("scale" + Chain("overlay")) == "scale[L0];[L0]overlay"
@@ -347,4 +361,3 @@ if __name__ == "__main__":
     opts = info.options
 
     print(len(opts))
-
