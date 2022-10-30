@@ -6,8 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.8.0] - 2022-10-29
+
 ### Added
 
+- `filtergraph` submodule for building complex filtergraphs
 - `utils.parser.compose()` - support dict value for `-metadata` output option
 - `sp_kwargs` argument to all the `read`, `write`, and `filter` functions and classes.
 
@@ -314,7 +317,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.5.1...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.3...v0.5.0
 [0.4.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.4.2...v0.4.3
