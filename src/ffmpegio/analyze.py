@@ -271,15 +271,14 @@ def run(
         capture_log=True,
         universal_newlines=True,
         stdout=fp.PIPE,
+        stderr=fp.PIPE if show_log else None,
     )
-
-    # print the collected log data if requested
-    if show_log:
-        print(out.stderr)
 
     # if FFmpeg terminated abnormally, return error
     if out.returncode:
-        raise FFmpegError(out.stderr, False)
+        if show_log:
+            print(out.stderr)
+        raise FFmpegError(out.stderr, show_log)
 
     # link a logger to each metadata field names (trailing "lavifi.")
     meta_logger = {name: l for l in loggers for name in l.meta_names}
