@@ -338,7 +338,7 @@ class ScDet:
         if self.all_scores:
             times = sorted((t for t, v in self.data.items()))
             return self.OutputAll(
-                times,
+                tuple(times),
                 *zip(
                     *(
                         (d[t].get("changed", False), d[t]["score"], d[t]["mafd"])
@@ -349,7 +349,7 @@ class ScDet:
         else:
             times = sorted((t for t, v in d.items() if v.get("changed", False)))
             return self.Output(
-                times, *zip(*((d[t]["score"], d[t]["mafd"]) for t in times))
+                tuple(times), *zip(*((d[t]["score"], d[t]["mafd"]) for t in times))
             )
 
 
