@@ -140,15 +140,23 @@ class MetadataLogger(ABC):
         """output named tuple"""
         ...
 
-    def log(self, name: str, key: str or None, value: str):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
         :param key: secondary metadata key if found
         :type key: str | None
         :param value: metadata value
         :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
         """
         ...
 
@@ -317,7 +325,24 @@ class ScDet(MetadataLogger):
         self.options = options
         self.data = {}
 
-    def log(self, t, _, key, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
         if key == "mafd":  # always the first entry / frame
             self.data[t] = {"mafd": float(value)}
         elif key == "score":
@@ -356,8 +381,21 @@ class BlackDetect(MetadataLogger):
         self.options = options
         self.interval = []
 
-    def log(self, t, key, *_):
-        if key == "black_start":
+    def log(self, t: float | int, name: str, *_):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: metadata key
+        :type bane: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
+        if name == "black_start":
             self.interval.append([t, None])
         elif len(self.interval):
             self.interval[-1][-1] = t
@@ -379,7 +417,24 @@ class BlackFrame(MetadataLogger):
         self.options = options
         self.frames = []
 
-    def log(self, t, _, key, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
         if key != "pblack":
             raise ValueError(f"Unknown blackframe metadata found: {key}")
         self.frames.append((t, int(value)))
@@ -399,7 +454,24 @@ class FreezeDetect(MetadataLogger):
         self.options = options
         self.interval = []
 
-    def log(self, t, _, key, __):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
         if key == "freeze_start":
             self.interval.append([t, None])
         elif key == '"freeze_end"':
@@ -425,7 +497,24 @@ class BBox(MetadataLogger):
         self.time = []
         self.position = []
 
-    def log(self, t, _, key, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
         if key == "x1":
             self.time.append(t)
             self.position.append([int(value), 0, 0, 0])
@@ -451,7 +540,24 @@ class BlurDetect(MetadataLogger):
         self.options = options
         self.frames = []
 
-    def log(self, t, key, _, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
         if key != "blur":
             raise ValueError(f"Unknown blurdetect metadata found: {key}")
         self.frames.append((t, float(value)))
@@ -486,7 +592,24 @@ class PSNR(MetadataLogger):
     def ref_in(self):
         return self._ref
 
-    def log(self, t, _, key, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
 
         m = self.re_key.match(key)
         if not (m and m[1]):
@@ -539,7 +662,24 @@ class SilenceDetect(MetadataLogger):
         self.interval = []
         self.mono_intervals = {}  # mono intervals
 
-    def log(self, t, key, ch, _):
+    def log(self, t: float | int, name: str, ch: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param ch: audio channel key
+        :type ch: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
 
         if ch is None:
             i = self.interval
@@ -550,7 +690,7 @@ class SilenceDetect(MetadataLogger):
             except:
                 i = self.mono_intervals[ch] = []
 
-        if key == "silence_start":
+        if name == "silence_start":
             i.append([t, None])
         elif len(i):
             i[-1][-1] = t
@@ -587,11 +727,28 @@ class APhaseMeter(MetadataLogger):
     def filter(self):
         return Filter(self.filter_name, **self.options, video=False, phasing=True)
 
-    def log(self, t, _, key, val):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
 
         if key == "phase":
             self.time.append(t)
-            self.value.append(float(val))
+            self.value.append(float(value))
         else:
             ptype, action = key.rsplit("_", 1)
             i = getattr(self, ptype)
@@ -643,7 +800,24 @@ class AStats(MetadataLogger):
     def filter(self):
         return Filter(self.filter_name, **self.options, metadata=True)
 
-    def log(self, t, _, key, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
 
         if not self._first:
             self._first = key
@@ -696,7 +870,24 @@ class ASpectralStats(MetadataLogger):
         self.stats = {}
         self._first = None
 
-    def log(self, t, _, key, value):
+    def log(self, t: float | int, name: str, key: Optional[str], value: str):
+        """log the metadata
+
+        :param t: timestamp in seconds, frames, or pts
+        :type t: float|int
+        :param name: one of the class' meta_names
+        :type name: str
+        :param key: secondary metadata key if found
+        :type key: str | None
+        :param value: metadata value
+        :type value: str
+
+        This method is called by :py:func:`analyze.run` if a metadata line begins
+        with one of the class' ``meta_names`` entry. The `log` method shall store
+        the metadata info in a private storage property of the class so they can be
+        returned later by the `output` property.
+
+        """
 
         m = self.re_key.match(key)
         if not (m and m[1]):
