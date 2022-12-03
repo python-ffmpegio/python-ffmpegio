@@ -424,7 +424,10 @@ class BlackFrame(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("blackframe",)  # metadata primary names
     filter_name = "blackframe"
-    Output = namedtuple("BlackFrames", ["time", "pblack"])
+
+    class BlackFrames(NamedTuple):
+        time: List[float | int]  #: timestamp in seconds, frames, or pts
+        pblack: List[int]  #: percentage of black pixels
 
     def __init__(self, **options):
         self.options = options
@@ -453,8 +456,9 @@ class BlackFrame(MetadataLogger):
         self.frames.append((t, int(value)))
 
     @property
-    def output(self):
-        return self.Output(*zip(*self.frames))
+    def output(self) -> BlackFrames:
+        """log output"""
+        return self.BlackFrames(*zip(*self.frames))
 
 
 class FreezeDetect(MetadataLogger):
