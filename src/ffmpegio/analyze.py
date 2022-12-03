@@ -15,7 +15,7 @@ from . import ffmpegprocess as fp
 import re
 from json import loads
 
-from typing import Any, Tuple
+from typing import Any, Tuple, NamedTuple
 
 try:
     from typing import Literal
@@ -314,11 +314,21 @@ def run(
 
 
 class ScDet(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("scd",)  # metadata primary names
+    class Scenes(NamedTuple):
+        """Default output named tuple subclass"""
+
+        time: Tuple[float | int]  #: log times
+        score: Tuple[float]  #: scene change scores
+        mafd: Tuple[float]  #: mafd scores
+
+    class AllScenes(NamedTuple):
+        """Output named tuple subclass for all_scores=True"""
+
+        time: Tuple[float | int]  #: log times
+        changed: Tuple[bool]  #: scene change flags
+        score: Tuple[float]  #: scene change scores
+        mafd: Tuple[float]  #: mafd scores
     filter_name = "scdet"
-    Output = namedtuple("Scenes", ["time", "score", "mafd"])
-    OutputAll = namedtuple("AllSceneScores", ["time", "changed", "score", "mafd"])
 
     def __init__(self, all_scores=False, **options) -> None:
         self.all_scores = all_scores  #:bool: True to output scores of all frames
@@ -355,7 +365,7 @@ class ScDet(MetadataLogger):
         d = self.data
         if self.all_scores:
             times = sorted((t for t, v in self.data.items()))
-            return self.OutputAll(
+            return self.AllScenes(
                 tuple(times),
                 *zip(
                     *(
@@ -366,7 +376,7 @@ class ScDet(MetadataLogger):
             )
         else:
             times = sorted((t for t, v in d.items() if v.get("changed", False)))
-            return self.Output(
+            return self.Scenes(
                 tuple(times), *zip(*((d[t]["score"], d[t]["mafd"]) for t in times))
             )
 
