@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 from collections import namedtuple
+from abc import ABC
 import logging
 from . import configure
 from .filtergraph import Graph, Filter, Chain, as_filtergraph
@@ -17,9 +18,9 @@ from json import loads
 from typing import Any, Tuple
 
 try:
-    from typing import Literal, Protocol
+    from typing import Literal
 except ImportError:
-    from typing_extensions import Literal, Protocol
+    from typing_extensions import Literal
 
 
 def loudnorm(
@@ -118,7 +119,7 @@ def loudnorm(
     return compose_filter("loudnorm", loudnorm_opts)
 
 
-class MetadataLogger(Protocol):
+class MetadataLogger(ABC):
     media_type: Literal["video", "audio"]  # the stream media type
     meta_names: Tuple[str]  # metadata names to be logged
     filter_name: str  # name of the FFmpeg filter to use
