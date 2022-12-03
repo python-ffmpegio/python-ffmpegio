@@ -15,7 +15,7 @@ from . import ffmpegprocess as fp
 import re
 from json import loads
 
-from typing import Any, Tuple, NamedTuple
+from typing import Any, Tuple, NamedTuple, List
 
 try:
     from typing import Literal
@@ -382,10 +382,13 @@ class ScDet(MetadataLogger):
 
 
 class BlackDetect(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("black_start", "black_end")  # metadata primary names
+    class Black(NamedTuple):
+        """output log namedtuple subclass"""
+
+        interval: List[
+            float | int | None, float | int | None
+        ]  #: pairs of start and end timestamps of black intervals
     filter_name = "blackdetect"
-    Output = namedtuple("Black", ["interval"])
 
     def __init__(self, **options):
         self.options = options
@@ -413,8 +416,8 @@ class BlackDetect(MetadataLogger):
             self.interval.append([None, t])
 
     @property
-    def output(self):
-        return self.Output(self.interval)
+    def output(self) -> Black:
+        return self.Black(self.interval)
 
 
 class BlackFrame(MetadataLogger):
