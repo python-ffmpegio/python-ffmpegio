@@ -128,12 +128,12 @@ class MetadataLogger(ABC):
     @property
     def filter(self) -> Filter:
         """filter specification expression to be used in FilterGraph"""
-        ...
+        return Filter(self.filter_name, **self.options)
 
     @property
     def ref_in(self) -> str or None:
         """stream specifier for reference input url only if applicable"""
-        ...
+        return None
 
     @property
     def output(self) -> namedtuple:
