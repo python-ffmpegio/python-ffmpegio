@@ -305,7 +305,7 @@ def run(
     return loggers
 
 
-class ScDet:
+class ScDet(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("scd",)  # metadata primary names
     filter_name = "scdet"
@@ -316,14 +316,6 @@ class ScDet:
         self.all_scores = all_scores  #:bool: True to output scores of all frames
         self.options = options
         self.data = {}
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, value):
         if key == "mafd":  # always the first entry / frame
@@ -354,7 +346,7 @@ class ScDet:
             )
 
 
-class BlackDetect:
+class BlackDetect(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("black_start", "black_end")  # metadata primary names
     filter_name = "blackdetect"
@@ -363,14 +355,6 @@ class BlackDetect:
     def __init__(self, **options):
         self.options = options
         self.interval = []
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, key, *_):
         if key == "black_start":
@@ -385,7 +369,7 @@ class BlackDetect:
         return self.Output(self.interval)
 
 
-class BlackFrame:
+class BlackFrame(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("blackframe",)  # metadata primary names
     filter_name = "blackframe"
@@ -394,14 +378,6 @@ class BlackFrame:
     def __init__(self, **options):
         self.options = options
         self.frames = []
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, value):
         if key != "pblack":
@@ -413,7 +389,7 @@ class BlackFrame:
         return self.Output(*zip(*self.frames))
 
 
-class FreezeDetect:
+class FreezeDetect(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("freeze",)  # metadata primary names
     filter_name = "freezedetect"
@@ -422,14 +398,6 @@ class FreezeDetect:
     def __init__(self, **options):
         self.options = options
         self.interval = []
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, __):
         if key == "freeze_start":
@@ -445,7 +413,7 @@ class FreezeDetect:
         return self.Output(self.interval)
 
 
-class BBox:
+class BBox(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("bbox",)  # metadata primary names
     filter_name = "bbox"
@@ -456,14 +424,6 @@ class BBox:
         self.options = options
         self.time = []
         self.position = []
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, value):
         if key == "x1":
@@ -481,7 +441,7 @@ class BBox:
         return self.Output(self.time, self.position)
 
 
-class BlurDetect:
+class BlurDetect(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("blur",)  # metadata primary names
     filter_name = "blurdetect"
@@ -490,14 +450,6 @@ class BlurDetect:
     def __init__(self, **options):
         self.options = options
         self.frames = []
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, key, _, value):
         if key != "blur":
@@ -516,7 +468,7 @@ class BlurDetect:
 #  'lavfi.entropy.normalized_entropy.normal.U=0.576130\n'
 #  'lavfi.entropy.entropy.normal.V=4.532040\n'
 #  'lavfi.entropy.normalized_entropy.normal.V=0.566505\n'
-class PSNR:
+class PSNR(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("psnr",)  # metadata primary names
     filter_name = "psnr"
@@ -529,10 +481,6 @@ class PSNR:
         self.stats = {}
         self._first = None
         self._ref = ref_stream_spec
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
 
     @property
     def ref_in(self):
@@ -580,7 +528,7 @@ class PSNR:
         return Output(self.time, *self.stats.values())
 
 
-class SilenceDetect:
+class SilenceDetect(MetadataLogger):
     media_type = "audio"  # the stream media type
     meta_names = ("silence_start", "silence_end")  # metadata primary names
     filter_name = "silencedetect"
@@ -590,14 +538,6 @@ class SilenceDetect:
         self.options = options
         self.interval = []
         self.mono_intervals = {}  # mono intervals
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, key, ch, _):
 
@@ -628,7 +568,7 @@ class SilenceDetect:
             return self.Output(self.interval)
 
 
-class APhaseMeter:
+class APhaseMeter(MetadataLogger):
     media_type = "audio"  # the stream media type
     meta_names = ("aphasemeter",)  # metadata primary names
     filter_name = "aphasemeter"
@@ -646,10 +586,6 @@ class APhaseMeter:
     @property
     def filter(self):
         return Filter(self.filter_name, **self.options, video=False, phasing=True)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, val):
 
@@ -673,7 +609,7 @@ class APhaseMeter:
         return self.Output(self.time, self.value, self.mono, self.out_phase)
 
 
-class AStats:
+class AStats(MetadataLogger):
     media_type = "audio"  # the stream media type
     meta_names = ("astats",)  # metadata primary names
     filter_name = "astats"
@@ -706,10 +642,6 @@ class AStats:
     @property
     def filter(self):
         return Filter(self.filter_name, **self.options, metadata=True)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, value):
 
@@ -752,7 +684,7 @@ class AStats:
         )
 
 
-class ASpectralStats:
+class ASpectralStats(MetadataLogger):
     media_type = "audio"  # the stream media type
     meta_names = ("aspectralstats",)  # metadata primary names
     filter_name = "aspectralstats"
@@ -763,14 +695,6 @@ class ASpectralStats:
         self.time = []
         self.stats = {}
         self._first = None
-
-    @property
-    def filter(self):
-        return Filter(self.filter_name, **self.options, metadata=True)
-
-    @property
-    def ref_in(self):
-        return None
 
     def log(self, t, _, key, value):
 
