@@ -465,7 +465,11 @@ class FreezeDetect(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("freeze",)  # metadata primary names
     filter_name = "freezedetect"
-    Output = namedtuple("Frozen", ["interval"])
+
+    class Frozen(NamedTuple):
+        """output log namedtuple subclass"""
+
+        #: pairs of start and end timestamps of frozen frame intervals
 
     def __init__(self, **options):
         self.options = options
@@ -498,8 +502,8 @@ class FreezeDetect(MetadataLogger):
                 self.interval.append([None, t])
 
     @property
-    def output(self):
-        return self.Output(self.interval)
+    def output(self)->Frozen:
+        return self.Frozen(self.interval)
 
 
 class BBox(MetadataLogger):
