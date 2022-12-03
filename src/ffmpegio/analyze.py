@@ -510,7 +510,13 @@ class BBox(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("bbox",)  # metadata primary names
     filter_name = "bbox"
-    Output = namedtuple("BBox", ["time", "position"])
+
+    class BBox(NamedTuple):
+        """output log namedtuple subclass"""
+
+        time: List[float | int]  #: timestamp in seconds, frames, or pts
+        position: List[List[int, int, int, int]]  #: bbox positions [x0,x1,w,h]
+
     pos_keys = {"y1": 1, "w": 2, "h": 3}
 
     def __init__(self, **options):
@@ -547,9 +553,8 @@ class BBox(MetadataLogger):
                 pass
 
     @property
-    def output(self):
-        return self.Output(self.time, self.position)
-
+    def output(self) -> BBox:
+        return self.BBox(self.time, self.position)
 
 class BlurDetect(MetadataLogger):
     media_type = "video"  # the stream media type
