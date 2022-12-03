@@ -560,7 +560,12 @@ class BlurDetect(MetadataLogger):
     media_type = "video"  # the stream media type
     meta_names = ("blur",)  # metadata primary names
     filter_name = "blurdetect"
-    Output = namedtuple("Blur", ["time", "blur"])
+
+    class Blur(NamedTuple):
+        """output log namedtuple subclass"""
+
+        time: List[float | int]  #: timestamp in seconds, frames, or pts
+        blur: List[float] #: blurness score
 
     def __init__(self, **options):
         self.options = options
@@ -589,8 +594,9 @@ class BlurDetect(MetadataLogger):
         self.frames.append((t, float(value)))
 
     @property
-    def output(self):
-        return self.Output(*zip(*self.frames))
+    def output(self)->BlurDetect.Blur:
+        """log output"""
+        return self.Blur(*zip(*self.frames))
 
 
 #  'frame:26   pts:26026   pts_time:0.867533\n'
