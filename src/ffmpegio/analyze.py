@@ -750,9 +750,16 @@ class APhaseMeter(MetadataLogger):
     media_type = "audio"  # the stream media type
     meta_names = ("aphasemeter",)  # metadata primary names
     filter_name = "aphasemeter"
-    Output = namedtuple(
-        "Phase", ["time", "value", "mono_interval", "out_phase_interval"]
-    )
+
+    class Phase(NamedTuple):
+        """output log namedtuple subclass"""
+
+        time: List[float | int]  #: timestamps in seconds, frames, or pts
+        value: List[float]  #: detected phases
+        #: intervals in which stereo stream is in-phase
+        mono_interval: List[float | int | None, float | int | None]
+        #: intervals in which stereo stream is out-of-phase
+        out_phase_interval: List[float | int | None, float | int | None]
 
     def __init__(self, **options):
         self.options = options
@@ -800,8 +807,9 @@ class APhaseMeter(MetadataLogger):
                     i.append([None, t])
 
     @property
-    def output(self):
-        return self.Output(self.time, self.value, self.mono, self.out_phase)
+    def output(self) -> APhaseMeter.Phase:
+        """log output"""
+        return self.Phase(self.time, self.value, self.mono, self.out_phase)
 
 
 class AStats(MetadataLogger):
