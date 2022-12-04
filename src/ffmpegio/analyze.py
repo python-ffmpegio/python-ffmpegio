@@ -741,7 +741,7 @@ class SilenceDetect(MetadataLogger):
         if nch:
             channels = sorted(self.mono_intervals.keys())
             ints = [self.mono_intervals[ch] for ch in channels]
-            return namedtuple("SilentIntervals", [f"ch{ch}" for ch in channels])(*ints)
+            return namedtuple("SilentPerCh", [f"ch{ch}" for ch in channels])(*ints)
         else:
             return self.Silent(self.interval)
 
