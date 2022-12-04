@@ -299,6 +299,8 @@ def run(
         out.stdout,
         re.DOTALL,
     ):
+        logging.debug(f'analyze::run: {m[0]}')
+
         # logged time
         t = (int, int, float)[tunits - 1](m[tunits])
 
