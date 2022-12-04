@@ -689,7 +689,11 @@ class SilenceDetect(MetadataLogger):
     media_type = "audio"  # the stream media type
     meta_names = ("silence_start", "silence_end")  # metadata primary names
     filter_name = "silencedetect"
-    Output = namedtuple("Silent", ["interval"])
+    class Silent(NamedTuple):
+        """output log namedtuple subclass for ``mono=False`` (default)"""
+
+        #: pairs of start and end timestamps of frozen frame intervals
+        interval: List[float | int | None, float | int | None]
 
     def __init__(self, **options):
         self.options = options
@@ -732,14 +736,14 @@ class SilenceDetect(MetadataLogger):
             i.append([None, t])
 
     @property
-    def output(self):
+    def output(self) -> Silent|NamedTuple:
         nch = len(self.mono_intervals)
         if nch:
             channels = sorted(self.mono_intervals.keys())
             ints = [self.mono_intervals[ch] for ch in channels]
             return namedtuple("SilentIntervals", [f"ch{ch}" for ch in channels])(*ints)
         else:
-            return self.Output(self.interval)
+            return self.Silent(self.interval)
 
 
 class APhaseMeter(MetadataLogger):
