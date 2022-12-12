@@ -693,8 +693,9 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
         entry = entries
         entries = [entries]
 
+    pick_entries = entries is not None
+
     if accurate_time:
-        pick_entries = entries is not None
         has_time = not pick_entries
         if pick_entries:
             time_entries = []
@@ -725,6 +726,14 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
 
     if len(out) == 0:
         return out
+
+    if pick_entries and "side_data_list" not in entries["frame"]:
+        # make sure side_data_list is not included
+        for d in out:
+            try:
+                del d["side_data_list"]
+            except KeyError:
+                pass
 
     if accurate_time and has_time:
 
