@@ -820,27 +820,11 @@ class AStats(MetadataLogger):
         r"(?:(\d+)|Overall)\.(.+)|(Number of NaNs|Number of Infs|Number of denormals)"
     )
 
-    # fmt: off
-    stats_names = {
-        meas: meas.lower().replace(" ", "_")
-        for meas in (
-            "DC_offset", "Min_level", "Max_level", "Min_difference", "Max_difference",
-            "Mean_difference", "RMS_difference", "Peak_level", "RMS_level", "RMS_peak",
-            "RMS_trough", "Crest_factor", "Flat_factor", "Peak_count", "Noise_floor",
-            "Noise_floor_count", "Entropy", "Bit_depth", "Bit_depth2", "Dynamic_range",
-            "Zero_crossings", "Zero_crossings_rate", "Number of NaNs", "Number of Infs",
-            "Number of denormals",
-        )
-    }
-    # fmt: on
-    Output = namedtuple("AStats", ["time", *stats_names.values()])
-
     def __init__(self, **options):
         self.options = options
         self.time = []
+        self.stats = {}
         self._first = None
-        for meas in AStats.stats_names.values():
-            setattr(self, meas, {})
 
     @property
     def filter(self):
@@ -875,33 +859,37 @@ class AStats(MetadataLogger):
         if not m:
             logging.warning(f"[AStats.log()] Unknown metadata key: {key}")
             return
+        ch, name = m.groups()
 
-        ch, name, bug = m.groups()
-        ch = "overall" if ch is None else int(ch) - 1
-        key = self.stats[bug or name]
-
+        # get stat name and storage dict
+        meas = name.lower().replace(" ", "_")
         try:
-            stat = self.stats[key]
+            stat = self.stats[meas]
         except:
-            stat = self.stats[key] = {}
+            stat = self.stats[meas] = [] if ch is None else {}
+
+        # get channel number and storage list
+        try:
+            ch = int(ch)
+        except:
+            ch = "overall"
 
         try:
             l = stat[ch]
         except:
             l = stat[ch] = []
 
-        l.append(float(value))
+        # use int or float
+        v = float(value)
+        l.append(int(v) if value.endswith(".000000") else v)
 
     @property
-    def output(self):
-        return self.Output(
-            self.time,
-            *(
-                getattr(self, meas)
-                for meas in AStats.stats_names.values()
-                if hasattr(self, meas)
-            ),
-        )
+    def output(self) -> NamedTuple:
+
+        # self._bit_depth2
+        Output = namedtuple("AStats", ["time", *self.stats.keys()])
+
+        return Output(self.time, *self.stats.values())
 
 
 class ASpectralStats(MetadataLogger):
