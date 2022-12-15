@@ -941,7 +941,7 @@ class ASpectralStats(MetadataLogger):
         except:
             stat = self.stats[name] = {}
 
-        ch = int(ch) - 1
+        ch = int(ch)
         try:
             l = stat[ch]
         except:
