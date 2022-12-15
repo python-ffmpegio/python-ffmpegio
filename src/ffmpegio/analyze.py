@@ -15,7 +15,7 @@ from . import ffmpegprocess as fp
 import re
 from json import loads
 
-from typing import Any, Tuple, NamedTuple, List
+from typing import Any, Tuple, NamedTuple, List, Optional
 
 try:
     from typing import Literal
@@ -120,10 +120,12 @@ def loudnorm(
 
 
 class MetadataLogger(ABC):
-    media_type: Literal["video", "audio"]  # the stream media type
-    meta_names: Tuple[str]  # metadata names to be logged
-    filter_name: str  # name of the FFmpeg filter to use
-    options: dict[str, Any]  # FFmpeg filter options (value must be stringifiable)
+    """Abstract class for :py:func:`analyze.run` frame metadata loggers"""
+
+    media_type: Literal["video", "audio"]  #: (static) target stream media type
+    meta_names: Tuple[str]  #: (static) metadata names to be logged
+    filter_name: str  #: (static) name of the FFmpeg filter to use
+    options: dict[str, Any]  #: FFmpeg filter options (value must be stringifiable)
 
     @property
     def filter(self) -> Filter:
@@ -131,19 +133,19 @@ class MetadataLogger(ABC):
         return Filter(self.filter_name, **self.options)
 
     @property
-    def ref_in(self) -> str or None:
-        """stream specifier for reference input url only if applicable"""
+    def ref_in(self) -> Optional[str]:
+        """stream specifier for reference input url only if applicable (default: None)"""
         return None
 
     @property
-    def output(self) -> namedtuple:
-        """output named tuple"""
+    def output(self) -> NamedTuple:
+        """log output as a namedtuple"""
         ...
 
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -171,12 +173,12 @@ def run(
     show_log=None,
     **input_options,
 ):
-    """analyze media streams' frames with lavfi filters
+    """analyze media streams' frames with FFmpeg filters
 
     :param url: video file url
     :type url: str
     :param \*loggers: class object with the metadata logging interface
-    :type \*loggers: MetadataLogger
+    :type \*loggers: tuple[MetadataLogger]
     :param references: reference input urls or pairs of url and input option
                        dict, defaults to None
     :type references: seq of str or seq of (str, dict), optional
@@ -195,12 +197,11 @@ def run(
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :type show_log: bool, optional
-    :param \**options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
-        of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
-        options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
-        Any other arguments are treated as a common option to all FFmpeg filters. For the available options
-        for each filter, follow the link on the feature table above to the FFmpeg documentation.
+    :param \**options: FFmpeg (primary) input options.
     :type \**options: dict, optional
+    :returns: logger objects passed in
+    :rtype: tuple[MetadataLogger]
+
 
     """
 
@@ -299,7 +300,7 @@ def run(
         out.stdout,
         re.DOTALL,
     ):
-        logging.debug(f'analyze::run: {m[0]}')
+        logging.debug(f"analyze::run: {m[0]}")
 
         # logged time
         t = (int, int, float)[tunits - 1](m[tunits])
@@ -316,31 +317,62 @@ def run(
 
 
 class ScDet(MetadataLogger):
+    """Logger for FFmpeg scdet filter to detect video scene change
+
+    :param all_scores: True to return scene scores on all the frames, defaults to False
+    :type all_scores: bool, optional
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``scdet`` filter options
+    -------------------------------
+
+    =========  =====  ===============
+    name       type   description
+    =========  =====  ===============
+    threshold  float  Set the scene change detection threshold as a percentage of maximum change.
+                      Good values are in the [8.0, 14.0] range. The range for threshold is [0., 100.].
+                      Defaults to 10. Alias param name: **t**
+
+    sc_pass    int    Set the flag to pass scene change frames to the next filter. Default value is
+                      0 You can enable it if you want to get snapshot of scene change frames only.
+                      Alias param name: **s**
+    =========  =====  ===============
+
+    """
+
     class Scenes(NamedTuple):
-        """Default output named tuple subclass"""
+        """Default output namedtuple subclass"""
 
         time: Tuple[float | int]  #: log times
         score: Tuple[float]  #: scene change scores
         mafd: Tuple[float]  #: mafd scores
 
     class AllScenes(NamedTuple):
-        """Output named tuple subclass for all_scores=True"""
+        """Output namedtuple subclass for all_scores=True"""
 
         time: Tuple[float | int]  #: log times
         changed: Tuple[bool]  #: scene change flags
         score: Tuple[float]  #: scene change scores
         mafd: Tuple[float]  #: mafd scores
+
+    #: (static) target stream media type
+    media_type = "video"
+    #: (static) metadata names to be logged
+    meta_names = ("scd",)
+    #: (static) name of the FFmpeg filter to use
     filter_name = "scdet"
 
     def __init__(self, all_scores=False, **options) -> None:
-        self.all_scores = all_scores  #:bool: True to output scores of all frames
-        self.options = options
+        self.all_scores = all_scores
+        #: FFmpeg filter options (value must be stringifiable)
+        self.options: dict[str, Any] = options
         self.data = {}
 
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -363,7 +395,8 @@ class ScDet(MetadataLogger):
             self.data[t]["changed"] = True
 
     @property
-    def output(self):
+    def output(self) -> ScDet.Scenes | ScDet.AllScenes:
+        """log output. Scenes if all_scores==True else AllScenes"""
         d = self.data
         if self.all_scores:
             times = sorted((t for t, v in self.data.items()))
@@ -384,12 +417,38 @@ class ScDet(MetadataLogger):
 
 
 class BlackDetect(MetadataLogger):
+    """Logger for FFmpeg blackdetect filter to detect video intervals that are (almost) black
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``blackdetect`` filter options
+    -------------------------------------
+
+    ======================  =====  ===============
+    name                    type   description
+    ======================  =====  ===============
+    black_min_duration      float  set minimum detected black duration in seconds (from 0 to DBL_MAX) (default 2)
+    picture_black_ratio_th  float  set the picture black ratio threshold (from 0 to 1) (default 0.98). Alias param name: **pic_th**
+    pixel_black_th          float  set the pixel black threshold (from 0 to 1) (default 0.1). Alias param name: **pix_th**
+    ======================  =====  ===============
+    """
+
+    # The following example sets the maximum pixel threshold to the minimum value, and detects only black intervals of 2 or more seconds:
+    # blackdetect=d=2:pix_th=0.00
+
     class Black(NamedTuple):
         """output log namedtuple subclass"""
 
         interval: List[
             float | int | None, float | int | None
         ]  #: pairs of start and end timestamps of black intervals
+
+    #: (static) target stream media type
+    media_type = "video"
+    #: (static) metadata names to be logged
+    meta_names = ("black_start", "black_end")
+    #: (static) name of the FFmpeg filter to use
     filter_name = "blackdetect"
 
     def __init__(self, **options):
@@ -399,7 +458,7 @@ class BlackDetect(MetadataLogger):
     def log(self, t: float | int, name: str, *_):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: metadata key
         :type bane: str
@@ -419,16 +478,39 @@ class BlackDetect(MetadataLogger):
 
     @property
     def output(self) -> Black:
+        """log output"""
         return self.Black(self.interval)
 
 
 class BlackFrame(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("blackframe",)  # metadata primary names
+    """Logger for FFmpeg blackframe filter to detect frames that are (almost) black
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``blackframe`` filter options
+    ------------------------------------
+
+    =========  ====  ===============
+    name       type  description
+    =========  ====  ===============
+    amount     int   percentage of the pixels that have to be below the threshold for the frame to be considered black (from 0 to 100) (default 98)
+    threshold  int   threshold below which a pixel value is considered black (from 0 to 255) (default 32). Alias param name: **thresh**
+    =========  ====  ===============
+
+    """
+
+    #: (static) target stream media type
+    media_type = "video"
+    #: (static) metadata names to be logged
+    meta_names = "blackframe"
+    #: (static) name of the FFmpeg filter to use
     filter_name = "blackframe"
 
     class BlackFrames(NamedTuple):
-        time: List[float | int]  #: timestamp in seconds, frames, or pts
+        """output log namedtuple subclass"""
+
+        time: List[float | int]  #: timestamps in seconds, frames, or pts
         pblack: List[int]  #: percentage of black pixels
 
     def __init__(self, **options):
@@ -438,7 +520,7 @@ class BlackFrame(MetadataLogger):
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -464,14 +546,34 @@ class BlackFrame(MetadataLogger):
 
 
 class FreezeDetect(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("freeze",)  # metadata primary names
-    filter_name = "freezedetect"
+    """Logger for FFmpeg freezedetect filter to detect frozen video input
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``freezedetect`` filter options
+    --------------------------------------
+
+    ========  ========  ===============
+    name      type      description
+    ========  ========  ===============
+    noise     float     noise tolerance (from 0 to 1) (default 0.001). Alias param name: **n**
+    duration  duration  minimum duration in seconds (default 2). Alias param name: **d**
+    ========  ========  ===============
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["video"] = "video"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["freeze"]] = ("freeze",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["freezedetect"] = "freezedetect"
 
     class Frozen(NamedTuple):
         """output log namedtuple subclass"""
 
         #: pairs of start and end timestamps of frozen frame intervals
+        interval: List[float | int | None, float | int | None]
 
     def __init__(self, **options):
         self.options = options
@@ -480,7 +582,7 @@ class FreezeDetect(MetadataLogger):
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -504,19 +606,39 @@ class FreezeDetect(MetadataLogger):
                 self.interval.append([None, t])
 
     @property
-    def output(self)->Frozen:
+    def output(self) -> Frozen:
+        """log output"""
         return self.Frozen(self.interval)
 
 
 class BBox(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("bbox",)  # metadata primary names
-    filter_name = "bbox"
+    """Logger for FFmpeg bbox filter to compute bounding box for each frame
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``bbox`` filter options
+    ------------------------------
+
+    =======  ====  ===============
+    name     type  description
+    =======  ====  ===============
+    min_val  int   minimum luminance value for bounding box (from 0 to 65535) (default 16)
+    enable   str   support for timeline. See `FFmpeg documentation <https://ffmpeg.org/ffmpeg-filters.html#Timeline-editing>`_.
+    =======  ====  ===============
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["video"] = "video"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["bbox"]] = ("bbox",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["bbox"] = "bbox"
 
     class BBox(NamedTuple):
         """output log namedtuple subclass"""
 
-        time: List[float | int]  #: timestamp in seconds, frames, or pts
+        time: List[float | int]  #: timestamps in seconds, frames, or pts
         position: List[List[int, int, int, int]]  #: bbox positions [x0,x1,w,h]
 
     pos_keys = {"y1": 1, "w": 2, "h": 3}
@@ -529,7 +651,7 @@ class BBox(MetadataLogger):
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -555,19 +677,45 @@ class BBox(MetadataLogger):
                 pass
 
     @property
-    def output(self) -> BBox:
+    def output(self) -> BBox.BBox:
+        """log output"""
         return self.BBox(self.time, self.position)
 
+
 class BlurDetect(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("blur",)  # metadata primary names
-    filter_name = "blurdetect"
+    """Logger for FFmpeg blurdetect filter to detect video frames that are blurry
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``blurdetect`` filter options
+    ------------------------------------
+
+    ============  =====  ===============
+    name          type   description
+    ============  =====  ===============
+    high          float  high threshold (from 0 to 1) (default 0.117647)
+    low           float  low threshold (from 0 to 1) (default 0.0588235)
+    radius        int    search radius for maxima detection (from 1 to 100) (default 50)
+    block_pct     int    block pooling threshold when calculating blurriness (from 1 to 100) (default 80)
+    block_width   int    block width for block-based abbreviation of blurriness (from -1 to INT_MAX) (default -1)
+    block_height  int    block height for block-based abbreviation of blurriness (from -1 to INT_MAX) (default -1)
+    planes        int    set planes to filter (from 0 to 15) (default 1)
+    ============  =====  ===============
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["video"] = "video"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["blur"]] = ("blur",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["blurdetect"] = "blurdetect"
 
     class Blur(NamedTuple):
         """output log namedtuple subclass"""
 
-        time: List[float | int]  #: timestamp in seconds, frames, or pts
-        blur: List[float] #: blurness score
+        time: List[float | int]  #: timestamps in seconds, frames, or pts
+        blur: List[float]  #: blurness score
 
     def __init__(self, **options):
         self.options = options
@@ -576,7 +724,7 @@ class BlurDetect(MetadataLogger):
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -592,11 +740,11 @@ class BlurDetect(MetadataLogger):
 
         """
         if key != "blur":
-            raise ValueError(f"Unknown blurdetect metadata found: {key}")
+            raise ValueError(f"Unknown blurdetect metadata found: {name}")
         self.frames.append((t, float(value)))
 
     @property
-    def output(self)->BlurDetect.Blur:
+    def output(self) -> BlurDetect.Blur:
         """log output"""
         return self.Blur(*zip(*self.frames))
 
@@ -609,27 +757,65 @@ class BlurDetect(MetadataLogger):
 #  'lavfi.entropy.entropy.normal.V=4.532040\n'
 #  'lavfi.entropy.normalized_entropy.normal.V=0.566505\n'
 class PSNR(MetadataLogger):
-    media_type = "video"  # the stream media type
-    meta_names = ("psnr",)  # metadata primary names
-    filter_name = "psnr"
+    """Logger for FFmpeg psnr filter to calculate the PSNR between two video streams
+
+    :param ref_stream_spec: stream specifier expression for the reference stream, defaults to '1:v'
+    :type ref_stream_spec: str, optional
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``psnr`` filter options
+    ------------------------------
+
+    =============  =====  ===============
+    name           type   description
+    =============  =====  ===============
+    stats_file     str    file where to store per-frame difference information. Alias param name: **f**
+    stats_version  int    format version for the stats file. (from 1 to 2) (default 1)
+    output_max     bool   add raw stats (max values) to the output log. (default false)
+    eof_action            action to take when encountering EOF from secondary input (default repeat)
+    \              \        repeat (0) - Repeat the previous frame.
+    \              \        endall (1) - End both streams.
+    \              \        pass   (2) - Pass through the main input.
+    shortest       bool   force termination when the shortest input terminates (default false)
+    repeatlast     bool   extend last frame of secondary streams beyond EOF (default true)
+    =============  =====  ===============
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["video"] = "video"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["psnr"]] = ("psnr",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["psnr"] = "psnr"
     re_key = re.compile(r"(.+)(?:\.(.))?")
 
-    def __init__(self, ref_stream_spec, **options):
+    class PSNR(NamedTuple):
+        """output log namedtuple subclass (template)"""
+
+        time: List[float | int]  #: timestamps in seconds, frames, or pts
+        mse: List[float]  #: blurness score
+        psnr: List[float]  #: blurness score
+        # mse.[c]: List[float] #: blurness score
+        # psnr.[c]: List[float] #: blurness score
+
+    def __init__(self, ref_stream_spec: str = "1:v", **options):
         self.options = options
         self.time = []
         self.comps = []
         self.stats = {}
         self._first = None
-        self._ref = ref_stream_spec
+        self._ref = ref_stream_spec or "1:v"
 
     @property
     def ref_in(self):
+        """stream specifier for reference input url only if applicable (default: None)"""
         return self._ref
 
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -681,14 +867,39 @@ class PSNR(MetadataLogger):
 
     @property
     def output(self):
+        """log output"""
         Output = namedtuple("PSNR", ["time", *self.stats.keys()])
         return Output(self.time, *self.stats.values())
 
 
 class SilenceDetect(MetadataLogger):
-    media_type = "audio"  # the stream media type
-    meta_names = ("silence_start", "silence_end")  # metadata primary names
-    filter_name = "silencedetect"
+    """Logger for FFmpeg silencedetect filter to detect silent audio intervals
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``silencedetect`` filter options
+    ---------------------------------------
+
+    ========  ========  ===============
+    name      type      description
+    ========  ========  ===============
+    noise     double    noise tolerance (from 0 to DBL_MAX) (default 0.001). Alias param name: **n**
+    duration  duration  minimum duration in seconds (default 2). Alias param name: **d**
+    mono      bool      check each channel separately (default false). Alias param name: **m**
+    ========  ========  ===============
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["audio"] = "audio"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["silence_start", "silence_end"]] = (
+        "silence_start",
+        "silence_end",
+    )
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["silencedetect"] = "silencedetect"
+
     class Silent(NamedTuple):
         """output log namedtuple subclass for ``mono=False`` (default)"""
 
@@ -703,7 +914,7 @@ class SilenceDetect(MetadataLogger):
     def log(self, t: float | int, name: str, ch: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -736,7 +947,17 @@ class SilenceDetect(MetadataLogger):
             i.append([None, t])
 
     @property
-    def output(self) -> Silent|NamedTuple:
+    def output(self) -> Silent | NamedTuple:
+        """log output
+
+        If the silentdetect filter is configured with ``mono=False`` (default), the returned log is
+        a :py:class:`SilenceDetect.Silent` object.
+
+        If ``mono=True``, the returned log is a dynamically formed namedtuple of the name **SilentPerCh**,
+        each of which field is named ``ch#`` (where ``#`` is an integer) and contains a list of the
+        silent intevals of the specified audio channel.
+
+        """
         nch = len(self.mono_intervals)
         if nch:
             channels = sorted(self.mono_intervals.keys())
@@ -747,9 +968,30 @@ class SilenceDetect(MetadataLogger):
 
 
 class APhaseMeter(MetadataLogger):
-    media_type = "audio"  # the stream media type
-    meta_names = ("aphasemeter",)  # metadata primary names
-    filter_name = "aphasemeter"
+    """Logger for FFmpeg aphasemeter filter to measure stereo audio phase differences
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``aphasemeter`` filter options
+    -------------------------------------
+
+    =========  ========  ===============
+    name       type      description
+    =========  ========  ===============
+    phasing    bool      mono and out-of-phase detection output (default false)
+    tolerance  float     phase tolerance for mono detection (from 0 to 1) (default 0). Alias param name: **t**
+    angle      float     angle threshold for out-of-phase detection (from 90 to 180) (default 170). Alias param name: **a**
+    duration   duration  minimum mono or out-of-phase duration in seconds (default 2). Alias param name: **d**
+    =========  ========  ===============
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["audio"] = "audio"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["aphasemeter"]] = ("aphasemeter",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["aphasemeter"] = "aphasemeter"
 
     class Phase(NamedTuple):
         """output log namedtuple subclass"""
@@ -770,12 +1012,13 @@ class APhaseMeter(MetadataLogger):
 
     @property
     def filter(self):
+        """filter specification expression to be used in FilterGraph"""
         return Filter(self.filter_name, **self.options, video=False, phasing=True)
 
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -813,12 +1056,64 @@ class APhaseMeter(MetadataLogger):
 
 
 class AStats(MetadataLogger):
-    media_type = "audio"  # the stream media type
-    meta_names = ("astats",)  # metadata primary names
-    filter_name = "astats"
-    re_key = re.compile(
-        r"(?:(\d+)|Overall)\.(.+)|(Number of NaNs|Number of Infs|Number of denormals)"
-    )
+    """Logger for FFmpeg astats filter to measure time domain statistics per audio frames
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``astats`` filter options
+    --------------------------------
+
+    ==================  =====  ===============
+    name                type   description
+    ==================  =====  ===============
+    length              float  window length (from 0 to 10) (default 0.05)
+    metadata            bool   true to inject metadata in the filtergraph (default false)
+    reset               int    number of frames over which cumulative stats are calculated before being reset (from 0 to INT_MAX) (default 0)
+    measure_perchannel  str    parameters to measure per channel (default "all") "none" to disable
+    measure_overall     str    parameters to measure overall (default "all") "none" to disable
+    ==================  =====  ===============
+
+    Measurement parameters
+    ----------------------
+
+    Following parameters can be used for ``measure_perchannel`` and ``measure_overall``. To specify
+    multiple parameters, combine them with ``+`` (plus) signs. E.g., "DC_offset+Min_level".
+
+    - DC_offset
+    - Min_level
+    - Max_level
+    - Min_difference
+    - Max_difference
+    - Mean_difference
+    - RMS_differenc
+    - Peak_level
+    - RMS_level
+    - RMS_peak
+    - RMS_trough
+    - Crest_factor
+    - Flat_factor
+    - Peak_count
+    - Bit_depth
+    - Dynamic_range
+    - Zero_crossings
+    - Zero_crossings_rate
+    - Noise_floor
+    - Noise_floor_count
+    - Entropy
+    - Number_of_samples
+    - Number_of_NaNs
+    - Number_of_Infs
+    - Number_of_denormals
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["audio"] = "audio"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["astats"]] = ("astats",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["astats"] = "astats"
+    re_key = re.compile(r"(?:(\d+|Overall)\.)?([\s\S]+)")
 
     def __init__(self, **options):
         self.options = options
@@ -828,12 +1123,13 @@ class AStats(MetadataLogger):
 
     @property
     def filter(self):
+        """filter specification expression to be used in FilterGraph"""
         return Filter(self.filter_name, **self.options, metadata=True)
 
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -847,6 +1143,11 @@ class AStats(MetadataLogger):
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
+        lavfi.astats.1.Number of Infs=0.000000
+        lavfi.astats.2.Number of denormals=0.000000
+        lavfi.astats.Overall.DC_offset=-0.000003
+        lavfi.astats.Overall.Min_level=-0.092316
+        lavfi.astats.Overall.Max_level=0.100442
         """
 
         if not self._first:
@@ -885,6 +1186,48 @@ class AStats(MetadataLogger):
 
     @property
     def output(self) -> NamedTuple:
+        """log output
+
+        AStats' log output is a dynamically composed namedtuple. Every field
+        contains lists of statistics. Except for the :py:obj:`time` field, which is
+        a plain list, the fields are a :py:obj:`dict`, each of which item
+        keyed by the channel number in :py:obj:`int` (1, 2, ...) or literal
+        :py:obj:`"overall"` and contains a :py:obj:`list` of the statistics
+        computed at each analysis window. The full list of possible fields
+        for FFmpeg v5 and its individual stat datatype is shown below:
+
+        ===================  =========  =====
+        field name           datatype   description
+        ===================  =========  =====
+        time                 float|int  timestamps in seconds, frames, or pts
+        dc_offset            float      DC offset
+        min_level            float      Min level
+        max_level            float      Max level
+        min_difference       float      Min difference
+        max_difference       float      Max difference
+        mean_difference      float      Mean difference
+        rms_difference       float      RMS difference
+        peak_level           float      Peak level dB
+        rms_level            float      RMS level dB
+        rms_peak             float      RMS peak dB
+        rms_trough           float      RMS trough dB
+        crest_factor         float      Crest factor
+        flat_factor          float      Flat factor
+        peak_count           int        Peak count
+        noise_floor          float      Noise floor dB
+        noise_floor_count    int        Noise floor count
+        entropy              float      Entropy
+        bit_depth            int        Bit depth (available)
+        bit_depth2           int        Bit depth (used)
+        dynamic_range        float      Dynamic range
+        zero_crossings       float      Zero crossings
+        zero_crossings_rate  float      Zero crossings rate
+        number_of_nans       int        Number of NaNs
+        number_of_infs       int        Number of Infs
+        number_of_denormals  int        Number of denormals
+        ===================  =========  =====
+
+        """
 
         # self._bit_depth2
         Output = namedtuple("AStats", ["time", *self.stats.keys()])
@@ -893,9 +1236,62 @@ class AStats(MetadataLogger):
 
 
 class ASpectralStats(MetadataLogger):
-    media_type = "audio"  # the stream media type
-    meta_names = ("aspectralstats",)  # metadata primary names
-    filter_name = "aspectralstats"
+    """Logger for FFmpeg aspectralstats filter to measure frequency domain statistics about audio frames
+
+    :param \**options: FFmpeg filter options (see below)
+    :type \**options: dict[str, any]
+
+    FFmpeg ``aspectralstats`` filter options
+    ----------------------------------------
+
+    ========  =======  ===============
+    name      type     description
+    ========  =======  ===============
+    win_size  int      set the window size (from 32 to 65536) (default 2048)
+    win_func  str|int  set window function (see below for the accepted values) (default hann)
+    overlap   float    set window overlap (from 0 to 1) (default 0.5)
+    ========  =======  ===============
+
+    Supported ``win_func`` option values
+    ------------------------------------
+
+    The ``win_func`` option can be set to any of the following window function by its name or
+    id:
+
+    ========  ==  =====
+    name      id  desc
+    ========  ==  =====
+    bartlett   4  Bartlett
+    bhann     11  Bartlett-Hann
+    bharris    7  Blackman-Harris
+    blackman   3  Blackman
+    bnuttall   8  Blackman-Nuttall
+    bohman    19  Bohman
+    cauchy    16  Cauchy
+    dolph     15  Dolph-Chebyshev
+    flattop    6  Flat-top
+    gauss     13  Gauss
+    hamming    2  Hamming
+    hann       1  Hann
+    hanning    1  Hanning
+    lanczos   12  Lanczos
+    nuttall   10  Nuttall
+    parzen    17  Parzen
+    poisson   18  Poisson
+    rect       0  Rectangular
+    sine       9  Sine
+    tukey     14  Tukey
+    welch      5  Welch
+    ========  ==  =====
+
+    """
+
+    #: (static) target stream media type
+    media_type: Literal["audio"] = "audio"
+    #: (static) metadata names to be logged
+    meta_names: Tuple[Literal["aspectralstats"]] = ("aspectralstats",)
+    #: (static) name of the FFmpeg filter to use
+    filter_name: Literal["aspectralstats"] = "aspectralstats"
     re_key = re.compile(r"(?:(\d+)\.)?(.+)")
 
     def __init__(self, **options):
@@ -907,7 +1303,7 @@ class ASpectralStats(MetadataLogger):
     def log(self, t: float | int, name: str, key: Optional[str], value: str):
         """log the metadata
 
-        :param t: timestamp in seconds, frames, or pts
+        :param t: timestamps in seconds, frames, or pts
         :type t: float|int
         :param name: one of the class' meta_names
         :type name: str
@@ -951,5 +1347,35 @@ class ASpectralStats(MetadataLogger):
 
     @property
     def output(self):
+        """log output
+
+        ASpectalStats' log output is a dynamically composed namedtuple. Each
+        statistic is stored in its own named field as a :py:obj:`dict` of
+        per-channel :py:obj:`list` of measurements. The :py:obj:`dict` is
+        keyed by the audio channel ids (positive :py:obj:`int`).
+        One exception is the :py:obj:`time` field, which is a plain :py:obj:`list`
+        of the starting timestamps of analysis windows.
+
+        Here is the full list of possible fields for FFmpeg v5:
+
+        * time
+        * mean
+        * variance
+        * centroid
+        * spread
+        * skewness
+        * kurtosis
+        * entropy
+        * flatness
+        * crest
+        * flux
+        * slope
+        * decrease
+        * rolloff
+
+        All the stats are computed in the linear scale (not in dB).
+
+        """
+
         Output = namedtuple("ASpectralStats", ["time", *self.stats.keys()])
         return Output(self.time, *self.stats.values())
