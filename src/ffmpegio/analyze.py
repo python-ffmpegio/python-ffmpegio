@@ -739,7 +739,7 @@ class BlurDetect(MetadataLogger):
         returned later by the `output` property.
 
         """
-        if key != "blur":
+        if name != "blur":
             raise ValueError(f"Unknown blurdetect metadata found: {name}")
         self.frames.append((t, float(value)))
 
