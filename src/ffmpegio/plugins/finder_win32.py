@@ -42,39 +42,43 @@ def finder():
 
     """
 
-    dirs = [
-        os.path.join(d, "ffmpeg", "bin")
-        for d in (
-            *(
-                os.environ[var]
-                for var in (
-                    "PROGRAMFILES",
-                    "PROGRAMFILES(X86)",
-                    "USERPROFILE",
-                    "APPDATA",
-                    "LOCALAPPDATA",
-                )
-                if var in os.environ
-            ),
-            *(
-                os.path.join(os.environ[var], "Programs")
-                for var in (
-                    "APPDATA",
-                    "LOCALAPPDATA",
-                )
-                if var in os.environ
-            ),
-        )
-    ]
+    try:
+        dirs = [
+            os.path.join(d, "ffmpeg", "bin")
+            for d in (
+                *(
+                    os.environ[var]
+                    for var in (
+                        "PROGRAMFILES",
+                        "PROGRAMFILES(X86)",
+                        "USERPROFILE",
+                        "APPDATA",
+                        "LOCALAPPDATA",
+                    )
+                    if var in os.environ
+                ),
+                *(
+                    os.path.join(os.environ[var], "Programs")
+                    for var in (
+                        "APPDATA",
+                        "LOCALAPPDATA",
+                    )
+                    if var in os.environ
+                ),
+            )
+        ]
 
-    def search(cmd):
-        for d in dirs:
-            p = shutil.which(os.path.join(d, cmd))
-            if p:
-                return p
+        def search(cmd):
+            for d in dirs:
+                p = shutil.which(os.path.join(d, cmd))
+                if p:
+                    return p
+            return None
+
+        ffmpeg_path = search("ffmpeg.exe")
+        ffprobe_path = search("ffprobe.exe")
+
+        return (ffmpeg_path or ffprobe_path) and (ffmpeg_path, ffprobe_path)
+
+    except:
         return None
-
-    ffmpeg_path = search("ffmpeg.exe")
-    ffprobe_path = search("ffprobe.exe")
-
-    return (ffmpeg_path or ffprobe_path) and (ffmpeg_path, ffprobe_path)

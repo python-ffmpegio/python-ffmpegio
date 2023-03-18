@@ -14,7 +14,11 @@ def video_info(obj: dict) -> Tuple[Tuple[int, int, int], str]:
     :return: shape (height,width,components) and data type in numpy dtype str expression
     :rtype: Tuple[Tuple[int, int, int], str]
     """
-    return obj["shape"][-3:], obj["dtype"]
+
+    try:
+        return obj["shape"][-3:], obj["dtype"]
+    except:
+        return None
 
 
 @hookimpl
@@ -26,7 +30,10 @@ def audio_info(obj: object) -> Tuple[int, str]:
     :return: number of channels and sample data type in numpy dtype str expression
     :rtype: Tuple[Tuple[int], str]
     """
-    return obj["shape"][-1:], obj["dtype"]
+    try:
+        return obj["shape"][-1:], obj["dtype"]
+    except:
+        return None
 
 
 @hookimpl
@@ -39,7 +46,10 @@ def video_bytes(obj: object) -> memoryview:
     :rtype: bytes-like object
     """
 
-    return memoryview(obj["buffer"])
+    try:
+        return memoryview(obj["buffer"])
+    except:
+        return None
 
 
 @hookimpl
@@ -52,7 +62,10 @@ def audio_bytes(obj: object) -> memoryview:
     :rtype: bytes-like object
     """
 
-    return memoryview(obj["buffer"])
+    try:
+        return memoryview(obj["buffer"])
+    except:
+        return None
 
 
 @hookimpl
@@ -75,11 +88,14 @@ def bytes_to_video(
 
     sh = (len(b) // get_samplesize(shape, dtype), *shape)
 
-    return {
-        "buffer": b,
-        "dtype": dtype,
-        "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
-    }
+    try:
+        return {
+            "buffer": b,
+            "dtype": dtype,
+            "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
+        }
+    except:
+        return None
 
 
 @hookimpl
@@ -98,10 +114,13 @@ def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> ob
     :rtype: dict['buffer':bytes, 'dtype':str, 'shape': Tuple[int]]
     """
 
-    sh = (len(b) // get_samplesize(shape, dtype), *shape)
+    try:
+        sh = (len(b) // get_samplesize(shape, dtype), *shape)
 
-    return {
-        "buffer": b,
-        "dtype": dtype,
-        "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
-    }
+        return {
+            "buffer": b,
+            "dtype": dtype,
+            "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
+        }
+    except:
+        return None
