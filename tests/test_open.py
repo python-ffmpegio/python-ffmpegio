@@ -4,7 +4,7 @@ import ffmpegio
 
 def test_fg():
     with ffmpegio.open(
-        "color=r=red:d=1:r=10", "rv", f_in="lavfi", pix_fmt="rgb24"
+        "color=c=red:d=1:r=10", "rv", f_in="lavfi", pix_fmt="rgb24"
     ) as f:
         I = f.read(-1)
     assert I["shape"][0] == 10
