@@ -187,8 +187,7 @@ class SimpleReaderBase:
         blocking-mode, and has no data available at the moment."""
 
         return (
-            self._proc.stdout.readinto(self._memoryviewer(obj=array).cast("b"))
-            // self.samplesize
+            self._proc.stdout.readinto(self._memoryviewer(obj=array)) // self.samplesize
         )
 
 
@@ -934,8 +933,6 @@ class SimpleFilterBase:
             self._open(data)
 
         inbytes = self._memoryviewer(obj=data)
-        if not isinstance(inbytes, (bytes, bytearray)):
-            inbytes = inbytes.cast("b")
 
         try:
             self._writer.write(inbytes, timeout - time())
