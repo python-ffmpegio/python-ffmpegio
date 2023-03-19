@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.8.3] - 2023-03-19
+
+### Fixed
+
+- SimpleStream writer/filter removed byte-casting of input buffer
 
 ## [0.8.2] - 2023-03-19
 
@@ -110,6 +115,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Changed
 
 - `probe` outputs Fraction for compatible entries
+
 ### Changed
 
 - `transcode()` allowed to take multiple inputs or outputs
