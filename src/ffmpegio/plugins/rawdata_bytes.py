@@ -47,7 +47,7 @@ def video_bytes(obj: object) -> memoryview:
     """
 
     try:
-        return memoryview(obj["buffer"])
+        return obj["buffer"]
     except:
         return None
 
@@ -63,7 +63,7 @@ def audio_bytes(obj: object) -> memoryview:
     """
 
     try:
-        return memoryview(obj["buffer"])
+        return obj["buffer"]
     except:
         return None
 

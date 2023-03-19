@@ -85,7 +85,7 @@ class SimpleReaderBase:
 
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
-        self.blocksize = blocksize or max(1024 ** 2 // self.samplesize, 1)
+        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
         logging.debug("[reader main] completed init")
 
     def close(self):
@@ -934,6 +934,8 @@ class SimpleFilterBase:
             self._open(data)
 
         inbytes = self._memoryviewer(obj=data)
+        if not isinstance(inbytes, (bytes, bytearray)):
+            inbytes = inbytes.cast("b")
 
         try:
             self._writer.write(inbytes, timeout - time())
@@ -946,7 +948,7 @@ class SimpleFilterBase:
             self._get_output_info(timeout - time())
             self._start_reader()
 
-        self.nin += len(inbytes.cast("b")) // self._bps_in
+        self.nin += len(inbytes) // self._bps_in
         nread = (int(self.nin * self._out2in) - self.nout) * self._bps_out
         y = self._reader.read(-nread, timeout - time())
         self.nout += len(y) // self._bps_out
