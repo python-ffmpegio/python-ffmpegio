@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.8.1] - 2023-03-18
+
+### Fixed
+
+- default plugins to return `None` if not compatible
+- `analyze.BlurDetect.log` check `name` not `key`
+
 ## [0.8.0] - 2022-10-29
 
 ### Added
