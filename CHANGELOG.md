@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+
+## [0.8.2] - 2023-03-19
+
+### Fixed
+
+- `plugins.rawdata_bytes` casting `'buffers'` as `memoryview` has erroneous effect; now assume to receive `bytes`/`bytearray`
+
 ## [0.8.1] - 2023-03-18
 
 ### Fixed
