@@ -110,10 +110,9 @@ def transcode(
             "stdin": stdin,
             "stdout": stdout,
             "input": input,
+            "capture_log": None if show_log else True,
         }
     )
-    if show_log:
-        kwargs["capture_log"] = True
     if two_pass:
         kwargs["pass1_omits"] = pass1_omits
         kwargs["pass1_extras"] = pass1_extras
