@@ -144,7 +144,7 @@ def test_transcode():
             ffconcat,
             out_url,
             f_in="concat",
-            protocol_whitelist_in="pipe,file",
+            protocol_whitelist_in="pipe,file,fd",
             safe_in=0,
             codec="copy",
             overwrite=True,
