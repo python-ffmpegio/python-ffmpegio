@@ -53,6 +53,8 @@ from .filtergraph import Graph as FilterGraph
 from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
 from . import streams as _streams
+from .utils.parser import FLAG
+
 
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
