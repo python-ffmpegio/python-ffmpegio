@@ -282,8 +282,7 @@ def write(
             "overwrite": overwrite,
         }
     )
-    if show_log:
-        kwargs["capture_log"] = True
+    kwargs["capture_log"] = None if show_log else False
     if pass1_omits is not None:
         kwargs["pass1_omits"] = [pass1_omits]
     if pass1_extras is not None:

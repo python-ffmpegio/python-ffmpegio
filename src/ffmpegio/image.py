@@ -246,8 +246,7 @@ def write(
             "overwrite": overwrite,
         }
     )
-    if show_log:
-        kwargs["capture_log"] = True
+    kwargs["capture_log"] = None if show_log else False
 
     out = ffmpegprocess.run(ffmpeg_args, **kwargs)
     if out.returncode:
