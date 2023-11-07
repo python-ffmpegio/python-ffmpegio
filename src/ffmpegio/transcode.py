@@ -56,7 +56,8 @@ def transcode(
                         ``inputs`` or ``outputs`` sequence will overwrite those
                         specified here.
     :type \\**options: dict, optional
-
+    :returns: if any of the outputs is stdout, returns output bytes
+    :rtype: bytes | None
 
     """
 
@@ -120,3 +121,7 @@ def transcode(
     pout = (fp.run_two_pass if two_pass else fp.run)(args, **kwargs)
     if pout.returncode:
         raise FFmpegError(pout.stderr, show_log)
+    
+    if any(out[0]=='-' or out[0]=='pipe' or out[0]=='pipe:1' for out in outputs):
+        return pout.stdout
+    
