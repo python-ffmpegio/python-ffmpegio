@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.8.4] - 2023-11-07
+
+### Added
+
+- `transcode()` can output to `stdout`
+
+### Fixed
+
+- Fixed `show_log` handling in many functions
+
+### Changed
+
+- Dropped support for Python 3.7 but added 3.12
+- Dropped setup.py. All setup metadata in `pyproject.toml`
+
 ## [0.8.3] - 2023-03-19
 
 ### Fixed
@@ -337,7 +352,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.0...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.3...HEAD
+[0.8.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.2...v0.8.3
+[0.8.2]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.1...v0.8.2
+[0.8.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.5.2...v0.6.0
