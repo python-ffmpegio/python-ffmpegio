@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.8.5] - 2023-11-13
+
 ### Changed
 
 - `probe.query`: return a list of info of multiple streams if stream index is not specified
@@ -358,7 +360,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.3...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.5...HEAD
+[0.8.5]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.4...v0.8.5
+[0.8.4]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.0...v0.8.1
