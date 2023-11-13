@@ -1,6 +1,7 @@
 import json, fractions, os, pickle, re
 from collections import OrderedDict
 from .path import ffprobe, PIPE
+from .utils import parse_stream_spec
 
 # fmt:off
 __all__ = ['full_details', 'format_basic', 'streams_basic',
@@ -601,20 +602,20 @@ def audio_streams_basic(url, index=None, entries=None):
     return [adjust(r) for r in results]
 
 
-def query(url, stream=None, fields=None, return_none=False):
-    """Query specific fields of media format or stream
+def query(url, streams=None, fields=None, return_none=False):
+    """Query specific fields of media format or streams
 
     :param url: URL of the media file/stream
     :type url: str
-    :param stream: stream specifier, defaults to None to get format
-    :type stream: str or int, optional
+    :param streams: stream specifier, defaults to None to get format
+    :type streams: str or int, optional
     :param fields: info, defaults to None
     :type fields: sequence of str, optional
-    :param return_none: True to return None for an invalid field, defaults to False
+    :param return_none: True to return an invalid field in the returned dict with None as its value
     :type return_none: bool, optional
-    :return: list of values of specified info fields or dict of specified
-             stream/format if fields not specified
-    :rtype: list or dict
+    :return: field name-value dict. If streams argument is given but does not specify
+             index, a list of dict is returned instead
+    :rtype: dict or list or dict
 
     Note: Unlike :py:func:`video_stream_basic()` and :py:func:`audio_stream_basic()`,
           :py:func:`query()` does not process ffprobe output except for the conversion
@@ -622,32 +623,48 @@ def query(url, stream=None, fields=None, return_none=False):
 
     """
 
-    get_stream = stream is not None
+    get_stream = streams is not None
 
-    info = full_details(
-        url,
-        show_format=not get_stream,
-        show_streams=get_stream,
-        select_streams=stream,
-    )
+    # check if full details are already available
+    info = _db.get(url, None)
 
-    if get_stream and not len(info["streams"]):
-        raise ValueError(f"Unknown or invliad stream specifier: {stream}")
+    if info is not None:
+        # decode the info
+        mtime = os.stat(url).st_mtime
+        if info[0] == mtime:
+            info = pickle.loads(info[1])
 
-    info = info["streams"][0] if get_stream else info["format"]
-
-    if fields is None:
-        return info
-
-    try:
-        return [info[f] for f in fields]
-    except:
-        if return_none:
-            return [info[f] if f in info else None for f in fields]
-
-        raise ValueError(
-            f"Unknown {'stream' if get_stream else 'format'} fields: {[f for f in fields if f not in info]}"
+    if info is None:  # if not run ffprobe
+        info = (
+            full_details(
+                url,
+                show_format=not get_stream,
+                show_streams=get_stream,
+                select_streams=streams,
+            )
+            if fields is None
+            else _exec(
+                url, {"format" if streams is None else "stream": fields}, streams
+            )
         )
+
+    if get_stream and "streams" not in info and len(info["streams"]) == 0:
+        raise ValueError(f"Unknown or invalid stream specifier: {streams}")
+
+    info = info["streams"] if get_stream else info["format"]
+
+    if get_stream and "index" in parse_stream_spec(streams):
+        # return dict only if a specific stream requested
+        info = info[0]
+
+    if return_none:
+        info = (
+            {f: info.get(f, None) for f in fields}
+            if isinstance(info, dict)
+            else [{f: st.get(f, None) for f in fields} for st in info]
+        )
+
+    return info
 
 
 def frames(url, entries=None, streams=None, intervals=None, accurate_time=False):

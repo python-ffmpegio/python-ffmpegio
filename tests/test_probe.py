@@ -29,22 +29,35 @@ def test_all():
 
 def test_query():
     url = "tests/assets/testmulti-1m.mp4"
-    print(probe.query(url, fields=("duration",)))
-    print(
+    assert isinstance(probe.query(url, fields=("duration",)), dict)
+    assert isinstance(
         probe.query(
             url, "v", fields=("duration", "r_frame_rate", "avg_frame_rate", "pix_fmt")
+        ),
+        list,
+    )
+    assert isinstance(
+        probe.query(url, "a:0", fields=("duration", "sample_rate", "sample_fmt")), dict
+    )
+
+    assert all(
+        st["bad_filed"] is None
+        for st in probe.query(
+            url, "a", fields=("duration", "bad_filed"), return_none=True
         )
     )
-    print(probe.query(url, "a", fields=("duration", "sample_rate", "sample_fmt")))
-    print(probe.query(url))
-
-    with pytest.raises(ValueError):
-        probe.query(url, "a", fields=("duration", "bad_filed"))
 
     assert (
-        probe.query(url, "a", fields=("duration", "bad_filed"), return_none=True)[1]
+        probe.query(url, "v:0", fields=("duration", "bad_filed"), return_none=True)[
+            "bad_filed"
+        ]
         is None
     )
+
+    # full detail
+    print(probe.query(url))
+    print(probe.query(url))
+
 
 def test_frames():
     url = "tests/assets/testmulti-1m.mp4"
@@ -87,6 +100,7 @@ def test_frames():
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
     print(info)
+
 
 if __name__ == "__main__":
     test_all()

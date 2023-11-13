@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Changed
+
+- `probe.query`: return a list of info of multiple streams if stream index is not specified
+- `probe.query`: sped up querying specific fields (avoids full query)
+- `probe.query`: no longer errors if a field is invalid
+
 ## [0.8.4] - 2023-11-07
 
 ### Added
