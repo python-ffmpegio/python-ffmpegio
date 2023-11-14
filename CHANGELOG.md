@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Fixed
+
+- `probe.query`: return only the requested fields when retrieving from a cached result
+
 ## [0.8.5] - 2023-11-13
 
 ### Changed

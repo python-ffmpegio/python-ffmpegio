@@ -634,7 +634,9 @@ def query(url, streams=None, fields=None, return_none=False):
         if info[0] == mtime:
             info = pickle.loads(info[1])
 
-    if info is None:  # if not run ffprobe
+    do_query = info is None
+
+    if do_query:  # if not run ffprobe
         info = (
             full_details(
                 url,
@@ -648,14 +650,21 @@ def query(url, streams=None, fields=None, return_none=False):
             )
         )
 
-    if get_stream and "streams" not in info and len(info["streams"]) == 0:
-        raise ValueError(f"Unknown or invalid stream specifier: {streams}")
+    info = info["streams" if get_stream else "format"]
 
-    info = info["streams"] if get_stream else info["format"]
+    if get_stream and len(info) == 0:
+        raise ValueError(f"Unknown or invalid stream specifier: {streams}")
 
     if get_stream and "index" in parse_stream_spec(streams):
         # return dict only if a specific stream requested
         info = info[0]
+
+    if not do_query and fields is not None:
+        # has full details from db, only return requested fields
+        if isinstance(info, dict):
+            info = {f: info[f] for f in fields if f in info}
+        else:
+            info = [{f: st[f] for f in fields if f in st} for st in info]
 
     if return_none:
         info = (
