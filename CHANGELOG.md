@@ -6,9 +6,16 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.8.6] - 2023-11-29
+
 ### Fixed
 
 - `probe.query`: return only the requested fields when retrieving from a cached result
+- `filtergraph`: can be imported even if ffmpeg executable is not present
+
+### Changed
+
+- `path.ffmpeg` & `path.ffprobe`: throw `FFmpegNotFound` if the executable not found
 
 ## [0.8.5] - 2023-11-13
 
