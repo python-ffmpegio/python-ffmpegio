@@ -165,7 +165,11 @@ def ffmpeg(args, sp_run=None, *sp_args, **other_sp_args):
         args = shlex.split(args)
 
     logging.debug(shlex_join(args))
-    return (sp_run or run)((FFMPEG_BIN, *args), *sp_args, **other_sp_args)
+    try:
+        assert FFMPEG_BIN is not None
+        return (sp_run or run)((FFMPEG_BIN, *args), *sp_args, **other_sp_args)
+    except (FileNotFoundError, AssertionError):
+        raise FFmpegNotFound()
 
 
 def ffprobe(args, sp_run=None, *sp_args, **other_sp_args):
@@ -184,7 +188,11 @@ def ffprobe(args, sp_run=None, *sp_args, **other_sp_args):
     if isinstance(args, str):
         args = shlex.split(args)
     logging.debug(shlex_join(args))
-    return (sp_run or run)((FFPROBE_BIN, *args), *sp_args, **other_sp_args)
+    try:
+        assert FFMPEG_BIN is not None
+        return (sp_run or run)((FFPROBE_BIN, *args), *sp_args, **other_sp_args)
+    except (FileNotFoundError, AssertionError):
+        raise FFmpegNotFound()
 
 
 def versions():

@@ -90,7 +90,7 @@ jobs:
         run: pip install -q .
 
       - name: Run Python just to import ffmpegio to make sure won't error out
-        run: python -c "import ffmpegio"
+        run: python -c "import ffmpegio, ffmpegio.filtergraph"
 
   distribute:
     name: Distribution

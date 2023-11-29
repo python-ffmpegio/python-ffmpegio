@@ -6,7 +6,7 @@ from collections import namedtuple
 from fractions import Fraction
 from functools import partial
 
-from .path import where
+from .path import ffmpeg as _ffmpeg
 from .errors import FFmpegError
 
 # fmt:off
@@ -34,8 +34,7 @@ _cache = dict()
 
 
 def ffmpeg(gopts):
-
-    out = sp.run([where(), "-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8")
+    out = _ffmpeg(["-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8")
 
     if out.returncode or out.stdout.count("\n") == 1:
         raise FFmpegError(out.stdout)
@@ -238,7 +237,6 @@ def codecs(type=None, stream_type=None):
     if not data:
         data = {}
         for match in _ffCodecRegexp.finditer(stdout):
-
             stype = {"V": "video", "A": "audio", "S": "subtitle"}[match[3]]
 
             desc = match[8]
@@ -344,7 +342,6 @@ def decoders(type=None):
 
 
 def _coders(type, stream_type=None):
-
     # reversed fftools/comdutils.c show_encoders()
 
     stdout, data = _(type)
@@ -994,7 +991,7 @@ def _get_filter_options(str):
             v[1] = [o.name for o in opts[i0 + 1 : i1]]
             opts[i0] = FilterOption(*v)
 
-    opts = [o for o, isa in zip(opts, alias_of) if isa<0]
+    opts = [o for o, isa in zip(opts, alias_of) if isa < 0]
 
     return name, opts
 
