@@ -16,6 +16,9 @@ url = 'v:0|a:0'
 
 """
 import logging
+
+logger = logging.getLogger("ffmpegio")
+
 from ffmpegio.path import ffmpeg
 from subprocess import PIPE, DEVNULL
 from . import plugins
@@ -56,8 +59,8 @@ def scan():
             universal_newlines=True,
         )
 
-        logging.debug(f"ffmpeg -{dev_type}")
-        logging.debug(out.stdout)
+        logger.debug(f"ffmpeg -{dev_type}")
+        logger.debug(out.stdout)
 
         src_spans = [
             [m[1], *m.span()]

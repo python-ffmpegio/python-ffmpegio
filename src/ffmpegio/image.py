@@ -1,6 +1,5 @@
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
 from .utils import log as log_utils
-import logging
 
 __all__ = ["create", "read", "write", "filter"]
 

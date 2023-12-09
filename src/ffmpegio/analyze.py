@@ -6,6 +6,9 @@ from __future__ import annotations
 from collections import namedtuple
 from abc import ABC
 import logging
+
+logger = logging.getLogger("ffmpegio")
+
 from . import configure
 from .filtergraph import Graph, Filter, Chain, as_filtergraph
 from .utils.filter import compose_filter
@@ -300,7 +303,7 @@ def run(
         out.stdout,
         re.DOTALL,
     ):
-        logging.debug(f"analyze::run: {m[0]}")
+        logger.debug(f"analyze::run: {m[0]}")
 
         # logged time
         t = (int, int, float)[tunits - 1](m[tunits])
@@ -833,7 +836,7 @@ class PSNR(MetadataLogger):
 
         m = self.re_key.match(key)
         if not (m and m[1]):
-            logging.warning(f"[PSNR.log()] Unknown metadata key: {key}")
+            logger.warning(f"[PSNR.log()] Unknown metadata key: {key}")
             return
 
         if not self._first:
@@ -1158,7 +1161,7 @@ class AStats(MetadataLogger):
 
         m = self.re_key.match(key)
         if not m:
-            logging.warning(f"[AStats.log()] Unknown metadata key: {key}")
+            logger.warning(f"[AStats.log()] Unknown metadata key: {key}")
             return
         ch, name = m.groups()
 
@@ -1321,7 +1324,7 @@ class ASpectralStats(MetadataLogger):
 
         m = self.re_key.match(key)
         if not (m and m[1]):
-            logging.warning(f"[ASpectralStats.log()] Unknown metadata key: {key}")
+            logger.warning(f"[ASpectralStats.log()] Unknown metadata key: {key}")
             return
 
         if not self._first:

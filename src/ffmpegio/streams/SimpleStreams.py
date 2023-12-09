@@ -1,5 +1,7 @@
-import logging
 from time import time
+import logging
+
+logger = logging.getLogger("ffmpegio")
 
 from .. import utils, configure, ffmpegprocess, probe, plugins
 from ..threading import LoggerThread, ReaderThread, WriterThread
@@ -24,7 +26,6 @@ class SimpleReaderBase:
         sp_kwargs=None,
         **options,
     ) -> None:
-
         self._converter = converter  # :Callable: f(b,dtype,shape) -> data_object
         self._memoryviewer = viewer  #:Callable: f(data_object)->bytes-like object
         self.dtype = None  # :str: output data type
@@ -69,11 +70,11 @@ class SimpleReaderBase:
         # wait until output stream log is captured if output format is unknown
         try:
             if self.dtype is None or self.shape is None:
-                logging.debug(
+                logger.debug(
                     "[reader main] waiting for logger to provide output stream info"
                 )
                 info = self._logger.output_stream()
-                logging.debug(f"[reader main] received {info}")
+                logger.debug(f"[reader main] received {info}")
                 self._finalize_array(info)
             else:
                 self._logger.index("Output")
@@ -86,7 +87,7 @@ class SimpleReaderBase:
         self.samplesize = utils.get_samplesize(self.shape, self.dtype)
 
         self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
-        logging.debug("[reader main] completed init")
+        logger.debug("[reader main] completed init")
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -112,7 +113,7 @@ class SimpleReaderBase:
             print("failed to terminate")
             pass
 
-        logging.debug(f"[reader main] FFmpeg closed? {self._proc.poll()}")
+        logger.debug(f"[reader main] FFmpeg closed? {self._proc.poll()}")
 
         try:
             self._proc.stdin.close()
@@ -168,9 +169,9 @@ class SimpleReaderBase:
 
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
-        logging.debug(f"[reader main] reading {n} samples")
+        logger.debug(f"[reader main] reading {n} samples")
         b = self._proc.stdout.read(n * self.samplesize if n > 0 else n)
-        logging.debug(f"[reader main] read {len(b)} bytes")
+        logger.debug(f"[reader main] read {len(b)} bytes")
         if not len(b):
             self._proc.stdout.close()
             return None
@@ -258,7 +259,6 @@ class SimpleVideoReader(SimpleReaderBase):
 
 
 class SimpleAudioReader(SimpleReaderBase):
-
     readable = True
     writable = False
     multi_read = False
@@ -342,7 +342,6 @@ class SimpleWriterBase:
         sp_kwargs=None,
         **options,
     ) -> None:
-
         self._proc = None
         self._viewer = viewer
         self.dtype_in = dtype_in
@@ -387,7 +386,6 @@ class SimpleWriterBase:
             self._open()
 
     def _open(self, data=None):
-
         # if data array is given, finalize the FFmpeg configuration with it
         if data is not None:
             self._finalize_with_data(data)
@@ -453,7 +451,7 @@ class SimpleWriterBase:
             # the data and start
             self._open(data)
 
-        logging.debug("[writer main] writing...")
+        logger.debug("[writer main] writing...")
 
         try:
             self._proc.stdin.write(self._viewer(obj=data))
@@ -523,7 +521,6 @@ class SimpleVideoWriter(SimpleWriterBase):
         return ready
 
     def _finalize_with_data(self, data):
-
         ffmpeg_args = self._cfg["ffmpeg_args"]
         inopts = ffmpeg_args["inputs"][0][1]
         shape, dtype = plugins.get_hook().video_info(obj=data)
@@ -579,7 +576,6 @@ class SimpleAudioWriter(SimpleWriterBase):
         )
 
     def _finalize(self, ffmpeg_args):
-
         # ffmpeg_args must have sample format & sampling rate specified
         inopts = ffmpeg_args["inputs"][0][1]
         ready = "sample_fmt" in inopts and "ac" in inopts
@@ -600,7 +596,6 @@ class SimpleAudioWriter(SimpleWriterBase):
         return ready
 
     def _finalize_with_data(self, data):
-
         self.shape_in, self.dtype_in = plugins.get_hook().audio_info(obj=data)
 
         inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
@@ -657,7 +652,6 @@ class SimpleFilterBase:
 **options,
         # fmt:on
     ) -> None:
-
         if not rate_in:
             if rate:
                 rate_in = rate
@@ -751,7 +745,6 @@ class SimpleFilterBase:
             self._open()
 
     def _open(self, data=None):
-
         ffmpeg_args = self._cfg["ffmpeg_args"]
 
         # if data array is given, finalize the FFmpeg configuration with it
@@ -780,7 +773,6 @@ class SimpleFilterBase:
         self._cfg = False
 
     def _get_output_info(self, timeout):
-
         # run after the first input block is sent to FFmpeg
         try:
             info = self._logger.output_stream(
@@ -798,7 +790,6 @@ class SimpleFilterBase:
         self._reader_needs_info = False
 
     def _start_reader(self):
-
         self._bps_out = utils.get_samplesize(self.shape, self.dtype)
         self._bps_in = utils.get_samplesize(self.shape_in, self.dtype_in)
         self._out2in = self.rate / self.rate_in
@@ -1035,7 +1026,6 @@ class SimpleVideoFilter(SimpleFilterBase):
         )
 
     def _set_options(self, options, shape, dtype, rate=None, expr=None):
-
         if rate:
             options["r"] = rate
         if expr is not None:
@@ -1046,7 +1036,7 @@ class SimpleVideoFilter(SimpleFilterBase):
         if shape is None or dtype is None:
             # deduce them from options
             if shape is not None or dtype is not None:
-                logging.warn(
+                logger.warn(
                     "[SimpleVideoFilter] both dtype and shape must be defined for the arguments to take effect."
                 )
 
@@ -1144,7 +1134,6 @@ class SimpleAudioFilter(SimpleFilterBase):
             outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
 
     def _set_options(self, options, shape, dtype, rate=None, expr=None):
-
         if rate:
             options["ar"] = rate
         if expr is not None:

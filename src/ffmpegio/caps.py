@@ -1,6 +1,9 @@
 # TODO add function to guess media type given extension
 
 import logging
+
+logger = logging.getLogger("ffmpegio")
+
 import re, fractions, subprocess as sp
 from collections import namedtuple
 from fractions import Fraction
@@ -897,7 +900,7 @@ def _get_filter_option(str, name):
     )
     if not m0:
         # likely deprecated
-        logging.info(
+        logger.info(
             f"_get_filter_option(): invalid option line found for {name} filter. Likely deprecated:\n{lines[0]}"
         )
         return None
@@ -1090,11 +1093,11 @@ def filter_info(name):
             options = extra_options.pop(opt_name)
         elif len(extra_options) == 1:
             o_name, options = extra_options.popitem()
-            logging.info(
+            logger.info(
                 f"filter_info({name}): assigned mismatched AVOptions {o_name}."
             )
         else:
-            logging.warning(
+            logger.warning(
                 f"filter_info({name}): none of the AVOption sets appears to be the main option set:\n   {[k for k in extra_options]}"
             )
 

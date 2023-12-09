@@ -4,7 +4,6 @@
 import warnings
 from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins, analyze
 from .utils import log as log_utils
-import logging
 
 __all__ = ["create", "read", "write", "filter", "detect"]
 

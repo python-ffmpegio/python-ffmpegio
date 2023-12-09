@@ -4,9 +4,11 @@
 from glob import glob
 import io, re
 import os
-import logging
 from tempfile import NamedTemporaryFile
 from functools import partial
+import logging
+
+logger = logging.getLogger("ffmpegio")
 
 from . import escape, unescape
 
@@ -523,7 +525,7 @@ class FFConcat:
         """
 
         if len(self.streams) or len(self.chapters):
-            logging.warning(
+            logger.warning(
                 "Demuxer specifying non-file directives. Only file directives are converted."
             )
 
@@ -540,10 +542,10 @@ class FFConcat:
             if file.outpoint:
                 opts["to"] = file.outpoint
             if file.metadata and not meta_warn:
-                logging.warning("File metadata directives are ignored.")
+                logger.warning("File metadata directives are ignored.")
                 meta_warn = True
             if file.options and not opt_warn:
-                logging.warning("File option directives are ignored.")
+                logger.warning("File option directives are ignored.")
                 opt_warn = True
             inputs.append((url, opts))
 

@@ -1,5 +1,7 @@
 import re, logging
 
+logger = logging.getLogger("ffmpegio")
+
 from . import utils, plugins
 from .filtergraph import Graph, Filter, Chain
 from .errors import FFmpegioError
@@ -83,7 +85,7 @@ def empty(global_options=None):
     :return: empty ffmpeg arg dict with 'inputs','outputs',and 'global_options' entries.
     :rtype: dict
     """
-    return {'inputs':[], 'outputs': [], 'global_options': global_options}
+    return {"inputs": [], "outputs": [], "global_options": global_options}
 
 
 def check_url(url, nodata=True, nofileobj=False, format=None):
@@ -284,7 +286,6 @@ def _build_video_basic_filter(
     transpose=None,
     square_pixels=None,
 ):
-
     bg_color = fill_color or "white"
 
     vfilters = (
@@ -502,7 +503,6 @@ def get_option(ffmpeg_args, type, name, file_id=0, stream_type=None, stream_id=N
 
 
 def merge_user_options(ffmpeg_args, type, user_options, file_index=None):
-
     if type == "global":
         type = "global_options"
         opts = ffmpeg_args.get(type, None)
@@ -527,7 +527,6 @@ def merge_user_options(ffmpeg_args, type, user_options, file_index=None):
 
 
 def get_video_array_format(ffmpeg_args, type, file_id=0):
-
     try:
         opts = ffmpeg_args[f"{type}s"][file_id][1]
     except:
@@ -581,7 +580,7 @@ def clear_loglevel(args):
     """
     try:
         del args["global_options"]["loglevel"]
-        logging.warn("loglevel option is cleared by ffmpegio")
+        logger.warn("loglevel option is cleared by ffmpegio")
     except:
         pass
 

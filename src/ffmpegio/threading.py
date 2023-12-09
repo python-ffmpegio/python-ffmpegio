@@ -2,13 +2,16 @@
 """
 
 from copy import deepcopy
-import re, os, logging
+import re, os
 from threading import Thread, Condition, Lock, Event
 from io import TextIOBase, TextIOWrapper
 from time import sleep, time
 from tempfile import TemporaryDirectory
 from queue import Empty, Full, Queue
 from math import ceil
+import logging
+
+logger = logging.getLogger("ffmpegio")
 
 from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream
@@ -68,12 +71,12 @@ class ProgressMonitorThread(Thread):
         url = self.url
 
         pattern = re.compile(r"(.+)?=(.+)")
-        logging.debug(f'[progress_monitor] monitoring "{url}"')
+        logger.debug(f'[progress_monitor] monitoring "{url}"')
 
         while not (self._stop_monitor.is_set() or os.path.isfile(url)):
             sleep(timeout)
 
-        logging.debug("[progress_monitor] file found")
+        logger.debug("[progress_monitor] file found")
 
         if not self._stop_monitor.is_set():
 
@@ -106,12 +109,12 @@ class ProgressMonitorThread(Thread):
                                 done = m[2] == "end"
                                 try:
                                     if callback(d, done) and self.cancelfun:
-                                        logging.debug(
+                                        logger.debug(
                                             "[progress_monitor] operation canceled by user agent"
                                         )
                                         self.cancelfun()
                                 except Exception as e:
-                                    logging.critical(
+                                    logger.critical(
                                         f"[progress_monitor] user callback error:\n\n{e}"
                                     )
                     elif sleep:
@@ -129,7 +132,7 @@ class ProgressMonitorThread(Thread):
             except:
                 pass
 
-        logging.debug("[progress_monitor] terminated")
+        logger.debug("[progress_monitor] terminated")
 
 
 class LoggerThread(Thread):
@@ -151,7 +154,7 @@ class LoggerThread(Thread):
         return self
 
     def run(self):
-        logging.debug("[logger] starting")
+        logger.debug("[logger] starting")
         stderr = self.stderr
         if not isinstance(stderr, TextIOBase):
             stderr = self.stderr = TextIOWrapper(stderr, "utf-8")
@@ -180,7 +183,7 @@ class LoggerThread(Thread):
         with self.newline:
             self.stderr = None
             self.newline.notify_all()
-        logging.debug("[logger] exiting")
+        logger.debug("[logger] exiting")
 
     def index(self, prefix, start=None, block=True, timeout=None):
         start = int(start or 0)
@@ -513,7 +516,7 @@ class AviReaderThread(Thread):
                 for k, v in reader.streams.items()
             }
         except Exception as e:
-            logging.critical(e)
+            logger.critical(e)
             return
         finally:
             self.streamsready.set()

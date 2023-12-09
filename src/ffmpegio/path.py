@@ -1,11 +1,13 @@
 from os import path as _path, name as _os_name, devnull
 from shutil import which
 from subprocess import run, DEVNULL, PIPE, STDOUT
-import re, shlex, logging
+import re, shlex
 from packaging.version import Version
+import logging
 
-from ffmpegio.errors import FFmpegioError
+logger = logging.getLogger("ffmpegio")
 
+from .errors import FFmpegioError
 from . import plugins
 
 # fmt:off
@@ -164,7 +166,7 @@ def ffmpeg(args, sp_run=None, *sp_args, **other_sp_args):
     if isinstance(args, str):
         args = shlex.split(args)
 
-    logging.debug(shlex_join(args))
+    logger.debug(shlex_join(args))
     try:
         assert FFMPEG_BIN is not None
         return (sp_run or run)((FFMPEG_BIN, *args), *sp_args, **other_sp_args)
@@ -187,7 +189,7 @@ def ffprobe(args, sp_run=None, *sp_args, **other_sp_args):
 
     if isinstance(args, str):
         args = shlex.split(args)
-    logging.debug(shlex_join(args))
+    logger.debug(shlex_join(args))
     try:
         assert FFMPEG_BIN is not None
         return (sp_run or run)((FFPROBE_BIN, *args), *sp_args, **other_sp_args)

@@ -2,10 +2,12 @@
 
 from subprocess import PIPE
 from ffmpegio import path
-import re, logging
-
+import re
 from pluggy import HookimplMarker
 from packaging.version import Version
+import logging
+
+logger = logging.getLogger("ffmpegio")
 
 hookimpl = HookimplMarker("ffmpegio")
 
@@ -28,7 +30,7 @@ def _scan():
         universal_newlines=True,
     ).stderr
 
-    logging.debug(logs)
+    logger.debug(logs)
 
     sign = re.match(r"\[(.+?)\]", logs)[1]
 
@@ -56,13 +58,13 @@ def _scan():
         "is_default": None,
     }
 
-    logging.debug("For <v5.0")
+    logger.debug("For <v5.0")
     re_header = re.compile(
         rf"\[{sign}\] (?:DirectShow (.+?) devices.*|Could not enumerate .+? devices.*)\n|dummy: Immediate exit requested"
     )
 
     groups = [(m[1], *m.span()) for m in re_header.finditer(logs)]
-    logging.debug(groups)
+    logger.debug(groups)
 
     re_dev = re.compile(
         rf'\[{sign}\]  "(.+?)"(?: \((.+?)\))?\n\[{sign}\]     Alternative name "(.+?)"'

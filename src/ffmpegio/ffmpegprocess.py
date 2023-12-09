@@ -20,12 +20,14 @@ PIPE:    Special value that indicates a pipe should be created
 """
 
 from collections import abc
-import logging
 from os import path
 from threading import Thread
 import subprocess as sp
 from copy import deepcopy
 from tempfile import TemporaryDirectory
+import logging
+
+logger = logging.getLogger("ffmpegio")
 
 from .utils.parser import parse, compose, FLAG
 from .threading import ProgressMonitorThread
@@ -196,14 +198,14 @@ def monitor_process(proc, on_exit=None):
 
     """
 
-    logging.debug("[monitor] waiting for FFmpeg to terminate...")
+    logger.debug("[monitor] waiting for FFmpeg to terminate...")
     proc.wait()
-    logging.debug("[monitor] FFmpeg terminated")
+    logger.debug("[monitor] FFmpeg terminated")
     if on_exit is not None:
         returncode = proc.returncode
         for fcn in on_exit:
             fcn(returncode)
-        logging.debug("[monitor] executed all on_exit callbacks")
+        logger.debug("[monitor] executed all on_exit callbacks")
 
 
 class Popen(sp.Popen):

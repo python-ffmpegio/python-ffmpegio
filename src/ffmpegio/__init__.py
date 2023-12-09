@@ -29,6 +29,9 @@ Block Read/Write/Filter Functions
 from contextlib import contextmanager
 import logging
 
+logger = logging.getLogger("ffmpegio")
+logger.addHandler(logging.NullHandler())
+
 from . import path, plugins
 
 # register builtin plugins and external plugins found in site-packages
@@ -38,12 +41,14 @@ plugins.initialize()
 try:
     path.find()
 except Exception as e:
-    logging.warning(str(e))
+    logger.warning(str(e))
+
 
 def __getattr__(name):
     if name == "ffmpeg_ver":
         return path.FFMPEG_VER
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
+
 
 from . import ffmpegprocess
 
@@ -311,7 +316,6 @@ def open(
         ("rate", rate),
         ("shape", shape),
     ):
-
         if v is not None:
             kwds[k] = v
 
