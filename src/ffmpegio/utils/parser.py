@@ -159,11 +159,19 @@ def compose(args, command="", shell_command=False):
         return key, val
 
     def opts2args(opts, finalize):
-        args = []
-        for itm in opts.items():
-            key, val = finalize(*itm)
+        # FFmpeg applies the last of the repeated options regardless of overall/per-stream
+        # need to parse per-stream options and group repeated options together and
+        # apply the overall option first
 
-            karg = f"-{key}"
+        opts_parsed = {}
+        for itm in opts.items():
+            k, v = finalize(*itm)
+            oname, *sspec = k.split(":", 1)
+            if oname not in opts_parsed:
+                opts_parsed[oname] = o = {}
+            o[sspec[0] if len(sspec) else None] = v
+
+        def set_arg(karg, val):
             if not isinstance(val, (str, Graph, Chain, Filter)) and isinstance(
                 val, abc.Sequence
             ):
@@ -173,12 +181,21 @@ def compose(args, command="", shell_command=False):
                 args.append(karg)
                 if val is not FLAG:
                     args.append(str(val))
+
+        args = []
+        for key, vals in opts_parsed.items():
+            kbase = f"-{key}"
+            if None in vals:
+                val = val = vals.pop(None)
+                set_arg(kbase, val)
+            for st, val in vals.items():
+                set_arg(f"{kbase}:{st}", val)
+
         return args
 
     def inputs2args(inputs):
         args = []
         for url, opts in inputs:
-
             # resolve url enumeration if it's a device
             url, opts = devices.resolve_source(url, opts)
 
@@ -195,7 +212,6 @@ def compose(args, command="", shell_command=False):
     def outputs2args(outputs):
         args = []
         for url, opts in outputs:
-
             # resolve url enumeration if it's a device
             url, opts = devices.resolve_sink(url, opts)
 
