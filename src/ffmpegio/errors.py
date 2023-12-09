@@ -1,5 +1,5 @@
 import re
-from collections.abc import Sequence
+from typing import Sequence, Union
 
 
 class FFmpegioError(Exception):
@@ -199,7 +199,7 @@ FINAL_ERROR_MESSAGES = (
 # endswith("aborting.")
 
 
-def scan_stderr(logs: str | Sequence[str] | None):
+def scan_stderr(logs: Union[str, Sequence[str], None]):
     msg = ""
 
     if logs is None:
@@ -231,8 +231,10 @@ def scan_stderr(logs: str | Sequence[str] | None):
         elif msg0.startswith("Error opening input files"):
             err = logs[-2]
             i = -2
-            msg = "\n  ".join(logs[i:])            
-        elif msg0.startswith("Error opening output file"): # <v6.1, "Error opening output files: "
+            msg = "\n  ".join(logs[i:])
+        elif msg0.startswith(
+            "Error opening output file"
+        ):  # <v6.1, "Error opening output files: "
             err = logs[-2]
             i = -2
             if err.startswith("Error parsing options for output file "):
