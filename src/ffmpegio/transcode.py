@@ -1,4 +1,6 @@
 from . import ffmpegprocess as fp, configure, utils, FFmpegError
+from .path import check_version
+from .errors import scan_stderr
 
 __all__ = ["transcode"]
 
@@ -121,7 +123,11 @@ def transcode(
     pout = (fp.run_two_pass if two_pass else fp.run)(args, **kwargs)
     if pout.returncode:
         raise FFmpegError(pout.stderr, show_log)
-    
-    if any(out[0]=='-' or out[0]=='pipe' or out[0]=='pipe:1' for out in outputs):
+
+    if check_version("6.1", ">=") and show_log is None:
+        e = FFmpegError(pout.stderr, show_log)
+        if e.ffmpeg_msg:
+            raise e
+
+    if any(out[0] == "-" or out[0] == "pipe" or out[0] == "pipe:1" for out in outputs):
         return pout.stdout
-    

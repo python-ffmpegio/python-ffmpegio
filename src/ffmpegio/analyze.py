@@ -256,9 +256,9 @@ def run(
     if isinstance(vf, Graph) or isinstance(af, Graph):
         # at least one logger requires reference input, must use filter_complex
         if len(vf):
-            vf = "[0:v:0]" >> vf >> "nullsink"
+            vf = "[0:v:0]" >> vf  # >> "nullsink"
         if len(af):
-            af = "[0:a:0]" >> af >> "anullsink"
+            af = "[0:a:0]" >> af  # >> "anullsink"
         gopts["filter_complex"] = vf | af
     else:
         # set filter chains
@@ -791,7 +791,7 @@ class PSNR(MetadataLogger):
     meta_names: Tuple[Literal["psnr"]] = ("psnr",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["psnr"] = "psnr"
-    re_key = re.compile(r"(.+)(?:\.(.))?")
+    re_key = re.compile(r"([^.]+)(?:\.(.))?")
 
     class PSNR(NamedTuple):
         """output log namedtuple subclass (template)"""

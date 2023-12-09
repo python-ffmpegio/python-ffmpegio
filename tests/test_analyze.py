@@ -22,7 +22,7 @@ def test_run_ref():
         logger,
         references=[("tests/assets/sample.mp4", {"t": 10})],
         t=10,
-        show_log=True,
+        # show_log=True,
     )
     print(logger.output)
 

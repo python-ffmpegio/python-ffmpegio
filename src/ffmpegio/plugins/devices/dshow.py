@@ -13,7 +13,6 @@ hookimpl = HookimplMarker("ffmpegio")
 
 
 def _scan():
-
     logs = path.ffmpeg(
         [
             "-hide_banner",
@@ -84,7 +83,6 @@ def _resolve(infos):
 
 
 def _list_options(dev):
-
     ver = path.FFMPEG_VER
     v5_or_later = ver.is_devrelease or ver >= Version("5.0")
 
@@ -112,8 +110,10 @@ def _list_options(dev):
     sign = re.escape(m[1])
     i0 = m.end()
 
-    m = re.search(fr"{re.escape(url)}: Immediate exit requested\n$", logs)
-    i1 = m.start()
+    m = re.search(
+        rf"Error opening input: Immediate exit requested\n", logs
+    ) or re.search(rf"{re.escape(url)}: Immediate exit requested\n", logs)
+    i1 = m.start() if m else len(logs)
 
     re_pin = re.compile(rf'\[{sign}\]  Pin "(.+?)" \(alternative pin name "(.+?)"\)\n')
 

@@ -14,7 +14,10 @@ def test_errors():
         {"inputs": [("fake.avi", None)], "outputs": [], "global_options": {}},
         capture_log=True,
     )
-    assert FFmpegError(out.stderr).ffmpeg_msg == "fake.avi: No such file or directory"
+    assert FFmpegError(out.stderr).ffmpeg_msg in (
+        "fake.avi: No such file or directory",
+        "Error opening input file fake.avi.\n  Error opening input files: No such file or directory",
+    )
 
 
 def test_caps_errors():
@@ -33,7 +36,6 @@ def test_caps_errors():
 
 
 if __name__ == "__main__":
-
     with tempfile.TemporaryDirectory() as tmpdirname:
         out = run(
             {

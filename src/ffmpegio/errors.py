@@ -1,4 +1,5 @@
 import re
+from collections.abc import Sequence
 
 
 class FFmpegioError(Exception):
@@ -198,90 +199,97 @@ FINAL_ERROR_MESSAGES = (
 # endswith("aborting.")
 
 
+def scan_stderr(logs: str | Sequence[str] | None):
+    msg = ""
+
+    if logs is None:
+        return msg
+
+    if isinstance(logs, str):
+        logs = re.split(r"[\n\r]+", logs.rstrip())
+
+    if logs[0].startswith("Unknown help option "):
+        msg = logs[0]
+    else:
+        msg0 = logs[-1]
+        if msg0 == '"trace"':
+            msg = "\n  ".join(logs)
+        elif msg0 == "Use -h to get full help or, even better, run 'man ffmpeg'":
+            msg = "No ffmpeg command argument specified"
+        elif msg0 == "Invalid argument":  # generic
+            msg = logs[-2]
+            if msg == "Error initializing complex filters.":
+                msg = f"{logs[-3]}\n  {msg}"
+        elif msg0 == "To ignore this, add a trailing '?' to the map.":
+            msg = f"{logs[-2]}\n  {msg0}"
+        elif msg0 == "Filtering and streamcopy cannot be used together.":
+            msg = f"{logs[-2]}\n  {msg0}"
+        elif msg0 == "FFmpeg cannot edit existing files in-place.":
+            msg = f"{logs[-2]}\n  {msg0}"
+        elif msg0 == 'or set a framerate with "-r xxx".':
+            msg = "\n  ".join(logs[-3:])
+        elif msg0.startswith("Error opening input files"):
+            err = logs[-2]
+            i = -2
+            msg = "\n  ".join(logs[i:])            
+        elif msg0.startswith("Error opening output file"): # <v6.1, "Error opening output files: "
+            err = logs[-2]
+            i = -2
+            if err.startswith("Error parsing options for output file "):
+                m = re.match(r"Failed to set value '.+?' for option '(.+?)':", logs[-3])
+                if m:
+                    i = -4 if m[1] == "target" else -3
+                else:
+                    i = -2
+            msg = "\n  ".join(logs[i:])
+
+        elif msg0.startswith("Error splitting the argument list: "):
+            msg = f"{logs[-2]}\n  {msg0}"
+        elif msg0.startswith("Error parsing global options:"):
+            if logs[-2].endswith("Invalid argument"):
+                msg = "\n  ".join(logs[-3:])
+            else:
+                msg = f"{logs[-2]}\n  {msg0}"
+        elif msg0.startswith("Error selecting an encoder for stream "):
+            msg = "\n  ".join(logs[-2:])
+        elif msg0 == "Conversion failed!":
+            msg0 = logs[-2]
+            iend = -1  # skip the last 2 lines
+            if msg0.startswith("Error while processing the decoded data for stream "):
+                iend = -2  # skip the last 2 lines
+                i = -3  # show
+                if (
+                    logs[-3]
+                    == "Failed to inject frame into filter network: Invalid argument"
+                ):
+                    i = -4
+                    if logs[i] == "Error reinitializing filters!":
+                        iend = -4
+                        i = -5
+                msg = "\n  ".join(logs[i:iend])
+            elif msg0.startswith("Error initializing output stream "):
+                # Could not write header for output file
+                msg = "\n  ".join(logs[-4:iend])
+        elif msg0.startswith("Device setup failed for decoder on input stream "):
+            re_clue = re.compile(r"\[.+?\]|Device creation failed: ")
+            err = next((m for m in reversed(logs[:-1]) if re_clue.match(m)), None)
+            if err:
+                msg = f"{err}\n  {msg0}"
+        elif msg0.startswith("Supported hwaccels: "):
+            msg = f"{logs[-2]}\n  {msg0}"
+        elif re.match(r".+?: Invalid argument", msg0):
+            msg = (
+                f"{logs[-2]}\n  {msg0}" if logs[-2].startswith("[lavfi ") else logs[-2]
+            )  # ...
+    return msg
+
+
 class FFmpegError(FFmpegioError, RuntimeError):
     def __init__(self, logs=None, log_shown=None):
-
-        if logs is not None and isinstance(logs, str):
-            logs = re.split(r"[\n\r]+", logs.rstrip())
-
         if logs is None or not len(logs):
-            logs = ["FFmpeg failed for unknown reason (no log available)."]
-        if logs[0].startswith("Unknown help option "):
-            msg = logs[0]
+            msg = "FFmpeg failed for unknown reason (no log available)."
         else:
-
-            msg = logs[-1]
-            if msg == '"trace"':
-                msg = "\n  ".join(logs)
-            elif msg == "Use -h to get full help or, even better, run 'man ffmpeg'":
-                msg = "No ffmpeg command argument specified"
-            elif msg == "Invalid argument":  # generic
-                msg = logs[-2]
-                if msg == "Error initializing complex filters.":
-                    msg = f"{logs[-3]}\n  {msg}"
-            elif msg == "To ignore this, add a trailing '?' to the map.":
-                msg = f"{logs[-2]}\n  {msg}"
-            elif msg == "Filtering and streamcopy cannot be used together.":
-                msg = f"{logs[-2]}\n  {msg}"
-            elif msg == "FFmpeg cannot edit existing files in-place.":
-                msg = f"{logs[-2]}\n  {msg}"
-            elif msg == 'or set a framerate with "-r xxx".':
-                msg = "\n  ".join(logs[-3:])
-            elif msg.startswith("Error opening output files: "):
-                err = logs[-2]
-                i = -2
-                if err.startswith("Error parsing options for output file "):
-                    m = re.match(
-                        r"Failed to set value '.+?' for option '(.+?)':", logs[-3]
-                    )
-                    if m:
-                        i = -4 if m[1] == "target" else -3
-                    else:
-                        i = -2
-                msg = "\n  ".join(logs[i:])
-
-            elif msg.startswith("Error splitting the argument list: "):
-                msg = f"{logs[-2]}\n  {msg}"
-            elif msg.startswith("Error parsing global options:"):
-                if logs[-2].endswith("Invalid argument"):
-                    msg = "\n  ".join(logs[-3:])
-                else:
-                    msg = f"{logs[-2]}\n  {msg}"
-            elif msg.startswith("Error selecting an encoder for stream "):
-                msg = "\n  ".join(logs[-2:])
-            elif msg == "Conversion failed!":
-                msg = logs[-2]
-                iend = -1  # skip the last 2 lines
-                if msg.startswith(
-                    "Error while processing the decoded data for stream "
-                ):
-                    iend = -2  # skip the last 2 lines
-                    i = -3  # show
-                    if (
-                        logs[-3]
-                        == "Failed to inject frame into filter network: Invalid argument"
-                    ):
-                        i = -4
-                        if logs[i] == "Error reinitializing filters!":
-                            iend = -4
-                            i = -5
-                    msg = "\n  ".join(logs[i:iend])
-                elif msg.startswith("Error initializing output stream "):
-                    # Could not write header for output file
-                    msg = "\n  ".join(logs[-4:iend])
-            elif msg.startswith("Device setup failed for decoder on input stream "):
-                re_clue = re.compile(r"\[.+?\]|Device creation failed: ")
-                err = next((m for m in reversed(logs[:-1]) if re_clue.match(m)), None)
-                if err:
-                    msg = f"{err}\n  {msg}"
-            elif msg.startswith("Supported hwaccels: "):
-                msg = f"{logs[-2]}\n  {msg}"
-            elif re.match(r".+?: Invalid argument", msg):
-                msg = (
-                    f"{logs[-2]}\n  {msg}"
-                    if logs[-2].startswith("[lavfi ")
-                    else logs[-2]
-                )  # ...
+            msg = scan_stderr(logs)
 
         if log_shown:
             ffmpeg_msg = "FFmpeg failed. Check its log printed above."
