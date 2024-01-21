@@ -238,8 +238,16 @@ def open(
             f"Invalid FFmpeg streaming mode: {mode}. Only 1 of 'rwf' may be specified."
         )
 
-    # auto-detect operation
-    if not (read or write or filter):
+    if (read or write or filter):
+        # convert unused rate argument to ffmpeg option
+        if read and rate_in is not None:
+            kwds['r_in' if video else 'ar_in'] = rate_in
+            rate_in = None
+        elif write and rate is not None:
+            kwds['r' if video else 'ar'] = rate
+            rate = None
+    else:
+        # auto-detect operation
         if rate_in is None:
             read = True
         elif rate is None:
