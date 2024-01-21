@@ -1,6 +1,7 @@
 """collection of thread classes for handling FFmpeg streams
 """
 
+from __future__ import annotations
 from copy import deepcopy
 import re, os
 from threading import Thread, Condition, Lock, Event
@@ -79,9 +80,7 @@ class ProgressMonitorThread(Thread):
         logger.debug("[progress_monitor] file found")
 
         if not self._stop_monitor.is_set():
-
             with open(url, "rt") as f:
-
                 last_mtime = None
 
                 def update(sleep=True):
@@ -252,6 +251,15 @@ class LoggerThread(Thread):
             return _extract_output_stream(self.logs, hint=i)
 
     def join_and_raise(self, timeout: float | None = None):
+        """wait till thread terminates and raise exception based on the log
+
+        :param timeout: specifying a timeout for the operation in seconds if present, defaults to None
+        :type timeout: float | None, optional
+        :raises e: FFmpegError only if log is present
+
+        Note: This method throws the exception regardless of the thread's status if log is available.
+        """        
+        
         self.join(timeout)
         e = self.Exception
         if e is not None:
@@ -259,6 +267,7 @@ class LoggerThread(Thread):
 
     @property
     def Exception(self) -> FFmpegError | None:
+        """Exception gathered from the current log or None if there is no log"""
         return FFmpegError(self.logs) if len(self.logs) else None
 
 
