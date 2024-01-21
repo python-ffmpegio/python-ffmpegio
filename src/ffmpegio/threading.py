@@ -156,6 +156,10 @@ class LoggerThread(Thread):
     def run(self):
         logger.debug("[logger] starting")
         stderr = self.stderr
+        if not stderr or stderr.closed:
+            logger.debug("[logger] exiting (stderr pipe not open)")
+            return
+
         if not isinstance(stderr, TextIOBase):
             stderr = self.stderr = TextIOWrapper(stderr, "utf-8")
         while True:
