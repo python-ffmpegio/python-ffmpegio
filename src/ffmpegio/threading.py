@@ -251,14 +251,19 @@ class LoggerThread(Thread):
         with self._newline_mutex:
             return _extract_output_stream(self.logs, hint=i)
 
+    def join_and_raise(self, timeout: float | None = None):
+        self.join(timeout)
+        e = self.Exception
+        if e is not None:
+            raise e
+
     @property
-    def Exception(self):
-        return FFmpegError(self.logs)
+    def Exception(self) -> FFmpegError | None:
+        return FFmpegError(self.logs) if len(self.logs) else None
 
 
 class ReaderThread(Thread):
     def __init__(self, stdout, nmin=None, queuesize=None):
-
         super().__init__()
         self.stdout = stdout  #:readable stream: data source
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
@@ -276,7 +281,6 @@ class ReaderThread(Thread):
         super().start()
 
     def cool_down(self):
-
         # stop enqueue read samples
         self._collect = False
         try:
@@ -387,7 +391,6 @@ class ReaderThread(Thread):
         return all_data[:nbytes]
 
     def read_all(self, timeout=None):
-
         # wait till matching line is read by the thread
         if timeout is not None:
             timeout = time() + timeout
@@ -426,7 +429,6 @@ class WriterThread(Thread):
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
 
     def join(self, timeout=None):
-
         # close the stream if not already closed
         self.stdin.close()
 
@@ -463,7 +465,6 @@ class WriterThread(Thread):
                 break
 
     def write(self, data, timeout=None):
-
         if not self.is_alive():
             raise ThreadNotActive("WriterThread is not running")
 
@@ -472,7 +473,6 @@ class WriterThread(Thread):
 
 class AviReaderThread(Thread):
     def __init__(self, queuesize=None):
-
         super().__init__()
         self.reader = AviReader()  #:utils.avi.AviReader: AVI demuxer
         self.streamsready = Event()  #:Event: Set when received stream header info
@@ -505,7 +505,6 @@ class AviReaderThread(Thread):
     #     return self
 
     def run(self):
-
         reader = self.reader
 
         try:
@@ -694,7 +693,6 @@ class AviReaderThread(Thread):
         return out
 
     def readall(self, timeout=None):
-
         # wait till matching line is read by the thread
         if timeout is not None:
             timeout = time() + timeout
