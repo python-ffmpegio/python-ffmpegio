@@ -464,9 +464,8 @@ class SimpleWriterBase:
 
         try:
             self._proc.stdin.write(self._viewer(obj=data))
-        except BrokenPipeError as e:
-            # TODO check log for error in FFmpeg
-            raise e
+        except (BrokenPipeError, OSError):
+            self._logger.join_and_raise()
 
     def flush(self):
         self._proc.stdin.flush()
