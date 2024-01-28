@@ -29,6 +29,15 @@ Install the full `ffmpegio` package via ``pip``:
 
    pip install ffmpegio
 
+or 
+
+for the latest development version: latest bug fixes and features
+requires git to be already installed.
+
+.. code-block:: bash
+
+    pip install git+https://github.com/python-ffmpegio/python-ffmpegio
+
 If `numpy.ndarray` data I/O is not needed, instead use 
 
 .. code-block:: bash
