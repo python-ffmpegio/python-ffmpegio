@@ -220,9 +220,7 @@ def compose(args, command="", shell_command=False):
             args.append(
                 str(url)
                 if url is not None
-                else "/dev/null"
-                if os.name != "nt"
-                else "NUL"
+                else "/dev/null" if os.name != "nt" else "NUL"
             )
         return args
 
