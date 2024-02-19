@@ -167,7 +167,8 @@ def compose(args, command="", shell_command=False):
         for itm in opts.items():
             k, v = finalize(*itm)
             oname, *sspec = k.split(":", 1)
-            if oname not in opts_parsed:
+            o = opts_parsed.get(oname, None)
+            if o is None:
                 opts_parsed[oname] = o = {}
             o[sspec[0] if len(sspec) else None] = v
 
