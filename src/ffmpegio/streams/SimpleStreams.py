@@ -406,14 +406,15 @@ class SimpleWriterBase:
         if self._proc.stdin and not self._proc.stdin.closed:
             try:
                 self._proc.stdin.close()  # flushes the buffer first before closing
-            except OSError:
-                pass
+            except OSError as e:
+                logger.error(e)
         self._proc.wait()
         if self._proc.stderr and not self._proc.stderr.closed:
             try:
                 self._proc.stderr.close()
-            except OSError:
-                pass
+            except OSError as e:
+                logger.error(e)
+
         self._logger.join()
 
     @property
