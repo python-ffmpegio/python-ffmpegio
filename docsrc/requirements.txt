@@ -5,6 +5,7 @@ sphinx-autopackagesummary
 sphinxcontrib-blockdiag
 sphinxcontrib-repl
 sphinx-exec-directive
+sphinx-autobuild
 PyQt5-sip
 PyQt5
 matplotlib
