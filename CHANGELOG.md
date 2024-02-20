@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.9.1] - 2024-02-19
+
+### Fixed
+
+- `util.parser.compose`: fixed a bug composing FFmpeg arguments with an option with different values to two or more stream
+- `streams.SimpleStreams.close`: prevent OSError even if pipes to ffmpeg process fail to close
+- `threading.LoggerThread.run`: fixed to running logger thread when stderr not available
+- `open` to convert unused rate argument to ffmpeg option
+
 ## [0.9.0] - 2023-12-08
 
 ### Changed
@@ -379,7 +388,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.6...v0.9.0
 [0.8.6]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.5...v0.8.6
 [0.8.5]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.4...v0.8.5
