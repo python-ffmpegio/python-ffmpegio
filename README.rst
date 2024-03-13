@@ -217,7 +217,7 @@ Stream I/O
   >>> # process video 100 frames at a time and save output as a new video 
   >>> # with the same frame rate
   >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100) as fin,
-  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fin.frame_rate) as fout:
+  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fin.rate) as fout:
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
 
