@@ -112,6 +112,7 @@ class ProgressMonitorThread(Thread):
                                             "[progress_monitor] operation canceled by user agent"
                                         )
                                         self.cancelfun()
+                                        self.cancelfun = None
                                 except Exception as e:
                                     logger.critical(
                                         f"[progress_monitor] user callback error:\n\n{e}"
