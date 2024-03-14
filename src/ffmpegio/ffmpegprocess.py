@@ -362,18 +362,31 @@ class Popen(sp.Popen):
         except:
             pass
 
-    def send_signal(self, sig: int):
+    def send_signal(self, sig: int = None, kill_monitor: bool = False):
         """Sends the signal signal to the FFmpeg process
 
-        :param sig: signal id
-        :type sig: int
+        :param sig: signal id, default SIGINT (POSIX) / CTRL_C_EVENT (Windows)
+        :type sig: int, optional
+        :param kill_monitor: True to kill the monitor thread, default False
+        :type kill_monitor: bool, optional
+
+        Without any argument, `send_signal()` will perform control-C to initiate
+        soft-terminate FFmpeg. FFmpeg may output additional frames before exits.
+
+        Note: Setting `kill_monitor=True` will block the caller thread until the 
+        FFmpeg terminates.
+
         """
-        try:
-            super().send_signal(sig)
-            if self.returncode is None:
+
+        if sig is None:
+            sig = signal.CTRL_C_EVENT if os_name == "nt" else signal.SIGINT
+
+        super().send_signal(sig)
+        if kill_monitor:
+            try:
                 self._monitor.join()
-        except:
-            pass
+            except:
+                pass
 
     ####################################################################################################
 
