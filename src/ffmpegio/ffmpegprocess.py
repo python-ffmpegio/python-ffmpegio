@@ -20,12 +20,13 @@ PIPE:    Special value that indicates a pipe should be created
 """
 
 from collections import abc
-from os import path
+from os import path, name as os_name
 from threading import Thread
 import subprocess as sp
 from copy import deepcopy
 from tempfile import TemporaryDirectory
 import logging
+import signal
 
 logger = logging.getLogger("ffmpegio")
 
@@ -301,7 +302,7 @@ class Popen(sp.Popen):
 
         # set progress monitor's cancelfun to allow its callback to terminate the FFmpeg process
         if self._progmon:
-            self._progmon.cancelfun = self.terminate
+            self._progmon.cancelfun = self.send_signal
             self._progmon.start()
 
         # start the process monitor to perform the cleanup when FFmpeg terminates
