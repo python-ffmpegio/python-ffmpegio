@@ -105,13 +105,14 @@ class SimpleReaderBase:
         self._proc.stdout.close()
         self._proc.stderr.close()
 
-        try:
-            self._proc.terminate()
-            if self._proc.poll() is None:
-                self._proc.kill()
-        except:
-            print("failed to terminate")
-            pass
+        if self._proc.poll() is None:
+            try:
+                self._proc.terminate()
+                if self._proc.poll() is None:
+                    self._proc.kill()
+            except:
+                print("failed to terminate")
+                pass
 
         logger.debug(f"[reader main] FFmpeg closed? {self._proc.poll()}")
 
