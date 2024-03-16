@@ -78,7 +78,7 @@ ffprobe = path.ffprobe
 
 def open(
     url_fg,
-    mode="",
+    mode,
     rate_in=None,
     shape_in=None,
     dtype_in=None,
@@ -219,111 +219,120 @@ def open(
         is_fg = kwds.get("f_in", None) == "lavfi"
         url_fg = (url_fg,)
 
-    audio = "a" in mode
-    video = "v" in mode
-    read = "r" in mode
-    write = "w" in mode
-    filter = "f" in mode
-    # backwards = "b" in mode
     unk = set(mode) - set("avrwf")
     if unk:
-        raise Exception(
+        raise ValueError(
             f"Invalid FFmpeg streaming mode: {mode}. Unknown mode {unk} specified."
         )
 
-    if read + write + filter > 1:
-        raise Exception(
-            f"Invalid FFmpeg streaming mode: {mode}. Only 1 of 'rwf' may be specified."
+    read = "r" in mode
+    write = "w" in mode
+    filter = "f" in mode
+
+    if read + write + filter != 1:
+        raise ValueError(
+            f"Invalid FFmpeg streaming mode argument: {mode}. It must contain one and only one of 'rwf'."
         )
 
-    if (read or write or filter):
-        # convert unused rate argument to ffmpeg option
-        if read and rate_in is not None:
-            kwds['r_in' if video else 'ar_in'] = rate_in
-            rate_in = None
-        elif write and rate is not None:
-            kwds['r' if video else 'ar'] = rate
-            rate = None
-    else:
-        # auto-detect operation
-        if rate_in is None:
-            read = True
-        elif rate is None:
-            write = True
-        else:
-            filter = True
+    audio = sum(1 for m in mode if m == "a")
+    video = sum(1 for m in mode if m == "v")
 
-    # auto-detect type
-    if not (audio or video):
-        if is_fg:
+    if audio + video == 0:
+        raise ValueError(
+            f"Invalid FFmpeg streaming mode argument: {mode}. Stream type not specified. Mode must contain 'v' or 'a' at least once."
+        )
+
+    if read:
+        vars = []
+        if rate_in is not None:
+            vars.append("rate_in")
+        if rate is not None:
+            vars.append("rate")
+        if len(vars):
+            vars = ", ".join(vars)
             raise ValueError(
-                "media type must be specified to read from an Input filtergraph"
+                f"Invalid argument for a read stream: {vars}. To change rate, use FFmpeg 'r' argument for video stream or 'ar' argument for audio stream."
             )
-        elif read:
-            for url in url_fg:
-                try:
-                    info = probe.streams_basic(url, entries=("codec_type",))
-                except:
-                    raise ValueError(f"cannot auto-detect media type of {url}")
-                for inf in info:
-                    t = inf["codec_type"]
-                    if t == "video" and not video:
-                        video = True
-                    elif t == "audio" and not audio:
-                        audio = True
-                if video and audio:
-                    break
+        vars = []
+        if shape_in is not None:
+            vars.append("shape_in")
+        if shape is not None:
+            vars.append("shape")
+        if len(vars):
+            vars = ", ".join(vars)
+            raise ValueError(
+                f"Invalid argument for a read stream: {vars}. To change shape, use FFmpeg 's' argument for video frame or 'ac' for the number of audio channels."
+            )
 
-        else:
-            if shape_in is not None:
-                audio = len(shape_in) < 2
-            elif shape is not None:
-                audio = len(shape) < 2
-            else:
-                # TODO identify based on file extension
-                raise ValueError(f"cannot auto-detect media type")
-            video = not audio
-    elif read:
-        # if audio or video is set multiple times, use avi reader
-        if audio and not video:
-            video = audio and sum((1 for m in mode if m == "a")) > 1
-        elif video and not audio:
-            audio = video and sum((1 for m in mode if m == "v")) > 1
-    elif write and is_fg:
-        ValueError("Cannot write to a filtergraph.")
+        if dtype_in is not None:
+            raise ValueError("Invalid argument for a read stream: dtype_in.")
+    else:
+        if audio + video > 1:
+            raise ValueError(
+                f"Too many streams specified: {mode}. A {'write' if write else 'filter'} stream can only process one stream at a time."
+            )
+
+        if write:
+            if is_fg:
+                ValueError("Cannot write to a filtergraph.")
+            if rate_in is None:
+                raise ValueError(
+                    "Missing required argument: rate_in. A write stream must specify the rate of the input media stream."
+                )
+            if rate is not None:
+                raise ValueError(
+                    "Invalid argument for a write stream: rate. To change rate, use FFmpeg 'r' argument for video stream or 'ar' argument for audio stream."
+                )
+            if shape is not None:
+                raise ValueError(
+                    "Invalid argument for a read stream: shape. To change shape, use FFmpeg 's' argument for video frame or 'ac' for the number of audio channels."
+                )
+        else:  # if filter
+            vars = []
+            if rate_in is None:
+                vars.append("rate_in")
+            if rate is None:
+                vars.append("rate")
+            if len(vars):
+                vars = ", ".join(vars)
+                raise ValueError(
+                    f"Missing required arguments: {vars}. A filter stream must specify the rates of both the input and output media streams."
+                )
 
     try:
-        StreamClass = {
-            1: {
-                0: _streams.SimpleAudioReader,
-                1: _streams.SimpleAudioWriter,
-                2: _streams.SimpleAudioFilter,
-            },
-            2: {
-                0: _streams.SimpleVideoReader,
-                1: _streams.SimpleVideoWriter,
-                2: _streams.SimpleVideoFilter,
-            },
-            3: {
-                0: _streams.AviMediaReader,
-            },
-        }[audio + 2 * video][write + 2 * filter]
+        StreamClass = (
+            {
+                0: {
+                    0: _streams.SimpleAudioReader,
+                    1: _streams.SimpleAudioWriter,
+                    2: _streams.SimpleAudioFilter,
+                },
+                1: {
+                    0: _streams.SimpleVideoReader,
+                    1: _streams.SimpleVideoWriter,
+                    2: _streams.SimpleVideoFilter,
+                },
+            }[video][write + 2 * filter]
+            if audio + video == 1
+            else _streams.AviMediaReader
+        )
     except:
-        raise Exception(f"Invalid/unsupported FFmpeg streaming mode: {mode}.")
+        raise ValueError(f"Invalid/unsupported FFmpeg streaming mode: {mode}.")
 
     if len(url_fg) > 1 and not StreamClass.multi_read:
-        raise Exception(f'Multi-input streaming is not supported in "{mode}" mode')
+        raise ValueError(f'Multi-input streaming is not supported in "{mode}" mode')
 
     # add other info to the arguments
     args = (*url_fg,) if read else (*url_fg, rate_in)
-    for k, v in (
-        ("dtype_in", dtype_in),
-        ("shape_in", shape_in),
-        ("rate", rate),
-        ("shape", shape),
-    ):
-        if v is not None:
-            kwds[k] = v
+    if not read:
+        for k, v in (
+            ("dtype_in", dtype_in),
+            ("shape_in", shape_in),
+            ("rate", rate),
+            ("shape", shape),
+        ):
+            if v is not None:
+                kwds[k] = v
 
     # instantiate the streaming object
     return StreamClass(*args, **kwds)
