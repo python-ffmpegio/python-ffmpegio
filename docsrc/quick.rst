@@ -141,6 +141,9 @@ For image (or single video frame) I/O, there is a pair of functions as well:
 The image data :code:`I` is like the video frame data, but without the leading
 dimension.
 
+.. _quick-streamio:
+
+
 Stream Read/Write
 -----------------
 
@@ -152,8 +155,8 @@ read/write operation. It mimics the familiar Python's file I/O with
 
 .. code-block:: python
 
-  >>> with ffmpegio.open('mytestvideo.mp4', 'v') as f: # opens the first video stream
-  >>>     print(f.frame_rate) # frame rate fraction in frames/second
+  >>> with ffmpegio.open('mytestvideo.mp4', 'rv') as f: # opens the first video stream
+  >>>     print(f.rate) # frame rate fraction in frames/second
   >>>     F = f.read() # read the first frame
   >>>     F = f.read(5) # read the next 5 frames at once
 
@@ -162,7 +165,7 @@ Another example, which uses read and write streams simultaneously:
 .. code-block:: python
 
   >>> with ffmpegio.open('mytestvideo.mp4', 'rv', blocksize=100) as f,
-  >>>      ffmpegio.open('myoutput.avi', 'wv', f.frame_rate) as g:
+  >>>      ffmpegio.open('myoutput.avi', 'wv', f.rate) as g:
   >>>         for frames in f: # iterates over all frames, 100 frames at a time
   >>>             output = my_processor(frames) # function to process data
   >>>             g.write(output) # send the processed frames to 'myoutput.avi' 
@@ -217,7 +220,7 @@ convert the units to seconds using :py:func:`probe`. For example:
   >>> fs = info[0]['frame_rate'] 
 
   >>> #read 30 frame from the 11th frame (remember Python uses 0-based index)
-  >>> with ffmpegio.open('myvideo.mp4', t=10/fs, t=30/fs) as f:
+  >>> with ffmpegio.open('myvideo.mp4', 'rv', t=10/fs, t=30/fs) as f:
   >>>     frame = f.read()
   >>>     # do your thing with the frame data
 
@@ -389,6 +392,8 @@ for the list of predefined color names.
 
         ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', 
             fill_color='#F0F0F0')
+
+.. _quick-callback:
 
 Progress Callback
 -----------------

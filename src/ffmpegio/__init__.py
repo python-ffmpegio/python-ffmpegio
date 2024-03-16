@@ -27,6 +27,7 @@ Block Read/Write/Filter Functions
 """
 
 import logging
+from typing import Optional, Tuple
 
 logger = logging.getLogger("ffmpegio")
 logger.addHandler(logging.NullHandler())
@@ -77,13 +78,13 @@ ffprobe = path.ffprobe
 
 
 def open(
-    url_fg,
-    mode,
-    rate_in=None,
-    shape_in=None,
-    dtype_in=None,
-    rate=None,
-    shape=None,
+    url_fg: str,
+    mode: str,
+    rate_in: Optional[float] = None,
+    shape_in: Optional[Tuple[int, ...]] = None,
+    dtype_in: Optional[str] = None,
+    rate: Optional[float] = None,
+    shape: Optional[Tuple[int, ...]] = None,
     **kwds,
 ):
     """Open a multimedia file/stream for read/write
@@ -91,17 +92,17 @@ def open(
     :param url_fg: URL of the media source/destination for file read/write or filtergraph definition
                    for filter operation.
     :type url_fg: str or seq(str)
-    :param mode: specifies the mode in which the FFmpeg is used, defaults to None
-    :type mode: str, optional
-    :param rate_in: (filter specific) input frame rate (video write) or sample rate (audio
-                 write), defaults to None
+    :param mode: specifies the mode in which the FFmpeg is used, see below
+    :type mode: str
+    :param rate_in: (write and filter only, required) input frame rate (video) or sampling rate 
+                    (audio), defaults to None
     :type rate_in: Fraction, float, int, optional
-    :param shape_in: (write and filter specific) input video frame size (height x width [x ncomponents]),
+    :param shape_in: (write and filter only) input video frame size (height x width [x ncomponents]),
                   or audio sample size (channels,), defaults to None
     :type shape_in: seq of int, optional
-    :param dtype_in: (write and filter specific) input data type, defaults to None
+    :param dtype_in: (write and filter only) input data type, defaults to None
     :type dtype_in: str, optional
-    :param rate: (filter specific) output frame rate (video write) or sample rate (audio
+    :param rate: (filter only, required) output frame rate (video write) or sample rate (audio
                  write), defaults to None
     :type rate: Fraction, float, int, optional
     :param dtype: (read and filter specific) output data type, defaults to None
@@ -109,22 +110,37 @@ def open(
     :param shape: (read and filter specific) output video frame size (height x width [x ncomponents]),
                   or audio sample size (channels,), defaults to None
     :type shape: seq of int, optional
+    :param show_log: True to echo the ffmpeg log to stdout, default to False
+    :type show_log: bool, optional
+    :param progress: progress callback function (see :ref:`quick-callback`)
+    :type progress: Callable, optional
+    :param blocksize: (read and filter only) Number of frames to read by `read()` method, default to None (auto)
+    :type blocksize: int, optional
+    :param extra_inputs: (write only) List of additional (non-pipe) inputs to pass onto FFmpeg. Each
+                         input is defined by a tuple of its url or a dict of input options, default to None
+    :type extra_inputs: List[Tuple[str,dict]], optional
+    :param default_timeout: (filter only) default filter timeout in seconds, defaults to None (10 ms)
+    :type default_timeout: float, optional
+    :param sp_kwargs: Keyword arguments for FFmpeg process (see :py:class:`ffmpegio.ffmpegprocess.Popen`), default to None
+    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type \\**options: dict, optional
-    :yields: ffmpegio stream object
+    :returns: ffmpegio stream object
 
     Start FFmpeg and open I/O link to it to perform read/write/filter operation and return
     a corresponding stream object. If the file cannot be opened, an error is raised.
-    See Reading and Writing Files for more examples of how to use this function.
+    See :ref:`quick-streamio` for more examples of how to use this function.
 
-    `open()` yields a ffmpegio's stream object and automatically closes it
-    when goes out of the context
-
+    Just like built-in `open()`, it is good practice to use the with keyword when dealing with 
+    ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are 
+    properly closed after ffmpeg terminates, even if an exception is raised at some point. 
+    Using with is also much shorter than writing equivalent try-finally blocks.
+    
     :Examples:
 
     Open an MP4 file and process all the frames::
 
-        with ffmpegio.open('video_source.mp4') as f:
+        with ffmpegio.open('video_source.mp4', 'rv') as f:
             frame = f.read()
             while frame:
                 # process the captured frame data
@@ -152,20 +168,12 @@ def open(
     ====  ===================================================
     Mode  Description
     ====  ===================================================
-    'r'   read from url (default)
+    'r'   read from url
     'w'   write to url
     'f'   filter data defined by fg
     'v'   operate on video stream, 'vv' if multi-video reader
     'a'   operate on audio stream, 'aa' if multi-audio reader
     ====  ===================================================
-
-    The default operating mode is dictated by `rate` and `rate_in` arguments. The 'f' mode is selected
-    if both `rate` and  `rate_in` are given while the 'w' mode is selected if only `rate_in` without
-    `rate` argument is given. Otherwise, it defaults to 'r'.
-
-    If no media type ('v' or 'a') is specified, it selects the first stream of the media in read mode.
-    For write and filter modes, the length of `shape_in` if given will be used for the detection:
-    'a' if 1 else 'v'. If cannot be autodetected, ValueError will be raised.
 
     `rate` and `rate_in`: Video frame rates shall be given in frames/second and
     may be given as a number, string, or `fractions.Fraction`. Audio sample rate in
@@ -210,7 +218,7 @@ def open(
     If dtypes and shapes are not specified at the time of opening, they will
     be set during the first write/filter operation using the input data.
 
-    In addition, `open()` accepts the standard option keyword arguments.
+    In addition, `open()` accepts the standard FFmpeg option keyword arguments.
 
     """
 
