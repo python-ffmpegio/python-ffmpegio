@@ -633,10 +633,10 @@ class SimpleFilterBase:
     :type shape: seq of ints, optional
     :param dtype: output data type string, defaults to None
     :type dtype: str, optional
-    :param block_size: read buffer block size in samples, defaults to None
-    :type block_size: int, optional
-    :param defaulttimeout: default filter timeout in seconds, defaults to None (10 ms)
-    :type defaulttimeout: float, optional
+    :param blocksize: read buffer block size in samples, defaults to None
+    :type blocksize: int, optional
+    :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
+    :type default_timeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -657,7 +657,7 @@ class SimpleFilterBase:
     def __init__(
         # fmt:off
         self, converter, data_viewer, info_viewer, expr, rate_in, shape_in=None, dtype_in=None, 
-        rate=None, shape=None, dtype=None, block_size=None, defaulttimeout=None,
+        rate=None, shape=None, dtype=None, blocksize=None, default_timeout=None,
         progress=None, show_log=None,         sp_kwargs=None,
 **options,
         # fmt:on
@@ -678,7 +678,7 @@ class SimpleFilterBase:
         self._infoviewer = info_viewer
 
         #:float: default filter operation timeout in seconds
-        self.defaulttimeout = defaulttimeout or 10e-3
+        self.default_timeout = default_timeout or 10e-3
 
         #:int|Fraction: input sample rate
         self.rate_in = rate_in
@@ -734,7 +734,7 @@ class SimpleFilterBase:
         self._writer = WriterThread(None, 0)
 
         # create the stdout reader without assigning the source stream
-        self._reader = ReaderThread(None, block_size, 0)
+        self._reader = ReaderThread(None, blocksize, 0)
         self._reader_needs_info = True
 
         # create logger without assigning the source stream
@@ -917,14 +917,14 @@ class SimpleFilterBase:
           Filtering operation is always timed because the buffering
           protocols used by various subsystems of FFmpeg are undeterminable
           from Python. The operation timeout is controlled by `timeout`
-          argument if specified or else  by `defaulttimeout` property. The
+          argument if specified or else  by `default_timeout` property. The
           default timeout duration is 10 ms, but it could be optimized for
           each use case (`blocksize` property, I/O rate ratio, typical size of
           `data` argument, etc.).
 
         """
 
-        timeout = timeout or self.defaulttimeout
+        timeout = timeout or self.default_timeout
 
         timeout += time()
 
@@ -961,7 +961,7 @@ class SimpleFilterBase:
         :rtype: numpy.ndarray
         """
 
-        timeout = timeout or self.defaulttimeout
+        timeout = timeout or self.default_timeout
 
         # If no input, close stdin and read all remaining frames
         y = self._reader.read_all(timeout)
@@ -993,10 +993,10 @@ class SimpleVideoFilter(SimpleFilterBase):
     :type shape: seq of ints, optional
     :param dtype: output numpy data type, defaults to None
     :type dtype: str, optional
-    :param block_size: read buffer block size in frames, defaults to None (=1)
-    :type block_size: int, optional
-    :param defaulttimeout: default filter timeout in seconds, defaults to None (10 ms)
-    :type defaulttimeout: float, optional
+    :param blocksize: read buffer block size in frames, defaults to None (=1)
+    :type blocksize: int, optional
+    :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
+    :type default_timeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -1015,7 +1015,7 @@ class SimpleVideoFilter(SimpleFilterBase):
     def __init__(
         # fmt:off
         self, expr, rate_in, shape_in=None, dtype_in=None, rate=None, shape=None, dtype=None,
-        block_size=None, defaulttimeout=None, progress=None, show_log=None,         sp_kwargs=None,
+        blocksize=None, default_timeout=None, progress=None, show_log=None,         sp_kwargs=None,
 **options,
         # fmt:on
     ) -> None:
@@ -1024,7 +1024,7 @@ class SimpleVideoFilter(SimpleFilterBase):
         super().__init__(
             hook.bytes_to_video, hook.video_bytes, hook.video_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype,
-            block_size, defaulttimeout, progress, show_log, sp_kwargs,**options,
+            blocksize, default_timeout, progress, show_log, sp_kwargs,**options,
         )
         # fmt:on
         self._loggertimeout = False
@@ -1091,10 +1091,10 @@ class SimpleAudioFilter(SimpleFilterBase):
     :type shape: seq of ints, optional
     :param dtype: output numpy data type, defaults to None
     :type dtype: str, optional
-    :param block_size: read buffer block size in samples, defaults to None (=>1024)
-    :type block_size: int, optional
-    :param defaulttimeout: default filter timeout in seconds, defaults to None (100 ms)
-    :type defaulttimeout: float, optional
+    :param blocksize: read buffer block size in samples, defaults to None (=>1024)
+    :type blocksize: int, optional
+    :param default_timeout: default filter timeout in seconds, defaults to None (100 ms)
+    :type default_timeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -1104,7 +1104,7 @@ class SimpleAudioFilter(SimpleFilterBase):
     :type \\**options: dict, optional
 
     ..note::
-        Use of larger `block_size` parameter could improve the processing speed
+        Use of larger `blocksize` parameter could improve the processing speed
 
     """
 
@@ -1122,8 +1122,8 @@ class SimpleAudioFilter(SimpleFilterBase):
         rate=None,
         shape=None,
         dtype=None,
-        block_size=None,
-        defaulttimeout=None,
+        blocksize=None,
+        default_timeout=None,
         progress=None,
         show_log=None,
         sp_kwargs=None,
@@ -1133,7 +1133,7 @@ class SimpleAudioFilter(SimpleFilterBase):
         # fmt: off
         super().__init__(hook.bytes_to_audio, hook.audio_bytes, hook.audio_info,
             expr, rate_in, shape_in, dtype_in, rate, shape, dtype, 
-            block_size, defaulttimeout, progress, show_log, sp_kwargs,**options)
+            blocksize, default_timeout, progress, show_log, sp_kwargs,**options)
         # fmt: on
 
     def _pre_open(self, ffmpeg_args):
