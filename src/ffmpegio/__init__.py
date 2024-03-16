@@ -26,7 +26,6 @@ Block Read/Write/Filter Functions
 `ffmpegio.media.read()`
 """
 
-from contextlib import contextmanager
 import logging
 
 logger = logging.getLogger("ffmpegio")
@@ -77,7 +76,6 @@ ffmpeg = path.ffmpeg
 ffprobe = path.ffprobe
 
 
-@contextmanager
 def open(
     url_fg,
     mode="",
@@ -328,10 +326,4 @@ def open(
             kwds[k] = v
 
     # instantiate the streaming object
-    # TODO wrap in try-catch if AV stream fails to try a multi-stream version
-    stream = StreamClass(*args, **kwds)
-    try:
-        yield stream
-    finally:
-        # terminate FFmpeg
-        stream.close()
+    return StreamClass(*args, **kwds)
