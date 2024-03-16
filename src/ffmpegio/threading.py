@@ -180,6 +180,8 @@ class LoggerThread(Thread):
             if self.echo:
                 print(log)
 
+            logger.debug(log)
+
             with self.newline:
                 self.logs.append(log)
                 self.newline.notify_all()
