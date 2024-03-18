@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import BinaryIO, Sequence, Any, TypeAlias, Literal
 
-import json, fractions, os, pickle, re
-from collections import OrderedDict
+import json, fractions
+from functools import lru_cache
 from .path import ffprobe, PIPE
 from .utils import parse_stream_spec
 
@@ -11,12 +11,6 @@ from .utils import parse_stream_spec
 __all__ = ['full_details', 'format_basic', 'streams_basic',
 'video_streams_basic', 'audio_streams_basic', 'query', 'frames']
 # fmt:on
-
-# stores all the local queries during the session
-# - key: path
-# - value: (mtime, blob)
-_db = OrderedDict()
-_db_maxsize = 16
 
 
 def _items_to_numeric(d):
@@ -215,49 +209,15 @@ def _exec(
     return results
 
 
-def _full_details(
-    url,
-    show_format=True,
-    show_streams=True,
-    show_programs=False,
-    show_chapters=False,
-    select_streams=None,
-):
-    """Retrieve full details of a media file or stream
+@lru_cache()
+def _exec_cached(*args, **kwargs) -> dict[str, str]:
+    """execute ffprobe, return stdout as dict, and cache its output"""
+    return _exec(*args, **kwargs)
 
-    :param url: URL of the media file/stream
-    :type url: str
-    :param show_format: True to return format info, defaults to True
-    :type show_format: bool, optional
-    :param show_streams: True to return stream info, defaults to True
-    :type show_streams: bool, optional
-    :param show_programs: True to return program info, defaults to False
-    :type show_programs: bool, optional
-    :param show_chapters: True to return chapter info, defaults to False
-    :type show_chapters: bool, optional
-    :param select_streams: Indices of streams to get info of, defaults to None
-    :type select_streams: seq of int, optional
-    :return: media file information
-    :rtype: dict
 
-    """
-
-    modes = dict(
-        format=show_format,
-        stream=show_streams,
-        program=show_programs,
-        chapter=show_chapters,
-    )
-
-    results = _exec(url, modes, select_streams)
-
-    if not modes["stream"]:
-        modes["streams"] = modes["stream"]
-    for key, val in modes.items():
-        if not val and key in results:
-            del results[key]
-
-    return _items_to_numeric(results)
+def _run(*args, cache_output: bool | None = False, **kwargs) -> dict[str, str]:
+    """execute ffprobe, return stdout as dict, and cache its output"""
+    return _exec_cached(*args, **kwargs) if cache_output else _exec(*args, **kwargs)
 
 
 def full_details(
@@ -267,6 +227,7 @@ def full_details(
     show_programs: bool | None = False,
     show_chapters: bool | None = False,
     select_streams: bool | None = None,
+    cache_output: bool | None = False,
 ):
     """Retrieve full details of a media file or stream
 
@@ -282,74 +243,31 @@ def full_details(
     :type show_chapters: bool, optional
     :param select_streams: Indices of streams to get info of, defaults to None
     :type select_streams: seq of int, optional
+    :param cache_output: True to cache FFprobe output, defaults to False
+    :type cache_output: bool, optional
     :return: media file information
     :rtype: dict[str, str|Number|Fraction]
 
     """
 
-    def _queryall_if_path():
+    modes = dict(
+        format=show_format,
+        stream=show_streams,
+        program=show_programs,
+        chapter=show_chapters,
+    )
 
-        assert isinstance(url, str)
+    results = _run(
+        url, modes, select_streams, cache_output=cache_output, sp_kwargs=sp_kwargs
+    )
 
-        sspec = None
-        if select_streams is not None:
-            try:
-                sspec = (None, int(select_streams))
-            except:
-                m = re.match("([avstd])(?::([0-9]+))?$", select_streams)
-                sspec = (
-                    {
-                        "a": "audio",
-                        "v": "video",
-                        "s": "subtitle",
-                        "t": "attachment",
-                        "d": "data",
-                    }[m[1]],
-                    m[2] and int(m[2]),
-                )
-                # raises exception if match not found
+    if not modes["stream"]:
+        modes["streams"] = modes["stream"]
+    for key, val in modes.items():
+        if not val and key in results:
+            del results[key]
 
-        mtime = os.stat(url).st_mtime
-        db_entry = _db.get(url, None)
-        if db_entry and db_entry[0] == mtime:
-            _db.move_to_end(url, True)  # refresh the entry position
-            results = pickle.loads(db_entry[1])
-        else:
-            results = _full_details(url, True, True, True, True)
-            _db[url] = (mtime, pickle.dumps(results))
-            if len(_db) > _db_maxsize:
-                _db.popitem(False)  # remove the oldest entry
-
-        # drop unrequested items
-        for show, key in zip(
-            (show_format, show_streams, show_programs, show_chapters),
-            ("format", "streams", "programs", "chapters"),
-        ):
-            if not show:
-                del results[key]
-
-        # pick streams if specified
-        if sspec is not None:
-            t, i = sspec
-            streams = results["streams"]
-            if t is not None:
-                streams = [st for st in streams if st["codec_type"] == t]
-            if i is not None:
-                streams = streams[i : i + 1]
-            results["streams"] = streams
-
-        return results
-
-    if not show_streams:
-        select_streams = None
-
-    # get full query if url is a path
-    try:
-        return _queryall_if_path()
-    except:
-        return _full_details(
-            url, show_format, show_streams, show_programs, show_chapters, select_streams
-        )
+    return results
 
 
 def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}):
@@ -374,6 +292,7 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
 def format_basic(
     url: str | BinaryIO,
     entries: Sequence[str] | None = None,
+    cache_output: bool | None = False,
 ):
     """Retrieve basic media format info
 
@@ -407,17 +326,18 @@ def format_basic(
         "duration",
     )
 
-    results = full_details(
+    return query(
         url,
-        show_format=_resolve_entries("basic format", entries, default_entries),
-        show_streams=False,
-    )["format"]
-    return results
+        None,
+        _resolve_entries("basic format", entries, default_entries),
+        cache_output,
+    )
 
 
 def streams_basic(
     url: str | BinaryIO,
     entries: Sequence[str] | None = None,
+    cache_output: bool | None = False,
 ):
     """Retrieve basic info of media streams
 
@@ -442,18 +362,19 @@ def streams_basic(
 
     default_entries = ("index", "codec_name", "codec_type")
 
-    results = full_details(
+    return query(
         url,
-        show_format=False,
-        show_streams=_resolve_entries("basic streams", entries, default_entries),
-    )["streams"]
-    return results
+        True,
+        _resolve_entries("basic streams", entries, default_entries),
+        cache_output,
+    )
 
 
 def video_streams_basic(
     url: str | BinaryIO,
     index: int | None = None,
     entries: Sequence[str] | None = None,
+    cache_output: bool | None = False,
 ):
     """Retrieve basic info of video streams
 
@@ -510,14 +431,12 @@ def video_streams_basic(
         nb_frames=("nb_frames", *durpara, *fspara),
     )
 
-    results = full_details(
+    results = query(
         url,
-        show_format=False,
-        show_streams=_resolve_entries(
-            "basic video", entries, default_entries, default_dep_entries
-        ),
-        select_streams=f"v:{index}" if index else "v",
-    )["streams"]
+        f"v:{index}" if index else "v",
+        _resolve_entries("basic video", entries, default_entries, default_dep_entries),
+        cache_output,
+    )
 
     def adjust(res):
         tb = fractions.Fraction(res.pop("time_base", "1"))
@@ -558,6 +477,7 @@ def audio_streams_basic(
     url: str | BinaryIO,
     index: int | None = None,
     entries: Sequence[str] | None = None,
+    cache_output: bool | None = False,
 ):
     """Retrieve basic info of audio streams
 
@@ -607,14 +527,12 @@ def audio_streams_basic(
         nb_samples=("sample_rate", *durpara),
     )
 
-    results = full_details(
+    results = query(
         url,
-        show_format=False,
-        show_streams=_resolve_entries(
-            "basic audio", entries, default_entries, default_dep_entries
-        ),
-        select_streams=f"a:{index}" if index else "a",
-    )["streams"]
+        f"a:{index}" if index else "a",
+        _resolve_entries("basic audio", entries, default_entries, default_dep_entries),
+        cache_output,
+    )
 
     def adjust(res):
         tb = res.pop("time_base", 1)
@@ -639,6 +557,7 @@ def query(
     url: str | BinaryIO,
     streams: str | int | bool | None = None,
     fields: Sequence[str] | None = None,
+    cache_output: bool | None = False,
     return_none: bool | None = False,
 ):
     """Query specific fields of media format or stream
@@ -649,6 +568,8 @@ def query(
     :type streams: str, int, bool, optional
     :param fields: info, defaults to None
     :type fields: sequence of str, optional
+    :param cache_output: True to cache FFprobe output, defaults to False
+    :type cache_output: bool, optional
     :param return_none: True to return an invalid field in the returned dict with None as its value
     :type return_none: bool, optional
     :return: field name-value dict. If streams argument is given but does not specify
@@ -661,32 +582,16 @@ def query(
 
     """
 
-    get_stream = streams is not None
+    get_stream = bool(streams)
+    if isinstance(streams, bool):
+        streams = None
 
-    # check if full details are already available
-    info = _db.get(url, None)
-
-    if info is not None:
-        # decode the info
-        mtime = os.stat(url).st_mtime
-        if info[0] == mtime:
-            info = pickle.loads(info[1])
-
-    do_query = info is None
-
-    if do_query:  # if not run ffprobe
-        info = (
-            full_details(
-                url,
-                show_format=not get_stream,
-                show_streams=get_stream,
-                select_streams=streams,
-            )
-            if fields is None
-            else _exec(
-                url, {"format" if streams is None else "stream": fields}, streams
-            )
-        )
+    info = _run(
+        url,
+        {"stream" if get_stream else "format": fields},
+        streams,
+        cache_output=cache_output,
+    )
 
     info = info["streams" if get_stream else "format"]
 
@@ -696,13 +601,6 @@ def query(
     if get_stream and "index" in parse_stream_spec(streams):
         # return dict only if a specific stream requested
         info = info[0]
-
-    if not do_query and fields is not None:
-        # has full details from db, only return requested fields
-        if isinstance(info, dict):
-            info = {f: info[f] for f in fields if f in info}
-        else:
-            info = [{f: st[f] for f in fields if f in st} for st in info]
 
     if return_none:
         info = (
