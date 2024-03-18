@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import BinaryIO, Sequence, Any, TypeAlias, Literal
+
 import json, fractions, os, pickle, re
 from collections import OrderedDict
 from .path import ffprobe, PIPE
@@ -55,7 +59,33 @@ def _add_show_entries(args, entries):
     return args
 
 
-def _add_read_intervals(args, intervals):
+IntervalSpec: TypeAlias = (
+    str
+    | int
+    | float
+    | tuple[str | float, str | int | float]
+    | dict[Literal["start", "start_offset", "end"], str | float]
+)
+""" Union type to specify the FFprobe read_intervals option
+
+    FFprobe will seek to the interval starting point and will continue reading from that.
+    An IntervalSpec argument can be specified in multiple ways to form the FFprobe read_intervals option:
+
+    #. ``str`` - pass through the argument as-is to ffprobe
+    #. ``int`` - read this numbers of packets to read from the beginning of the file
+    #. ``float`` - read packets over this duration in seconds from the beginning of the file
+    #. ``tuple[str|float, str|int|float]`` - sets (start, end) points
+        * start: ``str`` = as-is, ``float`` = starting time in seconds
+        * end: ``str`` = as-is, ``int`` = offset in # of packets, ``float`` = offset in seconds
+    #. ``dict`` - specifies start and end points with the following keys:
+        * ``'start'``        - (``str|float``) start time
+        * ``'start_offset'`` - (``str|float``) start time offset from the previous read. Ignored if ``'start'`` is present.
+        * ``'end'``          - (``str|float``) end time
+        * ``'end_offset'``   - (``str|float|int``) end time offset from the start time. Ignored if ``'end'`` is present.
+"""
+
+
+def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
     """add -read_intervals option to ffprobe argumnets
 
     :param args: argument list under construction
@@ -64,22 +94,6 @@ def _add_read_intervals(args, intervals):
     :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
     :return: same as args input
     :rtype: list[str]
-
-    ffprobe will seek to the interval starting point and will continue reading from that.
-    intervals argument can be specified in multiple ways to form the ffprobe argument:
-
-    1) ``str`` - pass through the argument as-is to ffprobe
-    2) ``int`` - read this numbers of packets to read from the beginning of the file
-    3) ``float`` - read packets over this duration in seconds from the beginning of the file
-    4) ``seq[str|float, str|int|float]`` - sets start and end points
-       - start: str = as-is, float=starting time in seconds
-       - end: str = as-is, int=offset in # of packets, float=offset in seconds
-    5) ``dict`` - specifies start and end points with the following keys:
-       - 'start'        - (str|float) start time
-       - 'start_offset' - (str|float) start time offset from the previous read. Ignored if 'start' is present.
-       - 'end'          - (str|float) end time
-       - 'end_offset'   - (str|float|int) end time offset from the start time. Ignored if 'end' is present.
-    6) - ``seq[dict]`` - specify multiple intervals
 
     """
 
@@ -143,9 +157,14 @@ def _add_read_intervals(args, intervals):
 
 
 def _exec(
-    url, entries, streams=None, intervals=None, count_frames=False, count_packets=False
-):
-    """execute ffprobe and return data as dict"""
+    url: str | BinaryIO,
+    entries: dict[str, bool | Sequence[str]],
+    streams: str | int | None = None,
+    intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
+    count_frames: bool | None = False,
+    count_packets: bool | None = False,
+) -> dict[str, str]:
+    """execute ffprobe and return stdout as dict"""
 
     sp_opts = {
         "stdout": PIPE,
@@ -242,17 +261,17 @@ def _full_details(
 
 
 def full_details(
-    url,
-    show_format=True,
-    show_streams=True,
-    show_programs=False,
-    show_chapters=False,
-    select_streams=None,
+    url: str | BinaryIO,
+    show_format: bool | None = True,
+    show_streams: bool | None = True,
+    show_programs: bool | None = False,
+    show_chapters: bool | None = False,
+    select_streams: bool | None = None,
 ):
     """Retrieve full details of a media file or stream
 
     :param url: URL of the media file/stream
-    :type url: str
+    :type url: str, BinaryIO
     :param show_format: True to return format info, defaults to True
     :type show_format: bool, optional
     :param show_streams: True to return stream info, defaults to True
@@ -264,7 +283,7 @@ def full_details(
     :param select_streams: Indices of streams to get info of, defaults to None
     :type select_streams: seq of int, optional
     :return: media file information
-    :rtype: dict
+    :rtype: dict[str, str|Number|Fraction]
 
     """
 
@@ -352,7 +371,10 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
     return query
 
 
-def format_basic(url, entries=None):
+def format_basic(
+    url: str | BinaryIO,
+    entries: Sequence[str] | None = None,
+):
     """Retrieve basic media format info
 
     :param url: URL of the media file/stream
@@ -393,7 +415,10 @@ def format_basic(url, entries=None):
     return results
 
 
-def streams_basic(url, entries=None):
+def streams_basic(
+    url: str | BinaryIO,
+    entries: Sequence[str] | None = None,
+):
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
@@ -425,7 +450,11 @@ def streams_basic(url, entries=None):
     return results
 
 
-def video_streams_basic(url, index=None, entries=None):
+def video_streams_basic(
+    url: str | BinaryIO,
+    index: int | None = None,
+    entries: Sequence[str] | None = None,
+):
     """Retrieve basic info of video streams
 
     :param url: URL of the media file/stream
@@ -525,7 +554,11 @@ def video_streams_basic(url, index=None, entries=None):
     return [adjust(r) for r in results]
 
 
-def audio_streams_basic(url, index=None, entries=None):
+def audio_streams_basic(
+    url: str | BinaryIO,
+    index: int | None = None,
+    entries: Sequence[str] | None = None,
+):
     """Retrieve basic info of audio streams
 
     :param url: URL of the media file/stream
@@ -602,13 +635,18 @@ def audio_streams_basic(url, index=None, entries=None):
     return [adjust(r) for r in results]
 
 
-def query(url, streams=None, fields=None, return_none=False):
-    """Query specific fields of media format or streams
+def query(
+    url: str | BinaryIO,
+    streams: str | int | bool | None = None,
+    fields: Sequence[str] | None = None,
+    return_none: bool | None = False,
+):
+    """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
     :type url: str
     :param streams: stream specifier, defaults to None to get format
-    :type streams: str or int, optional
+    :type streams: str, int, bool, optional
     :param fields: info, defaults to None
     :type fields: sequence of str, optional
     :param return_none: True to return an invalid field in the returned dict with None as its value
@@ -676,7 +714,13 @@ def query(url, streams=None, fields=None, return_none=False):
     return info
 
 
-def frames(url, entries=None, streams=None, intervals=None, accurate_time=False):
+def frames(
+    url: str | BinaryIO,
+    entries: Sequence[str] | None = None,
+    streams: str | int | None = None,
+    intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
+    accurate_time: bool | None = False,
+):
     """get frame information
 
     :param url: URL of the media file/stream
@@ -686,7 +730,7 @@ def frames(url, entries=None, streams=None, intervals=None, accurate_time=False)
     :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
     :type stream: str or int, optional
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
+    :type intervals: :py:class:`IntervalSpec` or Sequence[:py:class:`IntervalSpec`], optional
     :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param accurate_time: bool, optional

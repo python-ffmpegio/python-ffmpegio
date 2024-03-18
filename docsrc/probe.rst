@@ -22,6 +22,11 @@ List of Functions
    ffmpegio.probe.query
    ffmpegio.probe.frames
 
+Argument Type References
+------------------------
+
+.. autoclass:: ffmpegio.probe.IntervalSpec
+
 Function References
 -------------------
 
