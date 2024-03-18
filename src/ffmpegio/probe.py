@@ -5,7 +5,7 @@ from .utils import parse_stream_spec
 
 # fmt:off
 __all__ = ['full_details', 'format_basic', 'streams_basic',
-'video_streams_basic', 'audio_streams_basic', 'query']
+'video_streams_basic', 'audio_streams_basic', 'query', 'frames']
 # fmt:on
 
 # stores all the local queries during the session
