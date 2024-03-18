@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import BinaryIO, Sequence, Any, TypeAlias, Literal
-
+from typing import BinaryIO, Any, TypeAlias, Literal
+from collections.abc import Sequence
 import json, fractions
 from functools import lru_cache
+
 from .path import ffprobe, PIPE
 from .utils import parse_stream_spec
 
@@ -42,12 +43,12 @@ def _add_select_streams(args, stream_specifier):
     return args
 
 
-def _add_show_entries(args, entries):
+def _add_show_entries(args, entries: dict[str, bool | Sequence[str]]):
     arg = []
     for key, val in entries.items():
-        if not isinstance(val, bool):
+        if isinstance(val, Sequence):
             arg.append(f"{key}={','.join(val)}")
-        elif val:
+        elif val is not False:
             arg.append(key)
 
     args.append("-show_entries")
