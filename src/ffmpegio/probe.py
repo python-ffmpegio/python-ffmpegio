@@ -38,7 +38,7 @@ def _items_to_numeric(d):
 
 def _add_select_streams(args, stream_specifier):
     if stream_specifier:
-        args.extend(["-select_streams", stream_specifier])
+        args.extend(["-select_streams", str(stream_specifier)])
     return args
 
 
