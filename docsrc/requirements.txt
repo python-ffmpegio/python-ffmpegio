@@ -10,3 +10,5 @@ PyQt5-sip
 PyQt5
 matplotlib
 ffmpegio
+numpy
+kiwisolver
