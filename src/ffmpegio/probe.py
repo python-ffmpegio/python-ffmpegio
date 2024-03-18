@@ -157,6 +157,7 @@ def _exec(
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
     count_frames: bool | None = False,
     count_packets: bool | None = False,
+    keep_optional_fields: bool | None = None,
     sp_kwargs: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """execute ffprobe and return stdout as dict"""
@@ -188,6 +189,11 @@ def _exec(
         # returns "nb_read_packets" item in each stream
 
     _add_show_entries(args, entries)
+
+    if keep_optional_fields is not None:
+        args.extend(
+            ["-show_optional_fields", "always" if keep_optional_fields else "never"]
+        )
 
     pipe = not isinstance(url, str)
     args.append("-" if pipe else url)
@@ -300,6 +306,7 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
 def format_basic(
     url: str | BinaryIO,
     entries: Sequence[str] | None = None,
+    keep_optional_fields: bool | None = None,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -339,6 +346,7 @@ def format_basic(
         url,
         None,
         _resolve_entries("basic format", entries, default_entries),
+        keep_optional_fields,
         cache_output,
         sp_kwargs,
     )
@@ -347,6 +355,7 @@ def format_basic(
 def streams_basic(
     url: str | BinaryIO,
     entries: Sequence[str] | None = None,
+    keep_optional_fields: bool | None = None,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -377,6 +386,7 @@ def streams_basic(
         url,
         True,
         _resolve_entries("basic streams", entries, default_entries),
+        keep_optional_fields,
         cache_output,
         sp_kwargs,
     )
@@ -386,6 +396,7 @@ def video_streams_basic(
     url: str | BinaryIO,
     index: int | None = None,
     entries: Sequence[str] | None = None,
+    keep_optional_fields: bool | None = None,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -448,6 +459,7 @@ def video_streams_basic(
         url,
         f"v:{index}" if index else "v",
         _resolve_entries("basic video", entries, default_entries, default_dep_entries),
+        keep_optional_fields,
         cache_output,
         sp_kwargs,
     )
@@ -491,6 +503,7 @@ def audio_streams_basic(
     url: str | BinaryIO,
     index: int | None = None,
     entries: Sequence[str] | None = None,
+    keep_optional_fields: bool | None = None,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -546,6 +559,7 @@ def audio_streams_basic(
         url,
         f"a:{index}" if index else "a",
         _resolve_entries("basic audio", entries, default_entries, default_dep_entries),
+        keep_optional_fields,
         cache_output,
         sp_kwargs,
     )
@@ -573,9 +587,9 @@ def query(
     url: str | BinaryIO,
     streams: str | int | bool | None = None,
     fields: Sequence[str] | None = None,
+    keep_optional_fields: bool | None = None,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-    return_none: bool | None = False,
 ):
     """Query specific fields of media format or stream
 
@@ -585,10 +599,12 @@ def query(
     :type streams: str, int, bool, optional
     :param fields: info, defaults to None
     :type fields: sequence of str, optional
+    :param keep_optional_fields: True to return a missing optional field in the
+                        returned dict with None or "N/A" (if keep_str_values
+                        is True) as its value
+    :type keep_optional_fields: bool, optional
     :param cache_output: True to cache FFprobe output, defaults to False
     :type cache_output: bool, optional
-    :param return_none: True to return an invalid field in the returned dict with None as its value
-    :type return_none: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :type sp_kwargs: dict[str, Any], optional
@@ -612,6 +628,7 @@ def query(
         streams,
         sp_kwargs=sp_kwargs,
         cache_output=cache_output,
+        keep_optional_fields=keep_optional_fields,
     )
 
     info = info["streams" if get_stream else "format"]
@@ -622,13 +639,6 @@ def query(
     if get_stream and "index" in parse_stream_spec(streams):
         # return dict only if a specific stream requested
         info = info[0]
-
-    if return_none:
-        info = (
-            {f: info.get(f, None) for f in fields}
-            if isinstance(info, dict)
-            else [{f: st.get(f, None) for f in fields} for st in info]
-        )
 
     return info
 
