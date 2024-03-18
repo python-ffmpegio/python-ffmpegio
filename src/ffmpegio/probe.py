@@ -654,12 +654,13 @@ def query(
 
     info = info["streams" if get_stream else "format"]
 
-    if get_stream and len(info) == 0:
-        raise ValueError(f"Unknown or invalid stream specifier: {streams}")
+    if get_stream:
+        if len(info) == 0:
+            raise ValueError(f"Unknown or invalid stream specifier: {streams}")
 
-    if get_stream and "index" in parse_stream_spec(streams):
-        # return dict only if a specific stream requested
-        info = info[0]
+        if isinstance(streams, (str, int)) and "index" in parse_stream_spec(streams):
+            # return dict only if a specific stream requested
+            info = info[0]
 
     return info
 
