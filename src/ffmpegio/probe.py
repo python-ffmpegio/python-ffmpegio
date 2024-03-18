@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import BinaryIO, Any, TypeAlias, Literal
 from collections.abc import Sequence
-import json, fractions
+import json, fractions, re
 from functools import lru_cache
 
 from .path import ffprobe, PIPE
@@ -12,6 +12,8 @@ from .utils import parse_stream_spec
 __all__ = ['full_details', 'format_basic', 'streams_basic',
 'video_streams_basic', 'audio_streams_basic', 'query', 'frames']
 # fmt:on
+
+_re_ratio = re.compile(r"^(\d+)\:(\d+)$")
 
 
 def _items_to_numeric(d):
@@ -27,12 +29,19 @@ def _items_to_numeric(d):
             return int(v)
         except ValueError:
             try:
-                return float(v)
-            except ValueError:
+                return int(v, 16)
+            except (TypeError, ValueError):
                 try:
-                    return fractions.Fraction(v)
-                except:
-                    return v
+                    return float(v)
+                except ValueError:
+
+                    # convert ratio to fraction ':' -> '/' if
+                    v = _re_ratio.sub(r"\1/\2", v)
+
+                    try:
+                        return fractions.Fraction(v)
+                    except:
+                        return v
 
     return {k: try_conv(v) for k, v in d.items()}
 
@@ -495,14 +504,6 @@ def video_streams_basic(
         if not entries or "frame_rate" in entries:
             res["frame_rate"] = frame_rate
 
-        if "sample_aspect_ratio" in res:
-            res["sample_aspect_ratio"] = fractions.Fraction(
-                res["sample_aspect_ratio"].replace(":", "/")
-            )
-        if "display_aspect_ratio" in res:
-            res["display_aspect_ratio"] = fractions.Fraction(
-                res["display_aspect_ratio"].replace(":", "/")
-            )
         if "nb_frames" not in res and entries and "nb_frames" in entries:
             res["nb_frames"] = int(round(duration * frame_rate))
 
