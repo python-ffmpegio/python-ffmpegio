@@ -15,21 +15,23 @@ __all__ = ['full_details', 'format_basic', 'streams_basic',
 
 def _items_to_numeric(d):
     def try_conv(v):
+        if v == "N/A":
+            return None
         if isinstance(v, dict):
             return _items_to_numeric(v)
-        elif isinstance(v, list):
-            return [try_conv(e) for e in v]
-        else:
+        if isinstance(v, list):
+            return [_items_to_numeric(e) for e in v]
+
+        try:
+            return int(v)
+        except ValueError:
             try:
-                return int(v)
+                return float(v)
             except ValueError:
                 try:
-                    return float(v)
-                except ValueError:
-                    try:
-                        return fractions.Fraction(v)
-                    except:
-                        return v
+                    return fractions.Fraction(v)
+                except:
+                    return v
 
     return {k: try_conv(v) for k, v in d.items()}
 
@@ -237,6 +239,7 @@ def full_details(
     show_programs: bool | None = False,
     show_chapters: bool | None = False,
     select_streams: bool | None = None,
+    keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -254,6 +257,9 @@ def full_details(
     :type show_chapters: bool, optional
     :param select_streams: Indices of streams to get info of, defaults to None
     :type select_streams: seq of int, optional
+    :param keep_str_values: True to keep all field values as str,
+                            defaults to False to convert numeric values
+    :type keep_str_values: bool, optional
     :param cache_output: True to cache FFprobe output, defaults to False
     :type cache_output: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
@@ -281,7 +287,7 @@ def full_details(
         if not val and key in results:
             del results[key]
 
-    return results
+    return results if keep_str_values else _items_to_numeric(results)
 
 
 def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}):
@@ -307,6 +313,7 @@ def format_basic(
     url: str | BinaryIO,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
+    keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -347,6 +354,7 @@ def format_basic(
         None,
         _resolve_entries("basic format", entries, default_entries),
         keep_optional_fields,
+        keep_str_values,
         cache_output,
         sp_kwargs,
     )
@@ -356,6 +364,7 @@ def streams_basic(
     url: str | BinaryIO,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
+    keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -387,6 +396,7 @@ def streams_basic(
         True,
         _resolve_entries("basic streams", entries, default_entries),
         keep_optional_fields,
+        keep_str_values,
         cache_output,
         sp_kwargs,
     )
@@ -460,6 +470,7 @@ def video_streams_basic(
         f"v:{index}" if index else "v",
         _resolve_entries("basic video", entries, default_entries, default_dep_entries),
         keep_optional_fields,
+        False,
         cache_output,
         sp_kwargs,
     )
@@ -560,6 +571,7 @@ def audio_streams_basic(
         f"a:{index}" if index else "a",
         _resolve_entries("basic audio", entries, default_entries, default_dep_entries),
         keep_optional_fields,
+        False,
         cache_output,
         sp_kwargs,
     )
@@ -588,6 +600,7 @@ def query(
     streams: str | int | bool | None = None,
     fields: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
+    keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -603,6 +616,9 @@ def query(
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
     :type keep_optional_fields: bool, optional
+    :param keep_str_values: True to keep all field values as str,
+                            defaults to False to convert numeric values
+    :type keep_str_values: bool, optional
     :param cache_output: True to cache FFprobe output, defaults to False
     :type cache_output: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
@@ -630,6 +646,9 @@ def query(
         cache_output=cache_output,
         keep_optional_fields=keep_optional_fields,
     )
+
+    if not keep_str_values:
+        info = _items_to_numeric(info)
 
     info = info["streams" if get_stream else "format"]
 
