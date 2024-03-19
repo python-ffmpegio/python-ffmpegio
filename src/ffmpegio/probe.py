@@ -641,7 +641,7 @@ def query(
 
     """
 
-    get_stream = bool(streams)
+    get_stream = streams is not None and streams is not False
     if isinstance(streams, bool):
         streams = None
 
