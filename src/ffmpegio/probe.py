@@ -163,7 +163,7 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
 
 
 def _exec(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     entries: dict[str, bool | Sequence[str]],
     streams: str | int | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
@@ -174,12 +174,7 @@ def _exec(
 ) -> dict[str, str]:
     """execute ffprobe and return stdout as dict"""
 
-    sp_opts = {
-        "stdout": PIPE,
-        "stderr": PIPE,
-        "universal_newlines": True,
-        "encoding": "utf-8",
-    }
+    sp_opts = {"stdout": PIPE, "stderr": PIPE}
 
     if sp_kwargs is not None:
         sp_opts = {**sp_kwargs, **sp_opts}
@@ -213,10 +208,14 @@ def _exec(
     if pipe:
         try:
             assert url.seekable
-            pos0 = url.tell()
-            sp_opts["input"] = url
+            sp_opts["stdin"] = url
         except:
-            raise ValueError("url must be str or seekable file-like object")
+            try:
+                sp_opts["input"] = url
+            except:
+                raise ValueError(
+                    "url must be str, bytes-like object, or seekable file-like object"
+                )
 
     # run ffprobe
     ret = ffprobe(args, **sp_opts)
@@ -224,11 +223,7 @@ def _exec(
         raise Exception(f"ffprobe execution failed\n\n{ret.stderr}\n")
 
     # decode output JSON string
-    results = json.loads(ret.stdout)
-
-    if pipe:
-        url.seek(pos0)
-    return results
+    return json.loads(ret.stdout)
 
 
 @lru_cache()
@@ -243,7 +238,7 @@ def _run(*args, cache_output: bool | None = False, **kwargs) -> dict[str, str]:
 
 
 def full_details(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     show_format: bool | None = True,
     show_streams: bool | None = True,
     show_programs: bool | None = False,
@@ -256,7 +251,7 @@ def full_details(
     """Retrieve full details of a media file or stream
 
     :param url: URL of the media file/stream
-    :type url: str, BinaryIO
+    :type url: str or seekable file-like object or bytes-like object
     :param show_format: True to return format info, defaults to True
     :type show_format: bool, optional
     :param show_streams: True to return stream info, defaults to True
@@ -320,7 +315,7 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
 
 
 def format_basic(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
@@ -330,7 +325,7 @@ def format_basic(
     """Retrieve basic media format info
 
     :param url: URL of the media file/stream
-    :type url: str
+    :type url: str or seekable file-like object or bytes-like object
     :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
     :type entries: seq of str
     :return: set of media format information.
@@ -371,7 +366,7 @@ def format_basic(
 
 
 def streams_basic(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
@@ -381,7 +376,7 @@ def streams_basic(
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
-    :type url: str
+    :type url: str or seekable file-like object or bytes-like object
     :param entries: specify to narrow which stream entries to retrieve. Default to None, returning all entries
     :type entries: seq of str, optional
     :return: List of media stream information.
@@ -413,7 +408,7 @@ def streams_basic(
 
 
 def video_streams_basic(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     index: int | None = None,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
@@ -423,7 +418,7 @@ def video_streams_basic(
     """Retrieve basic info of video streams
 
     :param url: URL of the media file/stream
-    :type url: str
+    :type url: str or seekable file-like object or bytes-like object
     :param index: video stream index. 0=first video stream. Defaults to None, which returns info of all video streams
     :type index: int, optional
     :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
@@ -513,7 +508,7 @@ def video_streams_basic(
 
 
 def audio_streams_basic(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     index: int | None = None,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
@@ -523,7 +518,7 @@ def audio_streams_basic(
     """Retrieve basic info of audio streams
 
     :param url: URL of the media file/stream
-    :type url: str
+    :type url: str or seekable file-like object or bytes-like object
     :param index: audio stream index. 0=first audio stream. Defaults to None, which returns info of all audio streams
     :type index: int, optional
     :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
@@ -598,7 +593,7 @@ def audio_streams_basic(
 
 
 def query(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     streams: str | int | bool | None = None,
     fields: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
@@ -609,7 +604,7 @@ def query(
     """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
-    :type url: str
+    :type url: str or seekable file-like object or bytes-like object
     :param streams: stream specifier, defaults to None to get format
     :type streams: str, int, bool, optional
     :param fields: info, defaults to None
@@ -666,7 +661,7 @@ def query(
 
 
 def frames(
-    url: str | BinaryIO,
+    url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
     streams: str | int | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
@@ -676,7 +671,7 @@ def frames(
     """get frame information
 
     :param url: URL of the media file/stream
-    :type url: str or seekable file-like object
+    :type url: str or seekable file-like object or bytes-like object
     :param entries: names of frame attributes, defaults to None (get all attributes)
     :type entries: str or seq[str], optional
     :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams

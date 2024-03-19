@@ -19,6 +19,21 @@ def test_probe():
     probe.ffprobe("-help")
 
 
+def test_url_types():
+    url = "tests/assets/testmulti-1m.mp4"
+    out = probe.query(url)
+    del out["filename"]
+    with open(url, "rb") as f:
+        # identical outcome if use file object, except for 'filename' field
+        out1 = probe.query(f)
+        f.seek(0)
+        del out1["filename"]
+        assert out1 == out
+
+        # piping in byte content of the file yields a few other differences
+        probe.query(f.read())
+        
+
 def test_all():
     url = "tests/assets/testmulti-1m.mp4"
     print(probe.full_details(url, show_streams="v"))
