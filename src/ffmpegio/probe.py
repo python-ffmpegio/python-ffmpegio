@@ -52,17 +52,14 @@ def _add_select_streams(args, stream_specifier):
     return args
 
 
-def _add_show_entries(args, entries: dict[str, bool | Sequence[str]]):
+def _compose_entries(entries: dict[str, bool | Sequence[str]]) -> str:
     arg = []
     for key, val in entries.items():
         if isinstance(val, Sequence):
             arg.append(f"{key}={','.join(val)}")
         elif val is not False:
             arg.append(key)
-
-    args.append("-show_entries")
-    args.append(":".join(arg))
-    return args
+    return ":".join(arg)
 
 
 IntervalSpec: TypeAlias = (
@@ -164,22 +161,22 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
 
 def _exec(
     url: str | BinaryIO | memoryview,
-    entries: dict[str, bool | Sequence[str]],
+    entries: str,
+    sp_kwargs: tuple[tuple[str, Any]] | None = None,
     streams: str | int | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
     count_frames: bool | None = False,
     count_packets: bool | None = False,
     keep_optional_fields: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """execute ffprobe and return stdout as dict"""
 
     sp_opts = {"stdout": PIPE, "stderr": PIPE}
 
     if sp_kwargs is not None:
-        sp_opts = {**sp_kwargs, **sp_opts}
+        sp_opts = {**dict(sp_kwargs), **sp_opts}
 
-    args = ["-hide_banner", "-of", "json"]
+    args = ["-hide_banner", "-of", "json", "-show_entries", entries]
 
     if streams is not None:
         _add_select_streams(args, streams)
@@ -194,8 +191,6 @@ def _exec(
     if count_packets:
         args.append("-count_packets")
         # returns "nb_read_packets" item in each stream
-
-    _add_show_entries(args, entries)
 
     if keep_optional_fields is not None:
         args.extend(
@@ -232,9 +227,24 @@ def _exec_cached(*args, **kwargs) -> dict[str, str]:
     return _exec(*args, **kwargs)
 
 
-def _run(*args, cache_output: bool | None = False, **kwargs) -> dict[str, str]:
+def _run(
+    url: str | BinaryIO | memoryview,
+    entries: dict[str, bool | Sequence[str]],
+    *args,
+    cache_output: bool | None = False,
+    sp_kwargs: dict[str, Any] | None = None,
+    **kwargs,
+) -> dict[str, str]:
     """execute ffprobe, return stdout as dict, and cache its output"""
-    return _exec_cached(*args, **kwargs) if cache_output else _exec(*args, **kwargs)
+
+    entries = _compose_entries(entries)
+    if sp_kwargs is not None:
+        sp_kwargs = tuple(sp_kwargs.items())
+    return (
+        _exec_cached(url, entries, sp_kwargs, *args, **kwargs)
+        if cache_output
+        else _exec(url, entries, sp_kwargs, *args, **kwargs)
+    )
 
 
 def full_details(
@@ -735,7 +745,13 @@ def frames(
     if accurate_time and has_time:
         entries["stream"] = ["index", "time_base"]
 
-    res = _exec(url, entries, streams=streams, intervals=intervals, sp_kwargs=sp_kwargs)
+    res = _exec(
+        url,
+        _compose_entries(entries),
+        sp_kwargs and tuple(sp_kwargs.items()),
+        streams=streams,
+        intervals=intervals,
+    )
 
     out = [_items_to_numeric(d) for d in res["frames"]]
 
