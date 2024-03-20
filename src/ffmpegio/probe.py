@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import BinaryIO, Any, TypeAlias, Literal
 from collections.abc import Sequence
-import json, fractions, re
+import json, re
+from fractions import Fraction
 from functools import lru_cache
 
 from .path import ffprobe, PIPE
@@ -39,7 +40,7 @@ def _items_to_numeric(d):
                     v = _re_ratio.sub(r"\1/\2", v)
 
                     try:
-                        return fractions.Fraction(v)
+                        return Fraction(v)
                     except:
                         return v
 
@@ -491,7 +492,7 @@ def video_streams_basic(
     )
 
     def adjust(res):
-        tb = fractions.Fraction(res.pop("time_base", "1"))
+        tb = Fraction(res.pop("time_base", "1"))
         if "start_pts" in res:
             res["start_time"] = float(res.pop("start_pts", 0) * tb)
 
@@ -505,7 +506,7 @@ def video_streams_basic(
 
         fsa = res.pop("avg_frame_rate", "")
         fsr = res.pop("r_frame_rate", "0")
-        frame_rate = fractions.Fraction(fsa if fsa and fsa != "0/0" else fsr)
+        frame_rate = Fraction(fsa if fsa and fsa != "0/0" else fsr)
         if not entries or "frame_rate" in entries:
             res["frame_rate"] = frame_rate
 
@@ -697,8 +698,8 @@ def _video_info(
     str | None,
     int | None,
     int | None,
-    fractions.Fraction | Literal["0/0"] | None,
-    fractions.Fraction | None,
+    Fraction | Literal["0/0"] | None,
+    Fraction | None,
 ]:
     "returns (pix_fmt, width, height, avg_frame_rate, r_frame_rate) of the specified url/stream"
 
@@ -813,9 +814,7 @@ def frames(
 
     if accurate_time and has_time:
 
-        time_bases = {
-            d["index"]: fractions.Fraction(d["time_base"]) for d in res["streams"]
-        }
+        time_bases = {d["index"]: Fraction(d["time_base"]) for d in res["streams"]}
 
         if not pick_entries:
             time_entries = [e for e in out[0].keys() if e.endswith("_time")]
