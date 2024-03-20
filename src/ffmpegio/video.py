@@ -1,13 +1,6 @@
 import warnings
-from . import (
-    ffmpegprocess as fp,
-    utils,
-    configure,
-    FFmpegError,
-    probe,
-    plugins,
-    analyze,
-)
+from . import ffmpegprocess as fp, utils, configure, FFmpegError, plugins, analyze
+from .probe import _video_info as _probe_video_info
 from .utils import log as log_utils
 
 __all__ = ["create", "read", "write", "filter", "detect"]
@@ -170,10 +163,8 @@ def read(url, progress=None, show_log=None, sp_kwargs=None, **options):
     pix_fmt_in = s_in = r_in = None
     if pix_fmt is None and "pix_fmt_in" not in options:
         try:
-            info = probe.video_streams_basic(url, 0)[0]
-            pix_fmt_in = info["pix_fmt"]
-            s_in = (info["width"], info["height"])
-            r_in = info["frame_rate"]
+            pix_fmt_in, *s_in, ra_in, rr_in = _probe_video_info(url, "v:0", sp_kwargs)
+            r_in = rr_in if ra_in is None or ra_in == "0/0" else ra_in
         except:
             pix_fmt_in = "rgb24"
 

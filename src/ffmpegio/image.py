@@ -1,4 +1,5 @@
-from . import ffmpegprocess, utils, configure, FFmpegError, probe, plugins
+from . import ffmpegprocess, utils, configure, FFmpegError, plugins
+from .probe import _video_info as _probe_video_info
 from .utils import log as log_utils
 
 __all__ = ["create", "read", "write", "filter"]
@@ -147,9 +148,7 @@ def read(url, show_log=None, sp_kwargs=None, **options):
     pix_fmt_in = s_in = None
     if "pix_fmt" not in options and "pix_fmt_in" not in options:
         try:
-            info = probe.video_streams_basic(url, 0)[0]
-            pix_fmt_in = info["pix_fmt"]
-            s_in = (info["width"], info["height"])
+            pix_fmt_in, *s_in, ra_in, rr_in = _probe_video_info(url, "v:0", sp_kwargs)
         except:
             pix_fmt_in = "rgb24"
 

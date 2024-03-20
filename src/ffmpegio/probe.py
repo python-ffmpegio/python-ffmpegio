@@ -670,6 +670,51 @@ def query(
     return info
 
 
+def _audio_info(
+    url: str | BinaryIO | memoryview,
+    stream: str | None,
+    sp_kwargs: dict[str, Any] | None,
+) -> tuple[int | None, str | None, int | None]:
+    "returns (sample_rate, sample_fmt, channels) of the specified url/stream"
+    fields = ["sample_rate", "sample_fmt", "channels"]
+    q = query(
+        url,
+        "a:0" if stream is None else stream,
+        fields,
+        True,
+        False,
+        True,
+        sp_kwargs,
+    )
+    return tuple(q[f] for f in fields)
+
+
+def _video_info(
+    url: str | BinaryIO | memoryview,
+    stream: str | None,
+    sp_kwargs: dict[str, Any] | None,
+) -> tuple[
+    str | None,
+    int | None,
+    int | None,
+    fractions.Fraction | Literal["0/0"] | None,
+    fractions.Fraction | None,
+]:
+    "returns (pix_fmt, width, height, avg_frame_rate, r_frame_rate) of the specified url/stream"
+
+    fields = ["pix_fmt", "width", "height", "avg_frame_rate", "r_frame_rate"]
+    q = query(
+        url,
+        "v:0" if stream is None else stream,
+        fields,
+        True,
+        False,
+        True,
+        sp_kwargs,
+    )
+    return tuple(q[f] for f in fields)
+
+
 def frames(
     url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,

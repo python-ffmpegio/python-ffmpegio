@@ -3,7 +3,8 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from .. import utils, configure, ffmpegprocess, probe, plugins
+from .. import utils, configure, ffmpegprocess, plugins
+from ..probe import _audio_info as _probe_audio_info, _video_info as _probe_video_info
 from ..threading import LoggerThread, ReaderThread, WriterThread
 
 # fmt:off
@@ -36,6 +37,7 @@ class SimpleReaderBase:
             None  #:int: number of bytes of each video frame or audio sample
         )
         self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
+        self.sp_kwargs = sp_kwargs  #:dict[str,Any]: additional keyword arguments for subprocess.Popen
 
         # get url/file stream
         input_options = utils.pop_extra_options(options, "_in")
@@ -231,10 +233,10 @@ class SimpleVideoReader(SimpleReaderBase):
         ):
             try:
                 # must assign output rgb/grayscale pixel format
-                info = probe.video_streams_basic(inurl, 0)[0]
-                pix_fmt_in = info["pix_fmt"]
-                s_in = (info["width"], info["height"])
-                r_in = info["frame_rate"]
+                pix_fmt_in, *s_in, ra_in, rr_in = _probe_video_info(
+                    inurl, "v:0", self.sp_kwargs
+                )
+                r_in = rr_in if ra_in is None or ra_in == "0/0" else ra_in
             except:
                 pix_fmt_in = "rgb24"
 
@@ -297,10 +299,10 @@ class SimpleAudioReader(SimpleReaderBase):
         if not has_fg and sample_fmt_in is None:
             # use the same format as the input
             try:
-                info = probe.audio_streams_basic(inurl, 0)[0]
-                sample_fmt_in = info["sample_fmt"]
-                ac_in = info.get("channels", None)
-                ar_in = info.get("sample_rate", None)
+                # use the same format as the input
+                ar_in, sample_fmt_in, ac_in = _probe_audio_info(
+                    inurl, "a:0", self.sp_kwargs
+                )
             except:
                 sample_fmt_in = "s16"
 
