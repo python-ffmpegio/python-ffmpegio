@@ -30,19 +30,16 @@ def _items_to_numeric(d):
             return int(v)
         except ValueError:
             try:
-                return int(v, 16)
-            except (TypeError, ValueError):
+                return float(v)
+            except ValueError:
+
+                # convert ratio to fraction ':' -> '/' if
+                v = _re_ratio.sub(r"\1/\2", v)
+
                 try:
-                    return float(v)
-                except ValueError:
-
-                    # convert ratio to fraction ':' -> '/' if
-                    v = _re_ratio.sub(r"\1/\2", v)
-
-                    try:
-                        return Fraction(v)
-                    except:
-                        return v
+                    return Fraction(v)
+                except:
+                    return v
 
     return {k: try_conv(v) for k, v in d.items()}
 
