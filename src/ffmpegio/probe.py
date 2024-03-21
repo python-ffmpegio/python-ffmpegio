@@ -319,7 +319,7 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
             query.discard(dent)
             query |= set(dee)
 
-    return query
+    return list(query)
 
 
 def format_basic(
