@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import BinaryIO, Any, TypeAlias, Literal
+from numbers import Number
 from collections.abc import Sequence
 import json, re
 from fractions import Fraction
@@ -251,11 +252,11 @@ def full_details(
     show_streams: bool | None = True,
     show_programs: bool | None = False,
     show_chapters: bool | None = False,
-    select_streams: bool | None = None,
+    select_streams: str | int | None = None,
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> dict[str, str | Number | Fraction]:
     """Retrieve full details of a media file or stream
 
     :param url: URL of the media file/stream
@@ -268,8 +269,8 @@ def full_details(
     :type show_programs: bool, optional
     :param show_chapters: True to return chapter info, defaults to False
     :type show_chapters: bool, optional
-    :param select_streams: Indices of streams to get info of, defaults to None
-    :type select_streams: seq of int, optional
+    :param select_streams: Stream specifier of the streams to get info of, defaults to None to retrieve all
+    :type select_streams: str, int, optional
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
     :type keep_str_values: bool, optional
@@ -329,13 +330,25 @@ def format_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> dict[str, str | Number | Fraction]:
     """Retrieve basic media format info
 
     :param url: URL of the media file/stream
     :type url: str or seekable file-like object or bytes-like object
     :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
     :type entries: seq of str
+    :param keep_optional_fields: True to return a missing optional field in the
+                        returned dict with None or "N/A" (if keep_str_values
+                        is True) as its value
+    :type keep_optional_fields: bool, optional
+    :param keep_str_values: True to keep all field values as str,
+                            defaults to False to convert numeric values
+    :type keep_str_values: bool, optional
+    :param cache_output: True to cache FFprobe output, defaults to False
+    :type cache_output: bool, optional
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: set of media format information.
     :rtype: dict
 
@@ -380,13 +393,25 @@ def streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> dict[str, str | Number | Fraction]:
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
     :type url: str or seekable file-like object or bytes-like object
     :param entries: specify to narrow which stream entries to retrieve. Default to None, returning all entries
     :type entries: seq of str, optional
+    :param keep_optional_fields: True to return a missing optional field in the
+                        returned dict with None or "N/A" (if keep_str_values
+                        is True) as its value
+    :type keep_optional_fields: bool, optional
+    :param keep_str_values: True to keep all field values as str,
+                            defaults to False to convert numeric values
+    :type keep_str_values: bool, optional
+    :param cache_output: True to cache FFprobe output, defaults to False
+    :type cache_output: bool, optional
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: List of media stream information.
     :rtype: list of dict
 
@@ -423,7 +448,7 @@ def video_streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> dict[str, str | Number | Fraction]:
     """Retrieve basic info of video streams
 
     :param url: URL of the media file/stream
@@ -432,6 +457,18 @@ def video_streams_basic(
     :type index: int, optional
     :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
     :type entries: seq of str
+    :param keep_optional_fields: True to return a missing optional field in the
+                        returned dict with None or "N/A" (if keep_str_values
+                        is True) as its value
+    :type keep_optional_fields: bool, optional
+    :param keep_str_values: True to keep all field values as str,
+                            defaults to False to convert numeric values
+    :type keep_str_values: bool, optional
+    :param cache_output: True to cache FFprobe output, defaults to False
+    :type cache_output: bool, optional
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: List of video stream information.
     :rtype: list of dict
 
@@ -528,7 +565,7 @@ def audio_streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> dict[str, str | Number | Fraction]:
     """Retrieve basic info of audio streams
 
     :param url: URL of the media file/stream
@@ -537,6 +574,18 @@ def audio_streams_basic(
     :type index: int, optional
     :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
     :type entries: seq of str
+    :param keep_optional_fields: True to return a missing optional field in the
+                        returned dict with None or "N/A" (if keep_str_values
+                        is True) as its value
+    :type keep_optional_fields: bool, optional
+    :param keep_str_values: True to keep all field values as str,
+                            defaults to False to convert numeric values
+    :type keep_str_values: bool, optional
+    :param cache_output: True to cache FFprobe output, defaults to False
+    :type cache_output: bool, optional
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: List of audio stream information.
     :rtype: list of dict
 
@@ -622,14 +671,14 @@ def query(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> dict[str, Any] | Sequence[dict[str, Any]]:
     """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
     :type url: str or seekable file-like object or bytes-like object
     :param streams: stream specifier, defaults to None to get format
     :type streams: str, int, bool, optional
-    :param fields: info, defaults to None
+    :param fields: list of format/stream fields to retrieve, defaults to None (all fields)
     :type fields: sequence of str, optional
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
@@ -754,24 +803,6 @@ def frames(
     :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
              if entries is str (i.e., a single entry)
     :rtype: list[dict] or list[str|int|float]
-
-    ``intervals`` argument
-    ----------------------
-
-    intervals argument can be specified in multiple ways to form the ``-read_intervals`` ffprobe option:
-
-    1) ``str`` - pass through the argument as-is to ffprobe
-    2) ``int`` - read this numbers of packets to read from the beginning of the file
-    3) ``float`` - read packets over this duration in seconds from the beginning of the file
-    4) ``seq[str|float, str|int|float]`` - sets start and end points
-       - start: str = as-is, float=starting time in seconds
-       - end: str = as-is, int=offset in # of packets, float=offset in seconds
-    5) ``dict`` - specifies start and end points with the following keys:
-       - 'start'        - (str|float) start time
-       - 'start_offset' - (str|float) start time offset from the previous read. Ignored if 'start' is present.
-       - 'end'          - (str|float) end time
-       - 'end_offset'   - (str|float|int) end time offset from the start time. Ignored if 'end' is present.
-    6) - ``seq[dict]``  - specify multiple intervals
 
     """
 

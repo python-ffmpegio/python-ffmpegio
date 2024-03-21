@@ -91,7 +91,9 @@ def test_popen():
 
 def test_popen_progress():
     url = "tests/assets/testvideo-1m.mp4"
-    info = probe.video_streams_basic(url, 0)[0]
+    info = probe.video_streams_basic(
+        url, 0, ["pix_fmt", "width", "height", "frame_rate"]
+    )
     pix_fmt_in = info["pix_fmt"]
     s_in = (info["width"], info["height"])
     r_in = info["frame_rate"]

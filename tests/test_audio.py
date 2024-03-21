@@ -71,10 +71,6 @@ def test_read_write():
     url = "tests/assets/testaudio-1m.mp3"
     outext = ".flac"
 
-    info = probe.audio_streams_basic(
-        url, index=0, entries=("sample_rate", "sample_fmt", "channels")
-    )[0]
-
     fs, x = audio.read(url)
 
     with tempfile.TemporaryDirectory() as tmpdirname:

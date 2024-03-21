@@ -56,16 +56,16 @@ def test_query():
     )
 
     assert all(
-        st["bad_filed"] is None
+        st["max_bit_rate"] is None
         for st in probe.query(
-            url, "a", fields=("duration", "bad_filed"), return_none=True
+            url, "a", fields=("duration", "max_bit_rate"), keep_optional_fields=True
         )
     )
 
     assert (
-        probe.query(url, "v:0", fields=("duration", "bad_filed"), return_none=True)[
-            "bad_filed"
-        ]
+        probe.query(
+            url, "v:0", fields=("duration", "max_bit_rate"), keep_optional_fields=True
+        )["max_bit_rate"]
         is None
     )
 
@@ -79,7 +79,7 @@ def test_frames():
     info = probe.frames(
         url,
         streams="a:0",
-        intervals=10
+        intervals=10,
         # intervals='%+#20,30%+#15'
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
@@ -89,7 +89,7 @@ def test_frames():
         url,
         "key_frame",
         "a:0",
-        intervals=10
+        intervals=10,
         # intervals='%+#20,30%+#15'
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
@@ -99,7 +99,7 @@ def test_frames():
         "key_frame",
         "a:0",
         intervals=10,
-        accurate_time=True
+        accurate_time=True,
         # intervals='%+#20,30%+#15'
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
@@ -110,7 +110,7 @@ def test_frames():
         url,
         streams="a:0",
         intervals=(23.4, 1),
-        accurate_time=True
+        accurate_time=True,
         # intervals='%+#20,30%+#15'
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
