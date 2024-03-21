@@ -420,6 +420,7 @@ def video_streams_basic(
     index: int | None = None,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
+    keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -483,7 +484,7 @@ def video_streams_basic(
         f"v:{index}" if index else "v",
         _resolve_entries("basic video", entries, default_entries, default_dep_entries),
         keep_optional_fields,
-        False,
+        keep_str_values,
         cache_output,
         sp_kwargs,
     )
@@ -512,7 +513,15 @@ def video_streams_basic(
 
         return res
 
-    return [adjust(r) for r in results]
+    return (
+        results
+        if keep_str_values
+        else (
+            adjust(results)
+            if isinstance(results, dict)
+            else [r if keep_str_values else adjust(r) for r in results]
+        )
+    )
 
 
 def audio_streams_basic(
@@ -520,6 +529,7 @@ def audio_streams_basic(
     index: int | None = None,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
+    keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
 ):
@@ -576,7 +586,7 @@ def audio_streams_basic(
         f"a:{index}" if index else "a",
         _resolve_entries("basic audio", entries, default_entries, default_dep_entries),
         keep_optional_fields,
-        False,
+        keep_str_values,
         cache_output,
         sp_kwargs,
     )
@@ -597,7 +607,15 @@ def audio_streams_basic(
 
         return res
 
-    return [adjust(r) for r in results]
+    return (
+        results
+        if keep_str_values
+        else (
+            adjust(results)
+            if isinstance(results, dict)
+            else [adjust(r) for r in results]
+        )
+    )
 
 
 def query(
