@@ -481,7 +481,7 @@ def video_streams_basic(
 
     results = query(
         url,
-        f"v:{index}" if index else "v",
+        "v" if index is None else f"v:{index}",
         _resolve_entries("basic video", entries, default_entries, default_dep_entries),
         keep_optional_fields,
         keep_str_values,
@@ -490,20 +490,16 @@ def video_streams_basic(
     )
 
     def adjust(res):
-        tb = Fraction(res.pop("time_base", "1"))
+        tb = res.pop("time_base", 1)
         if "start_pts" in res:
-            res["start_time"] = float(res.pop("start_pts", 0) * tb)
+            res["start_time"] = res.pop("start_pts", 0) * tb
 
-        duration = (
-            float(res.pop("duration_ts", 0) * tb)
-            if not entries or "duration" in entries or "nb_frames" in entries
-            else None
-        )
+        duration = res.pop("duration_ts", 0) * tb
         if not entries or "duration" in entries:
             res["duration"] = duration
 
-        fsa = res.pop("avg_frame_rate", "")
-        fsr = res.pop("r_frame_rate", "0")
+        fsa = res.pop("avg_frame_rate", None)
+        fsr = res.pop("r_frame_rate", 0)
         frame_rate = Fraction(fsa if fsa and fsa != "0/0" else fsr)
         if not entries or "frame_rate" in entries:
             res["frame_rate"] = frame_rate
@@ -583,7 +579,7 @@ def audio_streams_basic(
 
     results = query(
         url,
-        f"a:{index}" if index else "a",
+        "a" if index is None else f"a:{index}",
         _resolve_entries("basic audio", entries, default_entries, default_dep_entries),
         keep_optional_fields,
         keep_str_values,
