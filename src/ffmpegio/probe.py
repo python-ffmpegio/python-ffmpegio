@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import BinaryIO, Any, TypeAlias, Literal
+from typing import BinaryIO, Any, Literal, Union, Tuple, Dict
 from numbers import Number
 from collections.abc import Sequence
 import json, re
@@ -61,13 +61,13 @@ def _compose_entries(entries: dict[str, bool | Sequence[str]]) -> str:
     return ":".join(arg)
 
 
-IntervalSpec: TypeAlias = (
-    str
-    | int
-    | float
-    | tuple[str | float, str | int | float]
-    | dict[Literal["start", "start_offset", "end"], str | float]
-)
+IntervalSpec = Union[
+    str,
+    int,
+    float,
+    Tuple[Union[str, float], Union[str, int, float]],
+    Dict[Literal["start", "start_offset", "end"], Union[str, float]],
+]
 """ Union type to specify the FFprobe read_intervals option
 
     FFprobe will seek to the interval starting point and will continue reading from that.
