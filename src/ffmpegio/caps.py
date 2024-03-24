@@ -1,5 +1,4 @@
 # TODO add function to guess media type given extension
-
 from __future__ import annotations
 
 import fractions
@@ -451,6 +450,9 @@ def _parse_coders(codec_type):
 def formats(return_names_only: bool = False) -> list[str] | dict[str, dict]:
     """get FFmpeg formats
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of formats
     :rtype: dict
 
@@ -603,6 +605,9 @@ def _parse_formats() -> dict[str, dict]:
 def bsfilters() -> list[str]:
     """get list of FFmpeg bitstream filters
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of bistream filters
     """
     stdout = _("bsfs")
@@ -617,6 +622,9 @@ def bsfilters() -> list[str]:
 def protocols() -> dict[str, dict]:
     """get list of supported protocols
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of protocols
 
     Returned dict has 'input' and 'output' keys and each contains a list of
@@ -637,6 +645,9 @@ def protocols() -> dict[str, dict]:
 def pix_fmts() -> dict[str, dict]:
     """get supported pixel formats
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of supported pixel formats
 
     Each key of the returned dict is a name of a pix_fmt and its value is a dict
@@ -678,6 +689,9 @@ def pix_fmts() -> dict[str, dict]:
 def sample_fmts() -> dict[str, dict]:
     """get supported audio sample formats
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of supported audio sample formats
 
     Each key of the returned dict is a name of a sample_fmt and its value
@@ -693,6 +707,9 @@ def sample_fmts() -> dict[str, dict]:
 def layouts() -> dict[Literal["channels", "layouts"], dict[str, str]]:
     """get supported audio channel layouts
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of supported audio channel layouts
     :rtype: dict
 
@@ -724,6 +741,9 @@ def layouts() -> dict[Literal["channels", "layouts"], dict[str, str]]:
 def colors() -> dict[str, str]:
     """get recognized color names
 
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of color names
 
     The keys of the returned dict are the name of the colors and their values
@@ -743,6 +763,11 @@ def colors() -> dict[str, str]:
 def demuxer_info(name: str) -> dict:
     """get detailed info of a media demuxer
 
+    :param name: Name of the demuxer
+    :type name: str
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of features
 
     The returned dict has following entries:
@@ -779,6 +804,11 @@ def demuxer_info(name: str) -> dict:
 def muxer_info(name: str) -> dict:
     """get detailed info of a media muxer
 
+    :param name: Name of the muxer
+    :type name: str
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of features
 
     The returned dict has following entries:
@@ -824,6 +854,11 @@ def muxer_info(name: str) -> dict:
 def encoder_info(name: str) -> dict:
     """get detailed info of an encoder
 
+    :param name: Name of the encoder
+    :type name: str
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of features
 
     The returned dict has following entries:
@@ -851,6 +886,11 @@ def encoder_info(name: str) -> dict:
 def decoder_info(name: str) -> dict:
     """get detailed info of a decoder
 
+    :param name: Name of the decoder
+    :type name: str
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of features
 
     The returned dict has following entries:
@@ -1097,6 +1137,11 @@ def _get_filter_options(block: str) -> tuple[str, list[FilterOption]]:
 def filter_info(name: str) -> FilterInfo:
     """get detailed info of a filter
 
+    :param name: Name of the filter
+    :type name: str
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of features
     :rtype: FilterInfo (namedtuple)
 
@@ -1230,6 +1275,11 @@ BSFInfo = namedtuple("BSFInfo", ["name", "supported_codecs", "options"])
 def bsfilter_info(name: str) -> BSFInfo:
     """get detailed info of a bitstream filter
 
+    :param name: Name of the bitstream filter
+    :type name: str
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :type sp_kwargs: dict[str, Any], optional
     :return: list of features
 
     The returned dict has following entries:
