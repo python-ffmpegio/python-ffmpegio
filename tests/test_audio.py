@@ -11,7 +11,6 @@ def test_create():
     fs, x = audio.create(
         "aevalsrc",
         "sin(420*2*PI*t)|cos(430*2*PI*t)",
-        c="FC|BC",
         d=1,
         nb_samples=fs,
         sample_rate=fs,
