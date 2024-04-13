@@ -28,7 +28,7 @@ _ffDecodersRegexp = re.compile(r"\s+\(decoders:([^\)]+)\)")
 _coderRegexp = re.compile(
     r"([VAS])([F.])([S.])([X.])([B.])([D.])\s+([^=\s]\S*)\s+(.*)"
 )  # g
-_formatRegexp = re.compile(r"([D ])([E ]) (\S+) +(.*)")  # g
+_formatRegexp = re.compile(r"([D ]) *([E ]) +(\S+) +(.*)")  # g
 _filterRegexp = re.compile(
     r"([T.])([S.])([C.])\s+(\S+)\s+(A+|V+|N|\|)->(A+|V+|N|\|)\s+(.*)"
 )  # g
