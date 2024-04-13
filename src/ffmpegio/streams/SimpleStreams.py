@@ -623,6 +623,8 @@ class SimpleAudioWriter(SimpleWriterBase):
 class SimpleFilterBase:
     """base class for SISO media filter stream classes
 
+    :param expr: SISO filter graph or None if implicit filtering via output options.
+    :type expr: str, None
     :param rate_in: input sample rate
     :type rate_in: int, float, Fraction, str
     :param shape_in: input single-sample array shape, defaults to None
@@ -983,6 +985,8 @@ class SimpleVideoFilter(SimpleFilterBase):
         number of input frames and the ratio of input and output frame
         rate
 
+    :param expr: SISO filter graph or None if implicit filtering via output options.
+    :type expr: str, None
     :param rate_in: input frame rate
     :type rate_in: int, float, Fraction, str
     :param shape_in: input single-frame array shape, defaults to None
@@ -1081,6 +1085,8 @@ class SimpleAudioFilter(SimpleFilterBase):
         The exact number of output samples after each :py:meth:`filter`
         call is not known and can be zero.
 
+    :param expr: SISO filter graph or None if implicit filtering via output options.
+    :type expr: str, None
     :param rate_in: input sample rate
     :type rate_in: int, float, Fraction, str
     :param shape_in: input single-sample array shape, defaults to None

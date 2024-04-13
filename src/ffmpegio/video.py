@@ -287,8 +287,8 @@ def write(
 def filter(expr, rate, input, progress=None, show_log=None, sp_kwargs=None, **options):
     """Filter video frames.
 
-    :param expr: SISO filter graph.
-    :type expr: str
+    :param expr: SISO filter graph or None if implicit filtering via output options.
+    :type expr: str,  None
     :param rate: input frame rate in frames/second
     :type rate: `float`, `int`, or `fractions.Fraction`
     :param input: input video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
@@ -318,7 +318,9 @@ def filter(expr, rate, input, progress=None, show_log=None, sp_kwargs=None, **op
         *configure.array_to_video_input(rate, data=input, **input_options),
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
-    outopts["filter:v"] = expr
+
+    if expr:
+        outopts["filter:v"] = expr
 
     # override user specified stdin and input if given
     sp_kwargs = {**sp_kwargs} if sp_kwargs else {}

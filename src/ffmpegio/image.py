@@ -254,8 +254,8 @@ def write(
 def filter(expr, input, show_log=None, sp_kwargs=None, **options):
     """Filter image pixels.
 
-    :param expr: SISO filter graph.
-    :type expr: str
+    :param expr: SISO filter graph or None if implicit filtering via output options.
+    :type expr: str, None
     :param input: input image data, accessed by `video_info` and `video_bytes` plugin hooks
     :type input: object
     :param show_log: True to show FFmpeg log messages on the console,
@@ -282,7 +282,8 @@ def filter(expr, input, show_log=None, sp_kwargs=None, **options):
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
     outopts["f"] = "rawvideo"
-    outopts["filter:v"] = expr
+    if expr:
+        outopts["filter:v"] = expr
 
     return _run_read(
         ffmpeg_args,

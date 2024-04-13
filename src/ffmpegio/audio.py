@@ -307,8 +307,8 @@ def filter(
 ):
     """Filter audio samples.
 
-    :param expr: SISO filter graph.
-    :type expr: str
+    :param expr: SISO filter graph or None if implicit filtering via output options.
+    :type expr: str, None
     :param input_rate: Input sample rate in samples/second
     :type input_rate: int
     :param input: input audio data, accessed by `audio_info()` and `audio_bytes()` plugin hooks.
@@ -339,7 +339,8 @@ def filter(
     )
     outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
     outopts["sample_fmt"] = sample_fmt
-    outopts["filter:a"] = expr
+    if expr:
+        outopts["filter:a"] = expr
 
     return _run_read(
         ffmpeg_args,
