@@ -45,7 +45,8 @@ jobs:
       - name: Set up FFmpeg
         uses: FedericoCarboni/setup-ffmpeg@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          architecture: x64
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
