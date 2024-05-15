@@ -39,7 +39,7 @@ from .utils.parser import FLAG, compose, parse
 logger = logging.getLogger("ffmpegio")
 
 
-__all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
+__all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull", "ffprobe"]
 
 
 def exec(
