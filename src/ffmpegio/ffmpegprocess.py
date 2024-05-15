@@ -33,9 +33,9 @@ logger = logging.getLogger("ffmpegio")
 from .utils.parser import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
-from .path import ffmpeg, DEVNULL, PIPE, devnull
+from .path import ffmpeg, ffprobe, DEVNULL, PIPE, devnull
 
-__all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
+__all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull", "ffprobe"]
 
 
 def exec(
@@ -374,7 +374,7 @@ class Popen(sp.Popen):
         Without any argument, `send_signal()` will perform control-C to initiate
         soft-terminate FFmpeg. FFmpeg may output additional frames before exits.
 
-        Note: Setting `kill_monitor=True` will block the caller thread until the 
+        Note: Setting `kill_monitor=True` will block the caller thread until the
         FFmpeg terminates.
 
         """
