@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.10.0] - 2024-07-03
+
+### Changed
+
+- `caps` submodule - update format regex for v7 compatibility
+- `filter` functions accept `expr=None` for implicit filters (e.g., reshape and resample)
+- `probe.video/audio_stream_basic()`: added keep_str_values bool arg
+- `probe._items_to_numeric()`: not convert hex values
+- `probe`: added custom audio & video info probe functions - added `_audio_info()` and `_video_info()`
+- `audio.read()` & `SimpleAudioReader`: switched to use `_audio_info()`
+- `image.read()` `video.read()`, & `SimpleVideoReader`: switched to use `_video_info()`
+- `probe`: `url` argument to support bytes-like object
+- `probe._items_to_numeric()`: added to convert hex int and a:b ratio fraction
+- `probe:_add_select_streams`: convert stream spec to str (if int)
+- `probe`: added `keep_str_values` argument to ffprobe calling functions
+- `probe`: added `keep_optional_fields` argument to ffprobe calling functions
+- `probe`: added `sp_kwargs` argument to all ffprobe running functions
+- `probe`: added `frames()` to `__all__`
+- `open()`: major changes in input arguments
+- `Filter` classes: Renamed constructor arguments
+- `LoggerThread`: pass ffmpeg logs to debug log
+- `open()`: no longer a context manager
+- `Popen.send_signal`: defaults to perform ctrl-c
+- `SimpleReaderBase.close`: poll before calling terminate
+
+### Fixed
+
+- `AviMediaReader`: fixed Issue #46 - a bug in `AviReaderThread.wait`
+- `AviMediaReader`: fixed `__next__` behavior (now throws `StopIteration`)
+- `AviReaderThread`: fixed buffer concatenation bug
+- `compose_filter_args`: fixed escaping commas
+- `probe._resolve_entries()`: fixed return value
+- `probe.query`: fixed stream request id
+- `probe`: fixed`cache_output=True` operation
+- `probe.query()`: fixed a logic to return a single stream
+- `probe:_add_show_entries`: fixed error if entries is bool
+- `Popen`: fixed `progmon`'s cancel operation (ctrl-c)
+- `ProgressMonitorThread`: call cancelfun() only once
+
+### Removed
+
+- `probe`: removed auto-caching ffprobe output
+- 
+
 ## [0.9.1] - 2024-02-19
 
 ### Fixed
@@ -388,7 +432,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.1...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.6...v0.9.0
 [0.8.6]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.5...v0.8.6
