@@ -484,6 +484,8 @@ class WriterThread(Thread):
 
 
 class AviReaderThread(Thread):
+    class InvalidAviStream(FFmpegError): ...
+
     def __init__(self, queuesize=None):
         super().__init__()
         self.reader = AviReader()  #:utils.avi.AviReader: AVI demuxer
@@ -541,8 +543,22 @@ class AviReaderThread(Thread):
             self._queue.put((id, data))
         self._queue.put(None)  # end of stream
 
-    def wait(self, timeout=None):
-        return self.is_alive() and self.streamsready.wait(timeout)
+    def wait(self, timeout: float | None = None) -> bool:
+        """wait till stream is ready to be read
+
+        :param timeout: timeout in seconds, defaults to None (waits indefinitely)
+        :type timeout: float, optional
+        :raises InvalidAviStream: if thread has been terminated before stream header info was read
+        :return: tuple of stream specifier and data array
+        :rtype: (str, object)
+        """
+
+        flag = self.streamsready.wait(timeout)
+        if not (flag or self.is_alive()):
+            raise self.InvalidAviStream(
+                "No stream header info was found in FFmpeg's AVI stream."
+            )
+        return flag
 
     def readchunk(self, timeout=None):
         """read the next avi chunk
