@@ -630,7 +630,8 @@ class AviReaderThread(Thread):
         :raises TimeoutError: if terminated due to timeout
         :return: tuple of stream specifier and data array
         :return: dict of data object keyed by stream specifier string, each data object is
-                 created by `bytes_to_video` or `bytes_to_image` plugin hook
+                 created by `bytes_to_video` or `bytes_to_image` plugin hook. If all frames
+                 have been read, dict items would be all empty
         :rtype: dict(spec:str, object)
         """
 
