@@ -510,6 +510,10 @@ class AviReaderThread(Thread):
         # if queue is full,
         super().join(timeout)
 
+    def __bool__(self):
+        """True if FFmpeg stdout stream is still open or there are more frames in the buffer"""
+        return self.is_alive() or not self._queue.empty()
+
     # def __enter__(self):
     #     self.start()
     #     return self

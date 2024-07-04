@@ -180,17 +180,32 @@ class AviMediaReader:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
+    def __bool__(self):
+        """True if FFmpeg stdout stream is still open or there are more frames in the buffer"""
+        return bool(self._reader)
+
     def __iter__(self):
         return self
 
     def __next__(self):
         try:
-            return (
-                self._reader.read(self.blocksize, self.ref_stream)
-                if self.blocksize > 0
-                else self._reader.readchunk()
-            )
-        except:
+            if self.blocksize > 0:  # per time block (multiple streams)
+                frames = self._reader.read(self.blocksize, self.ref_stream)
+                try:
+                    shapes = [f["shape"] for f in frames.values()]
+                except IndexError:
+                    shapes = [f.shape for f in frames.values()]
+            else:  # per AVI frame (1 stream at a time)
+                frames = self._reader.readchunk()
+                try:
+                    shapes = [frames[1]["shape"]]
+                except IndexError:
+                    shapes = [frames[1].shape]
+
+            assert any(s[0] for s in shapes)
+
+            return frames
+        except (AssertionError, threading.ThreadNotActive):
             raise StopIteration
 
     def readlog(self, n=None):
