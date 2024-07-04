@@ -677,7 +677,7 @@ class AviReaderThread(Thread):
             return (
                 (id, all_data, None)
                 if nr >= 0
-                else (id, all_data[:nbytes, ...], all_data[nbytes:, ...])
+                else (id, all_data[:nbytes], all_data[nbytes:])
             )
 
         ids, data, excess = zip(
