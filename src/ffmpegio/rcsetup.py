@@ -7,9 +7,9 @@ to that setting.  The validation functions are defined in the rcsetup module,
 and are used to construct the rcParams global object which stores the settings
 and is referenced throughout ffmpegio.
 
-The default values of the rc settings are set in the default matplotlibrc file.
+The default values of the rc settings are set in the default ffmpegiorc file.
 Any additions or deletions to the parameter set listed here should also be
-propagated to the :file:`lib/matplotlib/mpl-data/matplotlibrc` in ffmpegio's
+propagated to the :file:`lib/ffmpegio/ff-data/ffmpegiorc` in ffmpegio's
 root source directory.
 """
 
@@ -21,15 +21,6 @@ import os
 import re
 
 import numpy as np
-
-from matplotlib import _api, cbook
-from matplotlib.cbook import ls_mapper
-from matplotlib.colors import Colormap, is_color_like
-from matplotlib._fontconfig_pattern import parse_fontconfig_pattern
-from matplotlib._enums import JoinStyle, CapStyle
-
-# Don't let the original cycler collide with our validating cycler
-from cycler import Cycler, cycler as ccycler
 
 
 class _ignorecase(list):
@@ -233,7 +224,7 @@ def _validate_int_greaterequal0(s):
     else:
         raise RuntimeError(f"Value must be >=0; got {s}")
 
-def _validate_opt_dict(s):
+# def _validate_opt_dict(s):
     
 
 class _ignorecase(list):
@@ -247,12 +238,15 @@ def _convert_validator_spec(key, conv):
     else:
         return conv
 
+def _validate_subprocess_kwargs(d):
+    """validate that a dict value contains valid keyword arguments for `subprocess.run` and `subprocess.Popen`"""
+    ...
 
 # Mapping of rcParams to validators.
 # Converters given as lists or _ignorecase are converted to ValidateInStrings
 # immediately below.
-# The rcParams defaults are defined in lib/matplotlib/mpl-data/matplotlibrc, which
-# gets copied to matplotlib/mpl-data/matplotlibrc by the setup script.
+# The rcParams defaults are defined in lib/matplotlib/ff-data/ffmpegiorc, which
+# gets copied to matplotlib/ff-data/ffmpegiorc by the setup script.
 _validators = {
     "path.ffmpeg": _validate_pathlike,
     "path.ffprobe": _validate_pathlike,
@@ -260,16 +254,16 @@ _validators = {
     "reader.formatter.audio": partial(_validate_reader_formatter, mediatype="audio"),
     "reader.formatter.video": partial(_validate_reader_formatter, mediatype="video"),
     "reader.formatter.image": partial(_validate_reader_formatter, mediatype="video"),
-    "subprocess.default_kwargs": ...,
-    "ffmpeg.default_global_kwargs": ...,
-    "ffmpeg.default_input_kwargs": ...,
-    "ffmpeg.default_output_kwargs": ...,
+    "subprocess.default_kwargs": _validate_subprocess_kwargs,
+    "ffmpeg.default_global_kwargs": partial(_validate_ffmpeg_options, opttype="global"),
+    "ffmpeg.default_input_kwargs": partial(_validate_ffmpeg_options, opttype="input"),
+    "ffmpeg.default_output_kwargs": partial(_validate_ffmpeg_options, opttype="output"),
     "ffprobe.default_kwargs": ...,
     # "backend": validate_backend (ffmpeg|pyav),
     # "backend_fallback": validate_bool,
 }
 _hardcoded_defaults = {  # Defaults not inferred from
-    # lib/matplotlib/mpl-data/matplotlibrc...
+    # lib/matplotlib/ff-data/ffmpegiorc...
     # ... because they are private:
     # ... because they are deprecated:
     # No current deprecations.
