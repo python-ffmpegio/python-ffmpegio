@@ -1,6 +1,8 @@
-import pytest
-import ffmpegio.caps as caps
 from pprint import pprint
+
+import pytest
+
+import ffmpegio.caps as caps
 
 
 def test_all():
@@ -59,20 +61,21 @@ def test_bsf(name):
     assert isinstance(caps.bsfilter_info(name), caps.BSFInfo)
 
 
-
 def test_options():
     pprint(caps.options(name_only=True))
     pprint(caps.options("global"))
     pprint(caps.options("video", True))
     pprint(caps.options("per-file"))
 
+
 def test_filters():
     for f in caps.filters():
         print(f)
         pprint(caps.filter_info(f))
 
-if __name__ == '__main__':
-    caps.filter_info('aresample')
+
+if __name__ == "__main__":
+    caps.filter_info("aresample")
 
 if __name__ == "__main__":
     caps.encoder_info("mpeg1video")
