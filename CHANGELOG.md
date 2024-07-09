@@ -11,7 +11,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - allow writers' `extra_inputs` arguments to be `str` or `tuple[str, dict|None]`
 
 ### Added
+
 - `configure.add_urls()` to handle `extra_inputs` argument processing
+
+### Fixed
+
+- `probe._exec()` to decode the error message sent from ffprobe
 
 ## [0.10.0] - 2024-07-03
 
