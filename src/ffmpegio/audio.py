@@ -192,7 +192,7 @@ def read(url, progress=None, show_log=None, sp_kwargs=None, **options):
     if sample_fmt is None:
         try:
             # use the same format as the input
-            ar_in, sample_fmt, ac_in = _probe_audio_info(url, 'a:0', sp_kwargs)
+            ar_in, sample_fmt, ac_in = _probe_audio_info(url, "a:0", sp_kwargs)
         except:
             sample_fmt = "s16"
 
