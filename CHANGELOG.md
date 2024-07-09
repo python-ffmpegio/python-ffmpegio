@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 ### Fixed
 
 - `probe._exec()` to decode the error message sent from ffprobe
+- `filtergraph.Filter.add_labels()`: fixed a syntax error
 
 ## [0.10.0] - 2024-07-03
 

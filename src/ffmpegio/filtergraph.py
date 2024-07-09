@@ -2590,9 +2590,11 @@ class Graph(UserList):
         else:
             pads = list(
                 itertools.islice(
-                    fg.iter_input_pads(exclude_named=True)
-                    if pad_type == "dst"
-                    else fg.iter_output_pads(exclude_named=True),
+                    (
+                        fg.iter_input_pads(exclude_named=True)
+                        if pad_type == "dst"
+                        else fg.iter_output_pads(exclude_named=True)
+                    ),
                     len(labels),
                 )
             )
