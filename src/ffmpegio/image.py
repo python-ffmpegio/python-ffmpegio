@@ -225,11 +225,7 @@ def write(
 
     # add extra input arguments if given
     if extra_inputs is not None:
-        for input in extra_inputs:
-            if isinstance(input, str):
-                configure.add_url(ffmpeg_args, "input", input)
-            else:
-                configure.add_url(ffmpeg_args, "input", *input)
+        configure.add_urls(ffmpeg_args, "input", extra_inputs)
 
     outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
     outopts["frames:v"] = 1

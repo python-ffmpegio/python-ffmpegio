@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Changed
+
+- allow writers' `extra_inputs` arguments to be `str` or `tuple[str, dict|None]`
+
+### Added
+- `configure.add_urls()` to handle `extra_inputs` argument processing
+
 ## [0.10.0] - 2024-07-03
 
 ### Changed

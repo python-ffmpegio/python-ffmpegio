@@ -66,6 +66,21 @@ def test_add_url():
     assert idx == 1 and entry == args_expected["inputs"][1] and args == args_expected
 
 
+def test_add_urls():
+
+    url = ["test.mp4", "test1.mp4", "test2.mp4", "test3.mp4", "test4.mp4"]
+    args = {}
+
+    # urls: str | tuple[str, dict | None] | Sequence[str | tuple[str, dict | None]],
+    assert configure.add_urls(args, "input", url[0]) == [(0, (url[0], None))]
+    assert configure.add_urls(args, "input", (url[1], None)) == [(1, (url[1], None))]
+    assert configure.add_urls(args, "input", (url[2], {})) == [(2, (url[2], {}))]
+    assert configure.add_urls(args, "input", [url[3], url[4]]) == [
+        (3, (url[3], None)),
+        (4, (url[4], None)),
+    ]
+
+
 def test_get_option():
 
     assert configure.get_option(None, "input", "c") is None

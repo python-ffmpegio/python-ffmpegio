@@ -361,11 +361,7 @@ class SimpleWriterBase:
 
         # add extra input arguments if given
         if extra_inputs is not None:
-            for input in extra_inputs:
-                if isinstance(input, str):
-                    configure.add_url(ffmpeg_args, "input", input)
-                else:
-                    configure.add_url(ffmpeg_args, "input", *input)
+            configure.add_urls(ffmpeg_args, "input", extra_inputs)
 
         # abstract method to finalize the options only if self.dtype and self.shape are given
         ready = self._finalize(ffmpeg_args)

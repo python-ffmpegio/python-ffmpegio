@@ -1,3 +1,8 @@
+from __future__ import annotations
+
+from typing import Literal
+from collections.abc import Sequence
+
 import re, logging
 
 logger = logging.getLogger("ffmpegio")
@@ -5,6 +10,8 @@ logger = logging.getLogger("ffmpegio")
 from . import utils, plugins
 from .filtergraph import Graph, Filter, Chain
 from .errors import FFmpegioError
+
+UrlType = Literal["input", "output"]
 
 
 def array_to_video_input(rate, data, stream_id=None, **opts):
@@ -700,3 +707,46 @@ def config_input_fg(expr, args, kwargs):
             dopt = None  # infinite
 
     return f.apply(fargs), dopt, oargs
+
+
+def add_urls(
+    ffmpeg_args: dict,
+    url_type: UrlType,
+    urls: str | tuple[str, dict | None] | Sequence[str | tuple[str, dict | None]],
+    *,
+    update: bool = False,
+) -> list[tuple[int, tuple[str, dict | None]]]:
+    """add one or more urls to the input or output list at once
+
+    :param args: ffmpeg arg dict (modified in place)
+    :type args: dict
+    :param url_type: input or output
+    :type url_type: 'input' or 'output'
+    :param urls: a sequence of urls (and optional dict of their options)
+    :type urls: str | tuple[str, dict] | Sequence[str | tuple[str, dict]]
+    :param opts: FFmpeg options associated with the url, defaults to None
+    :type opts: dict, optional
+    :param update: True to update existing input of the same url, default to False
+    :type update: bool, optional
+    :return: list of file indices and their entries
+    :rtype: list[tuple[int, tuple[str, dict | None]]]
+    """
+
+    def process_one(url):
+        return (
+            add_url(ffmpeg_args, url_type, url, update=update)
+            if isinstance(url, str)
+            else (
+                add_url(ffmpeg_args, url_type, *url, update=update)
+                if (
+                    isinstance(url, tuple)
+                    and len(url) == 2
+                    and isinstance(url[0], str)
+                    and isinstance(url[1], (dict, type(None)))
+                )
+                else None
+            )
+        )
+
+    ret = process_one(urls)
+    return [process_one(url) for url in urls] if ret is None else [ret]
