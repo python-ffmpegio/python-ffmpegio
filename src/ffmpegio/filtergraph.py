@@ -95,6 +95,7 @@ Both input and output filter pads can be specified in a number of ways:
  indexing for a `Filter` instance) will be ignored. Standard negative-number indexing is supported.
 
 """
+
 from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
@@ -149,9 +150,7 @@ class FiltergraphPadNotFoundError(FFmpegioError):
         target = (
             f"pad {index}"
             if isinstance(index, tuple)
-            else f"label {index}"
-            if isinstance(index, str)
-            else f"filter {index}"
+            else f"label {index}" if isinstance(index, str) else f"filter {index}"
         )
         super().__init__(f"cannot find {type} pad at {target}")
 
@@ -234,7 +233,16 @@ def _shift_labels(obj, label_type, args):
     )
 
 
+def _chain_loop(this, func, others):
+    for o in others:
+        this = getattr(this, func)(o)
+        if this == NotImplemented:
+            return this
+    return this
+
+
 ###################################################################################################
+
 
 # FILTER TOOLS
 class Filter(tuple):
@@ -410,9 +418,7 @@ class Filter(tuple):
             port = (
                 "inputs"
                 if "inputs".startswith(port)
-                else "outputs"
-                if "outputs".startswith(port)
-                else None
+                else "outputs" if "outputs".startswith(port) else None
             )
             assert port is not None
         except:
@@ -671,7 +677,9 @@ class Filter(tuple):
                 fg.add_label(labels, **{pad_type: (0, 0, 0)})
             elif isinstance(labels, dict):
                 for pad, label in labels.items():
-                    fg.add_label(label, **{pad_type: fg._resolve_index(pad)})
+                    fg.add_label(
+                        label, **{pad_type: fg._resolve_index(pad_type == "dst", pad)}
+                    )
             else:
                 for pad, label in enumerate(labels):
                     fg.add_label(label, **{pad_type: (0, 0, pad)})
@@ -798,16 +806,11 @@ class Filter(tuple):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)"""
 
-        # try labeling first
-        try:
-            return _shift_labels(self, "src", other)
-        except FFmpegioError:
-            raise
-        except:
-            pass
+        if isinstance(other, list):
+            return _chain_loop(self, "__rshift__", other)
 
         # resolve the index
-        if type(other) == tuple:
+        if isinstance(other, tuple):
             if len(other) > 2:
                 index, other_index, other = other
             else:
@@ -818,6 +821,10 @@ class Filter(tuple):
             other_index = None
 
         index = self._resolve_index(False, index)
+
+        # try labeling first
+        if isinstance(other, str):
+            return _shift_labels(self, "src", other)
 
         # if other is Filter object, do add operation
         try:
@@ -842,13 +849,8 @@ class Filter(tuple):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
 
-        # try to label first
-        try:
-            return _shift_labels(self, "dst", other)
-        except FFmpegioError:
-            raise
-        except:
-            pass
+        if isinstance(other, list):
+            return _chain_loop(self, "__rrshift__", other)
 
         # resolve the index
         if type(other) == tuple:
@@ -1060,10 +1062,13 @@ class Chain(UserList):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)  | self >> (index, other_index, other)"""
 
+        if isinstance(other, list):
+            return _chain_loop(self, "__rshift__", other)
+
         # try to label first
         try:
             return _shift_labels(self, "src", other)
-        except FFmpegioError:
+        except (FFmpegioError, AssertionError):
             raise
         except:
             pass
@@ -1119,10 +1124,13 @@ class Chain(UserList):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
 
+        if isinstance(other, list):
+            return _chain_loop(self, "__rrshift__", other)
+
         # try to label first
         try:
             return _shift_labels(self, "dst", other)
-        except FFmpegioError:
+        except (FFmpegioError, AssertionError):
             raise
         except:
             pass
@@ -1460,11 +1468,15 @@ class Graph(UserList):
                     assert False
 
             # if any index is None, pick the first available
-            return next(
-                (self.iter_input_pads if is_input else self.iter_output_pads)(
-                    chain=k, filter=j, pad=i
+            if is_input:
+                pad = next(self.iter_input_pads(chain=k, filter=j, pad=i))
+            else:
+                pad = next(
+                    self.iter_output_pads(
+                        chain=k, filter=j, pad=i, exclude_named=index is None
+                    )
                 )
-            )[0]
+            return pad[0]
         except:
             raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
@@ -1628,10 +1640,13 @@ class Graph(UserList):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)  | self >> (index, other_index, other)"""
 
+        if isinstance(other, list):
+            return _chain_loop(self, "__rshift__", other)
+
         # try to label first
         try:
             return _shift_labels(self, "src", other)
-        except FFmpegioError:
+        except (FFmpegioError, AssertionError):
             raise
         except:
             pass
@@ -1671,10 +1686,13 @@ class Graph(UserList):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self, (other, other_index, index) >> self : attach input label or filter"""
 
+        if isinstance(other, list):
+            return _chain_loop(self, "__rrshift__", other)
+
         # try to label first
         try:
             return _shift_labels(self, "dst", other)
-        except FFmpegioError:
+        except (FFmpegioError, AssertionError):
             raise
         except:
             pass
@@ -2374,7 +2392,7 @@ class Graph(UserList):
                 fg._links.link(*link_args)
 
             # combine chainable chains
-            for (dst, src, src_label) in reversed(
+            for dst, src, src_label in reversed(
                 sorted(chain_pairs, key=lambda v: v[1])
             ):
                 fc_src = fg[src[0]]
@@ -2581,6 +2599,7 @@ class Graph(UserList):
         fg = Graph(self)
         is_input = pad_type == "dst"
         if isinstance(labels, str):
+            # no pad index specified, assign the next available unlabeled pad
             pad = fg._resolve_index(is_input, None)
             fg.add_label(labels, **{pad_type: pad})
         elif isinstance(labels, dict):

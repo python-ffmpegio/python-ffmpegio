@@ -278,6 +278,18 @@ def test_filter_arithmetics():
     assert str(("[in]" >> fgb.geq()) >> "[out]") == "[in]geq[out]"
     assert str("[in]" >> (fgb.geq() >> "[out]")) == "[in]geq[out]"
 
+    assert (
+        str(["[0:v]", "[1:v]"] >> fgb.vstack(inputs=2)) == "[0:v][1:v]vstack=inputs=2"
+    )
+    assert str(fgb.split(2) >> [(1, "[main]"), "[sub]"]) == "split=2[sub][main]"
+    fc = fgb.vstack(inputs=2) + fgb.split(outputs=2)
+    assert str([("[0:v]", 1), "[1:v]"] >> fc) == "[1:v][0:v]vstack=inputs=2,split=outputs=2"
+    assert str(fc >> ["[main]", "[sub]"]) == "vstack=inputs=2,split=outputs=2[main][sub]"
+    assert (
+        str(["[0:v]", "[1:v]"] >> fgb.Graph(fc) >> [(1, "[main]"), "[sub]"])
+        == "[0:v][1:v]vstack=inputs=2,split=outputs=2[main][sub]"
+    )
+
     fg1 = fgb.trim() >> fgb.crop()
     assert str(fg1) == "trim,crop"
 
