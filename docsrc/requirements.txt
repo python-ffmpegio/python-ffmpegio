@@ -3,6 +3,7 @@ sphinx
 sphinx-rtd-theme
 sphinx-autopackagesummary
 sphinxcontrib-blockdiag
+blockdiag @ git+https://github.com/yuzutech/blockdiag.git
 sphinxcontrib-repl
 sphinx-exec-directive
 sphinx-autobuild
