@@ -96,6 +96,7 @@ jobs:
   distribute:
     name: Distribution
     runs-on: ubuntu-latest
+    permissions: write-all 
     needs: [tests, test_no_ffmpeg]
     if: startsWith(github.ref, 'refs/tags')
     steps:
@@ -130,5 +131,5 @@ jobs:
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        # with:
+        #   password: ${{ secrets.PYPI_API_TOKEN }}
