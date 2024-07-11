@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """ffmpegio.filtergraph module - FFmpeg filtergraph classes
 
     Arithmetic Filtergraph Construction
@@ -96,6 +98,8 @@ Both input and output filter pads can be specified in a number of ways:
 
 """
 
+from typing import Literal
+
 from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
@@ -112,6 +116,31 @@ from .caps import filters as list_filters, filter_info, layouts
 from .utils import filter as filter_utils, is_stream_spec
 from .utils.fglinks import GraphLinks
 from .errors import FFmpegioError
+
+PAD_INDEX = (
+    tuple[int | None, int | None, int]
+    | tuple[int | None, int | None]
+    | tuple[int | None]
+)
+"""Filter pad index. 
+
+- 3-element tuple = (chain, filter, pad)]
+- 2-element tuple = (filter, pad)
+- 1-element tuple = (pad,)
+
+A None item indicates not specified and 
+usually means to assign first available
+"""
+# chain | filter | pad
+
+
+def validate_pad_index(index: PAD_INDEX):
+    try:
+        assert isinstance(index, tuple)
+        assert len(index) in (1, 2, 3)
+        assert all(isinstance(i, (int, type(None))) for i in index)
+    except AssertionError:
+        raise FiltergraphPadNotFoundError(f"{index=} is an invalid pad index.")
 
 
 class FilterOperatorTypeError(TypeError, FFmpegioError):
@@ -219,9 +248,15 @@ def as_filtergraph_object(filter_specs):
                 return as_filtergraph(filter_specs)
 
 
-def _shift_labels(obj, label_type, args):
-    if _is_label(args):
-        return obj.add_labels(label_type, args)
+def _shift_labels(
+    obj: Filter | Chain | Graph,
+    label_type: Literal["dst", "src"],
+    other: Filter | Chain | Graph | str,
+    index: int,
+):
+
+    if _is_label(other):
+        return obj.add_label(label_type, args)
 
     if all(_is_label(arg) for arg in args):
         return obj.add_labels(label_type, args)
@@ -234,6 +269,7 @@ def _shift_labels(obj, label_type, args):
 
 
 def _chain_loop(this, func, others):
+
     for o in others:
         this = getattr(this, func)(o)
         if this == NotImplemented:
@@ -339,7 +375,14 @@ class Filter(tuple):
         # create the final tuple
         return tuple.__new__(Filter, proto)
 
-    def _resolve_index(self, is_input, index):
+    def _resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
+        """Resolve label or partial pad index to full 3-element pad index
+
+        :param is_input: True if resolving a filter pad
+        :param index: (partial) pad index
+        :return: a full 3-element pad index
+        """
+
         try:
             if isinstance(index, tuple):
                 assert len(index) in (1, 2, 3)
@@ -662,28 +705,103 @@ class Filter(tuple):
             else inc()
         )
 
-    def add_labels(self, pad_type, labels):
-        """turn into filtergraph and add labels
+    def add_label(
+        self,
+        label: str,
+        dst: PAD_INDEX | abc.Sequence[PAD_INDEX] = None,
+        src: PAD_INDEX = None,
+        force: bool = None,
+    ) -> Graph:
+        """label a filter pad
 
-        :param pad_type: filter pad type
-        :type pad_type: 'dst'|'src'
-        :param labels: pad label(s) and optionally pad id
-        :type labels: str|seq(str)|dict(int:str), optional
+        :param label: name of the new label. Square brackets are optional.
+        :param dst: input filter pad index or a sequence of pads, defaults to None
+        :param src: output filter pad index, defaults to None
+        :param force: True to delete existing labels, defaults to None
+        :return: actual label name
+
+        Only one of dst and src argument must be given.
+
+        If given label already exists, no new label will be created.
+
+        If dst indices are given, the label must be an input stream specifier.
+
+        If label has a trailing number, the number will be dropped and replaced with an
+        internally assigned label number.
+
         """
 
+        # must convert to FilterGraph as it's the only object with labels
         fg = Graph([[self]])
-        if labels is not None:
-            if isinstance(labels, str):
-                fg.add_label(labels, **{pad_type: (0, 0, 0)})
-            elif isinstance(labels, dict):
-                for pad, label in labels.items():
-                    fg.add_label(
-                        label, **{pad_type: fg._resolve_index(pad_type == "dst", pad)}
-                    )
-            else:
-                for pad, label in enumerate(labels):
-                    fg.add_label(label, **{pad_type: (0, 0, pad)})
+        fg.add_label(label, dst, src, force)
         return fg
+
+    def _resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
+        try:
+            # cannot be str
+            validate_pad_index(index)
+
+            # both chain and filter indices (if given) must be 0
+            assert all(i in (0, None) for i in index[:-1])
+
+            # validate the pad index
+            i = index[-1]
+            assert i >= 0 and i < (
+                self.get_num_inputs() if is_input else self.get_num_outputs()
+            )
+            return (0, 0, i)
+        except:
+            raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
+
+    def iter_input_pads(
+        self,
+        pad: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filter
+
+        :param pad: specify if only interested in pid-th pad, defaults to None
+        :param exclude_chainable: True to not yield the last pad, defaults to False
+        :param chainable_first: True to yield the last pad first, defaults to False
+        :yield: filter index, pad index, and filter instance
+        """
+
+        n = self.get_num_inputs()
+        if pad is None:
+            if chainable_first and not exclude_chainable:
+                yield (n - 1,), self
+            for j in range(n - 1 if exclude_chainable or chainable_first else n):
+                yield (j,), self
+        elif pad < (n - 1 if exclude_chainable else n):
+            yield ((pad,), self)
+
+    def iter_output_pads(
+        self,
+        pad: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over output pads of the filter
+
+        :param pid: specify if only interested in pid-th pad, defaults to None
+        :param exclude_chainable: True to not yield the last pad, defaults to False
+        :param chainable_first: True to yield the last pad first, defaults to False
+        :yield: pad index and filter instance
+
+        Filters are scanned from the end to the front
+        """
+
+        n = self.get_num_outputs()
+        if pad is None:
+            if chainable_first and not exclude_chainable:
+                yield (n - 1,), self
+            for j in range(n - 1 if exclude_chainable or chainable_first else n):
+                yield ((j,), self)
+        elif pad < (n - 1 if exclude_chainable else n):
+            yield ((pad,), self)
 
     def apply(self, options, filter_id=None):
         """apply new filter options
@@ -806,6 +924,7 @@ class Filter(tuple):
     def __rshift__(self, other):
         """self >> other | self >> (index, other)"""
 
+        # if list input
         if isinstance(other, list):
             return _chain_loop(self, "__rshift__", other)
 
@@ -824,7 +943,9 @@ class Filter(tuple):
 
         # try labeling first
         if isinstance(other, str):
-            return _shift_labels(self, "src", other)
+            if other_index is not None:
+                raise ValueError("A label cannot have a pad index.")
+            return self.add_label(other, src=(0, 0, index))
 
         # if other is Filter object, do add operation
         try:
@@ -866,11 +987,10 @@ class Filter(tuple):
         index = self._resolve_index(True, index)
 
         # if label
-        if _is_label(other):
-            if other_index is None:
-                return self.add_labels("dst", {index: other})
-            else:
-                raise FiltergraphInvalidIndex("index cannot be assigned to a label")
+        if isinstance(other, str):
+            if other_index is not None:
+                raise ValueError("A label cannot have a pad index.")
+            return self.add_label(other, dst=(0, 0, index))
 
         # if other is Filter object, do add operation
         try:
@@ -937,24 +1057,29 @@ class Chain(UserList):
             () if filter_specs is None else (as_filter(fspec) for fspec in filter_specs)
         )
 
-    def _resolve_index(self, is_input, index):
+    def _resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
         try:
-            if isinstance(index, tuple):
-                assert len(index) in (1, 2, 3)
-                i = index[-1]
-                try:
-                    j = index[-2]
-                except:
-                    j = None
-            else:
+            # cannot be str
+            validate_pad_index(index)
+
+            # both chain index (if given) must be 0
+            assert all(i in (0, None) for i in index[:-2])
+
+            # get pad index
+            i = index[-1]
+
+            # get filter index
+            try:
+                j = index[-2]
+            except:
                 j = None
-                i = index if isinstance(index, int) else None
 
             return next(
                 (self.iter_input_pads if is_input else self.iter_output_pads)(
                     filter=j, pad=i
                 )
-            )[:2]
+            )[0]
+
         except:
             raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
@@ -966,8 +1091,8 @@ class Chain(UserList):
         return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
     FFmpeg expression: \"{str(self)}\"
     Number of filters: {len(self.data)}
-    Input pads ({self.get_num_inputs()}): {', '.join((str(id[:-1]) for id in self.iter_input_pads()))}
-    Output pads: ({self.get_num_outputs()}): {', '.join((str(id[:-1]) for id in self.iter_output_pads()))}
+    Input pads ({self.get_num_inputs()}): {', '.join((str(id) for id,_ in self.iter_input_pads()))}
+    Output pads: ({self.get_num_outputs()}): {', '.join((str(id) for id,_ in self.iter_output_pads()))}
 """
 
     def __setitem__(self, key, value):
@@ -1065,14 +1190,6 @@ class Chain(UserList):
         if isinstance(other, list):
             return _chain_loop(self, "__rshift__", other)
 
-        # try to label first
-        try:
-            return _shift_labels(self, "src", other)
-        except (FFmpegioError, AssertionError):
-            raise
-        except:
-            pass
-
         if type(other) == tuple:
             if len(other) > 2:
                 index, other_index, other = other
@@ -1088,6 +1205,12 @@ class Chain(UserList):
             index, other = other
         else:
             index = None
+
+        # try to label first
+        if isinstance(other, str):
+            if other_index is not None:
+                raise ValueError("A label cannot have a pad index.")
+            return self.add_label(other, src=(0,))
 
         if not len(self):
             if index is not None:
@@ -1207,27 +1330,38 @@ class Chain(UserList):
         self.data = fg.data
         return self
 
-    def iter_input_pads(self, filter=None, pad=None):
+    def iter_input_pads(
+        self,
+        filter: int | None = None,
+        pad: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over input pads of the filters
 
         :param pad: specify if only interested in pid-th pad of each filter, defaults to None
-        :type pad: int, optional
         :yield: filter index, pad index, and filter instance
-        :rtype: tuple(int, int, Filter)
         """
+
 
         def iter_base(i, f):
             n = f.get_num_inputs()
             if pad is None:
                 for j in range(n - 1 if i else n):
-                    yield (i, j, f)
+                    yield ((i, j), f)
             elif pad < (n - 1 if i else n):
-                yield (i, pad, f)
+                yield ((i, pad), f)
+
 
         try:
             if filter is None:
                 for i, f in enumerate(self.data):
-                    for v in iter_base(i, f):
+                    for v in f.iter_input_pads(
+                        pad,
+                        exclude_chainable=exclude_chainable or i,
+                        chainable_first=chainable_first,
+                    ):
                         yield v
             else:
                 if filter < 0:
@@ -1238,13 +1372,18 @@ class Chain(UserList):
             # invalid index
             pass
 
-    def iter_output_pads(self, filter=None, pad=None):
+    def iter_output_pads(
+        self,
+        filter: int | None = None,
+        pad: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over output pads of the filters
 
         :param pid: specify if only interested in pid-th pad of each filter, defaults to None
-        :type pid: int, optional
-        :yield: filter index, pad index, and filter instance
-        :rtype: tuple(int, int, Filter)
+        :yield: pad index and filter instance
 
         Filters are scanned from the end to the front
         """
@@ -1255,9 +1394,9 @@ class Chain(UserList):
             n = f.get_num_outputs()
             if pad is None:
                 for j in range(n if i == imax else n - 1):
-                    yield (i, j, f)
+                    yield ((i, j), f)
             elif pad < (n if i == imax else n - 1):
-                yield (i, pad, f)
+                yield ((i, pad), f)
 
         try:
             if filter is None:
@@ -1272,38 +1411,36 @@ class Chain(UserList):
         except:
             pass
 
-    def get_chainable_input_pad(self):
+    def get_chainable_input_pad(self) -> tuple[PAD_INDEX, Filter] | None:
         """get first filter's input pad, which can be chained
 
         :return: filter position, input pad poisition, and filter object.
                  If the head filter is a source filter, returns None.
-        :rtype: tuple(int, int, Filter) | None
         """
 
         if not len(self):
             return None
         f = self[-1]
         nin = f.get_num_inputs()
-        return (0, nin - 1, f) if nin else None
+        return ((0, nin - 1), f) if nin else None
 
-    def get_chainable_output_pad(self):
+    def get_chainable_output_pad(self) -> tuple[PAD_INDEX, Filter] | None:
         """get last filter's output pad, which can be chained
 
         :return: filter position, output pad poisition, and filter object.
                  If the tail filter is a sink filter, returns None.
-        :rtype: tuple(int, int, Filter) | None
         """
 
         if not len(self):
             return None
         f = self[-1]
         nout = f.get_num_outputs()
-        return (len(self) - 1, nout - 1, f) if nout else None
+        return ((len(self) - 1, nout - 1), f) if nout else None
 
-    def get_num_inputs(self):
+    def get_num_inputs(self) -> int:
         return len(list(self.iter_input_pads()))
 
-    def get_num_outputs(self):
+    def get_num_outputs(self) -> int:
         return len(list(self.iter_output_pads()))
 
     def validate_input_index(self, pos, pad_pos):
@@ -1326,28 +1463,33 @@ class Chain(UserList):
         if pad_pos < 0 or pad_pos >= (n - 1 if pos < len(self.data) - 1 else n):
             raise Chain.Error(f"invliad output pad position #{pos} for {self[pos]}.")
 
-    def add_labels(self, pad_type, labels):
-        """turn into filtergraph and add labels
+    def add_label(
+        self,
+        label: str,
+        dst: PAD_INDEX = None,
+        src: PAD_INDEX = None,
+        force: bool = None,
+    ) -> Graph:
+        """label a filter pad
 
-        :param input_labels: input pad labels keyed by pad index, defaults to None
-        :type input_labels: dict(int:str), optional
-        :param output_labels: output pad labels keyed by pad index, defaults to None
-        :type output_labels: dict(int:str), optional
+        :param label: name of the new label. Square brackets are optional.
+        :param dst: input filter pad index or a sequence of pads, defaults to None
+        :param src: output filter pad index, defaults to None
+        :param force: True to delete existing labels, defaults to None
+        :return: actual label name
+
+        Only one of dst and src argument must be given.
+
+        If given label already exists, no new label will be created.
+
+        If label has a trailing number, the number will be dropped and replaced with an
+        internally assigned label number.
+
         """
 
+        # must convert to FilterGraph as it's the only object with labels
         fg = Graph([self])
-        is_input = pad_type == "dst"
-        if isinstance(labels, str):
-            pad = fg._resolve_index(is_input, None)
-            fg.add_label(labels, **{pad_type: pad})
-        elif isinstance(labels, dict):
-            for pad, label in labels.items():
-                pad = fg._resolve_index(is_input, pad)
-                fg.add_label(label, **{pad_type: pad})
-        else:
-            for pad, label in enumerate(labels):
-                pad = fg._resolve_index(is_input, pad)
-                fg.add_label(label, **{pad_type: pad})
+        fg.add_label(label, dst, src, force)
         return fg
 
 
@@ -1428,7 +1570,14 @@ class Graph(UserList):
         self.autosplit_output = autosplit_output
         """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
-    def _resolve_index(self, is_input, index):
+    def _resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
+        """Resolve label or partial pad index to full 3-element pad index
+
+        :param is_input: True if resolving a filter pad
+        :param index: pad label or (partial) index
+        :return: a full 3-element pad index
+        """
+
         # call if index needs to be autocompleted
         try:
             if isinstance(index, str):
@@ -1446,26 +1595,18 @@ class Graph(UserList):
                     assert self._links.is_output(label)
                     return src
 
-            if isinstance(index, tuple):
-                assert len(index) in (1, 2, 3)
-                i = index[-1]
-                try:
-                    j = index[-2]
-                except:
-                    j = None
-                try:
-                    k = index[-3]
-                except:
-                    k = None
-            else:
-                k = None
+            validate_pad_index(index)
+
+            assert len(index) in (1, 2, 3)
+            i = index[-1]
+            try:
+                j = index[-2]
+            except:
                 j = None
-                if isinstance(index, int):
-                    i = index
-                elif index is None:
-                    i = None
-                else:
-                    assert False
+            try:
+                k = index[-3]
+            except:
+                k = None
 
             # if any index is None, pick the first available
             if is_input:
@@ -1772,20 +1913,23 @@ class Graph(UserList):
 
     def iter_input_pads(
         self,
-        exclude_named=False,
-        include_connected=False,
-        chain=None,
-        filter=None,
-        pad=None,
-    ):
+        exclude_named: bool = False,
+        include_connected: bool = False,
+        chain: int | None = None,
+        filter: int | None = None,
+        pad: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over filtergraph's filter output pads
 
         :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
-        :type exclude_named: bool, optional
         :param include_connected: True to include pads connected to input streams, defaults to False
-        :type include_connected: bool, optional
+        :param chain: chain index, defaults to None
+        :param filter: filter index, defaults to None
+        :param pad: pad id, defaults to None
         :yield: filter pad index, link label, & source filter object
-        :rtype: tuple(tuple(int,int,int), label, Filter)
         """
 
         def iter_pads():
@@ -1806,16 +1950,16 @@ class Graph(UserList):
         return self._screen_input_pads(iter_pads, exclude_named, include_connected)
 
     def iter_chainable_input_pads(
-        self, exclude_named=False, include_connected=False, chain=None
-    ):
+        self,
+        exclude_named: bool = False,
+        include_connected: bool = False,
+        chain: int | None = None,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over filtergraph's chainable filter output pads
 
         :param exclude_named: True to leave out named input pads, defaults to False (all avail pads)
-        :type exclude_named: bool, optional
         :param include_connected: True to include input streams, which are already connected to input streams, defaults to False
-        :type include_connected: bool, optional
         :yield: filter pad index, link label, & source filter object
-        :rtype: tuple(tuple(int,int,int), label, Filter)
         """
 
         # get all inputs
@@ -1851,7 +1995,16 @@ class Graph(UserList):
                     for _ in range(links.num_outputs(label)):
                         yield (index, label, f)
 
-    def iter_output_pads(self, exclude_named=False, chain=None, filter=None, pad=None):
+    def iter_output_pads(
+        self,
+        exclude_named=False,
+        chain=None,
+        filter=None,
+        pad=None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over filtergraph's filter output pads
 
         :param exclude_named: True to leave out named outputs, defaults to False
@@ -1878,7 +2031,9 @@ class Graph(UserList):
 
         return self._screen_output_pads(iter_pads, exclude_named)
 
-    def iter_chainable_output_pads(self, exclude_named=False, chain=None):
+    def iter_chainable_output_pads(
+        self, exclude_named=False, chain=None
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over filtergraph's chainable filter output pads
 
         :param exclude_named: True to leave out unnamed outputs, defaults to False
@@ -2099,7 +2254,13 @@ class Graph(UserList):
 
         return self._links.link(dst, src, label, preserve_src_label, force)
 
-    def add_label(self, label, dst=None, src=None, force=None):
+    def add_label(
+        self,
+        label: str,
+        dst: PAD_INDEX = None,
+        src: PAD_INDEX = None,
+        force: bool = None,
+    ):
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
@@ -2586,40 +2747,6 @@ class Graph(UserList):
         left_on = left._resolve_index(False, left_on)
         right_on = self._resolve_index(True, right_on)
         return left.connect(self, [left_on], [right_on], chain_siso=True)
-
-    def add_labels(self, pad_type, labels):
-        """turn into filtergraph and add labels
-
-        :param input_labels: input pad labels keyed by pad index, defaults to None
-        :type input_labels: dict(int:str), optional
-        :param output_labels: output pad labels keyed by pad index, defaults to None
-        :type output_labels: dict(int:str), optional
-        """
-
-        fg = Graph(self)
-        is_input = pad_type == "dst"
-        if isinstance(labels, str):
-            # no pad index specified, assign the next available unlabeled pad
-            pad = fg._resolve_index(is_input, None)
-            fg.add_label(labels, **{pad_type: pad})
-        elif isinstance(labels, dict):
-            for pad, label in labels.items():
-                pad = fg._resolve_index(is_input, None)
-                fg.add_label(label, **{pad_type: pad})
-        else:
-            pads = list(
-                itertools.islice(
-                    (
-                        fg.iter_input_pads(exclude_named=True)
-                        if pad_type == "dst"
-                        else fg.iter_output_pads(exclude_named=True)
-                    ),
-                    len(labels),
-                )
-            )
-            for label, pad in zip(labels, pads):
-                fg.add_label(label, **{pad_type: pad[0]})
-        return fg
 
     @contextmanager
     def as_script_file(self):
