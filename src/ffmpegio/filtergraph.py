@@ -104,7 +104,7 @@ from collections import UserList, abc
 from contextlib import contextmanager
 from functools import partial, reduce
 from copy import deepcopy
-import itertools
+from itertools import islice
 from math import floor, log10
 import os
 import re
@@ -159,6 +159,10 @@ class FiltergraphMismatchError(TypeError, FFmpegioError):
 
 
 class FiltergraphInvalidIndex(TypeError, FFmpegioError):
+    pass
+
+
+class FiltergraphInvalidExpression(TypeError, FFmpegioError):
     pass
 
 
@@ -244,8 +248,8 @@ def as_filtergraph_object(filter_specs):
         except:
             try:
                 return as_filterchain(filter_specs)
-            except:
-                return as_filtergraph(filter_specs)
+            except Exception as exc:
+                raise FiltergraphInvalidExpression from exc
 
 
 def _shift_labels(
@@ -384,20 +388,18 @@ class Filter(tuple):
         """
 
         try:
-            if isinstance(index, tuple):
-                assert len(index) in (1, 2, 3)
-                i = index[-1]
-            elif isinstance(index, int):
-                i = index
-            elif index is None:
-                i = -1  # pick the last input (chainable)
-            else:
-                assert False
-            n = self.get_num_inputs() if is_input else self.get_num_outputs()
-            if i < 0:
-                i = n + i
-            assert i >= 0 and i < n
-            return i
+            # cannot be str
+            validate_pad_index(index)
+
+            # both chain and filter indices (if given) must be 0
+            assert all(i in (0, None) for i in index[:-1])
+
+            # validate the pad index
+            i = index[-1]
+            assert i >= 0 and i < (
+                self.get_num_inputs() if is_input else self.get_num_outputs()
+            )
+            return (0, 0, i)
         except:
             raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
@@ -736,23 +738,6 @@ class Filter(tuple):
         fg.add_label(label, dst, src, force)
         return fg
 
-    def _resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
-        try:
-            # cannot be str
-            validate_pad_index(index)
-
-            # both chain and filter indices (if given) must be 0
-            assert all(i in (0, None) for i in index[:-1])
-
-            # validate the pad index
-            i = index[-1]
-            assert i >= 0 and i < (
-                self.get_num_inputs() if is_input else self.get_num_outputs()
-            )
-            return (0, 0, i)
-        except:
-            raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
-
     def _iter_pads(
         self,
         n: int,
@@ -973,13 +958,20 @@ class Filter(tuple):
         return Graph([[other], [self]])
 
     def __rshift__(self, other):
-        """self >> other | self >> (index, other)"""
+        """self >> other|label
+        self >> (index, other|label)
+        self >> (index, other_index, other)
+        self >> [other0, other1, ...]"""
 
-        # if list input
+        # if output is a list
         if isinstance(other, list):
+            # match the pad indices first
+            [for idx,_ in islice(self.iter_output_pads(chainable_first=False),len(other))]
+
+
             return _chain_loop(self, "__rshift__", other)
 
-        # resolve the index
+        # separate the indices if given
         if isinstance(other, tuple):
             if len(other) > 2:
                 index, other_index, other = other
@@ -990,32 +982,27 @@ class Filter(tuple):
             index = None
             other_index = None
 
-        index = self._resolve_index(False, index)
-
-        # try labeling first
-        if isinstance(other, str):
-            if other_index is not None:
-                raise ValueError("A label cannot have a pad index.")
-            return self.add_label(other, src=(0, 0, index))
-
-        # if other is Filter object, do add operation
+        # parse if other is a filtergraph expression
         try:
             other = as_filtergraph_object(other)
-        except:
-            return NotImplemented
+        except FiltergraphInvalidExpression:
+            if _is_label(other):
+                if other_index is not None:
+                    raise ValueError("A label cannot have a pad index.")
+                return self.add_label(other, src=index)
+            else:
+                return NotImplemented
 
         # if not Chain or Graph, use other's >> operator
         if not isinstance(other, Filter):
             return other.__rrshift__((self, index, other_index))
 
-        if other.get_num_inputs() == 0:
-            raise FiltergraphMismatchError(self.get_num_outputs(), 0)
-
-        # equivalent to add operation or stack and link
+        # guaranteed Filter >> Filter op
+        # if no pads specified, form a chain, else form a graph
         return (
-            self.__add__(other)
-            if index + 1 == self.get_num_outputs()
-            else Graph([[self], [other]], {0: ((1, 0, 0), (0, 0, index))})
+            Chain([self, other])
+            if index is None and other is None
+            else Graph(self).connect(other, index, other_index)
         )
 
     def __rrshift__(self, other):
@@ -1031,11 +1018,11 @@ class Filter(tuple):
             else:
                 other, index = other
                 other_index = None
+
+            index = self._resolve_index(True, index)
         else:
             index = None
             other_index = None
-
-        index = self._resolve_index(True, index)
 
         # if label
         if isinstance(other, str):
@@ -1113,7 +1100,7 @@ class Chain(UserList):
             # cannot be str
             validate_pad_index(index)
 
-            # both chain index (if given) must be 0
+            # chain index (if given) must be 0
             assert all(i in (0, None) for i in index[:-2])
 
             # get pad index
@@ -1247,6 +1234,8 @@ class Chain(UserList):
             else:
                 index, other = other
                 other_index = None
+
+            index = self._resolve_index(False, index)
         else:
             index = None
             other_index = None
@@ -1273,8 +1262,6 @@ class Chain(UserList):
                     "attempting to set a pad label specified to an empty chain."
                 )
             return as_filterchain(other, True)
-
-        index = self._resolve_index(False, index)
 
         # if other is Filter object, do add operation
         try:
@@ -1316,6 +1303,8 @@ class Chain(UserList):
             else:
                 other, index = other
                 other_index = None
+
+            index = self._resolve_index(True, index)
         else:
             index = None
             other_index = None
@@ -1330,8 +1319,6 @@ class Chain(UserList):
                     "attempting to set a pad label specified to an empty chain."
                 )
             return as_filterchain(other, True)
-
-        index = self._resolve_index(True, index)
 
         # if other is Filter object, do add operation
         try:
@@ -1906,6 +1893,7 @@ class Graph(UserList):
             else:
                 index, other = other
                 other_index = None
+            index = self._resolve_index(False, index)
         else:
             index = None
             other_index = None
@@ -1920,8 +1908,6 @@ class Graph(UserList):
                     "attempting to set a filter pad label specified to an empty chain."
                 )
             return as_filtergraph(other, True)
-
-        index = self._resolve_index(False, index)
 
         # if other is Filter object, do add operation
         try:
@@ -1952,6 +1938,7 @@ class Graph(UserList):
             else:
                 other, index = other
                 other_index = None
+            index = self._resolve_index(True, index)
         else:
             index = None
             other_index = None
@@ -1966,8 +1953,6 @@ class Graph(UserList):
                     "attempting to set a filter pad label specified to an empty chain."
                 )
             return as_filtergraph(other, True)
-
-        index = self._resolve_index(True, index)
 
         # if other is Filter object, do add operation
         try:
