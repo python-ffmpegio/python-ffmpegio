@@ -753,55 +753,106 @@ class Filter(tuple):
         except:
             raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
-    def iter_input_pads(
+    def _iter_pads(
         self,
-        pad: int | None = None,
-        *,
-        exclude_chainable: bool = False,
-        chainable_first: bool = False,
+        n: int,
+        pad: int | None,
+        filter: Literal[0] | None,
+        chain: Literal[0] | None,
+        exclude_chainable: bool,
+        chainable_first: bool,
     ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over input pads of the filter
 
-        :param pad: specify if only interested in pid-th pad, defaults to None
-        :param exclude_chainable: True to not yield the last pad, defaults to False
-        :param chainable_first: True to yield the last pad first, defaults to False
-        :yield: filter index, pad index, and filter instance
+        :param n: number of pads
+        :param pad: pad id
+        :param filter: filter index
+        :param chain: chain index
+        :param exclude_chainable: True to leave out the last pads
+        :param chainable_first: True to yield the last pad first then the rest
+        :yield: filter pad index, link label, filter object
         """
 
-        n = self.get_num_inputs()
+        if (isinstance(filter, int) and filter != 0) or (
+            isinstance(chain, int) and chain != 0
+        ):
+            # Filter alone can have no connections so yields no pad
+            raise FiltergraphInvalidIndex(f"Invalid {filter=} or {chain=} index")
+
         if pad is None:
             if chainable_first and not exclude_chainable:
                 yield (n - 1,), self
             for j in range(n - 1 if exclude_chainable or chainable_first else n):
                 yield (j,), self
-        elif pad < (n - 1 if exclude_chainable else n):
-            yield ((pad,), self)
+        elif pad < 0 or pad >= (n - 1 if exclude_chainable else n):
+            raise FiltergraphInvalidIndex(f"Invalid {pad=} index")
+        yield (pad,), self
+
+    def iter_input_pads(
+        self,
+        pad: int | None = None,
+        filter: Literal[0] | None = None,
+        chain: Literal[0] | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last input first then the rest, defaults to False
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        for it in self._iter_pads(
+            self.get_num_inputs(),
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+        ):
+            yield it
 
     def iter_output_pads(
         self,
         pad: int | None = None,
+        filter: Literal[0] | None = None,
+        chain: Literal[0] | None = None,
         *,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
-    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
-        :param pid: specify if only interested in pid-th pad, defaults to None
-        :param exclude_chainable: True to not yield the last pad, defaults to False
-        :param chainable_first: True to yield the last pad first, defaults to False
-        :yield: pad index and filter instance
-
-        Filters are scanned from the end to the front
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last output first then the rest, defaults to False
+        :param include_connected: True to include pads connected to output streams, defaults to False
+        :param exclude_named: True to leave out named outputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
-        n = self.get_num_outputs()
-        if pad is None:
-            if chainable_first and not exclude_chainable:
-                yield (n - 1,), self
-            for j in range(n - 1 if exclude_chainable or chainable_first else n):
-                yield ((j,), self)
-        elif pad < (n - 1 if exclude_chainable else n):
-            yield ((pad,), self)
+        for it in self._iter_pads(
+            self.get_num_outputs(),
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+        ):
+            yield it
 
     def apply(self, options, filter_id=None):
         """apply new filter options
@@ -1330,86 +1381,142 @@ class Chain(UserList):
         self.data = fg.data
         return self
 
+    def _iter_pads(
+        self,
+        filters: list[Filter],
+        iter_filter_pad: abc.Callable,
+        i_first: int,
+        i_nochain: int,
+        pad: int | None,
+        chain: Literal[0] | None,
+        exclude_chainable: bool,
+        chainable_first: bool,
+        include_connected: bool,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+        """Iterate over input pads of the filters on the filterchain
+
+        :param filters: list of filters to iterate
+        :param iter_filter_pad: Filter class function to iterate on filter pads
+        :param pad: pad id
+        :param filter: filter index
+        :param chain: chain index
+        :param exclude_chainable: True to leave out the last pads
+        :param chainable_first: True to yield the last pad first then the rest
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        if isinstance(chain, int) and chain != 0:
+            # Filterchain has only one chain.
+            raise FiltergraphInvalidIndex(f"Invalid {chain=} index")
+
+        # iterate over all filters
+        for i, f in enumerate(filters):
+            for pidx, f, _ in iter_filter_pad(
+                f,
+                pad,
+                exclude_chainable=not include_connected
+                and (exclude_chainable or i == i_nochain),
+                chainable_first=chainable_first,
+            ):
+                yield (i + i_first, *pidx), f
+
     def iter_input_pads(
         self,
-        filter: int | None = None,
         pad: int | None = None,
+        filter: int | None = None,
+        chain: Literal[0] | None = None,
         *,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
-    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
-        """Iterate over input pads of the filters
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+        """Iterate over input pads of the filters on the filterchain
 
-        :param pad: specify if only interested in pid-th pad of each filter, defaults to None
-        :yield: filter index, pad index, and filter instance
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last input first then the rest, defaults to False
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
+        if filter is None:
+            # iterate over all filters
+            filters = self.data
+            i_first = 0
+        else:
+            try:
+                filters = [self.data[filter]]
+            except IndexError:
+                raise FiltergraphInvalidIndex(f"Invalid {filter=} index.")
+            i_first = filter
 
-        def iter_base(i, f):
-            n = f.get_num_inputs()
-            if pad is None:
-                for j in range(n - 1 if i else n):
-                    yield ((i, j), f)
-            elif pad < (n - 1 if i else n):
-                yield ((i, pad), f)
-
-
-        try:
-            if filter is None:
-                for i, f in enumerate(self.data):
-                    for v in f.iter_input_pads(
-                        pad,
-                        exclude_chainable=exclude_chainable or i,
-                        chainable_first=chainable_first,
-                    ):
-                        yield v
-            else:
-                if filter < 0:
-                    filter += len(self.data)
-                for v in iter_base(filter, self.data[filter]):
-                    yield v
-        except:
-            # invalid index
-            pass
+        for v in self._iter_pads(
+            filters,
+            Filter.iter_input_pads,
+            i_first,
+            0,
+            pad,
+            chain,
+            exclude_chainable,
+            chainable_first,
+            include_connected,
+        ):
+            try:
+                yield v
+            except FiltergraphInvalidIndex:
+                pass
 
     def iter_output_pads(
         self,
-        filter: int | None = None,
         pad: int | None = None,
+        filter: int | None = None,
+        chain: int | None = None,
         *,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
-    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
-        """Iterate over output pads of the filters
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+        """Iterate over output pads of the filters on the filterchain
 
-        :param pid: specify if only interested in pid-th pad of each filter, defaults to None
-        :yield: pad index and filter instance
-
-        Filters are scanned from the end to the front
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last output first then the rest, defaults to False
+        :param include_connected: True to include pads connected to output streams, defaults to False
+        :param exclude_named: True to leave out named outputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
-        imax = len(self.data) - 1
+        if filter is None:
+            # iterate over all filters
+            filters = self.data
+            i_first = 0
+        else:
+            try:
+                filters = [self.data[filter]]
+            except IndexError:
+                raise FiltergraphInvalidIndex(f"Invalid {filter=} index")
+            i_first = filter
 
-        def iter_base(i, f):
-            n = f.get_num_outputs()
-            if pad is None:
-                for j in range(n if i == imax else n - 1):
-                    yield ((i, j), f)
-            elif pad < (n if i == imax else n - 1):
-                yield ((i, pad), f)
-
-        try:
-            if filter is None:
-                for i, f in reversed(tuple(enumerate(self.data))):
-                    for v in iter_base(i, f):
-                        yield v
-            else:
-                if filter < 0:
-                    filter += len(self.data)
-                for v in iter_base(filter, self.data[filter]):
-                    yield v
-        except:
-            pass
+        for v in self._iter_pads(
+            filters,
+            Filter.iter_output_pads,
+            i_first,
+            len(self.data) - 1,
+            pad,
+            chain,
+            exclude_chainable,
+            chainable_first,
+            include_connected,
+        ):
+            yield v
 
     def get_chainable_input_pad(self) -> tuple[PAD_INDEX, Filter] | None:
         """get first filter's input pad, which can be chained
@@ -1911,43 +2018,140 @@ class Graph(UserList):
             ):
                 yield (index, label, f)
 
+    def _iter_pads(
+        self,
+        chains: list[Filter],
+        iter_filter_pad: abc.Callable,
+        i_first: int,
+        pad: int | None,
+        filter: int | None,
+        exclude_chainable: bool,
+        chainable_first: bool,
+        include_connected: bool,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filters on the filterchain
+
+        :param filters: list of filters to iterate
+        :param iter_filter_pad: Filter class function to iterate on filter pads
+        :param pad: pad id
+        :param filter: filter index
+        :param chain: chain index
+        :param exclude_chainable: True to leave out the last pads
+        :param chainable_first: True to yield the last pad first then the rest
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        # iterate over all filters
+        for cid, obj in enumerate(chains):
+            for pidx, f in iter_filter_pad(
+                obj,
+                pad,
+                filter,
+                exclude_chainable=exclude_chainable,
+                chainable_first=chainable_first,
+                include_connected=include_connected,
+            ):
+                try:
+                    yield (cid + i_first, *pidx), f
+                except FiltergraphInvalidIndex:
+                    pass
+
     def iter_input_pads(
         self,
-        exclude_named: bool = False,
-        include_connected: bool = False,
-        chain: int | None = None,
-        filter: int | None = None,
         pad: int | None = None,
+        filter: int | None = None,
+        chain: int | None = None,
         *,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filters on the filtergraph
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last input first then the rest, defaults to False
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        if chain is None:
+            # iterate over all filters
+            chains = self.data
+            i_first = 0
+        else:
+            try:
+                chains = [self.data[chain]]
+            except IndexError:
+                raise FiltergraphInvalidIndex(f"Invalid {chain=} index.")
+            i_first = chain
+
+        return self._screen_input_pads(
+            partial(
+                self._iter_pads,
+                chains,
+                Chain.iter_input_pads,
+                i_first,
+                pad,
+                filter,
+                exclude_chainable,
+                chainable_first,
+                include_connected,
+            ),
+            exclude_named,
+            include_connected,
+        )
+
+    def iter_output_pads(
+        self,
+        pad=None,
+        filter=None,
+        chain=None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
     ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over filtergraph's filter output pads
 
-        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
-        :param include_connected: True to include pads connected to input streams, defaults to False
-        :param chain: chain index, defaults to None
-        :param filter: filter index, defaults to None
-        :param pad: pad id, defaults to None
-        :yield: filter pad index, link label, & source filter object
+        :param exclude_named: True to leave out named outputs, defaults to False
+        :type exclude_named: bool, optional
+        :yield: filter pad index,  link label, and source filter object
+        :rtype: tuple(tuple(int,int,int), str, Filter)
         """
 
-        def iter_pads():
+        if chain is None:
+            # iterate over all filters
+            chains = self.data
+            i_first = 0
+        else:
             try:
-                if chain is None:
-                    for cid, obj in enumerate(self.data):
-                        for j, i, f in obj.iter_input_pads(filter=filter, pad=pad):
-                            yield (cid, j, i), f
-                else:
-                    cid = chain + len(self.data) if chain < 0 else chain
-                    for j, i, f in self.data[cid].iter_input_pads(
-                        filter=filter, pad=pad
-                    ):
-                        yield (cid, j, i), f
-            except:
-                pass
+                chains = [self.data[chain]]
+            except IndexError:
+                raise FiltergraphInvalidIndex(f"Invalid {chain=} index.")
+            i_first = chain
 
-        return self._screen_input_pads(iter_pads, exclude_named, include_connected)
+        return self._screen_output_pads(
+            partial(
+                self._iter_pads,
+                chains,
+                Chain.iter_output_pads,
+                i_first,
+                pad,
+                filter,
+                exclude_chainable,
+                chainable_first,
+                include_connected,
+            ),
+            exclude_named,
+            include_connected,
+        )
 
     def iter_chainable_input_pads(
         self,
@@ -1994,42 +2198,6 @@ class Graph(UserList):
                     # return for each slot
                     for _ in range(links.num_outputs(label)):
                         yield (index, label, f)
-
-    def iter_output_pads(
-        self,
-        exclude_named=False,
-        chain=None,
-        filter=None,
-        pad=None,
-        *,
-        exclude_chainable: bool = False,
-        chainable_first: bool = False,
-    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
-        """Iterate over filtergraph's filter output pads
-
-        :param exclude_named: True to leave out named outputs, defaults to False
-        :type exclude_named: bool, optional
-        :yield: filter pad index,  link label, and source filter object
-        :rtype: tuple(tuple(int,int,int), str, Filter)
-        """
-
-        def iter_pads():
-            try:
-                # iterate over all input pads
-                if chain is None:
-                    for cid, obj in enumerate(self.data):
-                        for j, i, f in obj.iter_output_pads(filter=filter, pad=pad):
-                            yield (cid, j, i), f
-                else:
-                    cid = chain + len(self.data) if chain < 0 else chain
-                    for j, i, f in self.data[cid].iter_output_pads(
-                        filter=filter, pad=pad
-                    ):
-                        yield (cid, j, i), f
-            except:
-                pass
-
-        return self._screen_output_pads(iter_pads, exclude_named)
 
     def iter_chainable_output_pads(
         self, exclude_named=False, chain=None
