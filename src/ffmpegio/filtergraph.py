@@ -1067,7 +1067,7 @@ class Filter(tuple, FilterOperations):
 
         return Filter(self[0], *opts, filter_id=filter_id, **kwopts)
 
-    def __add__(self, other):
+    def __add__(self, other) -> Chain | Graph:
         # join
         try:
             other = as_filter(other)
@@ -1080,7 +1080,7 @@ class Filter(tuple, FilterOperations):
             # one-to-many or many-to-one -> stack and link
             return Graph([[self], [other]], {0: ((1, 0, 0), (0, 0, 0))})
 
-    def __radd__(self, other):
+    def __radd__(self, other) -> Chain | Graph:
         # join
         try:
             other = as_filter(other)
@@ -1093,13 +1093,13 @@ class Filter(tuple, FilterOperations):
             # one-to-many or many-to-one -> stack and link
             return Graph([[other], [self]], {0: ((1, 0, 0), (0, 0, 0))})
 
-    def __mul__(self, __n):
+    def __mul__(self, __n) -> Graph:
         return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
 
-    def __rmul__(self, __n):
+    def __rmul__(self, __n) -> Graph:
         return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
 
-    def __or__(self, other):
+    def __or__(self, other) -> Graph:
         # stack
 
         try:
@@ -1108,7 +1108,7 @@ class Filter(tuple, FilterOperations):
             return NotImplemented
         return Graph([[self], [other]])
 
-    def __ror__(self, other):
+    def __ror__(self, other)->Graph:
         # stack
         if isinstance(other, int):
             return Graph([[self]] * other)
@@ -1118,7 +1118,7 @@ class Filter(tuple, FilterOperations):
             return NotImplemented
         return Graph([[other], [self]])
 
-    def __rshift__(self, other):
+    def __rshift__(self, other)->Graph:
         """self >> other|label
         self >> (index, other|label)
         self >> (index, other_index, other)
@@ -1211,47 +1211,89 @@ class Filter(tuple, FilterOperations):
     def __rrshift__(self, other):
         """other >> self, (other, index) >> self : attach input label or filter"""
 
-        if isinstance(other, list):
-            return _chain_loop(self, "__rrshift__", other)
+        def parse_other(other):
+            if isinstance(other, tuple):
+                if len(other) > 2:
+                    other, other_index, index = other
+                else:
+                    index, other = other
+                    other_index = None
 
-        # resolve the index
-        if type(other) == tuple:
-            if len(other) > 2:
-                other, other_index, index = other
+                if index is not None:
+                    if isinstance(index, int):
+                        index = (index,)
+                    validate_pad_index(index)
+                if other_index is not None:
+                    if isinstance(other_index, int):
+                        other_index = (other_index,)
+                    validate_pad_index(other_index)
             else:
-                other, index = other
+                index = None
                 other_index = None
 
-            index = self.resolve_index(True, index)
-        else:
-            index = None
-            other_index = None
+            # parse if other is a filtergraph expression
+            try:
+                other = as_filtergraph_object(other)
+            except FiltergraphInvalidExpression:
+                if _is_label(other):
+                    if other_index is not None:
+                        raise ValueError("A label cannot have a pad index.")
+                    return self.add_label(other, src=index)
+                else:
+                    raise ValueError(
+                        f"{other=} is neither a valid filtergraph expression nor a label"
+                    )
+            except:
+                # TODO: screen out ffmpegio errors
+                raise NotImplementedError
 
-        # if label
-        if isinstance(other, str):
-            if other_index is not None:
-                raise ValueError("A label cannot have a pad index.")
-            return self.add_label(other, dst=(0, 0, index))
+            return other, index, other_index
 
-        # if other is Filter object, do add operation
+        # if output is a list
+        if isinstance(other, list):
+            # match the pad indices first
+            others = [parse_other(o) for o in other]
+
+            # get pad indices assigned by the caller
+            assigned_idx = [
+                self.resolve_index(False, i) for o, i, oi in others if i is not None
+            ]
+
+            it_avail = self.iter_output_pads(chainable_first=False)
+            graph = as_filtergraph(self)
+
+            for o, i, oi in others:
+                if i is not None:
+                    # find the next available pad
+                    while i_ := next(it_avail):
+                        if i_ not in assigned_idx:
+                            i = i_
+                # attach the other object to the graph
+                graph.attach(o, i, oi or other.next_input_pad(chainable_first=True))
+
+            return graph
+
+        # parse other argument, separate the indices if given
         try:
-            other = as_filtergraph_object(other)
-        except:
+            other, index, other_index = parse_other(other)
+        except NotImplementedError:
             return NotImplemented
 
         # if not Chain or Graph, use other's >> operator
         if not isinstance(other, Filter):
-            return other.__rshift__((other_index, index, self))
+            return other.__rshift__((index, other_index, self))
 
-        if other.get_num_outputs() == 0:
-            raise FiltergraphMismatchError(0, self.get_num_inputs())
-
-        if not index:
-            # equivalent to chain/add operation
-            return self.__radd__(other)
-        else:
-            # stack and link
-            return Graph([[other], [self]], {0: ((1, 0, index), (0, 0, 0))})
+        # guaranteed Filter >> Filter op
+        # if no pads specified, form a chain, else form a graph
+        return (
+            Chain([other, self])
+            if index is None and other is None
+            else Graph(other).attach(
+                self,
+                other_index or other.next_output_pad(chainable_first=True),
+                index or self.next_input_pad(chainable_first=True),
+            )
+        )
 
 
 ####################################################################################
