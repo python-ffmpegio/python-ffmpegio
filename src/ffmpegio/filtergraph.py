@@ -268,7 +268,7 @@ def _shift_labels(
     is_dst = label_type == "dst"
     assert len(args) == 2 and _is_label(args[0 if is_dst else 1])
     return obj.add_labels(
-        label_type, {obj._resolve_index(is_dst, args[is_dst]): args[not is_dst]}
+        label_type, {obj.resolve_index(is_dst, args[is_dst]): args[not is_dst]}
     )
 
 
@@ -283,9 +283,170 @@ def _chain_loop(this, func, others):
 
 ###################################################################################################
 
-
 # FILTER TOOLS
-class Filter(tuple):
+
+# BASE CLASS
+from abc import ABC, abstractmethod
+
+
+class FilterOperations(ABC):
+
+    @abstractmethod
+    def get_num_inputs(self) -> int:
+        """get the number of input pads of the filter
+        :return: number of input pads
+        """
+
+    @abstractmethod
+    def get_num_outputs(self) -> int:
+        """get the number of output pads of the filter
+        :return: number of output pads
+        """
+
+    def next_input_pad(self, chainable_first: bool) -> PAD_INDEX:
+        """get next available input pad
+
+        :param chainable_first: True to retrieve the last pad first, then the rest sequentially
+        """
+        return next(self.iter_input_pads(chainable_first=chainable_first))[0]
+
+    def next_output_pad(self, chainable_first: bool) -> PAD_INDEX:
+        """get next available output pad
+
+        :param chainable_first: True to retrieve the last pad first, then the rest sequentially
+        """
+        return next(self.iter_output_pads(chainable_first=chainable_first))[0]
+
+    @abstractmethod
+    def iter_input_pads(
+        self,
+        pad: int | None = None,
+        filter: int | None = None,
+        chain: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last input first then the rest, defaults to False
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+    @abstractmethod
+    def iter_output_pads(
+        self,
+        pad: int | None = None,
+        filter: int | None = None,
+        chain: int | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> abc.Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+        """Iterate over output pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last output first then the rest, defaults to False
+        :param include_connected: True to include pads connected to output streams, defaults to False
+        :param exclude_named: True to leave out named outputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+    @abstractmethod
+    def add_label(
+        self,
+        label: str,
+        dst: PAD_INDEX | abc.Sequence[PAD_INDEX] = None,
+        src: PAD_INDEX = None,
+        force: bool = None,
+    ) -> Graph:
+        """label a filter pad
+
+        :param label: name of the new label. Square brackets are optional.
+        :param dst: input filter pad index or a sequence of pads, defaults to None
+        :param src: output filter pad index, defaults to None
+        :param force: True to delete existing labels, defaults to None
+        :return: actual label name
+
+        Only one of dst and src argument must be given.
+
+        If given label already exists, no new label will be created.
+
+        If dst indices are given, the label must be an input stream specifier.
+
+        If label has a trailing number, the number will be dropped and replaced with an
+        internally assigned label number.
+
+        """
+
+    @abstractmethod
+    def resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
+        """Resolve label or partial pad index to full 3-element pad index
+
+        :param is_input: True if resolving a filter pad
+        :param index: (partial) pad index
+        :return: a full 3-element pad index
+        """
+
+    @abstractmethod
+    def __getitem__(self, key): ...
+
+    @abstractmethod
+    def __str__(self): ...
+
+    @abstractmethod
+    def __repr__(self) -> str: ...
+
+    @abstractmethod
+    def __add__(self, other):
+        """join"""
+
+    @abstractmethod
+    def __radd__(self, other):
+        """join"""
+
+    @abstractmethod
+    def __mul__(self, __n: int):
+        """stack"""
+
+    @abstractmethod
+    def __rmul__(self, __n: int):
+        """stack"""
+
+    @abstractmethod
+    def __or__(self, other):
+        """stack"""
+
+    @abstractmethod
+    def __ror__(self, other):
+        """stack"""
+
+    @abstractmethod
+    def __rshift__(self, other):
+        """self >> other|label
+        self >> (index, other|label)
+        self >> (index, other_index, other)
+        self >> [other0, other1, ...]"""
+
+    @abstractmethod
+    def __rrshift__(self, other):
+        """other >> self, (other, index) >> self : attach input label or filter"""
+
+
+class Filter(tuple, FilterOperations):
     """FFmpeg filter definition immutable class
 
     :param filter_spec: _description_
@@ -379,7 +540,7 @@ class Filter(tuple):
         # create the final tuple
         return tuple.__new__(Filter, proto)
 
-    def _resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
+    def resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
         """Resolve label or partial pad index to full 3-element pad index
 
         :param is_input: True if resolving a filter pad
@@ -963,35 +1124,73 @@ class Filter(tuple):
         self >> (index, other_index, other)
         self >> [other0, other1, ...]"""
 
+        def parse_other(other):
+            if isinstance(other, tuple):
+                if len(other) > 2:
+                    index, other_index, other = other
+                else:
+                    index, other = other
+                    other_index = None
+
+                if index is not None:
+                    if isinstance(index, int):
+                        index = (index,)
+                    validate_pad_index(index)
+                if other_index is not None:
+                    if isinstance(other_index, int):
+                        other_index = (other_index,)
+                    validate_pad_index(other_index)
+            else:
+                index = None
+                other_index = None
+
+            # parse if other is a filtergraph expression
+            try:
+                other = as_filtergraph_object(other)
+            except FiltergraphInvalidExpression:
+                if _is_label(other):
+                    if other_index is not None:
+                        raise ValueError("A label cannot have a pad index.")
+                    return self.add_label(other, src=index)
+                else:
+                    raise ValueError(
+                        f"{other=} is neither a valid filtergraph expression nor a label"
+                    )
+            except:
+                # TODO: screen out ffmpegio errors
+                raise NotImplementedError
+
+            return other, index, other_index
+
         # if output is a list
         if isinstance(other, list):
             # match the pad indices first
-            [for idx,_ in islice(self.iter_output_pads(chainable_first=False),len(other))]
+            others = [parse_other(o) for o in other]
 
+            # get pad indices assigned by the caller
+            assigned_idx = [
+                self.resolve_index(False, i) for o, i, oi in others if i is not None
+            ]
 
-            return _chain_loop(self, "__rshift__", other)
+            it_avail = self.iter_output_pads(chainable_first=False)
+            graph = as_filtergraph(self)
 
-        # separate the indices if given
-        if isinstance(other, tuple):
-            if len(other) > 2:
-                index, other_index, other = other
-            else:
-                index, other = other
-                other_index = None
-        else:
-            index = None
-            other_index = None
+            for o, i, oi in others:
+                if i is not None:
+                    # find the next available pad
+                    while i_ := next(it_avail):
+                        if i_ not in assigned_idx:
+                            i = i_
+                # attach the other object to the graph
+                graph.attach(o, i, oi or other.next_input_pad(chainable_first=True))
 
-        # parse if other is a filtergraph expression
+            return graph
+
+        # parse other argument, separate the indices if given
         try:
-            other = as_filtergraph_object(other)
-        except FiltergraphInvalidExpression:
-            if _is_label(other):
-                if other_index is not None:
-                    raise ValueError("A label cannot have a pad index.")
-                return self.add_label(other, src=index)
-            else:
-                return NotImplemented
+            other, index, other_index = parse_other(other)
+        except NotImplementedError:
+            return NotImplemented
 
         # if not Chain or Graph, use other's >> operator
         if not isinstance(other, Filter):
@@ -1002,7 +1201,11 @@ class Filter(tuple):
         return (
             Chain([self, other])
             if index is None and other is None
-            else Graph(self).connect(other, index, other_index)
+            else Graph(self).attach(
+                other,
+                index or self.next_output_pad(chainable_first=True),
+                other_index or other.next_input_pad(chainable_first=True),
+            )
         )
 
     def __rrshift__(self, other):
@@ -1019,7 +1222,7 @@ class Filter(tuple):
                 other, index = other
                 other_index = None
 
-            index = self._resolve_index(True, index)
+            index = self.resolve_index(True, index)
         else:
             index = None
             other_index = None
@@ -1095,7 +1298,7 @@ class Chain(UserList):
             () if filter_specs is None else (as_filter(fspec) for fspec in filter_specs)
         )
 
-    def _resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
+    def resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
         try:
             # cannot be str
             validate_pad_index(index)
@@ -1235,7 +1438,7 @@ class Chain(UserList):
                 index, other = other
                 other_index = None
 
-            index = self._resolve_index(False, index)
+            index = self.resolve_index(False, index)
         else:
             index = None
             other_index = None
@@ -1304,7 +1507,7 @@ class Chain(UserList):
                 other, index = other
                 other_index = None
 
-            index = self._resolve_index(True, index)
+            index = self.resolve_index(True, index)
         else:
             index = None
             other_index = None
@@ -1399,11 +1602,11 @@ class Chain(UserList):
 
         # iterate over all filters
         for i, f in enumerate(filters):
-            for pidx, f, _ in iter_filter_pad(
+            for pidx, f in iter_filter_pad(
                 f,
                 pad,
                 exclude_chainable=not include_connected
-                and (exclude_chainable or i == i_nochain),
+                and (exclude_chainable or i != i_nochain),
                 chainable_first=chainable_first,
             ):
                 yield (i + i_first, *pidx), f
@@ -1664,7 +1867,7 @@ class Graph(UserList):
         self.autosplit_output = autosplit_output
         """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
-    def _resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
+    def resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
         """Resolve label or partial pad index to full 3-element pad index
 
         :param is_input: True if resolving a filter pad
@@ -1893,7 +2096,7 @@ class Graph(UserList):
             else:
                 index, other = other
                 other_index = None
-            index = self._resolve_index(False, index)
+            index = self.resolve_index(False, index)
         else:
             index = None
             other_index = None
@@ -1938,7 +2141,7 @@ class Graph(UserList):
             else:
                 other, index = other
                 other_index = None
-            index = self._resolve_index(True, index)
+            index = self.resolve_index(True, index)
         else:
             index = None
             other_index = None
@@ -2002,6 +2205,21 @@ class Graph(UserList):
                 or (include_connected and is_stream_spec(label, True))
             ):
                 yield (index, label, f)
+
+    def _screen_output_pads(self, iter_pads, exclude_named):
+        links = self._links
+        for index, f in iter_pads():  # for each output pad
+            labels = links.find_src_labels(index)  # get link label if exists
+            if labels is None or not len(labels):
+                # unlabeled output pad
+                yield (index, None, f)
+            elif not exclude_named:
+                # all labeled output pads are by definition named
+                for label in labels:
+                    # if multiple input link slots are reserved
+                    # return for each slot
+                    for _ in range(links.num_outputs(label)):
+                        yield (index, label, f)
 
     def _iter_pads(
         self,
@@ -2135,7 +2353,6 @@ class Graph(UserList):
                 include_connected,
             ),
             exclude_named,
-            include_connected,
         )
 
     def iter_chainable_input_pads(
@@ -2168,21 +2385,6 @@ class Graph(UserList):
                     pass
 
         return self._screen_input_pads(iter_pads, exclude_named, include_connected)
-
-    def _screen_output_pads(self, iter_pads, exclude_named):
-        links = self._links
-        for index, f in iter_pads():  # for each output pad
-            labels = links.find_src_labels(index)  # get link label if exists
-            if labels is None or not len(labels):
-                # unlabeled output pad
-                yield (index, None, f)
-            elif not exclude_named:
-                # all labeled output pads are by definition named
-                for label in labels:
-                    # if multiple input link slots are reserved
-                    # return for each slot
-                    for _ in range(links.num_outputs(label)):
-                        yield (index, label, f)
 
     def iter_chainable_output_pads(
         self, exclude_named=False, chain=None
@@ -2391,14 +2593,14 @@ class Graph(UserList):
         if label is not None:
             GraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
         if dst is not None:
-            dst = self._resolve_index(True, dst)
+            dst = self.resolve_index(True, dst)
             try:
                 f = self.data[dst[0]][dst[1]]
                 assert dst[2] >= 0 and dst[2] < f.get_num_inputs()
             except:
                 raise Graph.InvalidFilterPadId("input", dst)
         if src is not None:
-            src = self._resolve_index(False, src)
+            src = self.resolve_index(False, src)
             try:
                 f = self.data[src[0]][src[1]]
                 assert src[2] >= 0 and src[2] < f.get_num_outputs()
@@ -2651,12 +2853,12 @@ class Graph(UserList):
         right = as_filtergraph(right, copy=True)
 
         # resolve from_left and to_right to pad ids (raises if invalid)
-        srcs_info = [self._resolve_index(False, index) for index in from_left]
+        srcs_info = [self.resolve_index(False, index) for index in from_left]
         nout = len(srcs_info)
         if nout != len(set(srcs_info)):
             raise ValueError(f"from_left pad indices are not unique.")
 
-        dsts_info = [right._resolve_index(True, index) for index in to_right]
+        dsts_info = [right.resolve_index(True, index) for index in to_right]
         ndst = len(dsts_info)
         if nout != len(set(dsts_info)):
             raise ValueError(f"to_right pad indices are not unique.")
@@ -2878,8 +3080,8 @@ class Graph(UserList):
         """
 
         right = as_filtergraph_object(right)
-        right_on = right._resolve_index(True, right_on)
-        left_on = self._resolve_index(False, left_on)
+        right_on = right.resolve_index(True, right_on)
+        left_on = self.resolve_index(False, left_on)
         return self.connect(right, [left_on], [right_on], chain_siso=True)
 
     def rattach(self, left, right_on=None, left_on=None):
@@ -2897,8 +3099,8 @@ class Graph(UserList):
         """
 
         left = as_filtergraph(left)
-        left_on = left._resolve_index(False, left_on)
-        right_on = self._resolve_index(True, right_on)
+        left_on = left.resolve_index(False, left_on)
+        right_on = self.resolve_index(True, right_on)
         return left.connect(self, [left_on], [right_on], chain_siso=True)
 
     @contextmanager
