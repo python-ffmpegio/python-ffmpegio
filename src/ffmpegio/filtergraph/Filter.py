@@ -1,0 +1,707 @@
+from __future__ import annotations
+
+from collections.abc import Generator, Sequence
+import re
+
+from .caps import filters as list_filters, filter_info, layouts
+from .utils import filter as filter_utils
+
+from .typing import *
+from .exceptions import *
+
+__all__ = ["Filter"]
+
+
+class Filter(tuple, FilterOperations):
+    """FFmpeg filter definition immutable class
+
+    :param filter_spec: _description_
+    :type filter_spec: _type_
+    :param filter_id: _description_, defaults to None
+    :type filter_id: _type_, optional
+    :param \\*opts: filter option values assigned in the order options are
+                    declared
+    :type \\*opts: dict, optional
+    :param \\**kwopts: filter options in key=value pairs
+    :type \\**kwopts: dict, optional
+
+    """
+
+    class Error(FFmpegioError):
+        pass
+
+    class InvalidName(Error):
+        def __init__(self, name):
+            super().__init__(
+                f"Filter {name} is not defined in FFmpeg (v{path.FFMPEG_VER}).\n"
+            )
+
+    class InvalidOption(Error):
+        pass
+
+    class Unsupported(Error):
+        def __init__(self, name, feature) -> None:
+            super().__init__(f"{feature} not yet supported feature for {name} filter.")
+
+    def __new__(self, filter_spec, *args, filter_id=None, **kwargs):
+        """_summary_"""
+        proto = []
+        if isinstance(filter_spec, Filter):
+            if filter_spec.id and filter_id is not None:  # new id
+                proto.append((filter_spec.name, filter_id))
+                proto.extend(filter_spec[1:])
+            else:
+                proto.extend(filter_spec)
+        else:
+            # parse if str given
+            if isinstance(filter_spec, str):
+                filter_spec = filter_utils.parse_filter(filter_spec)
+
+            if not (isinstance(filter_spec, Sequence) and len(filter_spec)):
+                raise ValueError("filter_spec must be a non-empty sequence.")
+            name, *opts = filter_spec
+            if isinstance(name, str):
+                proto.append((name, id) if isinstance(id, str) else name)
+            elif not (
+                isinstance(name, Sequence)
+                and len(name) != 2
+                and all((isinstance(i, str) for i in name))
+            ):
+                raise ValueError(
+                    "filter_spec[0] must be a str or 2-element str sequence."
+                )
+            else:
+                # name + id: re-id if id arg given
+                proto.append(tuple(name) if filter_id is None else (name[0], filter_id))
+
+            proto.extend(opts)
+
+        # create named options dict
+        proto_dict = proto.pop() if isinstance(proto[-1], dict) else {}
+
+        # change ordered options if non-None value is given
+        nord = len(proto) - 1  # # of ordered options
+        for i, o in enumerate(args[:nord]):
+            if o is not None:
+                proto[i] = o
+
+        # add additional ordered options if present
+        proto.extend(args[nord:])
+
+        # update named options
+        if len(kwargs):
+            proto_dict.update(kwargs)
+
+        # validate named option keys to be str
+        for k in proto_dict:
+            if not isinstance(k, str):
+                raise ValueError(
+                    "All keys of the named option dict must be of type str."
+                )
+
+        # add the named option dict to the prototype list
+        if len(proto_dict):
+            proto.append(proto_dict)
+
+        # create the final tuple
+        return tuple.__new__(Filter, proto)
+
+    def resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
+        """Resolve label or partial pad index to full 3-element pad index
+
+        :param is_input: True if resolving a filter pad
+        :param index: (partial) pad index
+        :return: a full 3-element pad index
+        """
+
+        try:
+            # cannot be str
+            validate_pad_index(index)
+
+            # both chain and filter indices (if given) must be 0
+            assert all(i in (0, None) for i in index[:-1])
+
+            # validate the pad index
+            i = index[-1]
+            assert i >= 0 and i < (
+                self.get_num_inputs() if is_input else self.get_num_outputs()
+            )
+            return (0, 0, i)
+        except:
+            raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+
+        if isinstance(value, dict):
+            value = {**value}
+        if isinstance(value, tuple):
+            if isinstance(value[-1], dict):
+                value = tuple((*value[:-1], {**value[-1]}))
+            elif isinstance(value[0], dict):
+                value = tuple(({**value[-1]}, *value[1:]))
+        return value
+
+    def __str__(self):
+        return filter_utils.compose_filter(*self)
+
+    def __repr__(self):
+        type_ = type(self)
+        return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
+    FFmpeg expression: \"{str(self)}\"
+    Number of inputs: {self.get_num_inputs()}
+    Number of outputs: {self.get_num_outputs()}
+"""
+
+    @property
+    def name(self):
+        name = self[0]
+        return name if isinstance(name, str) else name[0]
+
+    @property
+    def fullname(self):
+        name = self[0]
+        return name if isinstance(name, str) else f"{name[0]}@{name[1]}"
+
+    @property
+    def id(self):
+        name = self[0]
+        return None if isinstance(name, str) else name[1]
+
+    @property
+    def ordered_options(self):
+        opts = self[1:]
+        return opts[:-1] if isinstance(opts[-1], dict) else opts
+
+    @property
+    def named_options(self):
+        opts = self[-1]
+        return opts if isinstance(opts, dict) else {}
+
+    @property
+    def info(self):
+        try:
+            return filter_info(self.name)
+        except:
+            raise Filter.InvalidName(self.name)
+
+    def get_pad_media_type(self, port, pad_id):
+        try:
+            port = (
+                "inputs"
+                if "inputs".startswith(port)
+                else "outputs" if "outputs".startswith(port) else None
+            )
+            assert port is not None
+        except:
+            raise ValueError(
+                f"{port} is an invalid filter port type. Must be either 'input' or 'output'."
+            )
+
+        port_info = getattr(self.info, port)
+
+        if port_info is None:
+            # filters with homogeneous multiple in/out
+            # fmt:off
+            pure_video = {
+                "inputs": [
+                    "bm3d", "decimate", "fieldmatch", "hstack", "interleave", "mergeplanes",
+                    "mix", "premultiply", "signature", "streamselect", "unpremultiply",
+                    "vstack", "xmedian", "xstack",
+                ],
+                "outputs": [
+                    "alphaextract", "extractplanes", "select", "split", "streamselect",
+                ],
+            }
+            pure_audio = {
+                "inputs": [
+                    "afir", "ainterleave", "amerge", "amix", "astreamselect", "headphone", "join", "ladspa",
+                ],
+                "outputs": [
+                    "acrossover", "aselect", "asplit", "astreamselect", "channelsplit",
+                ],
+            }
+            # fmt:on
+
+            if self.name in pure_video[port]:
+                return "video"
+            if self.name in pure_audio[port]:
+                return "audio"
+
+            if self.name == "concat":
+                n = self.get_option_value("n")
+                v = self.get_option_value("v")
+                a = self.get_option_value("a")
+                return (
+                    ("video" if pad_id % n < v else "audio")
+                    if port != "outputs"
+                    else ("video" if pad_id < v else "audio")
+                )
+
+            # multiple pads possible if streams option set
+            if self.name in ("movie", "amovie"):
+                if self.get_option_value("streams") is None:
+                    return "video" if self.name == "movie" else "audio"
+
+            # 2nd pad for audio visualization stream
+            vis_mode = ["afir", "aiir", "anequalizer", "ebur128", "aphasemeter"]
+            if port == "outputs" and self.name in vis_mode:
+                return "video" if pad_id else "audio"
+
+            raise Filter.Unsupported(self.name, "dynamic media type resolution")
+
+        try:
+            pad_info = port_info[pad_id]
+            return pad_info["type"]
+        except:
+            raise ValueError(
+                f"{pad_id} is an invalid pad_id as an {port[:-1]} pad of {self.name} filter."
+            )
+
+    def get_option_value(self, option_name):
+
+        # first check the named options as-is
+        named_opts = self.named_options
+        try:
+            return named_opts[option_name]
+        except:
+            pass
+
+        # get the option info
+        i, opt_info = next(
+            (
+                (i, o)
+                for i, o in enumerate(self.info.options)
+                if o.name == option_name or option_name in o.aliases
+            ),
+            (None, None),
+        )
+        if i is None:
+            raise Filter.InvalidOption(
+                f"Invalid option name ({option_name}) for {self.name} filter"
+            )
+
+        try:
+            # try full name first
+            return named_opts[opt_info.name]
+        except:
+            # try alias name next
+            for a in opt_info.aliases:
+                try:
+                    return named_opts[a]
+                except:
+                    pass
+
+            # try from ordered options next
+            try:
+                return self.ordered_options[i]
+            except:
+                # if nothing fits, use the default value (maybe undefined/None)
+                return opt_info.default
+
+    def get_num_inputs(self):
+        """get the number of input pads of the filter
+        :return: number of input pads
+        :rtype: int
+        """
+        name = self.name
+        if not isinstance(name, str):
+            # name@id
+            name = name[0]
+
+        try:
+            nin = list_filters()[name].num_inputs
+        except:
+            raise Filter.InvalidName(name)
+        if nin is not None:  # fixed number
+            return nin
+
+        def _inplace():
+            return 1 if self.get_option_value("inplace") else 2
+
+        def _headphone():
+            if self.get_option_value("hrir") == "multich":
+                return 2
+            map = self.get_option_value("map")
+            return (
+                len(re.split(r"\s*\|\s*", map)) + 1
+                if isinstance(map, str)
+                else len(map) + 1
+            )
+
+        def _mergeplanes():
+            map = self.get_option_value("mapping")
+            if not isinstance(map, int):
+                map = int(map, 16 if map.startswith("0x") else 10)
+
+            return int(max(f"{map:08x}"[::2])) + 1
+
+        def _concat():
+            return self.get_option_value("n") * (
+                self.get_option_value("v") + self.get_option_value("a")
+            )
+
+        option_name, inc = {
+            "afir": ("nbirs", 1),
+            "concat": (None, _concat),
+            "decimate": ("ppsrc", 1),
+            "fieldmatch": ("ppsrc", 1),
+            "headphone": (None, _headphone),
+            "interleave": ("nb_inputs", 0),
+            "limitdiff": ("reference", 1),
+            "mergeplanes": (None, _mergeplanes),
+            "premultiply": (None, _inplace),
+            "unpremultiply": (None, _inplace),
+            "signature": ("nb_inputs", 0),
+            # "astreamselect": ("inputs", 0),
+            # "bm3d": ("inputs", 0),
+            # "hstack": ("inputs", 0),
+            # "mix": ("inputs", 0),
+            # "streamselect": ("inputs", 0),
+            # "vstack": ("inputs", 0),
+            # "xmedian": ("inputs", 0),
+            # "xstack": ("inputs", 0),
+        }.get(name, ("inputs", 0))
+
+        return (
+            int(self.get_option_value(option_name)) + inc
+            if isinstance(option_name, str)
+            else inc()
+        )
+
+    def get_num_outputs(self):
+        """get the number of output pads of the filter
+        :return: number of output pads
+        :rtype: int
+        """
+        name = self.name
+
+        try:
+            nout = list_filters()[name].num_outputs
+        except:
+            raise Filter.InvalidName(name)
+        if nout is not None:  # arbitrary number allowed
+            return nout
+
+        def _concat():
+            return int(self.get_option_value("a")) + int(self.get_option_value("v"))
+
+        def _list_var(opt, sep, inc):
+            v = self.get_option_value(opt)
+            return (
+                len(v)
+                if sep == r"\|" and not isinstance(v, str)
+                else len(re.split(rf"\s*{sep}\s*", v))
+            ) + inc
+
+        def _channelsplit():
+            layout = self.get_option_value("channel_layout")
+            channels = self.get_option_value("channels")
+            return len(
+                re.split(
+                    rf"\s*\+\s*",
+                    layouts()["layouts"][layout] if channels == "all" else channels,
+                )
+            )
+
+        # fmt:off
+        option_name, inc = {
+            "afir": ("response", 1),  # +video stream
+            "aiir": ("response", 1),  # +video stream
+            "anequalizer": ("curves", 1),
+            "ebur128": ("video", 1),
+            "aphasemeter": ("video", 1),
+            "acrossover": ('split',partial( _list_var,"split", " ", 1)),  # split option (space-separated)
+            "asegment": ("timestamps", partial( _list_var,"timestamps", r"\|", 1)),
+            "segment": ("timestamps", partial( _list_var,"timestamps", r"\|", 1)),
+            "astreamselect": ("map", partial( _list_var,"map", " ", 0)),  # parse map?
+            "streamselect": ("map", partial( _list_var,"map", " ", 0)),  # parse map?
+            "extractplanes": ("planes", partial( _list_var,"planes", r"\+", 0)),  # parse planes
+            "amovie": ("streams",partial( _list_var,"streams", r"\+", 0)),
+            "movie": ("streams",partial( _list_var,"streams", r"\+", 0)),
+            "channelsplit": (('channel_layout', 'channels'),_channelsplit),  # parse channel_layout/channels
+            "concat": (('a', 'v'), _concat),  # sum a and v
+            # "aselect": (("output", "n"), 0),  # must resolve alias...
+            # "asplit": ("outputs", 0),
+            # "select": (("output", "n"), 0),
+            # "split": ("outputs", 0),
+        }.get(name, ("outputs", 0))
+        # fmt:on
+
+        return (
+            int(self.get_option_value(option_name)) + inc
+            if isinstance(inc, int)
+            else inc()
+        )
+
+    def add_label(
+        self,
+        label: str,
+        inpad: PAD_INDEX | Sequence[PAD_INDEX] = None,
+        outpad: PAD_INDEX = None,
+        force: bool = None,
+    ) -> Graph:
+        """label a filter pad
+
+        :param label: name of the new label. Square brackets are optional.
+        :param inpad: input filter pad index or a sequence of pads, defaults to None
+        :param outpad: output filter pad index, defaults to None
+        :param force: True to delete existing labels, defaults to None
+        :return: actual label name
+
+        Only one of inpad and outpad argument must be given.
+
+        If given label already exists, no new label will be created.
+
+        If inpad indices are given, the label must be an input stream specifier.
+
+        If label has a trailing number, the number will be dropped and replaced with an
+        internally assigned label number.
+
+        """
+
+        # must convert to FilterGraph as it's the only object with labels
+        fg = Graph([[self]])
+        fg.add_label(label, inpad, outpad, force)
+        return fg
+
+    def _iter_pads(
+        self,
+        n: int,
+        pad: int | None,
+        filter: Literal[0] | None,
+        chain: Literal[0] | None,
+        exclude_chainable: bool,
+        chainable_first: bool,
+    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filter
+
+        :param n: number of pads
+        :param pad: pad id
+        :param filter: filter index
+        :param chain: chain index
+        :param exclude_chainable: True to leave out the last pads
+        :param chainable_first: True to yield the last pad first then the rest
+        :yield: filter pad index, link label, filter object
+        """
+
+        if (isinstance(filter, int) and filter != 0) or (
+            isinstance(chain, int) and chain != 0
+        ):
+            # Filter alone can have no connections so yields no pad
+            raise FiltergraphInvalidIndex(f"Invalid {filter=} or {chain=} index")
+
+        if pad is None:
+            if chainable_first and not exclude_chainable:
+                yield (n - 1,), self
+            for j in range(n - 1 if exclude_chainable or chainable_first else n):
+                yield (j,), self
+        elif pad < 0 or pad >= (n - 1 if exclude_chainable else n):
+            raise FiltergraphInvalidIndex(f"Invalid {pad=} index")
+        yield (pad,), self
+
+    def iter_input_pads(
+        self,
+        pad: int | None = None,
+        filter: Literal[0] | None = None,
+        chain: Literal[0] | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+        """Iterate over input pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last input first then the rest, defaults to False
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :param exclude_named: True to leave out named inputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        for it in self._iter_pads(
+            self.get_num_inputs(),
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+        ):
+            yield it
+
+    def iter_output_pads(
+        self,
+        pad: int | None = None,
+        filter: Literal[0] | None = None,
+        chain: Literal[0] | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        exclude_named: bool = False,
+    ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+        """Iterate over output pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last output first then the rest, defaults to False
+        :param include_connected: True to include pads connected to output streams, defaults to False
+        :param exclude_named: True to leave out named outputs, defaults to False to return only all inputs
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        for it in self._iter_pads(
+            self.get_num_outputs(),
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+        ):
+            yield it
+
+    def apply(self, options, filter_id=None):
+        """apply new filter options
+
+        :param options: new option key-value pairs. For ordered option, use positional index (0
+                        corresponds to the first option). Set value as None to drop the option.
+                        Ordered options can only be dropped in contiguous fashion, including the
+                        last ordered option.
+        :type options: dict
+        :param filter_id: new filter id, defaults to None
+        :type filter_id: str, optional
+        :return: new filter with modified options
+        :rtype: Filter
+
+        .. note::
+
+            To add new ordered options, int-keyed options item must be presented in
+            the increasing key order so the option can be expanded one at a time.
+
+        """
+
+        try:
+            assert isinstance(self[-1], dict)
+            kwopts = dict(self[-1])
+            try:
+                opts = list(self[1:-1])
+            except:
+                opts = []
+        except:
+            kwopts = {}
+            try:
+                opts = list(self[1:])
+            except:
+                opts = []
+
+        nopts = len(opts)
+
+        delopts = set()
+        for k, v in options.items():
+            if type(k) == int:
+                if k < 0 or k > nopts:
+                    raise Filter.Error(f"invalid positional index [{k}]")
+                if v is not None:
+                    if k < nopts:
+                        opts[k] = v
+                    else:
+                        opts = [*opts, v]
+                        nopts += 1
+                elif k < 0 or k > nopts:
+                    delopts.add(k)
+            else:
+                if v is None:
+                    del kwopts[k]
+                else:
+                    kwopts[k] = v
+
+        if len(delopts):
+            delopts = sorted(list(delopts))
+            o1 = delopts[0] - 1
+            on = delopts[-1]
+            if on != nopts or len(delopts) != on - o1:
+                raise Filter.Error(
+                    f"cannot drop specified ordered options {delopts}. They must be contiguous and include the last ordered option."
+                )
+            opts = opts[:o1]
+
+        return Filter(self[0], *opts, filter_id=filter_id, **kwopts)
+
+    def __add__(self, other) -> Chain | Graph:
+        # join
+        try:
+            other = as_filter(other)
+        except Exception:
+            return NotImplemented
+        if _check_joinable(self, other):
+            # one-to-one -> chain
+            return Chain([self, other])
+        else:
+            # one-to-many or many-to-one -> stack and link
+            return Graph([[self], [other]], {0: ((1, 0, 0), (0, 0, 0))})
+
+    def __radd__(self, other) -> Chain | Graph:
+        # join
+        try:
+            other = as_filter(other)
+        except Exception:
+            return NotImplemented
+        if _check_joinable(other, self):
+            # one-to-one -> chain
+            return Chain([other, self])
+        else:
+            # one-to-many or many-to-one -> stack and link
+            return Graph([[other], [self]], {0: ((1, 0, 0), (0, 0, 0))})
+
+    def __mul__(self, __n) -> Graph:
+        return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
+
+    def __rmul__(self, __n) -> Graph:
+        return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
+
+    def __or__(self, other) -> Graph:
+        # stack
+
+        try:
+            other = as_filter(other)
+        except:
+            return NotImplemented
+        return Graph([[self], [other]])
+
+    def __ror__(self, other) -> Graph:
+        # stack
+        if isinstance(other, int):
+            return Graph([[self]] * other)
+        try:
+            other = as_filter(other)
+        except:
+            return NotImplemented
+        return Graph([[other], [self]])
+
+    def _chain(
+        self, other: Filter | Chain, chain_index: int | None = None
+    ) -> Chain | Graph:
+        """chain self->other (no input check)
+
+        If self is not a Graph, chain_index is ignored.
+        If self is a Graph, chain_index may be used to specify the chain to attach other to.
+        If not specified, attaches to the first chain.
+        """
+        return Chain([self, other] if isinstance(other, Filter) else [self, *other])
+
+    def _rchain(
+        self, other: Filter | Chain, chain_index: int | None = None
+    ) -> Chain | Graph:
+        """chain other->self (no input check)
+
+        If self is not a Graph, chain_index is ignored.
+        If self is a Graph, chain_index may be used to specify the chain to attach other to.
+        If not specified, attaches to the first chain.
+        """
+        return Chain([other, self] if isinstance(other, Filter) else [*other, self])

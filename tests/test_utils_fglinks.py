@@ -3,7 +3,7 @@ from ffmpegio.caps import filters
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio.utils.fglinks import GraphLinks
+from ffmpegio.filtergraph.GraphLinks import GraphLinks
 from pprint import pprint
 import pytest
 
