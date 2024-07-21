@@ -320,27 +320,32 @@ class Graph(UserList, FilterGraphObject):
             return NotImplemented
         return other.stack(self)
 
-    def _chain(
-        self, other: Filter | Chain, chain_index: int | None = None
-    ) -> Chain | Graph:
-        """chain self->other (no input check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+    def _chain(
+        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
+    ) -> Graph:
+        """chain self->other (no var check)
+
+        :param other: the other filitergraph object to chain to
+        :param chain_id: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
-        return self.attach(other, (chain_index or 0, -1, -1), (0, 0, -1))
+
+        return self.attach(other, (chain_id, -1, -1), (other_chain_id, 0, -1))
 
     def _rchain(
-        self, other: Filter | Chain, chain_index: int | None = None
-    ) -> Chain | Graph:
-        """chain other->self (no input check)
+        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
+    ) -> Graph:
+        """chain other->self (no var check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+        :param other: the other filitergraph object to chain to
+        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
-        return self.rattach(other, (chain_index or 0, 0, -1), (0, -1, -1))
+
+        return self.rattach(other, (chain_id, 0, -1), (other_chain_id, -1, -1))
 
     def __iadd__(self, other):
         fg = self + other
@@ -660,9 +665,31 @@ class Graph(UserList, FilterGraphObject):
     def copy(self):
         return Graph(self)
 
-    def are_linked(self, inpad, outpad):
+    def are_linked(
+        self,
+        inpad: PAD_INDEX | None,
+        outpad: PAD_INDEX | None,
+        check_input_stream: bool | str = False,
+    ) -> bool:
+        """True if given pads are linked
 
-        self._links.are_linked(inpad, outpad)
+        :param inpad: input pad index, default to ``None`` to check if ``outpad`` is connected to any
+                      input pad.
+        :param outpad: output pad index, defaults to ``None`` to check if ``inpad`` is connected to any
+                       output pad or an input stream.
+        :param check_input_stream: True to check inpad is connected to an input stream, or a stream
+                                   specifier string to check the connection to a specific stream, defaults
+                                   to ``False``.
+
+        ``ValueError`` will be raised if both ``inpad`` and ``outpad`` ``None`` or
+        if ``include_input_stream!=False`` and ``outpad`` is ``None``.
+
+        """
+
+        try:
+            return self._links.are_linked(inpad, outpad, check_input_stream)
+        except ValueError:
+            raise
 
     def unlink(self, label=None, inpad=None, outpad=None):
         """unlink specified links
@@ -1327,3 +1354,33 @@ class Graph(UserList, FilterGraphObject):
         return any(
             c._check_partial_pad_index((None, *index[1:]), is_input) for c in self
         )
+
+    def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
+        """True if specified input pad is chainable"""
+
+        if self.are_linked(index, None, True):
+            return False
+
+        i = index[0]
+        try:
+            chain = self[i]
+        except IndexError:
+            # invalid chain index
+            return False
+        else:
+            return chain._input_pad_is_chainable((0, *index[1:]))
+
+    def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
+        """True if specified output pad is chainable"""
+
+        if self.are_linked(None, index):
+            return False
+
+        i = index[0]
+        try:
+            chain = self[i]
+        except IndexError:
+            # invalid chain index
+            return False
+        else:
+            return chain._output_pad_is_chainable((0, *index[1:]))

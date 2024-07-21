@@ -234,16 +234,29 @@ class FilterGraphObject(ABC):
         other: (
             FilterGraphObject
             | str
-            | tuple[FilterGraphObject, PAD_INDEX]
-            | tuple[FilterGraphObject, PAD_INDEX, PAD_INDEX]
+            | tuple[FilterGraphObject, PAD_INDEX | str]
+            | tuple[FilterGraphObject, PAD_INDEX | str, PAD_INDEX | str]
+            | list[
+                FilterGraphObject
+                | str
+                | tuple[FilterGraphObject, PAD_INDEX | str]
+                | tuple[FilterGraphObject, PAD_INDEX | str, PAD_INDEX | str]
+            ]
         ),
     ) -> Graph:
-        """self >> other|label
+        """make one-to-one connections
+
+        self >> other|label
         self >> (index, other|label)
         self >> (index, other_index, other)
-        self >> [other0, other1, ...]"""
+        self >> [other0, other1, ...]
 
-        def parse_other(other):
+        If pad is unspecified (i.e., ``index`` is ``None`` or the last
+        element of ``index`` is ``None``), chain connection is sought first
+        unless multiple other connection points are given.
+        """
+
+        def parse_other(other, resolve_omitted=False, chainable_first=True):
             if isinstance(other, tuple):
                 if len(other) > 2:
                     index, other_index, other = other
@@ -277,7 +290,8 @@ class FilterGraphObject(ABC):
                 chain_index_omittable=True,
                 filter_index_omittable=True,
                 pad_index_omittable=True,
-                resolve_omitted=False,
+                resolve_omitted=resolve_omitted,
+                chainable_first=chainable_first,
             )
 
             other_index = other._resolve_pad_index(
@@ -287,6 +301,8 @@ class FilterGraphObject(ABC):
                 filter_index_omittable=True,
                 pad_index_omittable=True,
                 resolve_omitted=False,
+                resolve_omitted=resolve_omitted,
+                chainable_first=chainable_first,
             )
 
             return other, index, other_index
@@ -306,7 +322,7 @@ class FilterGraphObject(ABC):
             # - None, None, int  = 1*1 = 1
             # - None, None, None = 0*0 = 0
 
-            def resolve_indices(indices, it_avail):
+            def resolve_indices(indices, it_avail, fg_desc, io_desc):
                 index_scores = [
                     sum(i is not None for i in index)
                     * sum((3 - j) for j, i in enumerate(index) if i is not None)
@@ -315,26 +331,31 @@ class FilterGraphObject(ABC):
                 index_assign_order = sorted(
                     range(len(index_scores)), key=index_scores.__getitem__, reverse=True
                 )
-                for i in index_assign_order:
-                    if index_scores[i] < 18:
-                        indices[i] = next(it_avail)
+                try:
+                    for i in index_assign_order:
+                        if index_scores[i] < 18:
+                            indices[i] = next(it_avail)
+                except StopIteration:
+                    raise FiltergraphPadNotFoundError(
+                        f"{fg_desc} does not have enough unconnected {io_desc} pads to complete this operation"
+                    )
 
-            try:
-                resolve_indices(
-                    indices, self.iter_output_pads(chainable_first=False)
-                )
-            except StopIteration:
-                raise FiltergraphPadNotFoundError('filtergraph does not have enough unconnected output pads to complete this operation')
-            try:
-                resolve_indices(
-                    other_indices, other.iter_input_pads(chainable_first=False)
-                )
-            except StopIteration:
-                raise FiltergraphPadNotFoundError('filtergraph does not have enough unconnected output pads to complete this operation')
+            resolve_indices(
+                indices,
+                self.iter_output_pads(chainable_first=False),
+                "Filtergraph",
+                "input",
+            )
+            resolve_indices(
+                other_indices,
+                other.iter_input_pads(chainable_first=False),
+                "The other filtergraph",
+                "output",
+            )
 
             graph = as_filtergraph(self)
 
-            for o, i, oi in zip(others,indices,other_indices):
+            for o, i, oi in zip(others, indices, other_indices):
                 # attach the other object to the graph
                 graph.attach(o, i, oi or other.next_input_pad(chainable_first=True))
 
@@ -342,61 +363,70 @@ class FilterGraphObject(ABC):
 
         # parse other argument, separate the indices if given
         try:
-            other, index, other_index = parse_other(other)
+            other, index, other_index = parse_other(
+                other, resolve_omitted=True, chainable_first=True
+            )
         except NotImplementedError:
             return NotImplemented
 
-        other_is_not_graph = isinstance(other, Graph)
-
-        index_is_none = any(i is None for i in index)
-        other_index_is_none = any(i is None for i in other_index)
-
-        if index is None and other is None and other_is_not_graph:
-            return self._chain_first(other)
-
-        if index_is_none:
-            index = self.next_output_pad(*index[::-1], chainable_first=True)
-        if other_index_is_none:
-            other_index = other.next_input_pad(*other_index[::-1], chainable_first=True)
+        if self._output_pad_is_chainable(index) and other._input_pad_is_chainable(
+            other_index
+        ):
+            return self._chain(other, index[0], other_index[0])
 
         # if not Chain or Graph, use other's >> operator
         return (
             Graph(self).attach(other, index, other_index)
-            if other_is_not_graph
-            else other.rattach(self, index, other_index)
+            if isinstance(other, Graph)
+            else other.rattach(self, other_index, index)
         )
 
-    def __rrshift__(self, other):
-        """other >> self, (other, index) >> self : attach input label or filter"""
+    def __rrshift__(
+        self,
+        other: (
+            FilterGraphObject
+            | str
+            | tuple[PAD_INDEX | str, FilterGraphObject]
+            | tuple[PAD_INDEX | str, PAD_INDEX | str, FilterGraphObject]
+            | list[
+                FilterGraphObject
+                | str
+                | tuple[PAD_INDEX | str, FilterGraphObject]
+                | tuple[PAD_INDEX | str, PAD_INDEX | str, FilterGraphObject]
+            ]
+        ),
+    ) -> Graph:
+        """make one-to-one connections
+        other|label >> self
+        (other|label, index) >> self
+        (other, other_index, index) >> self
+        [other0, other1, ...] >> self
 
-        def parse_other(other):
+        If pad is unspecified (i.e., ``index`` is ``None`` or the last
+        element of ``index`` is ``None``), chain connection is sought first
+        unless multiple other connection points are given.
+        """
+
+        def parse_other(other, resolve_omitted=False, chainable_first=True):
             if isinstance(other, tuple):
                 if len(other) > 2:
                     other, other_index, index = other
                 else:
-                    index, other = other
+                    other, index = other
                     other_index = None
 
-                if index is not None:
-                    if isinstance(index, int):
-                        index = (index,)
-                    validate_pad_index(index)
-                if other_index is not None:
-                    if isinstance(other_index, int):
-                        other_index = (other_index,)
-                    validate_pad_index(other_index)
             else:
                 index = None
                 other_index = None
 
             # parse if other is a filtergraph expression
             try:
-                other = as_filtergraph_object(other)
+                other: FilterGraphObject = as_filtergraph_object(other)
             except FiltergraphInvalidExpression:
                 if _is_label(other):
                     if other_index is not None:
                         raise ValueError("A label cannot have a pad index.")
-                    return self.add_label(other, outpad=index)
+                    return self.add_label(other, inpad=index)
                 else:
                     raise ValueError(
                         f"{other=} is neither a valid filtergraph expression nor a label"
@@ -405,77 +435,124 @@ class FilterGraphObject(ABC):
                 # TODO: screen out ffmpegio errors
                 raise NotImplementedError
 
+            index = self._resolve_pad_index(
+                index,
+                is_input=True,
+                chain_index_omittable=True,
+                filter_index_omittable=True,
+                pad_index_omittable=True,
+                resolve_omitted=resolve_omitted,
+                chainable_first=chainable_first,
+            )
+
+            other_index = other._resolve_pad_index(
+                other_index,
+                is_input=False,
+                chain_index_omittable=True,
+                filter_index_omittable=True,
+                pad_index_omittable=True,
+                resolve_omitted=False,
+                resolve_omitted=resolve_omitted,
+                chainable_first=chainable_first,
+            )
+
             return other, index, other_index
 
         # if output is a list
         if isinstance(other, list):
             # match the pad indices first
-            others = [parse_other(o) for o in other]
+            others, indices, other_indices = zip(*(parse_other(o) for o in other))
 
-            # get pad indices assigned by the caller
-            assigned_idx = [
-                self._resolve_pad_index(i, is_input=False)
-                for o, i, oi in others
-                if i is not None
-            ]
+            # indices ranking
+            # - int, int, int    = 3*6 = 18
+            # - int, int, None   = 2*5 = 10
+            # - int, None, int   = 2*4 = 8
+            # - None, int, int   = 2*3 = 6
+            # - int, None, None  = 1*3 = 3
+            # - None, int, None  = 1*2 = 2
+            # - None, None, int  = 1*1 = 1
+            # - None, None, None = 0*0 = 0
 
-            it_avail = self.iter_output_pads(chainable_first=False)
+            def resolve_indices(indices, it_avail, fg_desc, io_desc):
+                index_scores = [
+                    sum(i is not None for i in index)
+                    * sum((3 - j) for j, i in enumerate(index) if i is not None)
+                    for index in indices
+                ]
+                index_assign_order = sorted(
+                    range(len(index_scores)), key=index_scores.__getitem__, reverse=True
+                )
+                try:
+                    for i in index_assign_order:
+                        if index_scores[i] < 18:
+                            indices[i] = next(it_avail)
+                except StopIteration:
+                    raise FiltergraphPadNotFoundError(
+                        f"{fg_desc} does not have enough unconnected {io_desc} pads to complete this operation"
+                    )
+
+            resolve_indices(
+                indices,
+                self.iter_input_pads(chainable_first=False),
+                "Filtergraph",
+                "output",
+            )
+            resolve_indices(
+                other_indices,
+                other.iter_output_pads(chainable_first=False),
+                "The other filtergraph",
+                "input",
+            )
+
             graph = as_filtergraph(self)
 
-            for o, i, oi in others:
-                if i is not None:
-                    # find the next available pad
-                    while i_ := next(it_avail):
-                        if i_ not in assigned_idx:
-                            i = i_
+            for o, i, oi in zip(others, indices, other_indices):
                 # attach the other object to the graph
-                graph.attach(o, i, oi or other.next_input_pad(chainable_first=True))
+                graph.rattach(o, i, oi or other.next_input_pad(chainable_first=True))
 
             return graph
 
         # parse other argument, separate the indices if given
         try:
-            other, index, other_index = parse_other(other)
+            other, index, other_index = parse_other(
+                other, resolve_omitted=True, chainable_first=True
+            )
         except NotImplementedError:
             return NotImplemented
 
-        other_is_not_graph = isinstance(other, Graph)
-
-        if index is None and other is None and other_is_not_graph:
-            self._rchain(other)
-
-        if other_index is None:
-            other_index = other.next_output_pad(chainable_first=True)
-        if index is None:
-            index = self.next_input_pad(chainable_first=True)
+        if self._input_pad_is_chainable(index) and other._output_pad_is_chainable(
+            other_index
+        ):
+            return other._chain(self, other_index[0], index[0])
 
         # if not Chain or Graph, use other's >> operator
         return (
             Graph(self).rattach(other, index, other_index)
-            if other_is_not_graph
-            else other.attach(self, index, other_index)
+            if isinstance(other, Graph)
+            else other.attach(self, other_index, index)
         )
 
     @abstractmethod
     def _chain(
-        self, other: Filter | Chain, chain_index: int | None = None
+        self, other: FilterGraphObject, chain_index: int, other_chain_index: int
     ) -> Chain | Graph:
         """chain self->other (no var check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+        :param other: the other filitergraph object to chain to
+        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
 
-    @abstractmethod
     def _rchain(
-        self, other: Filter | Chain, chain_index: int | None = None
+        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
     ) -> Chain | Graph:
         """chain other->self (no var check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+        :param other: the other filitergraph object to chain to
+        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
 
     def _resolve_pad_index(
@@ -640,3 +717,11 @@ class FilterGraphObject(ABC):
         self, index: tuple[int | None, int | None, int | None], is_input: bool
     ) -> bool:
         """True if defined values of the partial pad index are valid"""
+
+    @abstractmethod
+    def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
+        """True if specified input pad is chainable"""
+
+    @abstractmethod
+    def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
+        """True if specified output pad is chainable"""

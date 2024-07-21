@@ -8,6 +8,9 @@ from functools import reduce
 from .typing import *
 from .exceptions import *
 from .abc import FilterGraphObject
+from .Filter import Filter
+from .Graph import Graph
+from ._convert import as_filter, as_filterchain
 
 from ..utils import filter as filter_utils
 
@@ -157,26 +160,42 @@ class Chain(UserList, FilterGraphObject):
         return Graph([other, self]) if n and m else self if n else other
 
     def _chain(
-        self, other: Filter | Chain, chain_index: int | None = None
+        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
     ) -> Chain | Graph:
-        """chain self->other (no input check)
+        """chain self->other (no var check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+        :param other: the other filitergraph object to chain to
+        :param chain_id: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
-        return Chain([*self, other] if isinstance(other, Filter) else [*self, *other])
+
+        if isinstance(other, Graph):
+            return other._rchain(self, other_chain_id, chain_id)
+        else:
+            if not chain_id or not other_chain_id:
+                raise ValueError("chain_id and other_chain_id must be zero")
+            return Chain(
+                [*self, other] if isinstance(other, Filter) else [*self, *other]
+            )
 
     def _rchain(
-        self, other: Filter | Chain, chain_index: int | None = None
+        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
     ) -> Chain | Graph:
-        """chain other->self (no input check)
+        """chain other->self (no var check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+        :param other: the other filitergraph object to chain to
+        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
-        return Chain([other, *self] if isinstance(other, Filter) else [*other, *self])
+
+        if isinstance(other, Filter):
+            if not chain_id or not other_chain_id:
+                raise ValueError("chain_id and other_chain_id must be zero")
+            return Chain([other, self])
+        else:
+            return other._chain(self, other_chain_id, chain_id)
 
     def __mul__(self, __n):
         if not isinstance(__n, int):
@@ -446,3 +465,25 @@ class Chain(UserList, FilterGraphObject):
         return any(
             f._check_partial_pad_index((None, None, index[2]), is_input) for f in self
         )
+
+    def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
+        """True if specified input pad is chainable"""
+        if index[0]:
+            return False
+        try:
+            filter = self[index[1]]
+        except IndexError:
+            return False
+        else:
+            return filter._input_pad_is_chainable((0, 0, index[2]))
+
+    def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
+        """True if specified output pad is chainable"""
+        if index[0]:
+            return False
+        try:
+            filter = self[index[1]]
+        except IndexError:
+            return False
+        else:
+            return filter._output_pad_is_chainable((0, 0, index[2]))

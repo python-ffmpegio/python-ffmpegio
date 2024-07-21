@@ -488,10 +488,20 @@ class GraphLinks(UserDict):
         :yield: label and pad index
         """
         for label, (inpad, outpad) in self.data.items():
-            if outpad is None:
+            if outpad is None and not (exclude_stream_specs and is_stream_spec(label)):
                 for d in self.iter_inpad_ids(inpad):
-                    if not (exclude_stream_specs and is_stream_spec(label)):
-                        yield (label, d)
+                    yield (label, d)
+
+    def iter_input_streams(self) -> Generator[tuple[str, PAD_INDEX]]:
+        """Iterate over input stream labels, possibly repeating the same label if shared among
+           multiple input pad ids
+
+        :yield: label and pad index
+        """
+        for label, (inpad, outpad) in self.data.items():
+            if outpad is None and is_stream_spec(label):
+                for d in self.iter_inpad_ids(inpad):
+                    yield (label, d)
 
     def iter_outputs(self) -> Generator[tuple[str, PAD_INDEX]]:
         """Iterate over only output labels
@@ -563,10 +573,61 @@ class GraphLinks(UserDict):
             (l for l, d, s in self.iter_links() if outpad == s and inpad == d), None
         )
 
-    def are_linked(self, inpad, outpad):
-        if outpad is None or inpad is None:
-            return False
-        return any((outpad == s and inpad == d for _, d, s in self.iter_links()))
+    def are_linked(
+        self,
+        inpad: PAD_INDEX | None,
+        outpad: PAD_INDEX | None,
+        check_input_stream: bool | str = False,
+    ) -> bool:
+        """True if given pads are linked
+
+        :param inpad: input pad index, default to ``None`` to check if ``outpad`` is connected to any
+                      input pad.
+        :param outpad: output pad index, defaults to ``None`` to check if ``inpad`` is connected to any
+                       output pad or an input stream.
+        :param check_input_stream: True to check inpad is connected to an input stream, or a stream
+                                   specifier string to check the connection to a specific stream, defaults
+                                   to ``False``.
+
+        ``ValueError`` will be raised if both ``inpad`` and ``outpad`` ``None`` or
+        if ``include_input_stream!=False`` and ``outpad`` is ``None``.
+
+        """
+
+        if isinstance(check_input_stream, str):
+            # check for a specific input stream
+            if outpad is not None:
+                raise ValueError(
+                    f"Both {outpad=} and {check_input_stream=} cannot be specified at the same time."
+                )
+            return any(
+                inpad == d for _, d, _ in self.iter_input_pads(check_input_stream)
+            )
+        else:
+            if inpad is None and outpad is None:
+                raise ValueError(f"At least one of inpad or outpad must be specified.")
+
+            # check internal links first
+            it_links = self.iter_links()
+
+            # single check for a specific outpad
+            if outpad is not None:
+                return any(
+                    (outpad == s for _, _, s in it_links)
+                    if inpad is None
+                    else (outpad == s and inpad == d for _, d, s in it_links)
+                )
+
+            # possible 2-step check for an arbitrary ouput
+
+            # first check internal links
+            res = any(inpad == d for _, d, _ in it_links)
+            # then check for input stream if no link was found
+            return (
+                any(inpad == d for _, d in self.iter_input_streams())
+                if check_input_stream and not res and outpad is None
+                else res
+            )
 
     def create_label(self, label, inpad=None, outpad=None, force=None):
         """label a filter pad
