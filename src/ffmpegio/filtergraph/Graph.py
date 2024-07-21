@@ -17,6 +17,8 @@ from .abc import FilterGraphObject
 from ..utils import filter as filter_utils, is_stream_spec
 from .GraphLinks import GraphLinks
 from ._convert import as_filterchain, as_filtergraph, as_filtergraph_object
+from .Filter import Filter
+from .Chain import Chain
 
 __all__ = ["Graph"]
 
