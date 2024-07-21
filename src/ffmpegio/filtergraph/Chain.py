@@ -7,14 +7,14 @@ from functools import reduce
 
 from .typing import *
 from .exceptions import *
-from .abc import FilterOperations
+from .abc import FilterGraphObject
 
 from ..utils import filter as filter_utils
 
 __all__ = ["Chain"]
 
 
-class Chain(UserList, FilterOperations):
+class Chain(UserList, FilterGraphObject):
     """List of FFmpeg filters, connected in series
 
     Chain() to instantiate empty Graph object
@@ -54,32 +54,6 @@ class Chain(UserList, FilterOperations):
         super().__init__(
             () if filter_specs is None else (as_filter(fspec) for fspec in filter_specs)
         )
-
-    def resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
-        try:
-            # cannot be str
-            validate_pad_index(index)
-
-            # chain index (if given) must be 0
-            assert all(i in (0, None) for i in index[:-2])
-
-            # get pad index
-            i = index[-1]
-
-            # get filter index
-            try:
-                j = index[-2]
-            except:
-                j = None
-
-            return next(
-                (self.iter_input_pads if is_input else self.iter_output_pads)(
-                    filter=j, pad=i
-                )
-            )[0]
-
-        except:
-            raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
     def __str__(self):
         return filter_utils.compose_graph([self.data])
@@ -402,26 +376,6 @@ class Chain(UserList, FilterOperations):
     def get_num_outputs(self) -> int:
         return len(list(self.iter_output_pads()))
 
-    def validate_input_index(self, pos, pad_pos):
-
-        if pos < 0 or pos >= len(self):
-            raise Chain.Error(f"invliad filter position #{pos}.")
-
-        # if chained to the previous filter, not avail
-        n = self[pos].get_num_inputs()
-        if pad_pos < 0 or pad_pos >= (n - 1 if pos else n):
-            raise Chain.Error(f"invliad input pad position #{pos} for {self[pos]}.")
-
-    def validate_output_index(self, pos, pad_pos):
-
-        if pos < 0 or pos >= len(self):
-            raise Chain.Error(f"invliad filter position #{pos}.")
-
-        # if chained to the next filter, not avail
-        n = self[pos].get_num_outputs()
-        if pad_pos < 0 or pad_pos >= (n - 1 if pos < len(self.data) - 1 else n):
-            raise Chain.Error(f"invliad output pad position #{pos} for {self[pos]}.")
-
     def add_label(
         self,
         label: str,
@@ -450,3 +404,45 @@ class Chain(UserList, FilterOperations):
         fg = Graph([self])
         fg.add_label(label, inpad, outpad, force)
         return fg
+
+    def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        """returns True if specified input pad index is available"""
+
+        pos = index[1]
+        if pos < 0 or pos >= len(self):
+            return False
+
+        # if chained to the previous filter, not avail
+        pad_pos = index[2]
+        n = self[pos].get_num_inputs()
+        return pad_pos >= 0 and pad_pos < (n - 1 if pos else n)
+
+    def _output_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        """returns True if specified output pad index is available"""
+
+        pos = index[1]
+        nchain = len(self)
+        if pos < 0 or pos >= nchain:
+            return False
+
+        # if chained to the next filter, not avail
+        pad_pos = index[2]
+        n = self[pos].get_num_outputs()
+        return pad_pos >= 0 and pad_pos < (n - 1 if pos < nchain - 1 else n)
+
+    def _check_partial_pad_index(
+        self, index: tuple[int | None, int | None, int | None], is_input: bool
+    ) -> bool:
+        """True if defined values of the partial pad index are valid"""
+
+        if index[0] is not None and index[0] > 0:
+            return False
+
+        filter = index[1]
+        if filter is not None:
+            if filter < 0 or filter >= len(self):
+                return False
+
+        return any(
+            f._check_partial_pad_index((None, None, index[2]), is_input) for f in self
+        )

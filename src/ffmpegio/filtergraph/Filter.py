@@ -3,16 +3,18 @@ from __future__ import annotations
 from collections.abc import Generator, Sequence
 import re
 
-from .caps import filters as list_filters, filter_info, layouts
-from .utils import filter as filter_utils
+from ..caps import filters as list_filters, filter_info, layouts
+from ..utils import filter as filter_utils
 
 from .typing import *
 from .exceptions import *
+from ._convert import as_filter
+from .abc import FilterGraphObject
 
 __all__ = ["Filter"]
 
 
-class Filter(tuple, FilterOperations):
+class Filter(tuple, FilterGraphObject):
     """FFmpeg filter definition immutable class
 
     :param filter_spec: _description_
@@ -105,30 +107,6 @@ class Filter(tuple, FilterOperations):
 
         # create the final tuple
         return tuple.__new__(Filter, proto)
-
-    def resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
-        """Resolve label or partial pad index to full 3-element pad index
-
-        :param is_input: True if resolving a filter pad
-        :param index: (partial) pad index
-        :return: a full 3-element pad index
-        """
-
-        try:
-            # cannot be str
-            validate_pad_index(index)
-
-            # both chain and filter indices (if given) must be 0
-            assert all(i in (0, None) for i in index[:-1])
-
-            # validate the pad index
-            i = index[-1]
-            assert i >= 0 and i < (
-                self.get_num_inputs() if is_input else self.get_num_outputs()
-            )
-            return (0, 0, i)
-        except:
-            raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
     def __getitem__(self, key):
         value = super().__getitem__(key)
@@ -662,9 +640,6 @@ class Filter(tuple, FilterOperations):
     def __mul__(self, __n) -> Graph:
         return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
 
-    def __rmul__(self, __n) -> Graph:
-        return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
-
     def __or__(self, other) -> Graph:
         # stack
 
@@ -705,3 +680,26 @@ class Filter(tuple, FilterOperations):
         If not specified, attaches to the first chain.
         """
         return Chain([other, self] if isinstance(other, Filter) else [*other, self])
+
+    def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        pad_pos = index[2]
+        return pad_pos >= 0 and pad_pos < self.get_num_inputs()
+
+    def _output_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        pad_pos = index[2]
+        return pad_pos >= 0 and pad_pos < self.get_num_outputs()
+
+    def _check_partial_pad_index(
+        self, index: tuple[int | None, int | None, int | None], is_input: bool
+    ) -> bool:
+        """True if defined values of the partial pad index are valid"""
+
+        if any(i is not None and i > 0 for i in index[:2]):
+            return False
+
+        pad = index[2]
+        if pad is None:
+            pad = 0  # use the smallest pad id
+
+        n = self.get_num_inputs() if is_input else self.get_num_outputs()
+        return pad >= 0 and pad < n

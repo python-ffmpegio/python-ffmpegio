@@ -6,18 +6,13 @@ import re
 
 from .typing import *
 from .exceptions import *
+from ._convert import as_filtergraph_object, as_filtergraph, as_filterchain
 
+from .Graph import Graph  # circular
+from .Filter import Filter  # circular
+from .Chain import Chain  # circular
 
-__all__ = ["FilterOperations"]
-
-
-def validate_pad_index(index: PAD_INDEX):
-    try:
-        assert isinstance(index, tuple)
-        assert len(index) in (1, 2, 3)
-        assert all(isinstance(i, (int, type(None))) for i in index)
-    except AssertionError:
-        raise FiltergraphPadNotFoundError(f"{index=} is an invalid pad index.")
+__all__ = ["FilterGraphObject"]
 
 
 def _check_joinable(outpad, inpad):
@@ -32,7 +27,7 @@ def _is_label(expr):
     return isinstance(expr, str) and re.match(r"\[[^\[\]]+\]$", expr)
 
 
-class FilterOperations(ABC):
+class FilterGraphObject(ABC):
 
     @abstractmethod
     def get_num_inputs(self) -> int:
@@ -46,19 +41,27 @@ class FilterOperations(ABC):
         :return: number of output pads
         """
 
-    def next_input_pad(self, chainable_first: bool) -> PAD_INDEX:
+    def next_input_pad(
+        self, pad=None, filter=None, chain=None, chainable_first: bool = False
+    ) -> PAD_INDEX:
         """get next available input pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
         """
-        return next(self.iter_input_pads(chainable_first=chainable_first))[0]
+        return next(
+            self.iter_input_pads(pad, filter, chain, chainable_first=chainable_first)
+        )[0]
 
-    def next_output_pad(self, chainable_first: bool) -> PAD_INDEX:
+    def next_output_pad(
+        self, pad=None, filter=None, chain=None, chainable_first: bool = False
+    ) -> PAD_INDEX:
         """get next available output pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
         """
-        return next(self.iter_output_pads(chainable_first=chainable_first))[0]
+        return next(
+            self.iter_output_pads(pad, filter, chain, chainable_first=chainable_first)
+        )[0]
 
     @abstractmethod
     def iter_input_pads(
@@ -108,59 +111,56 @@ class FilterOperations(ABC):
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
-    def has_label(
-        self,
-        label: str,
-        *,
-        linkable: bool = False,
-        input: bool = False,
-        output: bool = False,
-    ) -> bool:
-        """True if filtergraph object has the label
+    # Label management methods (default operation for non-Graph objects)
 
-        :param label: link label string
-        :param linkable: True to return True only if the label points to unlinked input or output
-        :param input: True to return True only if the label is a dangling input label or an input stream spec
-        :param output: True to return True only if the label is a dangling output label
+    def iter_input_labels(
+        self, exclude_stream_specs: bool = False
+    ) -> Generator[tuple[str, PAD_INDEX]]:
+        """iterate over the dangling labeled input pads of the filtergraph object
 
-        Example:
-
-        fg.has_label('in',linkable=True,input=True) 
-
-        This statement only returns True if there is Link Label 'in' which is associated with an input pad
-        of a filter but not connected to any output pad.
-
-        On the other hand,
-
-        fg.has_label('0:v',linkable=True,input=True) 
-
-        will always return False because it is an input stream specifier thus always connected.
-
+        :param exclude_stream_specs: True to not include input streams
+        :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
-        raise FFmpegioError()
+
+        raise StopIteration()
+
+    def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
+        """iterate over the dangling labeled output pads of the filtergraph object
+
+        :yield: a tuple of 3-tuple pad index and the pad index of the connected input pad if connected
+        """
+
+        raise StopIteration()
 
     def get_label(
         self,
-        is_input: bool = True,
+        input: bool = True,
         index: PAD_INDEX | None = None,
         inpad: PAD_INDEX | None = None,
         outpad: PAD_INDEX | None = None,
     ) -> str | None:
-        """get label of the specified filter input or output pad
+        """get the label string of the specified filter input or output pad
 
-        :param label: _description_
-        :param inpad: _description_, defaults to None
-        :param outpad: _description_, defaults to None
-        :raises ValueError: _description_
-        :raises ValueError: _description_
-        :raises NotImplementedError: _description_
-        :raises ValueError: _description_
-        :raises ValueError: _description_
-        :raises NotImplementedError: _description_
-        :return: _description_
+        :param input: True to get label of input pad, False to get label of output pad, defaults to True
+        :param index: 3-element tuple to specify the (chain, filter, pad) indices, defaults to None
+        :param inpad: alternate argument to specify an input pad index, defaults to None
+        :param outpad: alternate argument to specify an output pad index, defaults to None
+        :return: the label of the specified pad or ``None`` if no label is assigned.
+
+        If the pad index is invalid, the method raises ``FiltergraphInvalidIndex``.
+
         """
 
-        raise FFmpegioError()
+        if (index is not None) + (inpad is not None) + (outpad is not None) != 1:
+            raise ValueError(
+                "One and only one of index, inpad, or outpad must be specified."
+            )
+
+        if inpad is not None:
+
+            self._get_label()
+
+        return None
 
     @abstractmethod
     def add_label(
@@ -190,15 +190,6 @@ class FilterOperations(ABC):
         """
 
     @abstractmethod
-    def resolve_index(self, is_input: bool, index: PAD_INDEX) -> PAD_INDEX:
-        """Resolve label or partial pad index to full 3-element pad index
-
-        :param is_input: True if resolving a filter pad
-        :param index: (partial) pad index
-        :return: a full 3-element pad index
-        """
-
-    @abstractmethod
     def __getitem__(self, key): ...
 
     @abstractmethod
@@ -207,31 +198,46 @@ class FilterOperations(ABC):
     @abstractmethod
     def __repr__(self) -> str: ...
 
+    # Filtergraph math operators
+
     @abstractmethod
-    def __add__(self, other):
+    def __add__(self, other: FilterGraphObject | str) -> Chain | Graph:
         """join"""
 
     @abstractmethod
-    def __radd__(self, other):
+    def __radd__(self, other: FilterGraphObject | str) -> Chain | Graph:
         """join"""
 
     @abstractmethod
-    def __mul__(self, __n: int):
-        """stack"""
+    def __mul__(self, __n: int) -> Graph:
+        """duplicate-n-stack"""
+
+    def __rmul__(self, __n: int) -> Graph:
+        """duplicate-n-stack"""
+        return self.__mul__(__n)
 
     @abstractmethod
-    def __rmul__(self, __n: int):
+    def __or__(self, other: FilterGraphObject | str) -> Graph:
         """stack"""
 
-    @abstractmethod
-    def __or__(self, other):
+    def __ror__(self, other: FilterGraphObject | str) -> Graph:
         """stack"""
+        try:
+            return as_filtergraph_object(other).__or__(self)
+        except FiltergraphInvalidExpression:
+            raise
+        except:
+            NotImplemented
 
-    @abstractmethod
-    def __ror__(self, other):
-        """stack"""
-
-    def __rshift__(self, other) -> Graph:
+    def __rshift__(
+        self,
+        other: (
+            FilterGraphObject
+            | str
+            | tuple[FilterGraphObject, PAD_INDEX]
+            | tuple[FilterGraphObject, PAD_INDEX, PAD_INDEX]
+        ),
+    ) -> Graph:
         """self >> other|label
         self >> (index, other|label)
         self >> (index, other_index, other)
@@ -245,21 +251,13 @@ class FilterOperations(ABC):
                     index, other = other
                     other_index = None
 
-                if index is not None:
-                    if isinstance(index, int):
-                        index = (index,)
-                    validate_pad_index(index)
-                if other_index is not None:
-                    if isinstance(other_index, int):
-                        other_index = (other_index,)
-                    validate_pad_index(other_index)
             else:
                 index = None
                 other_index = None
 
             # parse if other is a filtergraph expression
             try:
-                other = as_filtergraph_object(other)
+                other: FilterGraphObject = as_filtergraph_object(other)
             except FiltergraphInvalidExpression:
                 if _is_label(other):
                     if other_index is not None:
@@ -273,27 +271,70 @@ class FilterOperations(ABC):
                 # TODO: screen out ffmpegio errors
                 raise NotImplementedError
 
+            index = self._resolve_pad_index(
+                index,
+                is_input=False,
+                chain_index_omittable=True,
+                filter_index_omittable=True,
+                pad_index_omittable=True,
+                resolve_omitted=False,
+            )
+
+            other_index = other._resolve_pad_index(
+                other_index,
+                is_input=True,
+                chain_index_omittable=True,
+                filter_index_omittable=True,
+                pad_index_omittable=True,
+                resolve_omitted=False,
+            )
+
             return other, index, other_index
 
         # if output is a list
         if isinstance(other, list):
             # match the pad indices first
-            others = [parse_other(o) for o in other]
+            others, indices, other_indices = zip(*(parse_other(o) for o in other))
 
-            # get pad indices assigned by the caller
-            assigned_idx = [
-                self.resolve_index(False, i) for o, i, oi in others if i is not None
-            ]
+            # indices ranking
+            # - int, int, int    = 3*6 = 18
+            # - int, int, None   = 2*5 = 10
+            # - int, None, int   = 2*4 = 8
+            # - None, int, int   = 2*3 = 6
+            # - int, None, None  = 1*3 = 3
+            # - None, int, None  = 1*2 = 2
+            # - None, None, int  = 1*1 = 1
+            # - None, None, None = 0*0 = 0
 
-            it_avail = self.iter_output_pads(chainable_first=False)
+            def resolve_indices(indices, it_avail):
+                index_scores = [
+                    sum(i is not None for i in index)
+                    * sum((3 - j) for j, i in enumerate(index) if i is not None)
+                    for index in indices
+                ]
+                index_assign_order = sorted(
+                    range(len(index_scores)), key=index_scores.__getitem__, reverse=True
+                )
+                for i in index_assign_order:
+                    if index_scores[i] < 18:
+                        indices[i] = next(it_avail)
+
+            try:
+                resolve_indices(
+                    indices, self.iter_output_pads(chainable_first=False)
+                )
+            except StopIteration:
+                raise FiltergraphPadNotFoundError('filtergraph does not have enough unconnected output pads to complete this operation')
+            try:
+                resolve_indices(
+                    other_indices, other.iter_input_pads(chainable_first=False)
+                )
+            except StopIteration:
+                raise FiltergraphPadNotFoundError('filtergraph does not have enough unconnected output pads to complete this operation')
+
             graph = as_filtergraph(self)
 
-            for o, i, oi in others:
-                if i is not None:
-                    # find the next available pad
-                    while i_ := next(it_avail):
-                        if i_ not in assigned_idx:
-                            i = i_
+            for o, i, oi in zip(others,indices,other_indices):
                 # attach the other object to the graph
                 graph.attach(o, i, oi or other.next_input_pad(chainable_first=True))
 
@@ -307,13 +348,16 @@ class FilterOperations(ABC):
 
         other_is_not_graph = isinstance(other, Graph)
 
+        index_is_none = any(i is None for i in index)
+        other_index_is_none = any(i is None for i in other_index)
+
         if index is None and other is None and other_is_not_graph:
             return self._chain_first(other)
 
-        if index is None:
-            index = self.next_output_pad(chainable_first=True)
-        if other_index is None:
-            other_index = other.next_input_pad(chainable_first=True)
+        if index_is_none:
+            index = self.next_output_pad(*index[::-1], chainable_first=True)
+        if other_index_is_none:
+            other_index = other.next_input_pad(*other_index[::-1], chainable_first=True)
 
         # if not Chain or Graph, use other's >> operator
         return (
@@ -370,7 +414,9 @@ class FilterOperations(ABC):
 
             # get pad indices assigned by the caller
             assigned_idx = [
-                self.resolve_index(False, i) for o, i, oi in others if i is not None
+                self._resolve_pad_index(i, is_input=False)
+                for o, i, oi in others
+                if i is not None
             ]
 
             it_avail = self.iter_output_pads(chainable_first=False)
@@ -431,3 +477,166 @@ class FilterOperations(ABC):
         If self is a Graph, chain_index may be used to specify the chain to attach other to.
         If not specified, attaches to the first chain.
         """
+
+    def _resolve_pad_index(
+        self,
+        index_or_label: PAD_INDEX | str | None,
+        *,
+        is_input: bool = True,
+        chain_index_omittable: bool = False,
+        filter_index_omittable: bool = False,
+        pad_index_omittable: bool = False,
+        resolve_omitted: bool = True,
+        chain_fill_value: int | None = None,
+        filter_fill_value: int | None = None,
+        pad_fill_value: int | None = None,
+        chainable_first: bool = False,
+    ) -> PAD_INDEX:
+        """Resolve unconnected label or pad index to full 3-element pad index
+
+        :param index_or_label: pad index set or pad label or ``None`` to auto-select
+        :param is_input: True to resolve an input pad, else an output pad, defaults to True
+        :param chain_index_omittable: True to allow ``None`` chain index, defaults to False
+        :param filter_index_omittable: True to allow ``None`` filter index, defaults to False
+        :param pad_index_omittable: True to allow ``None`` pad index, defaults to False
+        :param resolve_omitted: True to fill each omitted value with the prescribed fill value.
+        :param chain_fill_value: if ``chain_index_omittable=True`` and chain index is either not
+                                 given or ``None``, this value will be returned, defaults to None,
+                                 which returns the first available pad.
+        :param filter_fill_value:if ``filter_index_omittable=True`` and filter index is either not
+                                 given or ``None``, this value will be returned, defaults to None,
+                                 which returns the first available pad.
+        :param pad_fill_value: if ``pad_index_omittable=True`` and either ``index`` is None or
+                               pad index is ``None``, this value will be returned, defaults to None,
+                               which returns the first available pad.
+        :param chainable_first: if True, chainable pad is selected first, defaults to False
+
+        One and only one of ``index`` and ``label`` must be specified. If the given index
+        or label is invalid, it raises FiltergraphPadNotFoundError.
+        """
+
+        # base implementation - guarantees to return 3-element tuple index WITHOUT converting None fill_values
+
+        pad_type = "input" if is_input else "output"
+
+        if index_or_label is None:  # all undefined
+            if chain_index_omittable and filter_index_omittable and pad_index_omittable:
+                return (chain_fill_value, filter_fill_value, pad_fill_value)
+            else:
+                raise ValueError(
+                    "Either index or label must be specified (partial index not allowed)."
+                )
+
+        elif isinstance(index_or_label, str):  # label given
+
+            try:
+                if is_input:
+                    index = next(
+                        index
+                        for label, index in self.iter_input_labels(
+                            index_or_label, exclude_stream_specs=True
+                        )
+                        if label == index
+                    )
+                else:
+                    index = next(
+                        index
+                        for label, index in self.iter_output_labels(index_or_label)
+                        if label == index
+                    )
+
+            except StopIteration:
+                raise FiltergraphPadNotFoundError(
+                    f"{index_or_label=} is not defined on the filtergraph."
+                )
+            return index
+
+        else:  # index given
+
+            if isinstance(index_or_label, int):
+                # only pad index given
+                if chain_index_omittable and filter_index_omittable:
+                    return (
+                        chain_fill_value,
+                        filter_fill_value,
+                        pad_fill_value if index is None else index,
+                    )
+
+            allow_partial_index = (
+                chain_index_omittable or filter_index_omittable or pad_index_omittable
+            )
+
+            min_len = (
+                3
+                if not chain_index_omittable
+                else 2 if not filter_index_omittable else 1
+            )
+            index_types = (int, type(None)) if allow_partial_index else int
+
+            if not (
+                isinstance(index_or_label, tuple)
+                and len(index_or_label) in range(min_len, 4)
+                and all(isinstance(i, index_types) for i in index_or_label)
+            ):
+                raise FiltergraphPadNotFoundError(
+                    f"{index_or_label=} is an invalid {pad_type} pad index."
+                )
+
+            def get_value(i, omittable, fill_value):
+                try:
+                    value = index_or_label[i]
+                except IndexError:
+                    value = fill_value
+                else:
+                    if omittable and value is None:
+                        value = fill_value
+                return value
+
+            index = (
+                get_value(-3, chain_index_omittable, chain_fill_value),
+                get_value(-2, filter_index_omittable, filter_fill_value),
+                get_value(-1, pad_index_omittable, pad_fill_value),
+            )
+
+            if allow_partial_index and any(i is None for i in index):
+                if resolve_omitted:
+                    iter_pads = (
+                        self.iter_input_pads if is_input else self.iter_output_pads
+                    )
+                    try:
+                        index = next(iter_pads(chainable_first=chainable_first))
+                    except StopIteration:
+                        raise FiltergraphPadNotFoundError(
+                            f"{index_or_label=} could not be resolve to an unused {pad_type} pad index."
+                        )
+                elif not self._check_partial_pad_index(index, is_input=is_input):
+                    raise FiltergraphPadNotFoundError(
+                        f"{index_or_label=} cannot be resolve to a valid {pad_type} pad index."
+                    )
+                return index
+            else:
+                # validate
+                if (
+                    self._input_pad_is_available
+                    if is_input
+                    else self._output_pad_is_available
+                )(index):
+                    return index
+                else:
+                    raise FiltergraphPadNotFoundError(
+                        f"{index_or_label=} is either already connected or invalid {pad_type} pad."
+                    )
+
+    @abstractmethod
+    def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        """index must be 3-element tuple"""
+
+    @abstractmethod
+    def _output_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        """index must be 3-element tuple"""
+
+    @abstractmethod
+    def _check_partial_pad_index(
+        self, index: tuple[int | None, int | None, int | None], is_input: bool
+    ) -> bool:
+        """True if defined values of the partial pad index are valid"""

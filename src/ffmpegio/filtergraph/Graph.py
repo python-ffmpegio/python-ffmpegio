@@ -12,15 +12,16 @@ from tempfile import NamedTemporaryFile
 
 from .typing import *
 from .exceptions import *
-from .abc import FilterOperations
+from .abc import FilterGraphObject
 
 from ..utils import filter as filter_utils, is_stream_spec
 from .GraphLinks import GraphLinks
+from ._convert import as_filterchain, as_filtergraph, as_filtergraph_object
 
 __all__ = ["Graph"]
 
 
-class Graph(UserList, FilterOperations):
+class Graph(UserList, FilterGraphObject):
     """List of FFmpeg filterchains in parallel with interchain link specifications
 
     Graph() to instantiate empty Graph object
@@ -94,13 +95,32 @@ class Graph(UserList, FilterOperations):
         self.autosplit_output = autosplit_output
         """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
-    def resolve_index(self, is_input: bool, index: PAD_INDEX | str) -> PAD_INDEX:
-        """Resolve label or partial pad index to full 3-element pad index
+    def _resolve_pad_index(
+        self,
+        index_or_label: PAD_INDEX | str | None,
+        *,
+        is_input: bool = True,
+        chain_index_omittable: bool = False,
+        filter_index_omittable: bool = False,
+        pad_index_omittable: bool = False,
+        chain_fill_value: int | None = None,
+        filter_fill_value: int | None = None,
+        pad_fill_value: int | None = None,
+        chainable_first: bool = False,
+    ) -> PAD_INDEX:
 
-        :param is_input: True if resolving a filter pad
-        :param index: pad label or (partial) index
-        :return: a full 3-element pad index
-        """
+        # obtain 3-element tuple index (unvalidated)
+        index = super()._resolve_pad_index(
+            index_or_label,
+            is_input=is_input,
+            chain_index_omittable=chain_index_omittable,
+            filter_index_omittable=filter_index_omittable,
+            pad_index_omittable=pad_index_omittable,
+            chain_fill_value=chain_fill_value,
+            filter_fill_value=filter_fill_value,
+            pad_fill_value=pad_fill_value,
+            chainable_first=chainable_first,
+        )
 
         # call if index needs to be autocompleted
         try:
@@ -118,8 +138,6 @@ class Graph(UserList, FilterOperations):
                 else:  # inpad=None, outpad=not None
                     assert self._links.is_output(label)
                     return outpad
-
-            validate_pad_index(index)
 
             assert len(index) in (1, 2, 3)
             i = index[-1]
@@ -590,92 +608,42 @@ class Graph(UserList, FilterOperations):
             )
         )
 
-    def iter_input_labels(self) -> Generator[tuple[str, PAD_INDEX, PAD_INDEX | None]]:
+    def iter_input_labels(
+        self, exclude_stream_specs: bool = False
+    ) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled input pads of the filtergraph object
 
+        :param exclude_stream_specs: True to not include input streams
         :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
-        for label, inpad, outpad in self._links.iter_inputs():
-            yield label, inpad, outpad
+        for label_index in self._links.iter_inputs(exclude_stream_specs):
+            yield label_index
 
-    def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX, PAD_INDEX | None]]:
+    def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled output pads of the filtergraph object
 
         :yield: a tuple of 3-tuple pad index and the pad index of the connected input pad if connected
         """
-        for label, outpad, inpad in self._links.iter_output_pads():
-            if not ignore_connected or inpad is None:
-                yield label, outpad, inpad
+        for label_index in self._links.iter_outputs():
+            yield label_index
 
-    def validate_input_index(self, inpad):
-        try:
-            GraphLinks.validate_pad_id_pair((inpad, None))
-            for index in GraphLinks.iter_inpad_ids(inpad):
-                self[index[0]].validate_input_index(*index[1:])
-        except:
-            raise Graph.InvalidFilterPadId("input", inpad)
-
-    def validate_output_index(self, index):
-        try:
-            GraphLinks.validate_pad_id_pair((None, index))
-            self[index[0]].validate_output_index(*index[1:])
-        except:
-            raise Graph.InvalidFilterPadId("output", index)
-
-    def get_input_pad(self, index):
+    def get_input_pad(
+        self, index_or_label: PAD_INDEX | str
+    ) -> tuple[PAD_INDEX, str | None]:
         """resolve (unconnected) input pad from pad index or label
 
         :param index: pad index or link label
-        :type index: tuple(int,int,int) or str
         :return: filter input pad index and its link label (None if not assigned)
-        :rtype: tuple(int,int,int), str|None
 
         Raises error if specified label does not resolve uniquely to an input pad
         """
 
-        if isinstance(index, tuple):
-            # given pad index
-            inpad = index
-            label = self._links.find_inpad_label(index)
-            desc = f"input pad {index}"
+        index = self._resolve_pad_index(index_or_label, is_input=True)
+        return index, self.get_label(inpad=index)
 
-            if label is not None and self._links[label][1] is not None:
-                raise Graph.Error(f"{desc} is not an input label.")
-
-        else:
-            # given label
-            desc = f"link label [{index}]"
-            try:
-                dsts, outpad = self._links[index]
-            except:
-                raise Graph.Error(f"{desc} does not exist.")
-
-            if outpad is not None:
-                raise Graph.Error(f"{desc} is not an input label.")
-
-            dsts = [d for d in self._links.iter_inpad_ids(dsts)]
-            n = len(dsts)
-
-            if not n:
-                raise Graph.Error(
-                    f"no input pad found. specified {desc} is an output label."
-                )
-
-            if n > 1:
-                raise Graph.Error(f"{desc} is associated with multiple input pads.")
-
-            inpad = dsts[0]
-            label = index
-
-        if label is not None and is_stream_spec(label, True):
-            raise Graph.Error(f"{desc} is already connected to an input stream.")
-
-        # make sure the input pad is valid one on the fg (raises if fails)
-        self.validate_input_index(inpad)
-
-        return inpad, label
-
-    def get_output_pad(self, index):
+    def get_output_pad(
+        self, index_or_label: PAD_INDEX | str
+    ) -> tuple[PAD_INDEX, str | None]:
         """resolve (unconnected) output filter pad from pad index or labels
 
         :param index: pad index or link label
@@ -686,35 +654,8 @@ class Graph(UserList, FilterOperations):
         Raises error if specified index does not resolve uniquely to an output pad
         """
 
-        if isinstance(index, str):
-            # given label
-            desc = f"link label [{index}]"
-            try:
-                outpad = self._links[index][1]
-                assert outpad is not None
-            except:
-                raise Graph.Error(f"{desc} does not exist, or it is an input label.")
-            label = index
-        else:
-            # given pad index
-            desc = f"output pad {index}"
-            outpad = index
-            label = None
-            labels = self._links.find_outpad_label(outpad)
-
-            # if labels found, only 1 must be an output
-            if len(labels):
-                labels = [label for label in labels if not self._links.is_linked(label)]
-                if len(labels) != 1:
-                    raise Graph.Error(
-                        f"{desc} is already labeled but associated to no ouput label or multiple output labels"
-                    )
-                label = labels[0]
-
-        # make sure the output pad is valid (raises if fails)
-        self.validate_output_index(outpad)
-
-        return outpad, label
+        index = self._resolve_pad_index(index_or_label, is_input=False)
+        return index, self.get_label(outpad=index)
 
     def copy(self):
         return Graph(self)
@@ -768,14 +709,14 @@ class Graph(UserList, FilterOperations):
         if label is not None:
             GraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
         if inpad is not None:
-            inpad = self.resolve_index(True, inpad)
+            inpad = self._resolve_pad_index(inpad, is_input=True)
             try:
                 f = self.data[inpad[0]][inpad[1]]
                 assert inpad[2] >= 0 and inpad[2] < f.get_num_inputs()
             except:
                 raise Graph.InvalidFilterPadId("input", inpad)
         if outpad is not None:
-            outpad = self.resolve_index(False, outpad)
+            outpad = self._resolve_pad_index(outpad, is_input=False)
             try:
                 f = self.data[outpad[0]][outpad[1]]
                 assert outpad[2] >= 0 and outpad[2] < f.get_num_outputs()
@@ -1028,12 +969,16 @@ class Graph(UserList, FilterOperations):
         right = as_filtergraph(right, copy=True)
 
         # resolve from_left and to_right to pad ids (raises if invalid)
-        srcs_info = [self.resolve_index(False, index) for index in from_left]
+        srcs_info = [
+            self._resolve_pad_index(index, is_input=False) for index in from_left
+        ]
         nout = len(srcs_info)
         if nout != len(set(srcs_info)):
             raise ValueError(f"from_left pad indices are not unique.")
 
-        dsts_info = [right.resolve_index(True, index) for index in to_right]
+        dsts_info = [
+            right._resolve_pad_index(index, is_input=True) for index in to_right
+        ]
         ndst = len(dsts_info)
         if nout != len(set(dsts_info)):
             raise ValueError(f"to_right pad indices are not unique.")
@@ -1255,8 +1200,8 @@ class Graph(UserList, FilterOperations):
         """
 
         right = as_filtergraph_object(right)
-        right_on = right.resolve_index(True, right_on)
-        left_on = self.resolve_index(False, left_on)
+        right_on = right._resolve_pad_index(right_on, is_input=True)
+        left_on = self._resolve_pad_index(left_on, is_input=False)
         return self.connect(right, [left_on], [right_on], chain_siso=True)
 
     def rattach(self, left, right_on=None, left_on=None):
@@ -1274,8 +1219,8 @@ class Graph(UserList, FilterOperations):
         """
 
         left = as_filtergraph(left)
-        left_on = left.resolve_index(False, left_on)
-        right_on = self.resolve_index(True, right_on)
+        left_on = left._resolve_pad_index(left_on, is_input=False)
+        right_on = self._resolve_pad_index(right_on, is_input=True)
         return left.connect(self, [left_on], [right_on], chain_siso=True)
 
     @contextmanager
@@ -1345,3 +1290,40 @@ class Graph(UserList, FilterOperations):
         finally:
             if temp_file:
                 os.remove(temp_file.name)
+
+    def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        """returns True if specified input pad index is available"""
+
+        # check linked indices
+        if any(
+            link[1] == index
+            for link in self._links.iter_links(include_input_stream=True)
+        ):
+            # already connected
+            return False
+
+        # check the chain
+        return self[index[0]]._input_pad_is_available((0, *index[1:]))
+
+    def _output_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+        """returns True if specified output pad index is available"""
+
+        # check linked indices
+        if any(link[2] == index for link in self._links.iter_links()):
+            # already connected
+            return False
+
+        return self[index[0]]._output_pad_is_available((0, *index[1:]))
+
+    def _check_partial_pad_index(
+        self, index: tuple[int | None, int | None, int | None], is_input: bool
+    ) -> bool:
+        """True if defined values of the partial pad index are valid"""
+
+        chain = index[0]
+        if chain is not None and (chain < 0 or chain >= len(self)):
+            return False
+
+        return any(
+            c._check_partial_pad_index((None, *index[1:]), is_input) for c in self
+        )

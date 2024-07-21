@@ -23,6 +23,9 @@ class FiltergraphMismatchError(TypeError, FFmpegioError):
 class FiltergraphInvalidIndex(TypeError, FFmpegioError):
     pass
 
+class FiltergraphInvalidLabel(TypeError, FFmpegioError):
+    pass
+
 
 class FiltergraphInvalidExpression(TypeError, FFmpegioError):
     pass

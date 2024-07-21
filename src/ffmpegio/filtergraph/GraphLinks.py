@@ -454,18 +454,19 @@ class GraphLinks(UserDict):
             for v in iter(label, *self.data[label]):
                 yield v
 
-    def iter_links(self, label=None):
-        """Iterate over only actual links, possibly separating inpad ids with
-           the same label
+    def iter_links(
+        self, label: str | None = None, include_input_stream: bool = False
+    ) -> Generator[tuple[str, PAD_INDEX, PAD_INDEX | None]]:
+        """Iterate over only actual links, separating inpad ids with
+           the same input stream
 
         :param label: to iterate only on this label, defaults to None (all frames)
-        :type label: str, optional
-        :yield: a full link definition
-        :rtype: tuple of label, inpad id, and outpad id
+        :param include_input_stream: True to include input pads connected to input streams.
+        :yield: label, input pad, and output pad of a link
         """
 
         def iter(label, inpad, outpad):
-            if outpad is not None:
+            if outpad is not None or (include_input_stream and is_stream_spec(label)):
                 for d in self.iter_inpad_ids(inpad):
                     yield (label, d, outpad)
 
@@ -477,33 +478,31 @@ class GraphLinks(UserDict):
             for v in iter(label, *self.data[label]):
                 yield v
 
-    def iter_inputs(self) -> Generator[tuple[str, PAD_INDEX, PAD_INDEX | None]]:
+    def iter_inputs(
+        self, exclude_stream_specs: bool = True
+    ) -> Generator[tuple[str, PAD_INDEX]]:
         """Iterate over only input labels, possibly repeating the same label if shared among
            multiple input pad ids
 
-        :yield: a full input definition
-        :rtype: tuple of label and inpad id
+        :param exclude_stream_specs: True to not include input streams
+        :yield: label and pad index
         """
         for label, (inpad, outpad) in self.data.items():
             if outpad is None:
                 for d in self.iter_inpad_ids(inpad):
-                    yield (label, d)
+                    if not (exclude_stream_specs and is_stream_spec(label)):
+                        yield (label, d)
 
-    def iter_outputs(self) -> Generator[tuple[str, PAD_INDEX, PAD_INDEX | None]]:
+    def iter_outputs(self) -> Generator[tuple[str, PAD_INDEX]]:
         """Iterate over only output labels
 
         :yield: a full output definition
         """
 
-        def iter(label, inpad, outpad):
-            for d in self.iter_inpad_ids(inpad, True):
-                if d is not None:
-                    yield (label, outpad, inpad)
-
         # iterate over all labels
         for label, (inpad, outpad) in self.data.items():
-            for v in iter(label, inpad, outpad):
-                yield v
+            if inpad is None:
+                yield (label, outpad)
 
     def find_inpad_label(self, inpad):
         """get label of an input pad id
