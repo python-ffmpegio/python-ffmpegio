@@ -9,21 +9,18 @@ from math import floor, log10
 import os
 from tempfile import NamedTemporaryFile
 
+from ..utils import filter as filter_utils, is_stream_spec
+from .. import filtergraph as ffg
 
 from .typing import *
 from .exceptions import *
-from .abc import FilterGraphObject
-
-from ..utils import filter as filter_utils, is_stream_spec
 from .GraphLinks import GraphLinks
-from ._convert import as_filterchain, as_filtergraph, as_filtergraph_object
-from .Filter import Filter
-from .Chain import Chain
+
 
 __all__ = ["Graph"]
 
 
-class Graph(UserList, FilterGraphObject):
+class Graph(UserList, ffg.abc.FilterGraphObject):
     """List of FFmpeg filterchains in parallel with interchain link specifications
 
     Graph() to instantiate empty Graph object
@@ -75,22 +72,24 @@ class Graph(UserList, FilterGraphObject):
             links = filter_specs._links
             sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
             autosplit_output = filter_specs.autosplit_output
-        elif isinstance(filter_specs, Chain):
+        elif isinstance(filter_specs, ffg.Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
-        elif isinstance(filter_specs, Filter):
+        elif isinstance(filter_specs, ffg.Filter):
             filter_specs = [[filter_specs]]
 
         super().__init__(
             ()
             if filter_specs is None or not len(filter_specs)
-            else (Chain(fspec) for fspec in filter_specs)
+            else (ffg.Chain(fspec) for fspec in filter_specs)
         )
 
         self._links = GraphLinks(links)
         """utils.fglinks.GraphLinks: filtergraph link specifications
         """
 
-        self.sws_flags = None if sws_flags is None else Filter(["scale", *sws_flags])
+        self.sws_flags = (
+            None if sws_flags is None else ffg.Filter(["scale", *sws_flags])
+        )
         """Filter|None: swscale flags for automatically inserted scalers
         """
 
@@ -102,9 +101,9 @@ class Graph(UserList, FilterGraphObject):
         index_or_label: PAD_INDEX | str | None,
         *,
         is_input: bool = True,
-        chain_index_omittable: bool = False,
-        filter_index_omittable: bool = False,
-        pad_index_omittable: bool = False,
+        chain_id_omittable: bool = False,
+        filter_id_omittable: bool = False,
+        pad_id_omittable: bool = False,
         chain_fill_value: int | None = None,
         filter_fill_value: int | None = None,
         pad_fill_value: int | None = None,
@@ -115,9 +114,9 @@ class Graph(UserList, FilterGraphObject):
         index = super()._resolve_pad_index(
             index_or_label,
             is_input=is_input,
-            chain_index_omittable=chain_index_omittable,
-            filter_index_omittable=filter_index_omittable,
-            pad_index_omittable=pad_index_omittable,
+            chain_id_omittable=chain_id_omittable,
+            filter_id_omittable=filter_id_omittable,
+            pad_id_omittable=pad_id_omittable,
             chain_fill_value=chain_fill_value,
             filter_fill_value=filter_fill_value,
             pad_fill_value=pad_fill_value,
@@ -215,7 +214,7 @@ class Graph(UserList, FilterGraphObject):
 """
 
     def __setitem__(self, key, value):
-        super().__setitem__(key, as_filterchain(value, copy=True))
+        super().__setitem__(key, ffg.as_filterchain(value, copy=True))
         # TODO purge invalid links
 
     def __getitem__(self, key):
@@ -240,17 +239,17 @@ class Graph(UserList, FilterGraphObject):
                 )
 
     def append(self, item):
-        self.data.append(as_filterchain(item, copy=True))
+        self.data.append(ffg.as_filterchain(item, copy=True))
 
     def extend(self, other, auto_link=False, force_link=False):
-        other = as_filtergraph(other)
+        other = ffg.as_filtergraph(other)
         self._links.update(
             other._links, len(self), auto_link=auto_link, force=force_link
         )
         self.data.extend(other)
 
     def insert(self, i, item):
-        self.data.insert(i, as_filterchain(item))
+        self.data.insert(i, ffg.as_filterchain(item))
         self._links.adjust_chains(i, 1)
 
     def __delitem__(self, i):
@@ -281,18 +280,10 @@ class Graph(UserList, FilterGraphObject):
             else NotImplemented
         )
 
-    def __rmul__(self, __n):
-        # create a filtergraph with __n filterchains in parallel
-        return (
-            reduce(self.stack, [self] * (__n - 1), self)
-            if isinstance(__n, int)
-            else NotImplemented
-        )
-
     def __add__(self, other):
         # join
         try:
-            other = as_filtergraph_object(other)
+            other = ffg.as_filtergraph_object(other)
         except Exception:
             return NotImplemented
         return self.join(other, "auto")
@@ -300,7 +291,7 @@ class Graph(UserList, FilterGraphObject):
     def __radd__(self, other):
         # join
         try:
-            other = as_filtergraph(other)
+            other = ffg.as_filtergraph(other)
         except Exception:
             return NotImplemented
         return other.join(self, "auto")
@@ -309,7 +300,7 @@ class Graph(UserList, FilterGraphObject):
         # create filtergraph with self and other as parallel chains, self first
 
         try:
-            other = as_filtergraph_object(other)
+            other = ffg.as_filtergraph_object(other)
         except:
             return NotImplemented
         return self.stack(other)
@@ -317,14 +308,13 @@ class Graph(UserList, FilterGraphObject):
     def __ror__(self, other):
         # create filtergraph with self and other as parallel chains, self last
         try:
-            other = as_filtergraph(other)
+            other = ffg.as_filtergraph(other)
         except:
             return NotImplemented
         return other.stack(self)
 
-
     def _chain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
+        self, other: ffg.abc.FilterGraphObject, chain_id: int, other_chain_id: int
     ) -> Graph:
         """chain self->other (no var check)
 
@@ -337,7 +327,7 @@ class Graph(UserList, FilterGraphObject):
         return self.attach(other, (chain_id, -1, -1), (other_chain_id, 0, -1))
 
     def _rchain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
+        self, other: ffg.abc.FilterGraphObject, chain_id: int, other_chain_id: int
     ) -> Graph:
         """chain other->self (no var check)
 
@@ -406,7 +396,7 @@ class Graph(UserList, FilterGraphObject):
 
     def _iter_pads(
         self,
-        chains: list[Filter],
+        chains: list[ffg.Filter],
         iter_filter_pad: Callable,
         i_first: int,
         pad: int | None,
@@ -414,7 +404,7 @@ class Graph(UserList, FilterGraphObject):
         exclude_chainable: bool,
         chainable_first: bool,
         include_connected: bool,
-    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter]]:
         """Iterate over input pads of the filters on the filterchain
 
         :param filters: list of filters to iterate
@@ -453,7 +443,7 @@ class Graph(UserList, FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         exclude_named: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter]]:
         """Iterate over input pads of the filters on the filtergraph
 
         :param pad: pad id, defaults to None
@@ -481,7 +471,7 @@ class Graph(UserList, FilterGraphObject):
             partial(
                 self._iter_pads,
                 chains,
-                Chain.iter_input_pads,
+                ffg.Chain.iter_input_pads,
                 i_first,
                 pad,
                 filter,
@@ -503,7 +493,7 @@ class Graph(UserList, FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         exclude_named: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter]]:
         """Iterate over filtergraph's filter output pads
 
         :param exclude_named: True to leave out named outputs, defaults to False
@@ -527,7 +517,7 @@ class Graph(UserList, FilterGraphObject):
             partial(
                 self._iter_pads,
                 chains,
-                Chain.iter_output_pads,
+                ffg.Chain.iter_output_pads,
                 i_first,
                 pad,
                 filter,
@@ -543,7 +533,7 @@ class Graph(UserList, FilterGraphObject):
         exclude_named: bool = False,
         include_connected: bool = False,
         chain: int | None = None,
-    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter]]:
         """Iterate over filtergraph's chainable filter output pads
 
         :param exclude_named: True to leave out named input pads, defaults to False (all avail pads)
@@ -571,7 +561,7 @@ class Graph(UserList, FilterGraphObject):
 
     def iter_chainable_output_pads(
         self, exclude_named=False, chain=None
-    ) -> Generator[tuple[PAD_INDEX, Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter]]:
         """Iterate over filtergraph's chainable filter output pads
 
         :param exclude_named: True to leave out unnamed outputs, defaults to False
@@ -869,7 +859,7 @@ class Graph(UserList, FilterGraphObject):
             # resolve stream media type
             try:
                 media_type = fg[outpad[:2]].get_pad_media_type("o", outpad[2])
-            except Filter.Unsupported as e:
+            except ffg.Filter.Unsupported as e:
                 # if source filter pad media type cannot be resolved, try destination pads
                 for inpad in dsts.values():
                     if isinstance(inpad, tuple):
@@ -877,13 +867,13 @@ class Graph(UserList, FilterGraphObject):
                             media_type = fg[inpad[:2]].get_pad_media_type("i", inpad[2])
                             e = None
                             break
-                        except Filter.Unsupported:
+                        except ffg.Filter.Unsupported:
                             pass
                 if e is not None:
                     raise e
 
             # create the split filter
-            split_filter = Filter(
+            split_filter = ffg.Filter(
                 {"video": "split", "audio": "asplit"}[media_type],
                 len(dsts),
             )
@@ -935,7 +925,7 @@ class Graph(UserList, FilterGraphObject):
         TO-CHECK/TO-DO: what happens if common link labels are already linked
         """
 
-        other = as_filtergraph_object(other)
+        other = ffg.as_filtergraph_object(other)
 
         n = len(self)
         m = len(other)
@@ -995,7 +985,7 @@ class Graph(UserList, FilterGraphObject):
         """
 
         # make sure right is a Graph object
-        right = as_filtergraph(right, copy=True)
+        right = ffg.as_filtergraph(right, copy=True)
 
         # resolve from_left and to_right to pad ids (raises if invalid)
         srcs_info = [
@@ -1153,7 +1143,7 @@ class Graph(UserList, FilterGraphObject):
         """
 
         # make sure right is a Graph, Chain, or Filter object
-        right = as_filtergraph(right)
+        right = ffg.as_filtergraph(right)
 
         if not len(right):
             return Graph(self)
@@ -1228,7 +1218,7 @@ class Graph(UserList, FilterGraphObject):
 
         """
 
-        right = as_filtergraph_object(right)
+        right = ffg.as_filtergraph_object(right)
         right_on = right._resolve_pad_index(right_on, is_input=True)
         left_on = self._resolve_pad_index(left_on, is_input=False)
         return self.connect(right, [left_on], [right_on], chain_siso=True)
@@ -1247,7 +1237,7 @@ class Graph(UserList, FilterGraphObject):
 
         """
 
-        left = as_filtergraph(left)
+        left = ffg.as_filtergraph(left)
         left_on = left._resolve_pad_index(left_on, is_input=False)
         right_on = self._resolve_pad_index(right_on, is_input=True)
         return left.connect(self, [left_on], [right_on], chain_siso=True)

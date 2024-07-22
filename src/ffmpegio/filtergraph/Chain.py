@@ -4,20 +4,17 @@ from collections import UserList
 from collections.abc import Callable, Generator
 from functools import reduce
 
+from ..utils import filter as filter_utils
+from .. import filtergraph as ffg
 
 from .typing import *
 from .exceptions import *
-from .abc import FilterGraphObject
-from .Filter import Filter
-from .Graph import Graph
-from ._convert import as_filter, as_filterchain
 
-from ..utils import filter as filter_utils
 
 __all__ = ["Chain"]
 
 
-class Chain(UserList, FilterGraphObject):
+class Chain(UserList, ffg.abc.FilterGraphObject):
     """List of FFmpeg filters, connected in series
 
     Chain() to instantiate empty Graph object
@@ -51,11 +48,13 @@ class Chain(UserList, FilterGraphObject):
                     "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
                 )
             filter_specs = filter_specs[0]
-        elif isinstance(filter_specs, Filter):
+        elif isinstance(filter_specs, ffg.Filter):
             filter_specs = [filter_specs]
 
         super().__init__(
-            () if filter_specs is None else (as_filter(fspec) for fspec in filter_specs)
+            ()
+            if filter_specs is None
+            else (ffg.as_filter(fspec) for fspec in filter_specs)
         )
 
     def __str__(self):
@@ -71,67 +70,103 @@ class Chain(UserList, FilterGraphObject):
 """
 
     def __setitem__(self, key, value):
-        super().__setitem__(key, as_filter(value))
+        super().__setitem__(key, ffg.as_filter(value))
 
     def append(self, item):
-        return super().append(as_filter(item))
+        return super().append(ffg.as_filter(item))
 
     def extend(self, other):
-        return super().extend([as_filter(f) for f in other])
+        return super().extend([ffg.as_filter(f) for f in other])
 
     def insert(self, i, item):
-        return super().insert(i, as_filter(item))
+        return super().insert(i, ffg.as_filter(item))
 
     def __contains__(self, item):
-        item = as_filter(item)
+        item = ffg.as_filter(item)
         return any((f.name == item for f in self.data))
 
     def __mul__(self, __n):
-        res = super().__mul__(__n)
-        _check_joinable(self, self)
-        return res
+        return ffg.Graph([self] * __n) if isinstance(__n, int) else NotImplemented
 
-    def __rmul__(self, __n):
-        return self.__mul__(__n)
+    def __add__(self, other: ffg.Filter | ffg.Chain | str) -> Chain | ffg.Graph:
 
-    def __add__(self, other):
-        # chain
+        # grab the next available index, prefer chainable
+        index = self._resolve_pad_index(
+            None,
+            is_input=False,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+            chainable_first=True,
+        )
+
+        # try to convert the other filtergraph object as a chain
         try:
-            other = as_filterchain(other)
-        except Exception:
-            return NotImplemented
-        n = len(self)
-        if n and len(other):
-            if _check_joinable(self, other):
-                return Chain([*self, *other])
-            else:
-                return Graph([self]).join(other)
-        return self if n else other
-
-    def __radd__(self, other):
-        # form a filterchain/filtergraph by appending this to other filter
-        try:
-            other = as_filterchain(other)
-        except Exception:
+            other = ffg.as_filterchain(other)
+        except FiltergraphConversionError:
             return NotImplemented
 
-        n = len(self)
-        if n and len(other):
-            if _check_joinable(other, self):
-                return Chain([*other, *self])
-            else:
-                return Graph([other]).join(self)
-        return self if n else other
+        # grab the next available index, prefer chainable
+        other_index = self._resolve_pad_index(
+            None,
+            is_input=True,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+            chainable_first=True,
+        )
+
+        return (
+            Chain([*self, *other])
+            if self._output_pad_is_chainable(index)
+            and other._input_pad_is_chainable(other_index)
+            else ffg.Graph([self]).connect(other, index, other_index)
+        )
+
+    def __radd__(self, other: ffg.Filter | ffg.Chain | str) -> Chain | ffg.Graph:
+
+        # grab the next available index, prefer chainable
+        index = self._resolve_pad_index(
+            None,
+            is_input=True,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+            chainable_first=True,
+        )
+
+        # try to convert the other filtergraph object as a chain
+        try:
+            other = ffg.as_filterchain(other)
+        except FiltergraphConversionError:
+            return NotImplemented
+
+        # grab the next available index, prefer chainable
+        other_index = self._resolve_pad_index(
+            None,
+            is_input=False,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+            chainable_first=True,
+        )
+
+        return (
+            Chain([*other, *self])
+            if self._output_pad_is_chainable(other_index)
+            and other._input_pad_is_chainable(index)
+            else ffg.Graph([other]).connect(self, other_index, index)
+        )
 
     def __mul__(self, __n):
         if len(self):
-            return Graph([self] * __n) if isinstance(__n, int) else NotImplemented
+            return ffg.Graph([self] * __n) if isinstance(__n, int) else NotImplemented
         else:
             return Chain(self)
 
     def __rmul__(self, __n):
         if len(self):
-            return Graph([self] * __n) if isinstance(__n, int) else NotImplemented
+            return ffg.Graph([self] * __n) if isinstance(__n, int) else NotImplemented
         else:
             return Chain(self)
 
@@ -139,29 +174,29 @@ class Chain(UserList, FilterGraphObject):
         # create filtergraph with self and other as parallel chains, self first
 
         try:
-            other = as_filterchain(other)
+            other = ffg.as_filterchain(other)
         except:
             return NotImplemented
 
         n = len(self)
         m = len(other)
-        return Graph([self, other]) if n and m else self if n else other
+        return ffg.Graph([self, other]) if n and m else self if n else other
 
     def __ror__(self, other):
         # create filtergraph with self and other as parallel chains, self last
 
         try:
-            other = as_filterchain(other)
+            other = ffg.as_filterchain(other)
         except:
             return NotImplemented
 
         n = len(self)
         m = len(other)
-        return Graph([other, self]) if n and m else self if n else other
+        return ffg.Graph([other, self]) if n and m else self if n else other
 
     def _chain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> Chain | Graph:
+        self, other: ffg.abc.FilterGraphObject, chain_id: int, other_chain_id: int
+    ) -> Chain | ffg.Graph:
         """chain self->other (no var check)
 
         :param other: the other filitergraph object to chain to
@@ -170,18 +205,18 @@ class Chain(UserList, FilterGraphObject):
         :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
 
-        if isinstance(other, Graph):
+        if isinstance(other, ffg.Graph):
             return other._rchain(self, other_chain_id, chain_id)
         else:
             if not chain_id or not other_chain_id:
                 raise ValueError("chain_id and other_chain_id must be zero")
             return Chain(
-                [*self, other] if isinstance(other, Filter) else [*self, *other]
+                [*self, other] if isinstance(other, ffg.Filter) else [*self, *other]
             )
 
     def _rchain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> Chain | Graph:
+        self, other: ffg.abc.FilterGraphObject, chain_id: int, other_chain_id: int
+    ) -> Chain | ffg.Graph:
         """chain other->self (no var check)
 
         :param other: the other filitergraph object to chain to
@@ -190,7 +225,7 @@ class Chain(UserList, FilterGraphObject):
         :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
 
-        if isinstance(other, Filter):
+        if isinstance(other, ffg.Filter):
             if not chain_id or not other_chain_id:
                 raise ValueError("chain_id and other_chain_id must be zero")
             return Chain([other, self])
@@ -202,7 +237,7 @@ class Chain(UserList, FilterGraphObject):
             return NotImplemented
         if not len(self.data):
             return Chain(self)
-        fg = Graph([self])
+        fg = ffg.Graph([self])
         return reduce(fg.stack, [self] * (__n - 1), fg)
 
     def __rmul__(self, __n):
@@ -228,7 +263,7 @@ class Chain(UserList, FilterGraphObject):
 
     def _iter_pads(
         self,
-        filters: list[Filter],
+        filters: list[ffg.Filter],
         iter_filter_pad: Callable,
         i_first: int,
         i_nochain: int,
@@ -237,7 +272,7 @@ class Chain(UserList, FilterGraphObject):
         exclude_chainable: bool,
         chainable_first: bool,
         include_connected: bool,
-    ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter, PAD_INDEX | None]]:
         """Iterate over input pads of the filters on the filterchain
 
         :param filters: list of filters to iterate
@@ -276,7 +311,7 @@ class Chain(UserList, FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         exclude_named: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter, PAD_INDEX | None]]:
         """Iterate over input pads of the filters on the filterchain
 
         :param pad: pad id, defaults to None
@@ -302,7 +337,7 @@ class Chain(UserList, FilterGraphObject):
 
         for v in self._iter_pads(
             filters,
-            Filter.iter_input_pads,
+            ffg.Filter.iter_input_pads,
             i_first,
             0,
             pad,
@@ -326,7 +361,7 @@ class Chain(UserList, FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         exclude_named: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+    ) -> Generator[tuple[PAD_INDEX, ffg.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filters on the filterchain
 
         :param pad: pad id, defaults to None
@@ -352,7 +387,7 @@ class Chain(UserList, FilterGraphObject):
 
         for v in self._iter_pads(
             filters,
-            Filter.iter_output_pads,
+            ffg.Filter.iter_output_pads,
             i_first,
             len(self.data) - 1,
             pad,
@@ -363,7 +398,7 @@ class Chain(UserList, FilterGraphObject):
         ):
             yield v
 
-    def get_chainable_input_pad(self) -> tuple[PAD_INDEX, Filter] | None:
+    def get_chainable_input_pad(self) -> tuple[PAD_INDEX, ffg.Filter] | None:
         """get first filter's input pad, which can be chained
 
         :return: filter position, input pad poisition, and filter object.
@@ -376,7 +411,7 @@ class Chain(UserList, FilterGraphObject):
         nin = f.get_num_inputs()
         return ((0, nin - 1), f) if nin else None
 
-    def get_chainable_output_pad(self) -> tuple[PAD_INDEX, Filter] | None:
+    def get_chainable_output_pad(self) -> tuple[PAD_INDEX, ffg.Filter] | None:
         """get last filter's output pad, which can be chained
 
         :return: filter position, output pad poisition, and filter object.
@@ -401,7 +436,7 @@ class Chain(UserList, FilterGraphObject):
         inpad: PAD_INDEX = None,
         outpad: PAD_INDEX = None,
         force: bool = None,
-    ) -> Graph:
+    ) -> ffg.Graph:
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
@@ -420,7 +455,7 @@ class Chain(UserList, FilterGraphObject):
         """
 
         # must convert to FilterGraph as it's the only object with labels
-        fg = Graph([self])
+        fg = ffg.Graph([self])
         fg.add_label(label, inpad, outpad, force)
         return fg
 

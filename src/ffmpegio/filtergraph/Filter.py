@@ -2,21 +2,20 @@ from __future__ import annotations
 
 from collections.abc import Generator, Sequence
 import re
+from functools import partial
 
 from ..caps import filters as list_filters, filter_info, layouts
 from ..utils import filter as filter_utils
 
+from .. import filtergraph as ffg
+
 from .typing import *
 from .exceptions import *
-from ._convert import as_filter
-from .abc import FilterGraphObject
-from .Chain import Chain
-from .Graph import Graph
 
 __all__ = ["Filter"]
 
 
-class Filter(tuple, FilterGraphObject):
+class Filter(tuple, ffg.abc.FilterGraphObject):
     """FFmpeg filter definition immutable class
 
     :param filter_spec: _description_
@@ -420,7 +419,7 @@ class Filter(tuple, FilterGraphObject):
         inpad: PAD_INDEX | Sequence[PAD_INDEX] = None,
         outpad: PAD_INDEX = None,
         force: bool = None,
-    ) -> Graph:
+    ) -> ffg.Graph:
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
@@ -441,7 +440,7 @@ class Filter(tuple, FilterGraphObject):
         """
 
         # must convert to FilterGraph as it's the only object with labels
-        fg = Graph([[self]])
+        fg = ffg.Graph([[self]])
         fg.add_label(label, inpad, outpad, force)
         return fg
 
@@ -613,64 +612,75 @@ class Filter(tuple, FilterGraphObject):
 
         return Filter(self[0], *opts, filter_id=filter_id, **kwopts)
 
-    def __add__(self, other) -> Chain | Graph:
-        # join
+    def __add__(self, other: ffg.abc.FilterGraphObject) -> ffg.Chain | ffg.Graph:
+
+        if not self.get_num_outputs():
+            raise self.Error("Cannot add to this filter as it has no output pad.")
+
         try:
-            other = as_filter(other)
-        except Exception:
+            other = ffg.as_filter(other)
+        except FiltergraphConversionError:
             return NotImplemented
-        if _check_joinable(self, other):
-            # one-to-one -> chain
-            return Chain([self, other])
-        else:
-            # one-to-many or many-to-one -> stack and link
-            return Graph([[self], [other]], {0: ((1, 0, 0), (0, 0, 0))})
 
-    def __radd__(self, other) -> Chain | Graph:
+        if not self.get_num_inputs():
+            raise ValueError(
+                "The  other filter cannot be added to this filter as the other filter has no input pad."
+            )
+
+        return ffg.Chain([self, other])
+
+    def __radd__(self, other: ffg.abc.FilterGraphObject) -> ffg.Chain | ffg.Graph:
         # join
+
+        if not self.get_num_inputs():
+            raise self.Error(
+                "Cannot add this filter to another filter as it has no input pad."
+            )
+
         try:
-            other = as_filter(other)
-        except Exception:
+            other = ffg.as_filter(other)
+        except FiltergraphConversionError:
             return NotImplemented
-        if _check_joinable(other, self):
-            # one-to-one -> chain
-            return Chain([other, self])
-        else:
-            # one-to-many or many-to-one -> stack and link
-            return Graph([[other], [self]], {0: ((1, 0, 0), (0, 0, 0))})
 
-    def __mul__(self, __n) -> Graph:
-        return Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
+        if not self.get_num_outputs():
+            raise ValueError(
+                "The other filter cannot add this filter as the other filter has no output pad."
+            )
 
-    def __or__(self, other) -> Graph:
+        return ffg.Chain([other, self])
+
+    def __mul__(self, __n) -> ffg.Graph:
+        return ffg.Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
+
+    def __or__(self, other) -> ffg.Graph:
         # stack
 
         try:
-            other = as_filter(other)
+            other = ffg.as_filter(other)
         except:
             return NotImplemented
-        return Graph([[self], [other]])
+        return ffg.Graph([[self], [other]])
 
-    def __ror__(self, other) -> Graph:
+    def __ror__(self, other) -> ffg.Graph:
         # stack
         if isinstance(other, int):
-            return Graph([[self]] * other)
+            return ffg.Graph([[self]] * other)
         try:
-            other = as_filter(other)
+            other = ffg.as_filter(other)
         except:
             return NotImplemented
-        return Graph([[other], [self]])
+        return ffg.Graph([[other], [self]])
 
     def _chain(
-        self, other: Filter | Chain, chain_index: int | None = None
-    ) -> Chain | Graph:
+        self, other: Filter | ffg.Chain, chain_index: int | None = None
+    ) -> ffg.Chain | ffg.Graph:
         """chain self->other (no input check)
 
         If self is not a Graph, chain_index is ignored.
         If self is a Graph, chain_index may be used to specify the chain to attach other to.
         If not specified, attaches to the first chain.
         """
-        return Chain([self, other] if isinstance(other, Filter) else [self, *other])
+        return ffg.Chain([self, other] if isinstance(other, Filter) else [self, *other])
 
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         pad_pos = index[2]
@@ -708,8 +718,8 @@ class Filter(tuple, FilterGraphObject):
         return index[2] == self.get_num_outputs() - 1
 
     def _chain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> Chain | Graph:
+        self, other: ffg.abc.FilterGraphObject, chain_id: int, other_chain_id: int
+    ) -> ffg.Chain | ffg.Graph:
         """chain self->other (no var check)
 
         :param other: the other filitergraph object to chain to
@@ -721,13 +731,13 @@ class Filter(tuple, FilterGraphObject):
         if isinstance(other, Filter):
             if not chain_id or not other_chain_id:
                 raise ValueError("chain_id and other_chain_id must be zero")
-            return Chain([self, other])
+            return ffg.Chain([self, other])
         else:
             return other._rchain(self, other_chain_id, chain_id)
 
     def _rchain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> Chain | Graph:
+        self, other: ffg.abc.FilterGraphObject, chain_id: int, other_chain_id: int
+    ) -> ffg.Chain | ffg.Graph:
         """chain other->self (no var check)
 
         :param other: the other filitergraph object to chain to
@@ -739,6 +749,6 @@ class Filter(tuple, FilterGraphObject):
         if isinstance(other, Filter):
             if not chain_id or not other_chain_id:
                 raise ValueError("chain_id and other_chain_id must be zero")
-            return Chain([other, self])
+            return ffg.Chain([other, self])
         else:
             return other._chain(self, other_chain_id, chain_id)

@@ -101,6 +101,7 @@ Both input and output filter pads can be specified in a number of ways:
 
 from .. import path
 from ..caps import filters as list_filters
+from . import abc
 from .Filter import Filter
 from .Chain import Chain
 from .Graph import Graph
@@ -110,6 +111,7 @@ from ._convert import as_filter, as_filterchain, as_filtergraph, as_filtergraph_
 # chain | filter | pad
 
 __all__ = [
+    "abc",
     "as_filter",
     "as_filterchain",
     "as_filtergraph",
