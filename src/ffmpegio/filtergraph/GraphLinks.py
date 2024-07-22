@@ -172,7 +172,7 @@ class GraphLinks(UserDict):
 
     def __init__(self, links=None):
         # validate input arg
-        if links is not None and not isinstance(links, GraphLinks):
+        if not isinstance(links, (GraphLinks, type(None))):
             try:
                 self.validate(links)
             except GraphLinks.Error as e:

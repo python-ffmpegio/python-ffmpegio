@@ -7,7 +7,7 @@ import re
 from .typing import PAD_INDEX
 from .exceptions import *
 
-from .. import filtergraph as ffg
+from .. import filtergraph as fgb
 
 __all__ = ["FilterGraphObject"]
 
@@ -17,6 +17,13 @@ def _is_label(expr):
 
 
 class FilterGraphObject(ABC):
+
+    def get_num_pads(self, input: bool) -> int:
+        """get the number of available pads at input or output
+
+        :param input: True to get the input count, False for the output count.
+        """
+        return self.get_num_inputs() if input else self.get_num_outputs()
 
     @abstractmethod
     def get_num_inputs(self) -> int:
@@ -63,7 +70,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         include_connected: bool = False,
         exclude_named: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, ffg.Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, fgb.Filter]]:
         """Iterate over input pads of the filter
 
         :param pad: pad id, defaults to None
@@ -87,7 +94,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         include_connected: bool = False,
         exclude_named: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, ffg.Filter, PAD_INDEX | None]]:
+    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
         :param pad: pad id, defaults to None
@@ -158,7 +165,7 @@ class FilterGraphObject(ABC):
         inpad: PAD_INDEX | Sequence[PAD_INDEX] = None,
         outpad: PAD_INDEX = None,
         force: bool = None,
-    ) -> ffg.Graph:
+    ) -> fgb.Graph:
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
@@ -190,29 +197,29 @@ class FilterGraphObject(ABC):
     # Filtergraph math operators
 
     @abstractmethod
-    def __add__(self, other: FilterGraphObject | str) -> ffg.Chain | ffg.Graph:
+    def __add__(self, other: FilterGraphObject | str) -> fgb.Chain | fgb.Graph:
         """join"""
 
     @abstractmethod
-    def __radd__(self, other: FilterGraphObject | str) -> ffg.Chain | ffg.Graph:
+    def __radd__(self, other: FilterGraphObject | str) -> fgb.Chain | fgb.Graph:
         """join"""
 
     @abstractmethod
-    def __mul__(self, __n: int) -> ffg.Graph:
+    def __mul__(self, __n: int) -> fgb.Graph:
         """duplicate-n-stack"""
 
-    def __rmul__(self, __n: int) -> ffg.Graph:
+    def __rmul__(self, __n: int) -> fgb.Graph:
         """duplicate-n-stack"""
         return self.__mul__(__n)
 
     @abstractmethod
-    def __or__(self, other: FilterGraphObject | str) -> ffg.Graph:
+    def __or__(self, other: FilterGraphObject | str) -> fgb.Graph:
         """stack"""
 
-    def __ror__(self, other: FilterGraphObject | str) -> ffg.Graph:
+    def __ror__(self, other: FilterGraphObject | str) -> fgb.Graph:
         """stack"""
         try:
-            return ffg.as_filtergraph_object(other).__or__(self)
+            return fgb.as_filtergraph_object(other).__or__(self)
         except FiltergraphInvalidExpression:
             raise
         except:
@@ -232,7 +239,7 @@ class FilterGraphObject(ABC):
                 | tuple[FilterGraphObject, PAD_INDEX | str, PAD_INDEX | str]
             ]
         ),
-    ) -> ffg.Graph:
+    ) -> fgb.Graph:
         """make one-to-one connections
 
         self >> other|label
@@ -259,7 +266,7 @@ class FilterGraphObject(ABC):
 
             # parse if other is a filtergraph expression
             try:
-                other: FilterGraphObject = ffg.as_filtergraph_object(other)
+                other: FilterGraphObject = fgb.as_filtergraph_object(other)
             except FiltergraphInvalidExpression:
                 if _is_label(other):
                     if other_index is not None:
@@ -364,8 +371,8 @@ class FilterGraphObject(ABC):
 
         # if not Chain or Graph, use other's >> operator
         return (
-            ffg.Graph(self).attach(other, index, other_index)
-            if isinstance(other, ffg.Graph)
+            fgb.Graph(self).attach(other, index, other_index)
+            if isinstance(other, fgb.Graph)
             else other.rattach(self, other_index, index)
         )
 
@@ -383,7 +390,7 @@ class FilterGraphObject(ABC):
                 | tuple[PAD_INDEX | str, PAD_INDEX | str, FilterGraphObject]
             ]
         ),
-    ) -> ffg.Graph:
+    ) -> fgb.Graph:
         """make one-to-one connections
         other|label >> self
         (other|label, index) >> self
@@ -409,7 +416,7 @@ class FilterGraphObject(ABC):
 
             # parse if other is a filtergraph expression
             try:
-                other: FilterGraphObject = ffg.as_filtergraph_object(other)
+                other: FilterGraphObject = fgb.as_filtergraph_object(other)
             except FiltergraphInvalidExpression:
                 if _is_label(other):
                     if other_index is not None:
@@ -514,15 +521,15 @@ class FilterGraphObject(ABC):
 
         # if not Chain or Graph, use other's >> operator
         return (
-            ffg.Graph(self).rattach(other, index, other_index)
-            if isinstance(other, ffg.Graph)
+            fgb.Graph(self).rattach(other, index, other_index)
+            if isinstance(other, fgb.Graph)
             else other.attach(self, other_index, index)
         )
 
     @abstractmethod
     def _chain(
         self, other: FilterGraphObject, chain_index: int, other_chain_index: int
-    ) -> ffg.Chain | ffg.Graph:
+    ) -> fgb.Chain | fgb.Graph:
         """chain self->other (no var check)
 
         :param other: the other filitergraph object to chain to
@@ -533,7 +540,7 @@ class FilterGraphObject(ABC):
 
     def _rchain(
         self, other: FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> ffg.Chain | ffg.Graph:
+    ) -> fgb.Chain | fgb.Graph:
         """chain other->self (no var check)
 
         :param other: the other filitergraph object to chain to
@@ -631,9 +638,7 @@ class FilterGraphObject(ABC):
             )
 
             min_len = (
-                3
-                if not chain_id_omittable
-                else 2 if not filter_id_omittable else 1
+                3 if not chain_id_omittable else 2 if not filter_id_omittable else 1
             )
             index_types = (int, type(None)) if allow_partial_index else int
 
