@@ -107,6 +107,7 @@ from .Chain import Chain
 from .Graph import Graph
 
 from ._convert import as_filter, as_filterchain, as_filtergraph, as_filtergraph_object
+from .exceptions import FiltergraphInvalidIndex
 
 # chain | filter | pad
 
@@ -119,6 +120,7 @@ __all__ = [
     "Filter",
     "Chain",
     "Graph",
+    "FiltergraphInvalidIndex",
 ]
 
 
@@ -137,8 +139,7 @@ _filters = {}
 
 
 def __getattr__(name):
-    """Dynamically implement constructor functions for all available FFmpeg filters
-    """    
+    """Dynamically implement constructor functions for all available FFmpeg filters"""
     func = _filters.get(name, None)
     if func is None:
         try:

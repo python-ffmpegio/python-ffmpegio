@@ -2,21 +2,21 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio import filtergraph as fg_lib
+from ffmpegio import filtergraph as fgb
 import pytest
 import operator
 
 
 def test_Filter():
-    f = fg_lib.Filter("concat")
+    f = fgb.Filter("concat")
     print(f)
     assert f[0] == "concat"
     assert f.name == "concat"
     assert f.id is None
     print(f.info)
-    # fg_lib.Filter('concat',2)
-    # fg_lib.Filter('concat')
-    # fg_lib.Filter('concat')
+    # fgb.Filter('concat',2)
+    # fgb.Filter('concat')
+    # fgb.Filter('concat')
 
 
 @pytest.mark.parametrize(
@@ -28,10 +28,10 @@ def test_Filter():
     ],
 )
 def test_filter_get_option_value(filter_spec, option_name, expected):
-    f = fg_lib.Filter(filter_spec)
+    f = fgb.Filter(filter_spec)
     try:
         assert f.get_option_value(option_name) == expected
-    except fg_lib.Filter.InvalidName:
+    except fgb.Filter.InvalidName:
         pass  # ffmpeg version issue
 
 
@@ -57,10 +57,10 @@ def test_filter_get_option_value(filter_spec, option_name, expected):
     ],
 )
 def test_filter_get_num_inputs(filter_spec, expected):
-    f = fg_lib.Filter(filter_spec)
+    f = fgb.Filter(filter_spec)
     try:
         assert f.get_num_inputs() == expected
-    except fg_lib.Filter.InvalidName:
+    except fgb.Filter.InvalidName:
         logging.warning(f"skipped {filter_spec}: not supported by FFmpeg")
 
 
@@ -89,15 +89,15 @@ def test_filter_get_num_inputs(filter_spec, expected):
 )
 def test_filter_get_num_outputs(filter_spec, expected):
 
-    f = fg_lib.Filter(filter_spec)
+    f = fgb.Filter(filter_spec)
     try:
         assert f.get_num_outputs() == expected
-    except fg_lib.Filter.InvalidName:
+    except fgb.Filter.InvalidName:
         logging.warning(f"skipped {filter_spec}: not supported by FFmpeg")
 
 
 def test_apply():
-    f = fg_lib.Filter("fade=in:5:20:color=yellow")
+    f = fgb.Filter("fade=in:5:20:color=yellow")
     print(str(f))
 
     f1 = f.apply({1: "in", 2: 4, "color": "red"})
@@ -108,19 +108,19 @@ def test_apply():
 @pytest.mark.parametrize(
     "op, lhs,rhs,expected",
     [
-        (operator.__add__, fg_lib.Filter("scale"), "overlay", "scale[L0];[L0]overlay"),
-        (operator.__add__, "scale", fg_lib.Filter("overlay"), "scale[L0];[L0]overlay"),
-        (operator.__rshift__, fg_lib.Filter("split"), "hflip", "split[L0];[L0]hflip"),
-        (operator.__rshift__, fg_lib.Filter("split"), (1, "overlay"), "split[L0];[L0]overlay"),
-        (operator.__rshift__, fg_lib.Filter("split"), (1, "[in]overlay"), "split[in];[in]overlay"), # X
-        (operator.__rshift__, fg_lib.Filter("split"), (1, 1, "overlay"), "split[L0];[L0]overlay"),
-        (operator.__rshift__, fg_lib.Filter("split"), (None, '[over]', "[base][over]overlay"), "split[over];[base][over]overlay"), # X
-        (operator.__rshift__, "hflip", fg_lib.Filter("overlay"), "hflip[L0];[L0]overlay"),
-        (operator.__rshift__, ("split",1), fg_lib.Filter("overlay"), "split[L0];[L0]overlay"),# X
-        (operator.__rshift__, ("split",(0,1)), fg_lib.Filter("overlay"), "split[L0];[L0]overlay"),# X
-        (operator.__rshift__, ("split[out]",1), fg_lib.Filter("overlay"), "split[out];[out]overlay"),# X
-        (operator.__rshift__, ("split[out]", '[out]',None), fg_lib.Filter("overlay"), "split[out];[out]overlay"),# X
-        # (operator.__rshift__, fg_lib.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
+        (operator.__add__, fgb.Filter("scale"), "overlay", "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__add__, "scale", fgb.Filter("overlay"), "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__rshift__, fgb.Filter("split"), "hflip", "split[L0];[L0]hflip"),
+        (operator.__rshift__, fgb.Filter("split"), (1, "overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, fgb.Filter("split"), (1, "[in]overlay"), "split[in];[in]overlay"), # X
+        (operator.__rshift__, fgb.Filter("split"), (1, 1, "overlay"), "split[L0];[L0]overlay"),
+        (operator.__rshift__, fgb.Filter("split"), (None, '[over]', "[base][over]overlay"), "split[over];[base][over]overlay"), # X
+        (operator.__rshift__, "hflip", fgb.Filter("overlay"), "hflip[L0];[L0]overlay"),
+        (operator.__rshift__, ("split",1), fgb.Filter("overlay"), "split[L0];[L0]overlay"),# X
+        (operator.__rshift__, ("split",(0,1)), fgb.Filter("overlay"), "split[L0];[L0]overlay"),# X
+        (operator.__rshift__, ("split[out]",1), fgb.Filter("overlay"), "split[out];[out]overlay"),# X
+        (operator.__rshift__, ("split[out]", '[out]',None), fgb.Filter("overlay"), "split[out];[out]overlay"),# X
+        # (operator.__rshift__, fgb.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
     ],
 )
 def test_ops(op, lhs, rhs, expected):

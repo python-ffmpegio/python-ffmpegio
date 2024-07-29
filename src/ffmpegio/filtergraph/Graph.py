@@ -61,6 +61,8 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         def __init__(self, type, index):
             super().__init__(f"invalid {type} filter pad index: {index}")
 
+    _unc_label: str = "UNC"
+
     def __init__(
         self, filter_specs=None, links=None, sws_flags=None, autosplit_output=True
     ):
@@ -167,9 +169,19 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
     def __str__(self) -> str:
         # insert split filters if autosplit_output is True
         fg = self.split_sources() if self.autosplit_output else self
-        return filter_utils.compose_graph(
-            fg, fg._links, fg.sws_flags and fg.sws_flags[1:]
-        )
+
+        # label unconnected pads
+        label = self._unc_label
+        unc_pads = {}
+        i = j = 0
+        for i, (index, _, _) in enumerate(self.iter_input_pads(exclude_named=True)):
+            unc_pads[f"{label}{i}"] = (index, None)
+        for j, (index, _, _) in enumerate(self.iter_output_pads(exclude_named=True)):
+            unc_pads[f"{label}{i+j+1}"] = (None, index)
+
+        links = {**fg._links, **unc_pads} if i or j else fg._links
+
+        return filter_utils.compose_graph(fg, links, fg.sws_flags and fg.sws_flags[1:])
 
     def __repr__(self):
         type_ = type(self)
@@ -314,30 +326,26 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         return other.stack(self)
 
     def _chain(
-        self, other: fgb.abc.FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> Graph:
+        self,
+        on_left: bool,
+        other: fgb.abc.FilterGraphObject,
+        chain_id: int,
+        other_chain_id: int,
+    ) -> fgb.Chain | fgb.Graph:
         """chain self->other (no var check)
 
-        :param other: the other filitergraph object to chain to
+        :param other: the other filitergraph object to chain together
+        :param on_left: True if this object's output is connecting to the other
         :param chain_id: chain id of self, nonzero only if self is a ``Graph``
         :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
         :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
 
-        return self.attach(other, (chain_id, -1, -1), (other_chain_id, 0, -1))
-
-    def _rchain(
-        self, other: fgb.abc.FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> Graph:
-        """chain other->self (no var check)
-
-        :param other: the other filitergraph object to chain to
-        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
-        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
-        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
-        """
-
-        return self.rattach(other, (chain_id, 0, -1), (other_chain_id, -1, -1))
+        left, right = (self, other) if on_left else (other, self)
+        left_id, right_id = (
+            (chain_id, other_chain_id) if on_left else (other_chain_id, chain_id)
+        )
+        return left._attach(on_left, right, (left_id, -1, -1), (right_id, 0, -1))
 
     def __iadd__(self, other):
         fg = self + other
@@ -843,8 +851,8 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         """
 
         # analyze the links to get a list of srcs which are connected to multiple inpad's/labels
-        srcs_info = self._links.get_repeated_src_info()
-        if not len(srcs_info):
+        left_info = self._links.get_repeated_src_info()
+        if not len(left_info):
             return self  # if none found, good to go as is
 
         # retrieve all the output pads of the filterchains
@@ -854,7 +862,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         fg = Graph(self)
 
         # process each multi-destination outpad
-        for outpad, dsts in srcs_info.items():
+        for outpad, dsts in left_info.items():
 
             # resolve stream media type
             try:
@@ -957,28 +965,22 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 
     def connect(
         self,
-        right,
-        from_left,
-        to_right,
-        chain_siso=True,
-        replace_sws_flags=None,
-    ):
+        right: fgb.abc.FilterGraphObject,
+        from_left: PAD_INDEX,
+        to_right: PAD_INDEX,
+        chain_siso: bool = True,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
         """stack another Graph and make connection from left to right
 
         :param right: other filtergraph
-        :type right: Graph
         :param from_left: output pad ids or labels of this fg
-        :type from_left: seq(tuple(int,int,int)|str)
         :param to_right: input pad ids or labels of the `right` fg
-        :type to_right: seq(tuple(int,int,int)|str)
         :param chain_siso: True to chain the single-input single-output connection, default: True
-        :type chain_siso: bool, optional
         :param replace_sws_flags: True to use `right` sws_flags if present,
                                   False to drop `right` sws_flags,
                                   None to throw an exception (default)
-        :type replace_sws_flags: bool | None, optional
         :return: new filtergraph object
-        :rtype: Graph
 
         * link labels may be auto-renamed if there is a conflict
 
@@ -988,18 +990,18 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         right = fgb.as_filtergraph(right, copy=True)
 
         # resolve from_left and to_right to pad ids (raises if invalid)
-        srcs_info = [
+        left_info = [
             self._resolve_pad_index(index, is_input=False) for index in from_left
         ]
-        nout = len(srcs_info)
-        if nout != len(set(srcs_info)):
+        nout = len(left_info)
+        if nout != len(set(left_info)):
             raise ValueError(f"from_left pad indices are not unique.")
 
-        dsts_info = [
+        right_info = [
             right._resolve_pad_index(index, is_input=True) for index in to_right
         ]
-        ndst = len(dsts_info)
-        if nout != len(set(dsts_info)):
+        ndst = len(right_info)
+        if nout != len(set(right_info)):
             raise ValueError(f"to_right pad indices are not unique.")
 
         if nout != ndst:
@@ -1010,9 +1012,36 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
                 f"No pads are given in from_left and to_right. Use stack() if no linking is needed"
             )
 
+        return self._connect(
+            right, left_info, right_info, chain_siso, replace_sws_flags
+        )
+
+    def _connect(
+        self,
+        right: fgb.abc.FilterGraphObject,
+        right_indices: list[PAD_INDEX],
+        left_indices: list[PAD_INDEX],
+        chain_siso: bool = True,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph and make connection from left to right (no var checks)
+
+        :param right: other filtergraph
+        :param from_left: output pad ids or labels of this fg
+        :param to_right: input pad ids or labels of the `right` fg
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use `right` sws_flags if present,
+                                  False to drop `right` sws_flags,
+                                  None to throw an exception (default)
+        :return: new filtergraph object
+
+        * link labels may be auto-renamed if there is a conflict
+
+        """
+
         # get the labels
-        srcs_info = [self.get_output_pad(index) for index in srcs_info]
-        dsts_info = [right.get_input_pad(index) for index in dsts_info]
+        left_info = [self.get_output_pad(index) for index in left_indices]
+        right_info = [right.get_input_pad(index) for index in right_indices]
 
         # sift through the connections for chainable and unchainables
         link_pairs = []
@@ -1020,7 +1049,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         rm_chains = set()
         n0 = len(self)  # chain index offset
 
-        for (inpad, dst_label), (outpad, src_label) in zip(dsts_info, srcs_info):
+        for (inpad, dst_label), (outpad, src_label) in zip(right_info, left_info):
             new_dst = (inpad[0] + n0, *inpad[1:])
 
             do_chain = (
@@ -1204,7 +1233,12 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             replace_sws_flags,
         )
 
-    def attach(self, right, left_on=None, right_on=None):
+    def attach(
+        self,
+        right: fgb.abc.FilterGraphObject,
+        left_on: PAD_INDEX | None = None,
+        right_on: PAD_INDEX | None = None,
+    ):
         """attach an output pad to right's input pad
 
         :param right: output filterchain to be attached
@@ -1219,11 +1253,22 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         """
 
         right = fgb.as_filtergraph_object(right)
-        right_on = right._resolve_pad_index(right_on, is_input=True)
+        right_on = right._resolve_pad_index(
+            right_on,
+            is_input=True,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+        )
         left_on = self._resolve_pad_index(left_on, is_input=False)
-        return self.connect(right, [left_on], [right_on], chain_siso=True)
+        return self._attach(True, right, left_on, right_on)
 
-    def rattach(self, left, right_on=None, left_on=None):
+    def rattach(
+        self,
+        left: fgb.abc.FilterGraphObject,
+        right_on: PAD_INDEX | None = None,
+        left_on: PAD_INDEX | None = None,
+    ):
         """prepend an input filterchain to an existing filter chain of the filtergraph
 
         :param left: filterchain to be attached
@@ -1241,6 +1286,37 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         left_on = left._resolve_pad_index(left_on, is_input=False)
         right_on = self._resolve_pad_index(right_on, is_input=True)
         return left.connect(self, [left_on], [right_on], chain_siso=True)
+
+    def _attach(
+        self,
+        is_input: bool,
+        other: fgb.abc.FilterGraphObject,
+        index: PAD_INDEX | list[PAD_INDEX],
+        other_index: PAD_INDEX | list[PAD_INDEX],
+    ) -> fgb.Chain | fgb.Graph:
+        """helper function attach other filtergraph to this graph (no var check)
+
+        :param is_input: True to attach other to the right
+        :param other: other filtergraph object to attach
+        :param index: full pad index of this object to attach the other. If multiple
+                      links must be made, supply all the indices as a list
+        :param other_index: full pad index of the other object to  be attached to this.
+                            If multiple links must be made, supply all the indices
+                            as a list.
+        :return: Joined filtergraph object
+        """
+
+        if not isinstance(index, list):
+            index = [index]
+        if not isinstance(other_index, list):
+            other_index = [other_index]
+
+        left, right, left_indices, right_indices = (
+            (self, other, index, other_index)
+            if is_input
+            else (other, self, other_index, index)
+        )
+        return left._connect(right, right_indices, left_indices)
 
     @contextmanager
     def as_script_file(self):

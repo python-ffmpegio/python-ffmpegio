@@ -468,16 +468,24 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             isinstance(chain, int) and chain != 0
         ):
             # Filter alone can have no connections so yields no pad
-            raise FiltergraphInvalidIndex(f"Invalid {filter=} or {chain=} index")
+            raise FiltergraphInvalidIndex(f"Invalid {filter=} or {chain=} id")
 
         if pad is None:
-            if chainable_first and not exclude_chainable:
-                yield (n - 1,), self
-            for j in range(n - 1 if exclude_chainable or chainable_first else n):
+            if chainable_first or exclude_chainable:
+                if n > 1:
+                    n = n - 1
+                if chainable_first:
+                    yield (n,), self
+            for j in range(n):
                 yield (j,), self
-        elif pad < 0 or pad >= (n - 1 if exclude_chainable else n):
-            raise FiltergraphInvalidIndex(f"Invalid {pad=} index")
-        yield (pad,), self
+        else:
+            if pad < 0:
+                # allow negative pad index
+                pad += n
+            if pad < 0 or pad >= (n - 1 if exclude_chainable else n):
+                raise FiltergraphInvalidIndex(f"Invalid {pad=} id")
+
+            yield (pad,), self
 
     def iter_input_pads(
         self,
@@ -633,14 +641,13 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
                 f"The  other filter cannot be added to this filter as the other filter has no {pad_type} pad."
             )
 
-        if on_left:
-            other, self = self, other
+        left, right = (self, other) if on_left else (other, self)
 
         # perform other + self operation
         return (
-            fgb.Chain([other, self])
+            fgb.Chain([left, right])
             if nself == 1 and nother == 1
-            else fgb.Graph([[other], [self]], {0: ((1, 0, 0), (0, 0, 0))})
+            else fgb.Graph([[left], [right]], {0: ((1, 0, 0), (0, 0, 0))})
         )
 
     def __add__(self, other: fgb.abc.FilterGraphObject) -> fgb.Chain | fgb.Graph:
@@ -652,35 +659,40 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
     def __mul__(self, __n) -> fgb.Graph:
         return fgb.Graph([[self]] * __n) if isinstance(__n, int) else NotImplemented
 
-    def __or__(self, other) -> fgb.Graph:
-        # stack
-
+    def _or_op(self, on_left: bool, other: fgb.Filter) -> fgb.Graph:
         try:
             other = fgb.as_filter(other)
-        except:
+        except FiltergraphConversionError:
             return NotImplemented
-        return fgb.Graph([[self], [other]])
+        else:
+            left, right = (self, other) if on_left else (other, self)
+            return fgb.Graph([[left], [right]])
+
+    def __or__(self, other: fgb.Filter) -> fgb.Graph:
+        return self._or_op(True, other)
 
     def __ror__(self, other) -> fgb.Graph:
-        # stack
-        if isinstance(other, int):
-            return fgb.Graph([[self]] * other)
-        try:
-            other = fgb.as_filter(other)
-        except:
-            return NotImplemented
-        return fgb.Graph([[other], [self]])
+        return self._or_op(False, other)
 
     def _chain(
-        self, other: Filter | fgb.Chain, chain_index: int | None = None
+        self,
+        on_left: bool,
+        other: fgb.abc.FilterGraphObject,
+        chain_id: int,
+        other_chain_id: int,
     ) -> fgb.Chain | fgb.Graph:
-        """chain self->other (no input check)
+        """chain self->other (no var check)
 
-        If self is not a Graph, chain_index is ignored.
-        If self is a Graph, chain_index may be used to specify the chain to attach other to.
-        If not specified, attaches to the first chain.
+        :param other: the other filitergraph object to chain together
+        :param on_left: True if this object's output is connecting to the other
+        :param chain_id: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
+        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
-        return fgb.Chain([self, other] if isinstance(other, Filter) else [self, *other])
+        if not isinstance(other, Filter):
+            return other._chain(not on_left, other, other_chain_id, chain_id)
+
+        return fgb.Chain([self, other] if on_left else [other, self])
 
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         pad_pos = index[2]
@@ -716,39 +728,3 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         if any(i for i in index[:2]):
             return False
         return index[2] == self.get_num_outputs() - 1
-
-    def _chain(
-        self, other: fgb.abc.FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> fgb.Chain | fgb.Graph:
-        """chain self->other (no var check)
-
-        :param other: the other filitergraph object to chain to
-        :param chain_id: chain id of self, nonzero only if self is a ``Graph``
-        :param other_chain_iD: chain of other, nonzero only if other is a ``Graph``
-        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
-        """
-
-        if isinstance(other, Filter):
-            if not chain_id or not other_chain_id:
-                raise ValueError("chain_id and other_chain_id must be zero")
-            return fgb.Chain([self, other])
-        else:
-            return other._rchain(self, other_chain_id, chain_id)
-
-    def _rchain(
-        self, other: fgb.abc.FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> fgb.Chain | fgb.Graph:
-        """chain other->self (no var check)
-
-        :param other: the other filitergraph object to chain to
-        :param chain_iD: chain id of self, nonzero only if self is a ``Graph``
-        :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
-        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
-        """
-
-        if isinstance(other, Filter):
-            if not chain_id or not other_chain_id:
-                raise ValueError("chain_id and other_chain_id must be zero")
-            return fgb.Chain([other, self])
-        else:
-            return other._chain(self, other_chain_id, chain_id)

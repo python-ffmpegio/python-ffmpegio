@@ -38,25 +38,47 @@ class FilterGraphObject(ABC):
         """
 
     def next_input_pad(
-        self, pad=None, filter=None, chain=None, chainable_first: bool = False
+        self,
+        pad=None,
+        filter=None,
+        chain=None,
+        chainable_first: bool = False,
+        exclude_named: bool = False,
     ) -> PAD_INDEX:
         """get next available input pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
         """
         return next(
-            self.iter_input_pads(pad, filter, chain, chainable_first=chainable_first)
+            self.iter_input_pads(
+                pad,
+                filter,
+                chain,
+                chainable_first=chainable_first,
+                exclude_named=exclude_named,
+            )
         )[0]
 
     def next_output_pad(
-        self, pad=None, filter=None, chain=None, chainable_first: bool = False
+        self,
+        pad=None,
+        filter=None,
+        chain=None,
+        chainable_first: bool = False,
+        exclude_named: bool = False,
     ) -> PAD_INDEX:
         """get next available output pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
         """
         return next(
-            self.iter_output_pads(pad, filter, chain, chainable_first=chainable_first)
+            self.iter_output_pads(
+                pad,
+                filter,
+                chain,
+                chainable_first=chainable_first,
+                exclude_named=exclude_named,
+            )
         )[0]
 
     @abstractmethod
@@ -335,20 +357,20 @@ class FilterGraphObject(ABC):
                         f"{fg_desc} does not have enough unconnected {io_desc} pads to complete this operation"
                     )
 
-            resolve_indices(
+            indices = resolve_indices(
                 indices,
                 self.iter_output_pads(chainable_first=False),
                 "Filtergraph",
                 "input",
             )
-            resolve_indices(
+            other_indices = resolve_indices(
                 other_indices,
                 other.iter_input_pads(chainable_first=False),
                 "The other filtergraph",
                 "output",
             )
 
-            graph = as_filtergraph(self)
+            graph = fgb.as_filtergraph(self)
 
             for o, i, oi in zip(others, indices, other_indices):
                 # attach the other object to the graph
@@ -364,16 +386,12 @@ class FilterGraphObject(ABC):
         except NotImplementedError:
             return NotImplemented
 
-        if self._output_pad_is_chainable(index) and other._input_pad_is_chainable(
-            other_index
-        ):
-            return self._chain(other, index[0], other_index[0])
-
         # if not Chain or Graph, use other's >> operator
         return (
-            fgb.Graph(self).attach(other, index, other_index)
-            if isinstance(other, fgb.Graph)
-            else other.rattach(self, other_index, index)
+            self._chain(other, index[0], other_index[0])
+            if self._output_pad_is_chainable(index)
+            and other._input_pad_is_chainable(other_index)
+            else self._attach(True, other, index, other_index)
         )
 
     def __rrshift__(
@@ -498,11 +516,13 @@ class FilterGraphObject(ABC):
                 "input",
             )
 
-            graph = as_filtergraph(self)
+            graph = self
 
             for o, i, oi in zip(others, indices, other_indices):
                 # attach the other object to the graph
-                graph.rattach(o, i, oi or other.next_input_pad(chainable_first=True))
+                graph = graph._attach(
+                    False, o, i, oi or other.next_input_pad(chainable_first=True)
+                )
 
             return graph
 
@@ -514,38 +534,27 @@ class FilterGraphObject(ABC):
         except NotImplementedError:
             return NotImplemented
 
-        if self._input_pad_is_chainable(index) and other._output_pad_is_chainable(
-            other_index
-        ):
-            return other._chain(self, other_index[0], index[0])
-
-        # if not Chain or Graph, use other's >> operator
         return (
-            fgb.Graph(self).rattach(other, index, other_index)
-            if isinstance(other, fgb.Graph)
-            else other.attach(self, other_index, index)
+            self._chain(False, other, index[0], other_index[0])
+            if self._output_pad_is_chainable(index)
+            and other._input_pad_is_chainable(other_index)
+            else self._attach(False, other, index, other_index)
         )
 
     @abstractmethod
     def _chain(
-        self, other: FilterGraphObject, chain_index: int, other_chain_index: int
+        self,
+        on_left: bool,
+        other: fgb.abc.FilterGraphObject,
+        chain_id: int,
+        other_chain_id: int,
     ) -> fgb.Chain | fgb.Graph:
         """chain self->other (no var check)
 
-        :param other: the other filitergraph object to chain to
-        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
-        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
-        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
-        """
-
-    def _rchain(
-        self, other: FilterGraphObject, chain_id: int, other_chain_id: int
-    ) -> fgb.Chain | fgb.Graph:
-        """chain other->self (no var check)
-
-        :param other: the other filitergraph object to chain to
-        :param chain_index: chain id of self, nonzero only if self is a ``Graph``
-        :param other_chain_index: chain of other, nonzero only if other is a ``Graph``
+        :param other: the other filitergraph object to chain together
+        :param on_left: True if this object's output is connecting to the other
+        :param chain_id: chain id of self, nonzero only if self is a ``Graph``
+        :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
         :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
         """
 
@@ -717,3 +726,41 @@ class FilterGraphObject(ABC):
     @abstractmethod
     def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
         """True if specified output pad is chainable"""
+
+    def _attach(
+        self,
+        is_input: bool,
+        other: fgb.abc.FilterGraphObject,
+        index: PAD_INDEX | list[PAD_INDEX],
+        other_index: PAD_INDEX | list[PAD_INDEX],
+    ) -> fgb.Chain | fgb.Graph:
+        """helper function attach other filtergraph to this graph
+
+        :param is_input: True to attach other to the right
+        :param other: other filtergraph object to attach
+        :param index: full pad index of this object to attach the other. If multiple
+                      links must be made, supply all the indices as a list
+        :param other_index: full pad index of the other object to  be attached to this.
+                            If multiple links must be made, supply all the indices
+                            as a list.
+        :return: Joined filtergraph object
+        """
+
+        # same operation for Filter & Chain
+
+        if isinstance(other, fgb.Graph):
+            return other._attach(not is_input, self, other_index, index)
+
+        if not (isinstance(index, list) or isinstance(other_index, list)):
+            left, right, left_index, right_index = (
+                (self, other, index, other_index)
+                if is_input
+                else (other, self, other_index, index)
+            )
+
+            if left._output_pad_is_chainable(
+                left_index
+            ) and right._input_pad_is_chainable(right_index):
+                return left._chain(True, right, left[0], right[0])
+
+        return fgb.as_filtergraph(self)._attach(is_input, other, index, other_index)
