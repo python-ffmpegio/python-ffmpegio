@@ -96,6 +96,98 @@ def test_filter_get_num_outputs(filter_spec, expected):
         logging.warning(f"skipped {filter_spec}: not supported by FFmpeg")
 
 
+@pytest.mark.parametrize(
+    "expr, pad, filter, chain,  exclude_chainable, chainable_first, ret",
+    [
+        ("color", None, None, None, False, False, []),
+        ("vstack", None, None, None, False, False, [0, 1]),
+        ("vstack", 0, None, None, False, False, [0]),
+        ("vstack", 1, None, None, False, False, [1]),
+        ("vstack", 2, None, None, False, False, None),
+        ("vstack", -1, None, None, False, False, [1]),
+        ("vstack", None, 0, None, False, False, [0, 1]),
+        ("vstack", None, 1, None, False, False, None),
+        ("vstack", None, None, 0, False, False, [0, 1]),
+        ("vstack", None, None, 1, False, False, None),
+        ("vstack", None, None, None, True, False, [0]),
+        ("vstack", None, None, None, False, True, [1, 0]),
+        ("vstack", None, None, None, True, True, []),
+    ],
+)
+def test_iter_input_pads(
+    expr,
+    pad,
+    filter,
+    chain,
+    exclude_chainable,
+    chainable_first,
+    ret,
+):
+
+    fg = fgb.Filter(expr)
+
+    it = fg.iter_input_pads(
+        pad,
+        filter,
+        chain,
+        exclude_chainable=exclude_chainable,
+        chainable_first=chainable_first,
+    )
+
+    if ret is None:
+        with pytest.raises(fgb.FiltergraphInvalidIndex):
+            next(it)
+    else:
+        for r in ret:
+            index, f, out_index = next(it)
+            assert index == (r,) and f == fg and out_index == None
+
+@pytest.mark.parametrize(
+    "expr, pad, filter, chain,  exclude_chainable, chainable_first, ret",
+    [
+        ("nullsink", None, None, None, False, False, []),
+        ("split", None, None, None, False, False, [0, 1]),
+        ("split", 0, None, None, False, False, [0]),
+        ("split", 1, None, None, False, False, [1]),
+        ("split", 2, None, None, False, False, None),
+        ("split", -1, None, None, False, False, [1]),
+        ("split", None, 0, None, False, False, [0, 1]),
+        ("split", None, 1, None, False, False, None),
+        ("split", None, None, 0, False, False, [0, 1]),
+        ("split", None, None, 1, False, False, None),
+        ("split", None, None, None, True, False, [0]),
+        ("split", None, None, None, False, True, [1, 0]),
+        ("split", None, None, None, True, True, []),
+    ],
+)
+def test_iter_output_pads(
+    expr,
+    pad,
+    filter,
+    chain,
+    exclude_chainable,
+    chainable_first,
+    ret,
+):
+
+    fg = fgb.Filter(expr)
+
+    it = fg.iter_output_pads(
+        pad,
+        filter,
+        chain,
+        exclude_chainable=exclude_chainable,
+        chainable_first=chainable_first,
+    )
+
+    if ret is None:
+        with pytest.raises(fgb.FiltergraphInvalidIndex):
+            next(it)
+    else:
+        for r in ret:
+            index, f, in_index = next(it)
+            assert index == (r,) and f == fg and in_index == None
+
 def test_apply():
     f = fgb.Filter("fade=in:5:20:color=yellow")
     print(str(f))
@@ -108,18 +200,68 @@ def test_apply():
 @pytest.mark.parametrize(
     "op, lhs,rhs,expected",
     [
-        (operator.__add__, fgb.Filter("scale"), "overlay", "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
-        (operator.__add__, "scale", fgb.Filter("overlay"), "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (
+            operator.__add__,
+            fgb.Filter("scale"),
+            "overlay",
+            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
+        ),
+        (
+            operator.__add__,
+            "scale",
+            fgb.Filter("overlay"),
+            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
+        ),
         (operator.__rshift__, fgb.Filter("split"), "hflip", "split[L0];[L0]hflip"),
-        (operator.__rshift__, fgb.Filter("split"), (1, "overlay"), "split[L0];[L0]overlay"),
-        (operator.__rshift__, fgb.Filter("split"), (1, "[in]overlay"), "split[in];[in]overlay"), # X
-        (operator.__rshift__, fgb.Filter("split"), (1, 1, "overlay"), "split[L0];[L0]overlay"),
-        (operator.__rshift__, fgb.Filter("split"), (None, '[over]', "[base][over]overlay"), "split[over];[base][over]overlay"), # X
+        (
+            operator.__rshift__,
+            fgb.Filter("split"),
+            (1, "overlay"),
+            "split[L0];[L0]overlay",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Filter("split"),
+            (1, "[in]overlay"),
+            "split[in];[in]overlay",
+        ),  # X
+        (
+            operator.__rshift__,
+            fgb.Filter("split"),
+            (1, 1, "overlay"),
+            "split[L0];[L0]overlay",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Filter("split"),
+            (None, "[over]", "[base][over]overlay"),
+            "split[over];[base][over]overlay",
+        ),  # X
         (operator.__rshift__, "hflip", fgb.Filter("overlay"), "hflip[L0];[L0]overlay"),
-        (operator.__rshift__, ("split",1), fgb.Filter("overlay"), "split[L0];[L0]overlay"),# X
-        (operator.__rshift__, ("split",(0,1)), fgb.Filter("overlay"), "split[L0];[L0]overlay"),# X
-        (operator.__rshift__, ("split[out]",1), fgb.Filter("overlay"), "split[out];[out]overlay"),# X
-        (operator.__rshift__, ("split[out]", '[out]',None), fgb.Filter("overlay"), "split[out];[out]overlay"),# X
+        (
+            operator.__rshift__,
+            ("split", 1),
+            fgb.Filter("overlay"),
+            "split[L0];[L0]overlay",
+        ),  # X
+        (
+            operator.__rshift__,
+            ("split", (0, 1)),
+            fgb.Filter("overlay"),
+            "split[L0];[L0]overlay",
+        ),  # X
+        (
+            operator.__rshift__,
+            ("split[out]", 1),
+            fgb.Filter("overlay"),
+            "split[out];[out]overlay",
+        ),  # X
+        (
+            operator.__rshift__,
+            ("split[out]", "[out]", None),
+            fgb.Filter("overlay"),
+            "split[out];[out]overlay",
+        ),  # X
         # (operator.__rshift__, fgb.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
     ],
 )

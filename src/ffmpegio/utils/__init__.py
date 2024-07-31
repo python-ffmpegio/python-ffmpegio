@@ -148,7 +148,7 @@ def parse_stream_spec(spec, file_index=False):
             return {"index": int(spec)}
 
 
-def is_stream_spec(spec, file_index=False):
+def is_stream_spec(spec, file_index=None):
     """True if valid stream specifier string
 
     :param spec: stream specifier string to be tested

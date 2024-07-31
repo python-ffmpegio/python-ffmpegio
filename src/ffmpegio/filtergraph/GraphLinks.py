@@ -56,7 +56,7 @@ class GraphLinks(UserDict):
     def validate_label(label, named_only=False, no_stream_spec=False):
         try:
             assert re.match(r"[a-zA-Z0-9_]+$", label) or (
-                not no_stream_spec and is_stream_spec(label, None)
+                not no_stream_spec and is_stream_spec(label)
             )
         except:
             if named_only or not isinstance(label, int):
@@ -117,7 +117,7 @@ class GraphLinks(UserDict):
         GraphLinks.validate_label(label, no_stream_spec=pads[1] is not None)
 
         # stream specifier can only be used as input label
-        if is_stream_spec(label, True) and pads[1] is not None:
+        if is_stream_spec(label) and pads[1] is not None:
             raise GraphLinks.Error(
                 f"Input stream specifier ({label}) can only be used as an input label."
             )
@@ -312,7 +312,7 @@ class GraphLinks(UserDict):
             label = lut[int] = lut[int] + 1
             return label
 
-        if is_stream_spec(label, True):
+        if is_stream_spec(label):
             return label
 
         # guaranteed to match
@@ -513,6 +513,38 @@ class GraphLinks(UserDict):
         for label, (inpad, outpad) in self.data.items():
             if inpad is None:
                 yield (label, outpad)
+
+    def input_dict(self) -> dict[PAD_INDEX, PAD_INDEX | str]:
+        """Return the link table sorted by the input pad indices
+
+        The value of the returned dict is either the connected output pad index
+        if linked or a string if input pad is unconnected. Unconnected output 
+        labels are excluded in the returned dict.
+
+        :see also:
+        ``Graph.iter_input_pads``
+        """
+
+        return {
+            d: label if outpad is None else outpad
+            for label, (inpad, outpad) in self.data.items()
+            if inpad is not None
+            for d in self.iter_inpad_ids(inpad)
+        }
+
+    def output_dict(self) -> dict[PAD_INDEX, PAD_INDEX | str]:
+        """return the link table sorted by the output pad indices
+
+        The value of the returned dict is either the connected input pad index
+        if linked or a label string if unconnected labels. Unconnected input
+        labels are excluded in the returned dict.
+        """
+
+        return {
+            outpad: label if inpad is None else inpad
+            for label, (inpad, outpad) in self.data.items()
+            if outpad is not None
+        }
 
     def find_inpad_label(self, inpad):
         """get label of an input pad id

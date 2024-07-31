@@ -6,14 +6,58 @@ from pprint import pprint
 import pytest
 
 
-def test_iter_io_pads():
-    fg = fgb.Graph(
-        "color;scale,pad[l1]; crop,pad[l2]; overlay; [l1]overlay; pad,overlay; trim,[l2]overlay"
+@pytest.mark.parametrize(
+    "expr, pad, filter, chain, exclude_chainable, chainable_first, include_connected, unlabeled_only, ret",
+    [
+        # fmt: off
+        ("[0:v][1:v]vstack", None, None, None, False, False, False, False, []),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, False, [(0,0,1),(0,1,0),(1,0,1)]),
+        # ("vstack,hstack", None, None, 0, False, False, False, False, [(0, 0),(0, 1),(1, 0)]),
+        # ("vstack,hstack", None, None, 1, False, False, False, False, None),
+        # ("vstack,hstack", None, 0, None, False, False, False, False, [(0, 0),(0, 1)]),
+        # ("vstack,hstack", None, 1, None, False, False, False, False, [(1, 0)]),
+        # ("vstack,hstack", None, 2, None, False, False, False, False, None),
+        # ("vstack,hstack", None, None, None, True, False, False, False, [(0, 0),(1, 0)]),
+        # ("vstack,hstack", None, None, None, False, True, False, False, [(0, 1),(0, 0),(1, 0)]),
+        # ("vstack,hstack", None, None, None, False, False, True, False, [(0, 0),(0, 1),(1, 0),(1,1)]),
+        # fmt: on
+    ],
+)
+def test_iter_input_pads(
+    expr,
+    pad,
+    filter,
+    chain,
+    exclude_chainable,
+    chainable_first,
+    include_connected,
+    unlabeled_only,
+    ret,
+):
+
+    fg = fgb.Graph(expr)
+
+    out_links = fg._links.output_dict()
+
+    it = fg.iter_input_pads(
+        pad,
+        filter,
+        chain,
+        exclude_chainable=exclude_chainable,
+        chainable_first=chainable_first,
+        include_connected=include_connected,
+        unlabeled_only=unlabeled_only,
     )
-    print(fg)
-    pprint(tuple(fg._iter_io_pads(True, "all")))
-    pprint(tuple(fg._iter_io_pads(True, "chainable")))
-    pprint(tuple(fg._iter_io_pads(True, "per_chain")))
+
+    if ret is None:
+        with pytest.raises(fgb.FiltergraphInvalidIndex):
+            next(it)
+    else:
+        for r in ret:
+            index, f, out_index = next(it)
+            assert index == r and f == fg[r[0]][r[1]]
+            if out_index is not None:
+                assert out_index in out_links
 
 
 def test_resolve_index():
@@ -283,8 +327,13 @@ def test_filter_arithmetics():
     )
     assert str(fgb.split(2) >> [(1, "[main]"), "[sub]"]) == "split=2[sub][main]"
     fc = fgb.vstack(inputs=2) + fgb.split(outputs=2)
-    assert str([("[0:v]", 1), "[1:v]"] >> fc) == "[1:v][0:v]vstack=inputs=2,split=outputs=2"
-    assert str(fc >> ["[main]", "[sub]"]) == "vstack=inputs=2,split=outputs=2[main][sub]"
+    assert (
+        str([("[0:v]", 1), "[1:v]"] >> fc)
+        == "[1:v][0:v]vstack=inputs=2,split=outputs=2"
+    )
+    assert (
+        str(fc >> ["[main]", "[sub]"]) == "vstack=inputs=2,split=outputs=2[main][sub]"
+    )
     assert (
         str(["[0:v]", "[1:v]"] >> fgb.Graph(fc) >> [(1, "[main]"), "[sub]"])
         == "[0:v][1:v]vstack=inputs=2,split=outputs=2[main][sub]"
