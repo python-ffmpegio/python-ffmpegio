@@ -135,8 +135,30 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         or label is invalid, it raises FiltergraphPadNotFoundError.
         """
 
+        # resolve a label string to pad index
+        if isinstance(index_or_label, str):  # label given
+            try:
+                if is_input:
+                    index_or_label = next(
+                        index
+                        for label, index in self.iter_input_labels(
+                            exclude_stream_specs=True
+                        )
+                        if label == index_or_label
+                    )
+                else:
+                    index_or_label = next(
+                        index
+                        for label, index in self.iter_output_labels()
+                        if label == index_or_label
+                    )
+            except StopIteration as exc:
+                raise FiltergraphPadNotFoundError(
+                    f"{index_or_label=} is not defined on the filtergraph."
+                ) from exc
+
         # obtain 3-element tuple index (unvalidated)
-        index = super()._resolve_pad_index(
+        return super()._resolve_pad_index(
             index_or_label,
             is_input=is_input,
             chain_id_omittable=chain_id_omittable,
@@ -148,47 +170,6 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             pad_fill_value=pad_fill_value,
             chainable_first=chainable_first,
         )
-
-        # call if index needs to be autocompleted
-        try:
-            if isinstance(index, str):
-                # return the pad index associated with the label
-                label = (
-                    index[1:-1]
-                    if len(index) > 2 and index[0] == "[" and index[-1] == "]"
-                    else index
-                )
-                dsts, outpad = self._links[label]
-                if is_input:  # outpad=None, inpad=not None
-                    assert self._links.is_input(label)
-                    return next(self._links.iter_inpad_ids(dsts))
-                else:  # inpad=None, outpad=not None
-                    assert self._links.is_output(label)
-                    return outpad
-
-            assert len(index) in (1, 2, 3)
-            i = index[-1]
-            try:
-                j = index[-2]
-            except:
-                j = None
-            try:
-                k = index[-3]
-            except:
-                k = None
-
-            # if any index is None, pick the first available
-            if is_input:
-                pad = next(self.iter_input_pads(chain=k, filter=j, pad=i))
-            else:
-                pad = next(
-                    self.iter_output_pads(
-                        chain=k, filter=j, pad=i, unlabeled_only=index is None
-                    )
-                )
-            return pad[0]
-        except:
-            raise FiltergraphPadNotFoundError("input" if is_input else "output", index)
 
     def __str__(self) -> str:
         # insert split filters if autosplit_output is True
