@@ -393,7 +393,7 @@ def streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-) -> dict[str, str | Number | Fraction]:
+) -> list[dict[str, str | Number | Fraction]]:
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
@@ -448,7 +448,7 @@ def video_streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-) -> dict[str, str | Number | Fraction]:
+) -> list[dict[str, str | Number | Fraction]]:
     """Retrieve basic info of video streams
 
     :param url: URL of the media file/stream
@@ -565,7 +565,7 @@ def audio_streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-) -> dict[str, str | Number | Fraction]:
+) -> list[dict[str, str | Number | Fraction]]:
     """Retrieve basic info of audio streams
 
     :param url: URL of the media file/stream
@@ -671,7 +671,11 @@ def query(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-) -> dict[str, Any] | Sequence[dict[str, Any]]:
+) -> (
+    dict[str, Any]
+    | Sequence[dict[str, Any]]
+    | list[dict[str, Any] | Sequence[dict[str, Any]]]
+):
     """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
@@ -783,7 +787,7 @@ def frames(
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
     accurate_time: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-):
+) -> list[dict] | list[str | int | float]:
     """get frame information
 
     :param url: URL of the media file/stream
