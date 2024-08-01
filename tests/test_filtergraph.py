@@ -11,15 +11,12 @@ import pytest
     [
         # fmt: off
         ("[0:v][1:v]vstack", None, None, None, False, False, False, False, []),
+        ("[0:v][1:v]vstack", None, None, None, False, False, True, False, [(0,0,0),(0,0,1)]),
         ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, False, [(0,0,1),(0,1,0),(1,0,1)]),
-        # ("vstack,hstack", None, None, 0, False, False, False, False, [(0, 0),(0, 1),(1, 0)]),
-        # ("vstack,hstack", None, None, 1, False, False, False, False, None),
-        # ("vstack,hstack", None, 0, None, False, False, False, False, [(0, 0),(0, 1)]),
-        # ("vstack,hstack", None, 1, None, False, False, False, False, [(1, 0)]),
-        # ("vstack,hstack", None, 2, None, False, False, False, False, None),
-        # ("vstack,hstack", None, None, None, True, False, False, False, [(0, 0),(1, 0)]),
-        # ("vstack,hstack", None, None, None, False, True, False, False, [(0, 1),(0, 0),(1, 0)]),
-        # ("vstack,hstack", None, None, None, False, False, True, False, [(0, 0),(0, 1),(1, 0),(1,1)]),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, 0, False, False, False, False, [(0,0,1),(0,1,0)]),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, 1, False, False, False, False, [(1,0,1)]),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, 2, False, False, False, False, None),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, True, [(0,1,0),(1,0,1)]),
         # fmt: on
     ],
 )
@@ -56,25 +53,116 @@ def test_iter_input_pads(
         for r in ret:
             index, f, out_index = next(it)
             assert index == r and f == fg[r[0]][r[1]]
-            if out_index is not None:
+            if isinstance(out_index, tuple):
                 assert out_index in out_links
 
 
-def test_resolve_index():
-    fg = fgb.Graph(
-        "color;scale,pad[l1]; crop,pad[l2]; overlay; [l1]overlay; pad,overlay[l3]; trim,[l2]overlay,split=3[l4];[l3][l4]overlay"
-    )
-    fg.add_label("in", dst=(2, 0, 0))
-    print(fg)
-    pprint(tuple(fg._iter_io_pads(True, "all")))
-    # pprint(tuple(fg._iter_io_pads(False, "all")))
-    assert fg._resolve_index(True, 0) == (1, 0, 0)
+@pytest.mark.parametrize(
+    "expr, pad, filter, chain, exclude_chainable, chainable_first, include_connected, unlabeled_only, ret",
+    [
+        # fmt: off
+        ("split[out0][out1]", None, None, None, False, False, False, False, [(0,0,0),(0,0,1)]),
+        ("split[out0][out1]", None, None, None, False, False, False, True, []),
+        # fmt: on
+    ],
+)
+def test_iter_output_pads(
+    expr,
+    pad,
+    filter,
+    chain,
+    exclude_chainable,
+    chainable_first,
+    include_connected,
+    unlabeled_only,
+    ret,
+):
 
-    assert fg._resolve_index(True, None) == (1, 0, 0)
-    assert fg._resolve_index(True, "in") == (2, 0, 0)
-    assert fg._resolve_index(True, "[in]") == (2, 0, 0)
-    assert fg._resolve_index(True, 1) == (3, 0, 1)
-    assert fg._resolve_index(True, (1, None)) == (5, 1, 0)
+    fg = fgb.Graph(expr)
+
+    in_links = fg._links.input_dict()
+
+    it = fg.iter_output_pads(
+        pad,
+        filter,
+        chain,
+        exclude_chainable=exclude_chainable,
+        chainable_first=chainable_first,
+        include_connected=include_connected,
+        unlabeled_only=unlabeled_only,
+    )
+
+    if ret is None:
+        with pytest.raises(fgb.FiltergraphInvalidIndex):
+            next(it)
+    else:
+        for r in ret:
+            index, f, in_index = next(it)
+            assert index == r and f == fg[r[0]][r[1]]
+            if isinstance(in_index, tuple):
+                assert in_index in in_links
+
+
+@pytest.mark.parametrize(
+    "index_or_label, ret, is_input, chain_id_omittable, filter_id_omittable, pad_id_omittable, resolve_omitted, chain_fill_value, filter_fill_value, pad_fill_value, chainable_first",
+    [
+        (0, None, True, False, False, False, False, None, None, None, False),
+        (0, (1, 0, 0), True, True, True, False, False, None, None, None, False),
+    ],
+)
+def test_resolve_pad_index(
+    index_or_label,
+    ret,
+    is_input,
+    chain_id_omittable,
+    filter_id_omittable,
+    pad_id_omittable,
+    resolve_omitted,
+    chain_fill_value,
+    filter_fill_value,
+    pad_fill_value,
+    chainable_first,
+):
+    fg = fgb.Graph(
+        "color;scale,pad[l1];[in]crop,pad[l2];overlay;[l1]overlay;pad,overlay[l3];trim,[l2]overlay,split=3[l4];[l3][l4]overlay"
+    )
+
+    if ret is None:
+        with pytest.raises(fgb.FiltergraphPadNotFoundError):
+            fg._resolve_pad_index(
+                index_or_label,
+                is_input=is_input,
+                chain_id_omittable=chain_id_omittable,
+                filter_id_omittable=filter_id_omittable,
+                pad_id_omittable=pad_id_omittable,
+                resolve_omitted=resolve_omitted,
+                chain_fill_value=chain_fill_value,
+                filter_fill_value=filter_fill_value,
+                pad_fill_value=pad_fill_value,
+                chainable_first=chainable_first,
+            )
+    else:
+        assert (
+            fg._resolve_pad_index(
+                index_or_label,
+                is_input=is_input,
+                chain_id_omittable=chain_id_omittable,
+                filter_id_omittable=filter_id_omittable,
+                pad_id_omittable=pad_id_omittable,
+                resolve_omitted=resolve_omitted,
+                chain_fill_value=chain_fill_value,
+                filter_fill_value=filter_fill_value,
+                pad_fill_value=pad_fill_value,
+                chainable_first=chainable_first,
+            )
+            == ret
+        )
+
+    # assert fg._resolve_pad_index(True, None) == (1, 0, 0)
+    # assert fg._resolve_pad_index(True, "in") == (2, 0, 0)
+    # assert fg._resolve_pad_index(True, "[in]") == (2, 0, 0)
+    # assert fg._resolve_pad_index(True, 1) == (3, 0, 1)
+    # assert fg._resolve_pad_index(True, (1, None)) == (5, 1, 0)
 
     # pprint(fg._resolve_index(False, 0))
     # pprint(fg._resolve_index(False, 1))

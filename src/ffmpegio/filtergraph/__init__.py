@@ -107,7 +107,7 @@ from .Chain import Chain
 from .Graph import Graph
 
 from ._convert import as_filter, as_filterchain, as_filtergraph, as_filtergraph_object
-from .exceptions import FiltergraphInvalidIndex
+from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
 
 # chain | filter | pad
 
@@ -121,6 +121,7 @@ __all__ = [
     "Chain",
     "Graph",
     "FiltergraphInvalidIndex",
+    "FiltergraphPadNotFoundError",
 ]
 
 

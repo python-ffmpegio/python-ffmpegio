@@ -106,11 +106,34 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         chain_id_omittable: bool = False,
         filter_id_omittable: bool = False,
         pad_id_omittable: bool = False,
+        resolve_omitted: bool = True,
         chain_fill_value: int | None = None,
         filter_fill_value: int | None = None,
         pad_fill_value: int | None = None,
         chainable_first: bool = False,
     ) -> PAD_INDEX:
+        """Resolve unconnected label or pad index to full 3-element pad index
+
+        :param index_or_label: pad index set or pad label or ``None`` to auto-select
+        :param is_input: True to resolve an input pad, else an output pad, defaults to True
+        :param chain_id_omittable: True to allow ``None`` chain index, defaults to False
+        :param filter_id_omittable: True to allow ``None`` filter index, defaults to False
+        :param pad_id_omittable: True to allow ``None`` pad index, defaults to False
+        :param resolve_omitted: True to fill each omitted value with the prescribed fill value.
+        :param chain_fill_value: if ``chain_id_omittable=True`` and chain index is either not
+                                 given or ``None``, this value will be returned, defaults to None,
+                                 which returns the first available pad.
+        :param filter_fill_value:if ``filter_id_omittable=True`` and filter index is either not
+                                 given or ``None``, this value will be returned, defaults to None,
+                                 which returns the first available pad.
+        :param pad_fill_value: if ``pad_id_omittable=True`` and either ``index`` is None or
+                               pad index is ``None``, this value will be returned, defaults to None,
+                               which returns the first available pad.
+        :param chainable_first: if True, chainable pad is selected first, defaults to False
+
+        One and only one of ``index`` and ``label`` must be specified. If the given index
+        or label is invalid, it raises FiltergraphPadNotFoundError.
+        """
 
         # obtain 3-element tuple index (unvalidated)
         index = super()._resolve_pad_index(
@@ -119,6 +142,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             chain_id_omittable=chain_id_omittable,
             filter_id_omittable=filter_id_omittable,
             pad_id_omittable=pad_id_omittable,
+            resolve_omitted=resolve_omitted,
             chain_fill_value=chain_fill_value,
             filter_fill_value=filter_fill_value,
             pad_fill_value=pad_fill_value,
@@ -382,7 +406,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         chainable_first: bool,
         include_connected: bool,
         unlabeled_only: bool,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, bool]]:
+    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over input pads of the filters on the filterchain
 
         :param filters: list of filters to iterate
@@ -399,11 +423,13 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         if chain is None:
             # iterate over all filters
             chains = self.data
+            ioff = 0
         else:
             try:
                 chains = [self.data[chain]]
             except IndexError:
                 raise FiltergraphInvalidIndex(f"Invalid {chain=} id.")
+            ioff = chain
 
         for i, c in enumerate(chains):
 
@@ -415,26 +441,22 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
                 chainable_first=chainable_first,
                 include_connected=include_connected,
             ):
-                index = (i, *pidx)
+                index = (i + ioff, *pidx)
 
                 try:
-                    label_other_pad = pad_links[index]
-                except KeyError:
-                    # fails if no link defined
+                    assert other_pidx is None
+                    # retrieve a connected output pad or a label if just labeled
+                    other_pidx = pad_links[index]
+                except (AssertionError, KeyError):
+                    # fails if chained or no link defined
                     yield index, f, other_pidx
+                    continue
 
-                is_str = isinstance(label_other_pad, str)
-                if include_connected and not is_str:
-                    # return output label or output pad connected to
-                    other_pidx = label_other_pad
-                elif is_str:
-                    if unlabeled_only:
-                        # exclude unlinked label-only pads, including input streams
-                        continue
-                    is_sspec = is_stream_spec(label_other_pad)
-                    if not include_connected and is_sspec:
-                        # exclude input pad connected to an input stream
-                        continue
+                # exclude unlinked label-only pads, including input streams
+                # return output label or output pad connected to
+                is_str = isinstance(other_pidx, str)
+                if (is_str and unlabeled_only) or not (is_str or include_connected):
+                    continue
 
                 yield index, f, other_pidx
 
@@ -448,7 +470,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         unlabeled_only: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over input pads of the filters on the filtergraph
 
         :param pad: pad id, defaults to None
@@ -461,7 +483,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
-        for v in self._iter_pads(
+        for index, f, other_pidx in self._iter_pads(
             fgb.Chain.iter_input_pads,
             self._links.input_dict(),
             pad,
@@ -472,7 +494,15 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             include_connected,
             unlabeled_only,
         ):
-            yield v
+            # exclude a pad connected to an input stream
+            if (
+                not include_connected
+                and isinstance(other_pidx, str)
+                and is_stream_spec(other_pidx)
+            ):
+                continue
+
+            yield index, f, other_pidx
 
     def iter_output_pads(
         self,
@@ -484,7 +514,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         unlabeled_only: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter]]:
+    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over filtergraph's filter output pads
 
         :param unlabeled_only: True to leave out named outputs, defaults to False

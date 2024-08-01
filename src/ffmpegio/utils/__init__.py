@@ -148,15 +148,12 @@ def parse_stream_spec(spec, file_index=False):
             return {"index": int(spec)}
 
 
-def is_stream_spec(spec, file_index=None):
+def is_stream_spec(spec, file_index: bool | None = None) -> bool:
     """True if valid stream specifier string
 
     :param spec: stream specifier string to be tested
-    :type spec: str
     :param file_index: True if spec starts with a file index, None to allow with or without file_index defaults to False
-    :type file_index: bool|None, optional
     :return: True if valid stream specifier
-    :rtype: bool
     """
     try:
         parse_stream_spec(spec, True if file_index is None else file_index)
@@ -718,6 +715,7 @@ def pop_extra_options_multi(options, suffix):
 
     return popped
 
+
 def pop_global_options(options):
     """pop global options from options dict
 
@@ -728,8 +726,4 @@ def pop_global_options(options):
     """
 
     all_gopts = caps.options("global")
-    return {
-        k: options.pop(k)
-        for k in [k for k in options.keys() if k in all_gopts]
-    }
-
+    return {k: options.pop(k) for k in [k for k in options.keys() if k in all_gopts]}

@@ -636,11 +636,7 @@ class FilterGraphObject(ABC):
             if isinstance(index_or_label, int):
                 # only pad index given
                 if chain_id_omittable and filter_id_omittable:
-                    return (
-                        chain_fill_value,
-                        filter_fill_value,
-                        pad_fill_value if index is None else index,
-                    )
+                    return (chain_fill_value, filter_fill_value, index_or_label)
 
             allow_partial_index = (
                 chain_id_omittable or filter_id_omittable or pad_id_omittable
