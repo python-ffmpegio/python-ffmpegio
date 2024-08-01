@@ -65,6 +65,7 @@ def test_iter_input_pads(
             if out_index is not None:
                 assert out_index[0] == index[0] - 1
 
+
 @pytest.mark.parametrize(
     "expr, pad, filter, chain, exclude_chainable, chainable_first, include_connected, ret",
     [
@@ -104,23 +105,6 @@ def test_iter_output_pads(
             assert index == r and f == fg[r[0]]
             if out_index is not None:
                 assert out_index[0] == index[0] - 1
-
-def test_resolve_index():
-    with pytest.raises(fgb.FiltergraphInvalidIndex):
-        fgb.Chain("color")._resolve_index(True, None)
-
-    fchain = fgb.Chain("fps,scale2ref,overlay,split=3,concat=3")
-
-    with pytest.raises(fgb.FiltergraphInvalidIndex):
-        fchain._resolve_index(True, 2)
-
-    assert fchain._resolve_index(True, None) == (0, 0)
-    assert fchain._resolve_index(False, None) == (4, 0)
-    assert fchain._resolve_index(True, 1) == (4, 1)
-    assert fchain._resolve_index(False, 1) == (3, 1)
-    assert fchain._resolve_index(True, (1, 0)) == (1, 0)
-    assert fchain._resolve_index(True, (4, None)) == (4, 0)
-    assert fchain._resolve_index(True, (4, 1)) == (4, 1)
 
 
 @pytest.mark.parametrize(

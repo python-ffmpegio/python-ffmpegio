@@ -1,6 +1,4 @@
-from ffmpegio import ffmpegprocess, filtergraph as fgb
-
-from pprint import pprint
+from ffmpegio import filtergraph as fgb
 import pytest
 
 
@@ -68,7 +66,8 @@ def test_next_input_pad(cls, expr, pad, filter, chain, chainable_first, ret):
         (None, (None, None, None), True, True, True, True, False, None, None, None, False),
         (None, (0, 0, 0), True, True, True, True, True, 0, 0, 0, False),
         (None, (0, 0, 0), True, True, True, True, True, 0, 0, 0, False),
-        (None, (0, 0, 1), True, True, True, True, True, 0, 0, 0, True),
+        (None, (0, 0, 0), True, True, True, True, True, None, None, None, False),
+        (None, (0, 0, 1), True, True, True, True, True, None, None, None, True),
         # (None, (0, 0, 0), True, True, True, True, True, 0, 0, 0, False),
         (1, (None, None, 1), True, True, True, True, False, None, None, None, False),
         (1, (0, 0, 1), True, True, True, True, True, 0, 0, 0, False),

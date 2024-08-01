@@ -650,11 +650,14 @@ class FilterGraphObject(ABC):
             if resolve_omitted:
                 iter_pads = self.iter_input_pads if is_input else self.iter_output_pads
                 try:
-                    index = next(iter_pads(chainable_first=chainable_first))
+                    index = next(iter_pads(chainable_first=chainable_first))[0]
                 except StopIteration as e:
                     raise FiltergraphPadNotFoundError(
                         f"{index_or_label=} could not be resolve to an unused {pad_type} pad index."
                     ) from e
+                n = len(index)
+                if n < 3:
+                    index = (*(0,) * (3 - n), *index)
             elif not self._check_partial_pad_index(index, is_input=is_input):
                 raise FiltergraphPadNotFoundError(
                     f"{index_or_label=} cannot be resolve to a valid {pad_type} pad index."
