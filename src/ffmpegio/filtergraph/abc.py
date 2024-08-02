@@ -169,16 +169,48 @@ class FilterGraphObject(ABC):
 
         """
 
-        if (index is not None) + (inpad is not None) + (outpad is not None) != 1:
-            raise ValueError(
-                "One and only one of index, inpad, or outpad must be specified."
-            )
-
+        if index is not None:
+            return self._get_label(input, index)
         if inpad is not None:
+            return self._get_label(True, inpad)
+        if (outpad is not None) != 1:
+            return self._get_label(False, outpad)
+        raise ValueError(
+            "One and only one of index, inpad, or outpad must be specified."
+        )
 
-            self._get_label()
-
+    def _get_label(self, input: bool, index: PAD_INDEX):
         return None
+
+    def get_input_pad(
+        self, index_or_label: PAD_INDEX | str
+    ) -> tuple[PAD_INDEX, str | None]:
+        """resolve (unconnected) input pad from pad index or label
+
+        :param index: pad index or link label
+        :return: filter input pad index and its link label (None if not assigned)
+
+        Raises error if specified label does not resolve uniquely to an input pad
+        """
+
+        index = self._resolve_pad_index(index_or_label, is_input=True)
+        return index, self._get_label(True, index)
+
+    def get_output_pad(
+        self, index_or_label: PAD_INDEX | str
+    ) -> tuple[PAD_INDEX, str | None]:
+        """resolve (unconnected) output filter pad from pad index or labels
+
+        :param index: pad index or link label
+        :type index: tuple(int,int,int) or str
+        :return: filter output pad index and its link labels
+        :rtype: tuple(int,int,int), list(str)
+
+        Raises error if specified index does not resolve uniquely to an output pad
+        """
+
+        index = self._resolve_pad_index(index_or_label, is_input=False)
+        return index, self._get_label(False, index)
 
     @abstractmethod
     def add_label(
@@ -204,6 +236,148 @@ class FilterGraphObject(ABC):
 
         If label has a trailing number, the number will be dropped and replaced with an
         internally assigned label number.
+
+        """
+
+    def connect(
+        self,
+        right: fgb.abc.FilterGraphObject | str,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        chain_siso: bool = True,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph and make connection from left to right
+
+        :param right: other filtergraph
+        :param from_left: output pad ids or labels of this fg
+        :param to_right: input pad ids or labels of the `right` fg
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use `right` sws_flags if present,
+                                  False to drop `right` sws_flags,
+                                  None to throw an exception (default)
+        :return: new filtergraph object
+
+        * link labels may be auto-renamed if there is a conflict
+
+        """
+
+        # make sure right is a Graph object
+        right = fgb.as_filtergraph_object(right, copy=True)
+
+        if not isinstance(from_left, list):
+            from_left = [from_left]
+        if not isinstance(to_right, list):
+            to_right = [to_right]
+
+        if len(from_left) != len(to_right):
+            raise ValueError(
+                f"the number of pads in {from_left=} and {to_right=} must match."
+            )
+
+        links = [
+            (
+                self._resolve_pad_index(l, is_input=True),
+                right._resolve_pad_index(r, is_input=False),
+            )
+            for l, r in zip(from_left, to_right)
+        ]
+
+        out = self._connect(right, links, chain_siso, replace_sws_flags)
+        if out == NotImplemented:
+            out = right._rconnect(self, links, chain_siso, replace_sws_flags)
+        return out
+
+    def rconnect(
+        self,
+        left: fgb.abc.FilterGraphObject | str,
+        from_left: PAD_INDEX,
+        to_right: PAD_INDEX,
+        chain_siso: bool = True,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph and make connection from left to right
+
+        :param right: other filtergraph
+        :param from_left: output pad ids or labels of this fg
+        :param to_right: input pad ids or labels of the `right` fg
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use `right` sws_flags if present,
+                                  False to drop `right` sws_flags,
+                                  None to throw an exception (default)
+        :return: new filtergraph object
+
+        * link labels may be auto-renamed if there is a conflict
+
+        """
+
+        # make sure right is a Graph object
+        left = fgb.as_filtergraph_object(left, copy=True)
+
+        if not isinstance(from_left, list):
+            from_left = [from_left]
+        if not isinstance(to_right, list):
+            to_right = [to_right]
+
+        if len(from_left) != len(to_right):
+            raise ValueError(
+                f"the number of pads in {from_left=} and {to_right=} must match."
+            )
+
+        links = [
+            (
+                left._resolve_pad_index(l, is_input=True),
+                self._resolve_pad_index(r, is_input=False),
+            )
+            for l, r in zip(from_left, to_right)
+        ]
+
+        out = self._rconnect(left, links, chain_siso, replace_sws_flags)
+        if out == NotImplemented:
+            out = left._connect(self, links, chain_siso, replace_sws_flags)
+        return out
+
+    @abstractmethod
+    def _connect(
+        self,
+        right: fgb.abc.FilterGraphObject,
+        links: list[tuple[PAD_INDEX, PAD_INDEX]],
+        chain_siso: bool = True,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph and make connection from self to the other
+
+        :param right: other filtergraph
+        :param links: a list of tuples, pairing self's output pad and right's ipnut pad
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use `right` sws_flags if present,
+                                  False to drop `right` sws_flags,
+                                  None to throw an exception (default)
+        :return: new filtergraph object
+
+        * link labels may be auto-renamed if there is a conflict
+
+        """
+
+    @abstractmethod
+    def _rconnect(
+        self,
+        left: fgb.abc.FilterGraphObject,
+        links: list[tuple[PAD_INDEX, PAD_INDEX]],
+        chain_siso: bool = True,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph and make connection from the other to self
+
+        :param right: other filtergraph
+        :param links: a list of tuples, pairing left's output pad and self's ipnut pad
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use `right` sws_flags if present,
+                                  False to drop `right` sws_flags,
+                                  None to throw an exception (default)
+        :return: new filtergraph object
+
+        * link labels may be auto-renamed if there is a conflict
 
         """
 

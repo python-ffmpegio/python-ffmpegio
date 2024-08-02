@@ -518,7 +518,7 @@ class GraphLinks(UserDict):
         """Return the link table sorted by the input pad indices
 
         The value of the returned dict is either the connected output pad index
-        if linked or a string if input pad is unconnected. Unconnected output 
+        if linked or a string if input pad is unconnected. Unconnected output
         labels are excluded in the returned dict.
 
         :see also:
@@ -546,57 +546,32 @@ class GraphLinks(UserDict):
             if outpad is not None
         }
 
-    def find_inpad_label(self, inpad):
+    def find_inpad_label(self, inpad: PAD_INDEX) -> str | None:
         """get label of an input pad id
 
         :param inpad: input filter pad id
-        :type inpad: tuple(int,int,int)
         :return: found label or None if no match found
-        :rtype: str or None
         """
-        if inpad is None:
+        try:
+            return next(
+                (label for label, dst1, _ in self.iter_input_pads() if inpad == dst1),
+                None,
+            )
+        except StopIteration:
             return None
-        return next(
-            (label for label, dst1, _ in self.iter_input_pads() if inpad == dst1), None
-        )
 
-    def find_outpad_label(self, outpad):
+    def find_outpad_label(self, outpad: PAD_INDEX) -> str | None:
         """get labels of a source/output pad id
 
         :param inpad: output filter pad id
-        :type inpad: tuple(int,int,int)
         :return: found label or None if outpad is None
-        :rtype: list of str or None
         """
-        if outpad is None:
+        try:
+            return next(
+                label for label, (_, src1) in self.data.items() if outpad == src1
+            )
+        except StopIteration:
             return None
-        return [label for label, (_, src1) in self.data.items() if outpad == src1]
-
-    def find_input_label(self, inpad):
-        """get labels of an unconnected input pad id
-
-        :param inpad: input filter pad id
-        :type inpad: tuple(int,int,int)
-        :return: found label or None if no match found
-        :rtype: str or None
-        """
-        if inpad is None:
-            return None
-        return next(
-            (label for label, dst1 in self.iter_inputs() if inpad == dst1), None
-        )
-
-    def find_output_labels(self, outpad):
-        """get labels of an unconnected source/output pad id
-
-        :param inpad: output filter pad id
-        :type inpad: tuple(int,int,int)
-        :return: found label or None if outpad is None
-        :rtype: list of str or None
-        """
-        if outpad is None:
-            return None
-        return [label for label, src1 in self.iter_outputs() if outpad == src1]
 
     def find_link_label(self, inpad, outpad):
         if outpad is None or inpad is None:

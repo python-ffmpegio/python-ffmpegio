@@ -106,8 +106,8 @@ def test_iter_output_pads(
 @pytest.mark.parametrize(
     "index_or_label, ret, is_input, chain_id_omittable, filter_id_omittable, pad_id_omittable, resolve_omitted, chain_fill_value, filter_fill_value, pad_fill_value, chainable_first",
     [
-        (0, None, True, False, False, False, False, None, None, None, False),
-        (0, (1, 0, 0), True, True, True, False, False, None, None, None, False),
+        ("in", (2, 0, 0), True, False, False, False, False, None, None, None, False),
+        ("[in]", (2, 0, 0), True, False, False, False, False, None, None, None, False),
     ],
 )
 def test_resolve_pad_index(
@@ -203,7 +203,7 @@ def test_resolve_pad_index(
 def test_attach(fg, fc, left_on, right_on, out):
     fg = fgb.Graph(fg)
     if out is None:
-        with pytest.raises(fgb.Graph.Error):
+        with pytest.raises(fgb.FiltergraphPadNotFoundError):
             fg = fg.attach(fc, left_on, right_on)
     else:
         fg = fg.attach(fc, left_on, right_on)
@@ -304,7 +304,7 @@ def test_get_input_pad(fg, id, out):
     # other, auto_link=False, replace_sws_flags=None,
     fg = fgb.Graph(fg)
     if out is None:
-        with pytest.raises(fgb.Graph.Error):
+        with pytest.raises(fgb.FiltergraphPadNotFoundError):
             fg.get_input_pad(id)
     else:
         assert fg.get_input_pad(id) == out
@@ -328,7 +328,7 @@ def test_get_output_pad(fg, id, out):
     # other, auto_link=False, replace_sws_flags=None,
     fg = fgb.Graph(fg)
     if out is None:
-        with pytest.raises(fgb.Graph.Error):
+        with pytest.raises(fgb.FiltergraphPadNotFoundError):
             fg.get_output_pad(id)
     else:
         assert fg.get_output_pad(id) == out
