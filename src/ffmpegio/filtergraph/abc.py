@@ -948,6 +948,7 @@ class FilterGraphObject(ABC):
         filter_fill_value: int | None = None,
         pad_fill_value: int | None = None,
         chainable_first: bool = False,
+        chainable_only: bool=False,
     ) -> PAD_INDEX:
         """Resolve unconnected label or pad index to full 3-element pad index
 
