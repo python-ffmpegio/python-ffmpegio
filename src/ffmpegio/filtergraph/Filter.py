@@ -452,6 +452,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         chain: Literal[0] | None,
         exclude_chainable: bool,
         chainable_first: bool,
+        chainable_only:bool
     ) -> Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over input pads of the filter
 
@@ -470,7 +471,23 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             # Filter alone can have no connections so yields no pad
             raise FiltergraphInvalidIndex(f"Invalid {filter=} or {chain=} id")
 
-        if pad is None:
+        if pad is not None:
+            if pad < 0:  # resolve negative pad index
+                pad += n
+            if pad < 0 or pad >= (n - 1 if exclude_chainable else n):
+                raise FiltergraphInvalidIndex(f"Invalid {pad=} id")
+
+        if chainable_only:
+            if pad is None:
+                pad = n-1
+
+            if pad !=n-1:
+                raise FiltergraphInvalidIndex(f"Invalid {pad=} is not chainable pad")
+
+            if not exclude_chainable and pad==n-1:
+                yield (pad,), self, None
+
+        elif pad is None:
             if chainable_first or exclude_chainable:
                 if n > 1:
                     n = n - 1
@@ -479,12 +496,6 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             for j in range(n):
                 yield (j,), self, None
         else:
-            if pad < 0:
-                # allow negative pad index
-                pad += n
-            if pad < 0 or pad >= (n - 1 if exclude_chainable else n):
-                raise FiltergraphInvalidIndex(f"Invalid {pad=} id")
-
             yield (pad,), self, None
 
     def iter_input_pads(
@@ -497,6 +508,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         unlabeled_only: bool = False,
+        chainable_only: bool = False,
     ) -> Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over input pads of the filter
 
@@ -506,17 +518,22 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last input first then the rest, defaults to False
         :param include_connected: True to include pads connected to input streams, defaults to False
-        :param unlabeled_only: True to leave out named inputs, defaults to False to return only all inputs
+        :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
+        npads = self.get_num_inputs()
+
+        if not chainable_only:
         for it in self._iter_pads(
-            self.get_num_inputs(),
+            npads,
             pad,
             filter,
             chain,
             exclude_chainable,
             chainable_first,
+            chainable_only
         ):
             yield it
 
@@ -530,6 +547,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         chainable_first: bool = False,
         include_connected: bool = False,
         unlabeled_only: bool = False,
+        chainable_only: bool = False,
     ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
@@ -539,7 +557,8 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last output first then the rest, defaults to False
         :param include_connected: True to include pads connected to output streams, defaults to False
-        :param unlabeled_only: True to leave out named outputs, defaults to False to return only all inputs
+        :param unlabeled_only: True to leave out named outputs, defaults to False to return only all outputs
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -550,6 +569,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             chain,
             exclude_chainable,
             chainable_first,
+            chainable_only
         ):
             yield it
 

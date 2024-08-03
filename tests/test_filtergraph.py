@@ -295,7 +295,7 @@ def test_stack(fg, other, auto_link, replace_sws_flags, out):
         ("fps;crop", 'fake', None),
         ("[la]fps;crop[lb]", 'la', ((0,0,0),'la')),
         ("[la]fps;crop[lb]", 'lb', None),
-        ("[a]fps;[a]crop", 'a', None),
+        ("[a1]fps;[a1]crop", 'a', None),
         ("[0:v]fps;[0:v]crop", (0,0,0), None),
         # fmt: on
     ],
@@ -338,9 +338,9 @@ def test_get_output_pad(fg, id, out):
     "fg, r, to_l,to_r,chain, out",
     [
         # fmt: off
-        ("[a]fps;crop[b]", "[c]trim;scale[d]", ['b'], ['c'], None, "[a]fps;crop[b];[b]trim;scale[d]"),
-        ("[la]fps;crop[lb]", "[lb]trim;scale[la]", ['lb'], ['lb'], None, "[la1]fps;crop[lb];[lb]trim;scale[la2]"),
-        ("[a]fps;crop[b]", "[c]trim;scale[d]", ['b'], ['c'], True, "[a]fps;crop,trim;scale[d]"),
+        ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], None, "[a1]fps[UNC2];[UNC0]crop[c];[c]trim[UNC3];[UNC1]scale[d1]"),
+        ("[la]fps;crop[lb]", "[lb]trim;scale[la]", ['lb'], ['lb'], None, "[la1]fps[UNC2];[UNC0]crop[lb2];[lb2]trim[UNC3];[UNC1]scale[la2]"),
+        ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], True, "[a1]fps[UNC2];[UNC0]crop[c];[c]trim[UNC3];[UNC1]scale[d1]"),
         # fmt: on
     ],
 )
@@ -360,7 +360,7 @@ def test_connect(fg, r, to_l, to_r, chain, out):
     [
         # fmt: off
         ("fps;crop", "trim;scale", None, False, False, "fps,trim;crop,scale"),
-        ("[a]fps;crop[b]", "[c]trim;scale[d]", None, False, True, "[a]fps,trim;crop,scale[d]"),
+        ("[in1]fps;crop[ou1]", "[in2]trim;scale[out2]", None, False, True, "[in1]fps,trim;crop,scale[out2]"),
         ("fps;crop", "trim", None, True, False, "fps,trim;crop,trim"),
         ("fps", "trim;crop", None, True, False, "fps,trim;fps,crop"),
         ("fps", "overlay", 'per_chain', False, False, "fps[L0];[L0]overlay"),

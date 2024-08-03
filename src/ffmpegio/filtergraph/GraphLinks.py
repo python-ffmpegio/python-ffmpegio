@@ -1,6 +1,6 @@
 import re
 from collections import UserDict
-from collections.abc import Generator, Mapping
+from collections.abc import Generator, Mapping, Sequence, Callable
 
 
 from ..utils import is_stream_spec
@@ -190,23 +190,24 @@ class GraphLinks(UserDict):
         # calls update() if links set
         super().__init__(links or {})
 
-    def link(self, inpad, outpad, label=None, preserve_src_label=False, force=False):
+    def link(
+        self,
+        inpad: PAD_INDEX,
+        outpad: PAD_INDEX,
+        label: str | None = None,
+        preserve_src_label: bool = False,
+        force: bool = False,
+    ) -> str | int:
         """set a filtergraph link
 
         :param inpad: input pad ids
-        :type inpad: tuple(int,int,int)
         :param outpad: output pad id
-        :type outpad: tuple(int,int,int)
         :param label: desired label name, defaults to None (=reuse inpad/outpad label or unnamed link)
-        :type label: str, optional
         :param preserve_src_label: True to keep existing output labels of outpad, defaults to False
                                    to remove one output label of the outpad
-        :type preserve_src_label: bool, optional
         :param force: True to drop conflicting existing link, defaults to False
-        :type force: bool, optional
         :return: assigned label of the created link. Unnamed links gets a
                  unique integer value assigned to it.
-        :rtype: str|int
 
         notes:
         - Unless `force=True`, inpad pad must not be already connected
@@ -218,9 +219,6 @@ class GraphLinks(UserDict):
           during the life of the object
 
         """
-
-        if outpad is None or inpad is None:
-            raise GraphLinks.Error(f"both outpad and inpad ids must not be Nones.")
 
         # check if inpad already exists and resolve conflict if there is one
         in_label = self.find_inpad_label(inpad)
@@ -893,13 +891,11 @@ class GraphLinks(UserDict):
         # drop all sources with single-destination
         return {outpad: inpads for outpad, inpads in srcs.items() if len(inpads) > 1}
 
-    def _modify_pad_ids(self, select, adjust):
+    def _modify_pad_ids(self, select: Callable, adjust: Callable):
         """generic pad id modifier
 
-        :param select: function to select a pad id to modify
-        :type select: Callable: select(id)->bool
-        :param adjust: function to adjust the selected pad id
-        :type adjust: Callable: adjust(id)->new_id
+        :param select: function to select a pad id to modify: select(id)->bool
+        :param adjust: function to adjust the selected pad id: adjust(id)->new_id
 
         """
 
@@ -916,24 +912,21 @@ class GraphLinks(UserDict):
 
         self.data = {label: adjust_pair(*value) for label, value in self.data.items()}
 
-    def adjust_chains(self, pos, len):
+    def adjust_chains(self, pos: int, len: int):
         """insert/delete contiguous chains from fg
 
         :param pos: position of the first chain
-        :type pos: int
         :param len: number of chains to be inserted (if positive) or removed (if negative)
-        :type len: int
         """
 
         select = lambda pid: pid[0] >= pos  # select all chains at or above pos
         adjust = lambda pid: (pid[0] + len, *pid[1:])
         self._modify_pad_ids(select, adjust)
 
-    def remove_chains(self, chains):
+    def remove_chains(self, chains: Sequence[int]):
         """insert/delete contiguous chains from fg
 
         :param chains: positions of the chains that are removed
-        :type chains: seq(int)
         """
 
         if not len(chains):
@@ -950,15 +943,12 @@ class GraphLinks(UserDict):
         select = lambda pid: pid[0] >= chains[0][1]  # select all chains at or above pos
         self._modify_pad_ids(select, adj)
 
-    def merge_chains(self, id, to_id, to_len):
+    def merge_chains(self, id: int, to_id: int, to_len: int):
         """adjust link definitions when 2 internal chains are joined
 
         :param id: id of the chain to be moved
-        :type id: int
         :param to_id: id of the chain to append to
-        :type to_id: int
         :param to_len: length of the outpad chain
-        :type to_len: int
 
         * all chain_id's >= id are affected
         * Graph is responsible to remove the connecting labels before running
@@ -969,25 +959,21 @@ class GraphLinks(UserDict):
         select = lambda pid: pid[0] == id
         self._modify_pad_ids(select, adjust)
 
-    def adjust_filter_ids(self, cid, pos, len):
+    def adjust_filter_ids(self, cid: int, pos: int, len: int):
         """adjust filter id to insert another filter chain
 
         :param cid: target chain position in fg
-        :type cid: int
         :param pos: filter position to insert another chain
-        :type pos: int
         :param len: length of the chain to be inserted
-        :type len: int
         """
         select = lambda pid: pid[0] == cid and pid[1] >= pos
         adjust = lambda pid: (pid[0], pid[1] + len, pid[2])
         self._modify_pad_ids(select, adjust)
 
-    def del_chain(self, cid):
+    def del_chain(self, cid: int):
         """delete all links involving specified chain
 
         :param cid: chain id
-        :type cid: int
         """
 
         def inspect(inpad, outpad):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Literal
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 import re
@@ -92,6 +93,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         include_connected: bool = False,
         unlabeled_only: bool = False,
+        chainable_only: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter]]:
         """Iterate over input pads of the filter
 
@@ -101,7 +103,8 @@ class FilterGraphObject(ABC):
         :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last input first then the rest, defaults to False
         :param include_connected: True to include pads connected to input streams, defaults to False
-        :param unlabeled_only: True to leave out named inputs, defaults to False to return only all inputs
+        :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -116,6 +119,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         include_connected: bool = False,
         unlabeled_only: bool = False,
+        chainable_only: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
@@ -125,7 +129,8 @@ class FilterGraphObject(ABC):
         :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last output first then the rest, defaults to False
         :param include_connected: True to include pads connected to output streams, defaults to False
-        :param unlabeled_only: True to leave out named outputs, defaults to False to return only all inputs
+        :param unlabeled_only: True to leave out named outputs, defaults to False to return all outputs
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -277,8 +282,8 @@ class FilterGraphObject(ABC):
 
         links = [
             (
-                self._resolve_pad_index(l, is_input=True),
-                right._resolve_pad_index(r, is_input=False),
+                self._resolve_pad_index(l, is_input=False),
+                right._resolve_pad_index(r, is_input=True),
             )
             for l, r in zip(from_left, to_right)
         ]
@@ -326,8 +331,8 @@ class FilterGraphObject(ABC):
 
         links = [
             (
-                left._resolve_pad_index(l, is_input=True),
-                self._resolve_pad_index(r, is_input=False),
+                left._resolve_pad_index(l, is_input=False),
+                self._resolve_pad_index(r, is_input=True),
             )
             for l, r in zip(from_left, to_right)
         ]
@@ -380,6 +385,204 @@ class FilterGraphObject(ABC):
         * link labels may be auto-renamed if there is a conflict
 
         """
+
+    def join(
+        self,
+        right: fgb.abc.FilterGraphObject | str,
+        how: Literal["chainable", "per_chain", "all", "auto"] = "per_chain",
+        match_scalar: bool = False,
+        ignore_labels: bool = False,
+        chain_siso: bool = True,
+        replace_sws_flags: bool = None,
+    ) -> fgb.Graph | None:
+        """append another Graph object and connect all inputs to the outputs of this filtergraph
+
+        :param right: right filtergraph to be appended
+        :param how: method on how to mate input and output, defaults to "per_chain".
+
+            ===========  ===================================================================
+            'chainable'  joins only chainable input pads and output pads.
+            'per_chain'  joins one pair of first available input pad and output pad of each
+                         mating chains. Source and sink chains are ignored.
+            'all'        joins all input pads and output pads
+            'auto'       tries 'per_chain' first, if fails, then tries 'all'.
+            ===========  ===================================================================
+
+        :param match_scalar: True to multiply self if SO-MI connection or right if MO-SI connection
+                              to single-ended entity to the other, defaults to False
+        :param ignore_labels: True to pair pads w/out checking pad labels, default: True
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use other's sws_flags if present,
+                                  False to ignore other's sws_flags,
+                                  None to throw an exception (default)
+        :return: Graph with the appended filter chains or None if inplace=True.
+        """
+
+        # make sure right is a Graph, Chain, or Filter object
+        right = fgb.as_filtergraph(right)
+
+        if not len(right):
+            return self.__class__(self)
+
+        if not len(self):
+            return self.__class__(right)
+
+        # auto-mode, 1-deep recursion
+        if how == "auto":
+            try:
+                return self.join(
+                    right,
+                    "per_chain",
+                    match_scalar,
+                    ignore_labels,
+                    chain_siso,
+                    replace_sws_flags,
+                )
+            except:
+                return self.join(
+                    right,
+                    "all",
+                    match_scalar,
+                    ignore_labels,
+                    chain_siso,
+                    replace_sws_flags,
+                )
+
+        # list all the unconnected output pads of left fg
+        # [(index, label, filter)]
+        src_info = tuple(self._iter_io_pads(False, how, ignore_labels))
+
+        # list all the unconnected input pads of right fg
+        dst_info = tuple(right._iter_io_pads(True, how, ignore_labels))
+
+        # to join, the number of pads must match
+        nsrc = len(src_info)
+        ndst = len(dst_info)
+
+        if nsrc != ndst:
+
+            if match_scalar and ndst == 1:
+                # multiply right to match self
+                right = right * nsrc
+                dst_info = right._iter_io_pads(True, how)
+            elif match_scalar and nsrc == 1:
+                # multiply self to match right
+                self = self * ndst
+                src_info = self._iter_io_pads(False, how)
+            else:
+                raise FiltergraphMismatchError(nsrc, ndst)
+
+        return self.connect(
+            right,
+            [index for index, *_ in src_info],
+            [index for index, *_ in dst_info],
+            chain_siso,
+            replace_sws_flags,
+        )
+
+    def rjoin(
+        self,
+        left: fgb.abc.FilterGraphObject | str,
+        how: Literal["chainable", "per_chain", "all", "auto"] = "per_chain",
+        match_scalar: bool = False,
+        ignore_labels: bool = False,
+        chain_siso: bool = True,
+        replace_sws_flags: bool = None,
+    ) -> fgb.Graph | None:
+        """append another Graph object and connect all inputs to the outputs of this filtergraph
+
+        :param right: right filtergraph to be appended
+        :param how: method on how to mate input and output, defaults to "per_chain".
+
+            ===========  ===================================================================
+            'chainable'  joins only chainable input pads and output pads.
+            'per_chain'  joins one pair of first available input pad and output pad of each
+                         mating chains. Source and sink chains are ignored.
+            'all'        joins all input pads and output pads
+            'auto'       tries 'per_chain' first, if fails, then tries 'all'.
+            ===========  ===================================================================
+
+        :param match_scalar: True to multiply self if SO-MI connection or right if MO-SI connection
+                              to single-ended entity to the other, defaults to False
+        :param ignore_labels: True to pair pads w/out checking pad labels, default: True
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param replace_sws_flags: True to use other's sws_flags if present,
+                                  False to ignore other's sws_flags,
+                                  None to throw an exception (default)
+        :return: Graph with the appended filter chains or None if inplace=True.
+        """
+
+    def attach(
+        self,
+        right: fgb.abc.FilterGraphObject | str,
+        left_on: PAD_INDEX | None = None,
+        right_on: PAD_INDEX | None = None,
+    ):
+        """attach an output pad to right's input pad
+
+        :param right: output filterchain to be attached
+        :type right: Chain or Filter
+        :param left_on: pad_index, specify the pad on self, default to None (first available)
+        :type left_on: int or str, optional
+        :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
+        :type right_on: int or str, optional
+        :return: new filtergraph object
+        :rtype: Graph
+
+        """
+
+        right = fgb.as_filtergraph_object(right)
+        right_on = right._resolve_pad_index(
+            right_on,
+            is_input=True,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+        )
+        left_on = self._resolve_pad_index(
+            left_on,
+            is_input=False,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+        )
+        return self._connect(right, [(left_on, right_on)], chain_siso=True)
+
+    def rattach(
+        self,
+        left: fgb.abc.FilterGraphObject,
+        right_on: PAD_INDEX | None = None,
+        left_on: PAD_INDEX | None = None,
+    ):
+        """prepend an input filterchain to an existing filter chain of the filtergraph
+
+        :param left: filterchain to be attached
+        :type left: Chain or Filter
+        :param right_on: filterchain to accept the input chain, defaults to None (first available)
+        :type right_on: int or str, optional
+        :return: new filtergraph object
+        :rtype: Graph
+
+        If the attached filter pad has an assigned label, the label will be automatically removed.
+
+        """
+
+        left = fgb.as_filtergraph(left)
+        left_on = left._resolve_pad_index(
+            left_on,
+            is_input=False,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+        )
+        right_on = self._resolve_pad_index(
+            right_on,
+            is_input=True,
+            chain_id_omittable=True,
+            filter_id_omittable=True,
+            pad_id_omittable=True,
+        )
+        return self._rconnect(left, [(left_on, right_on)], chain_siso=True)
 
     @abstractmethod
     def __getitem__(self, key): ...
