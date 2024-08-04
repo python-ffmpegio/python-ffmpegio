@@ -129,7 +129,7 @@ def as_filtergraph_object(
     )
 
 
-def as_at_least_filterchain(
+def atleast_filterchain(
     filter_specs: str | fgb.abc.FilterGraphObject, copy: bool = False
 ) -> fgb.Chain | fgb.Graph:
     """Convert the input to a filter graph object

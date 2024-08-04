@@ -105,8 +105,14 @@ from . import abc
 from .Filter import Filter
 from .Chain import Chain
 from .Graph import Graph
-
-from ._convert import as_filter, as_filterchain, as_filtergraph, as_filtergraph_object, as_at_least_filterchain
+from .build import connect, join, attach
+from .convert import (
+    as_filter,
+    as_filterchain,
+    as_filtergraph,
+    as_filtergraph_object,
+    atleast_filterchain,
+)
 from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
 
 # chain | filter | pad
@@ -117,22 +123,16 @@ __all__ = [
     "as_filterchain",
     "as_filtergraph",
     "as_filtergraph_object",
+    "atleast_filterchain",
+    "connect",
+    "join",
+    "attach",
     "Filter",
     "Chain",
     "Graph",
     "FiltergraphInvalidIndex",
     "FiltergraphPadNotFoundError",
 ]
-
-
-def concatenate():
-    # TODO
-    ...
-
-
-def stack():
-    # TODO
-    ...
 
 
 # dict: stores filter construction functions

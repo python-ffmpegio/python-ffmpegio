@@ -18,3 +18,5 @@ PAD_INDEX = (
 A None item indicates not specified and 
 usually means to assign first available
 """
+
+JOIN_HOW = Literal["chainable", "per_chain", "all", "auto"]

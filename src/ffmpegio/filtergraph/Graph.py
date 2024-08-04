@@ -218,7 +218,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 
     def __str__(self) -> str:
         # insert split filters if autosplit_output is True
-        fg = self.split_sources() if self.autosplit_output else self
+        fg = self.split_outpad() if self.autosplit_output else self
 
         # label unconnected pads
         label = self._unc_label
@@ -334,92 +334,6 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 
         super().__delitem__(i)
 
-    def __mul__(self, __n):
-        # create a filtergraph with __n filterchains in parallel
-        return (
-            reduce(self.stack, [self] * (__n - 1), self)
-            if isinstance(__n, int)
-            else NotImplemented
-        )
-
-    def __add__(self, other):
-        # join
-        try:
-            other = fgb.as_filtergraph_object(other)
-        except Exception:
-            return NotImplemented
-        return self.join(other, "auto")
-
-    def __radd__(self, other):
-        # join
-        try:
-            other = fgb.as_filtergraph(other)
-        except Exception:
-            return NotImplemented
-        return other.join(self, "auto")
-
-    def __or__(self, other):
-        # create filtergraph with self and other as parallel chains, self first
-
-        try:
-            other = fgb.as_filtergraph_object(other)
-        except:
-            return NotImplemented
-        return self.stack(other)
-
-    def __ror__(self, other):
-        # create filtergraph with self and other as parallel chains, self last
-        try:
-            other = fgb.as_filtergraph(other)
-        except:
-            return NotImplemented
-        return other.stack(self)
-
-    def _chain(
-        self,
-        on_left: bool,
-        other: fgb.abc.FilterGraphObject,
-        chain_id: int,
-        other_chain_id: int,
-    ) -> fgb.Chain | fgb.Graph:
-        """chain self->other (no var check)
-
-        :param other: the other filitergraph object to chain together
-        :param on_left: True if this object's output is connecting to the other
-        :param chain_id: chain id of self, nonzero only if self is a ``Graph``
-        :param other_chain_id: chain of other, nonzero only if other is a ``Graph``
-        :return: ``Graph`` object if either self or other is a ``Graph`` else ``Chain``
-        """
-
-        left, right = (self, other) if on_left else (other, self)
-        left_id, right_id = (
-            (chain_id, other_chain_id) if on_left else (other_chain_id, chain_id)
-        )
-        return left._attach(on_left, right, (left_id, -1, -1), (right_id, 0, -1))
-
-    def __iadd__(self, other):
-        fg = self + other
-        self.data = fg.data
-        self._links = fg._links
-        return self
-
-    def __imul__(self, __n):
-        fg = self * __n
-        self.data = fg.data
-        self._links = fg._links
-        return self
-
-    def __ior__(self, other):
-        fg = self | other
-        self.data = fg.data
-        self._links = fg._links
-        return self
-
-    def __irshift__(self, other):
-        fg = self >> other
-        self.data = fg.data
-        self._links = fg._links
-        return self
 
     def iter_chains(
         self,
@@ -653,7 +567,12 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         except ValueError:
             raise
 
-    def unlink(self, label=None, inpad=None, outpad=None):
+    def unlink(
+        self,
+        label: str | None = None,
+        inpad: PAD_INDEX | None = None,
+        outpad: PAD_INDEX | None = None,
+    ):
         """unlink specified links
 
         :param label: specify all the links with this label, defaults to None
@@ -665,23 +584,24 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         """
         self._links.unlink(label, inpad, outpad)
 
-    def link(self, inpad, outpad, label=None, preserve_src_label=False, force=False):
+    def link(
+        self,
+        inpad: PAD_INDEX,
+        outpad: PAD_INDEX,
+        label: str | None = None,
+        preserve_src_label: bool = False,
+        force: bool = False,
+    ) -> str | int:
         """set a filtergraph link
 
         :param inpad: input pad ids
-        :type inpad: tuple(int,int,int)
         :param outpad: output pad index
-        :type outpad: tuple(int,int,int)
         :param label: desired label name, defaults to None (=reuse inpad/outpad label or unnamed link)
-        :type label: str, optional
         :param preserve_src_label: True to keep existing output labels of outpad, defaults to False
                                    to remove one output label of the outpad
-        :type preserve_src_label: bool, optional
         :param force: True to drop conflicting existing link, defaults to False
-        :type force: bool, optional
         :return: assigned label of the created link. Unnamed links gets a
                  unique integer value assigned to it.
-        :rtype: str|int
 
         ..notes:
 
@@ -770,24 +690,20 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 
         return self._links.create_label(label, inpad, outpad, force)
 
-    def remove_label(self, label):
+    def remove_label(self, label: str):
         """remove an input/output label
 
         :param label: linkn label
-        :type label: str
         """
 
         self._links.remove_label(label)
 
-    def rename_label(self, old_label, new_label):
+    def rename_label(self, old_label: str, new_label: str) -> str | None:
         """rename an existing link label
 
         :param old_label: existing label named
-        :type old_label: str
         :param new_label: new desired label name or None to make it unnamed label
-        :type new_label: str|None
         :return: actual label name or None if unnamed
-        :rtype: str|None
 
         Note:
 
@@ -804,7 +720,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         # return the actual label or None if unnamed
         return new_label or self._links.rename(old_label, new_label)
 
-    def split_sources(self):
+    def split_outpad(self):
         """possibly create a new filtergraph with all duplicate sources
            separated by split/asplit filter
 
@@ -813,7 +729,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         """
 
         # analyze the links to get a list of srcs which are connected to multiple inpad's/labels
-        left_info = self._links.get_repeated_src_info()
+        left_info = self._links.get_repeated_outpad_info()
         if not len(left_info):
             return self  # if none found, good to go as is
 
@@ -869,33 +785,29 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 
         return fg
 
-    def stack(
+    def _stack(
         self,
-        other,
-        auto_link=False,
-        replace_sws_flags=None,
-    ):
+        other: fgb.abc.FilterGraphObject,
+        auto_link: bool = False,
+        replace_sws_flags: bool | None = None,
+    )->fgb.Graph:
         """stack another Graph to this Graph
 
         :param other: other filtergraph
-        :type other: Graph
         :param auto_link: True to connect matched I/O labels, defaults to None
-        :type auto_link: bool, optional
         :param replace_sws_flags: True to use other's sws_flags if present,
                                   False to ignore other's sws_flags,
                                   None to throw an exception (default)
-        :type replace_sws_flags: bool | None, optional
         :return: new filtergraph object
-        :rtype: Graph
-
-        * extend() and import links
-        * If `auto-link=False`, common labels may be renamed.
-        * For more explicit linking rather than the auto-linking, use `connect()` instead.
+        
+        Remarks
+        -------
+        - extend() and import links
+        - If `auto-link=False`, common labels may be renamed.
+        - For more explicit linking rather than the auto-linking, use `connect()` instead.
 
         TO-CHECK/TO-DO: what happens if common link labels are already linked
         """
-
-        other = fgb.as_filtergraph_object(other)
 
         n = len(self)
         m = len(other)

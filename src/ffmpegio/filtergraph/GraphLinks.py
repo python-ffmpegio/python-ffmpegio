@@ -858,7 +858,7 @@ class GraphLinks(UserDict):
             for label, (inpads, outpad) in other
         }
 
-    def get_repeated_src_info(self):
+    def get_repeated_outpad_info(self):
         """return a nested dict with an item per multi-destination filter output pad id's.
 
         :return: dict of multi-destination srcs

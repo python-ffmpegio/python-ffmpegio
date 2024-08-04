@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Literal
-from collections.abc import Generator, Sequence
+from typing import Literal, get_args
+from itertools import islice
 
-from .typing import PAD_INDEX
+from .typing import PAD_INDEX, JOIN_HOW
 
 from .exceptions import FiltergraphMismatchError, FiltergraphInvalidExpression
 from .. import filtergraph as fgb
+
+__all__ = ["connect", "join", "attach"]
 
 
 def connect(
@@ -28,6 +30,9 @@ def connect(
                                 False to drop `right` sws_flags,
                                 None to throw an exception (default)
     :return: new filtergraph object
+
+    Notes
+    -----
 
     * link labels may be auto-renamed if there is a conflict
 
@@ -57,42 +62,36 @@ def connect(
 
     out = left._connect(right, links, chain_siso, replace_sws_flags)
     if out == NotImplemented:
-        out = right._rconnect(right, links, chain_siso, replace_sws_flags)
+        out = right._rconnect(left, links, chain_siso, replace_sws_flags)
     return out
 
 
 def join(
-    left,
+    left: fgb.abc.FilterGraphObject | str,
     right: fgb.abc.FilterGraphObject | str,
-    how: Literal["chainable", "per_chain", "all", "auto"] = "per_chain",
-    n_links: int = 0,
+    how: JOIN_HOW = "per_chain",
+    n_links: int | Literal["all"] = "all",
     strict: bool = False,
-    match_scalar: bool = False,
-    ignore_labels: bool = False,
+    unlabeled_only: bool = False,
     chain_siso: bool = True,
     replace_sws_flags: bool = None,
 ) -> fgb.Graph | None:
-    """smart filtergraph connector
+    """filtergraph auto-connector
 
     :param left: transmitting filtergraph object
     :param right: receiving filtergraph object
-    :param how: method on how to mate input and output, defaults to "per_chain".
+    :param how: method on how to mate input and output, defaults to ``"per_chain"``.
 
-        ===========  ===================================================================
-        'chainable'  joins only chainable input pads and output pads.
-        'per_chain'  joins one pair of first available input pad and output pad of each
-                        mating chains. Source and sink chains are ignored.
-        'all'        joins all input pads and output pads
-        'auto'       tries 'per_chain' first, if fails, then tries 'all'.
-        ===========  ===================================================================
-
+                - ``'chainable'``: joins only chainable input pads and output pads.
+                - ``'per_chain'``: joins one pair of first available input pad and output pad of each
+                                   mating chains. Source and sink chains are ignored.
+                - ``'all'``: joins all input pads and output pads
+                - ``'auto'``: tries ``'per_chain'`` first, if fails, then tries ``'all'``.
     :param n_links: number of left output pads to be connected to the right input pads, default: 0
                     (all matching links). If ``how=='per_chain'``, ``n_links`` connections are made
                     per chain.
     :param strict: True to raise exception if numbers of available pads do not match, default: False
-    :param match_scalar: True to multiply left if SO-MI connection or right if MO-SI connection
-                         to single-ended entity to the other, defaults to False
-    :param ignore_labels: True to pair pads w/out checking pad labels, default: True
+    :param unlabeled_only: True to ignore labeled unconnected pads, defaults to False
     :param chain_siso: True to chain the single-input single-output connection, default: True
     :param replace_sws_flags: True to use other's sws_flags if present,
                                 False to ignore other's sws_flags,
@@ -100,101 +99,74 @@ def join(
     :return: Graph with the appended filter chains or None if inplace=True.
     """
 
-    # make sure right is a Graph, Chain, or Filter object
-    left = fgb.as_filtergraph(left)
-    right = fgb.as_filtergraph(right)
-
-    unlabeled_only = not ignore_labels
-
-    if how == "chainable":
-        left_pads = list(
-            left.iter_output_pads(chainable_only=True, unlabeled_only=unlabeled_only)
-        )
-        right_pads = list(
-            right.iter_input_pads(chainable_only=True, unlabeled_only=unlabeled_only)
-        )
-        if match_scalar:
-            nleft = len(left_pads)
-            nright = len(right_pads)
-            if nleft == 1 and nright > 1:
-                actions = ([left, left_pads] * nright, right)
-            elif nright == 1 and nleft > 1:
-                right = (left, [right, right_pads] * nleft)
-        else:
-            ...
-
-    elif how == "per_chain":
-        left_pads = [
-            (i, *p)
-            for i, c in left.iter_chains(skip_if_no_output=True)
-            for p in c.iter_output_pads()
-        ]
-        right_pads = [
-            (i, *p)
-            for i, c in right.iter_chains(skip_if_no_input=True)
-            for p in c.iter_input_pads()
-        ]
-    elif how == "all":
-        left_pads = list(left.iter_output_pads())
-        right_pads = list(right.iter_input_pads())
-    elif how == "auto":
-        # auto-mode, 1-deep recursion
+    # auto-mode, 1-deep recursion
+    if how == "auto":
         try:
-            return left.join(
+            return join(
+                left,
                 right,
                 "per_chain",
-                match_scalar,
-                ignore_labels,
+                n_links,
+                strict,
+                unlabeled_only,
                 chain_siso,
                 replace_sws_flags,
             )
         except:
-            return left.join(
+            return join(
+                left,
                 right,
                 "all",
-                match_scalar,
-                ignore_labels,
+                n_links,
+                strict,
+                unlabeled_only,
                 chain_siso,
                 replace_sws_flags,
             )
 
-    else:
+    if how not in get_args(JOIN_HOW):
         raise ValueError(f"{how=} is an unknown matching method")
 
-    if match_scalar or chain_siso or how == "per_chain":
-        nout = left.get_num_outputs()
-        nin = left.get_num_inputs()
-        single_out = nout == 1
-        single_in = nin == 1
+    # make sure right is a Graph, Chain, or Filter object
+    left = fgb.as_filtergraph(left)
+    right = fgb.as_filtergraph(right)
 
-    # list all the unconnected output pads of left fg
-    # [(index, label, filter)]
-    src_info = tuple(left._iter_io_pads(False, how, ignore_labels))
+    iter_kws = {"unlabeled_only": unlabeled_only}
+    if how == "chainable":
+        iter_kws["chainable_only"] = True
 
-    # list all the unconnected input pads of right fg
-    dst_info = tuple(right._iter_io_pads(True, how, ignore_labels))
+    if n_links == "all" or n_links < 0:
+        n_links = 0
 
-    # to join, the number of pads must match
-    nsrc = len(src_info)
-    ndst = len(dst_info)
+    def create_links(it_left, it_right):
+        if n_links:
+            it_left = islice(it_left, n_links)
+            it_right = islice(it_right, n_links)
 
-    if nsrc != ndst:
+        it_left = (v[0] for v in it_left)
+        it_right = (v[0] for v in it_right)
 
-        if match_scalar and ndst == 1:
-            # multiply right to match left
-            right = right * nsrc
-            dst_info = right._iter_io_pads(True, how)
-        elif match_scalar and nsrc == 1:
-            # multiply left to match right
-            left = left * ndst
-            src_info = left._iter_io_pads(False, how)
-        else:
-            raise FiltergraphMismatchError(nsrc, ndst)
+        return zip([*it_left], [*it_right], strict=strict)
 
-    return left.connect(
+    if how == "per_chain":
+        it_left_chain = left.iter_chains(skip_if_no_output=True)
+        it_right_chain = left.iter_chains(skip_if_no_input=True)
+        chain_pairs = zip([*it_left_chain], [*it_right_chain], strict=strict)
+        links = [
+            pair
+            for (il, lchain), (ir, rchain) in chain_pairs
+            for pair in create_links(
+                lchain.iter_output_pads(**iter_kws), rchain.iter_input_pads(**iter_kws)
+            )
+        ]
+    else:
+        links = create_links(
+            left.iter_output_pads(**iter_kws), right.iter_input_pads(**iter_kws)
+        )
+
+    return left._connect(
         right,
-        [index for index, *_ in src_info],
-        [index for index, *_ in dst_info],
+        links,
         chain_siso,
         replace_sws_flags,
     )
@@ -202,14 +174,17 @@ def join(
 
 def attach(
     left: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
-    right: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
+    right: (
+        fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str | None]
+    ),
     left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
     right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
 ) -> fgb.Graph:
     """attach filter(s), chain(s), or label(s) to a filtergraph object
 
     :param left: input filtergraph object, filtergraph expression, or label, or list thereof
-    :param right: output filterchain, filtergraph expression, or label, or list thereof
+    :param right: output filterchain, filtergraph expression, or label, or list thereof. If omited
+                  (None), ``attach`` performs self linking
     :param left_on: pad_index, specify the pad on left, default to None (first available)
     :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
     :return: new filtergraph object
@@ -245,7 +220,13 @@ def attach(
         return obj, (attach_obj or isinstance(obj, str))
 
     left_objs_labels, attach_left = analyze_fgobj(left)
-    right_objs_labels, attach_right = analyze_fgobj(right)
+
+    self_attach = right is None
+    if self_attach:
+        right_objs_labels = left
+        attach_right = False
+    else:
+        right_objs_labels, attach_right = analyze_fgobj(right)
 
     if not (attach_left or attach_right):
         # no list or label given
@@ -278,8 +259,56 @@ def attach(
     left_on = make_pidx_list(left_on, attach_left)
     right_on = make_pidx_list(right_on, attach_right)
 
+    if self_attach:
+        fg = fgb.as_filtergraph(left, True)
+        for outpad, inpad in zip(left_on, right_on):
+            fg.link(inpad, outpad)
+        return fg
+
     return (
         left_objs_labels._attach(right_objs_labels, left_on, right_on)
         if attach_right
         else right_objs_labels._rattach(left_objs_labels, left_on, right_on)
     )
+
+
+def concatenate(*fgs):
+    # TODO
+    raise NotImplementedError()
+
+
+def stack(
+    *fgs: fgb.abc.FilterGraphObject,
+    auto_link: bool = False,
+    use_last_sws_flags: bool | None = None,
+) -> fgb.Graph:
+    """stack filtergraph objects
+
+    :param fgs: filtergraph objects
+    :param auto_link: True to connect matched I/O labels, defaults to None
+    :param use_last_sws_flags: True to use ``sws_flags`` of the last object with one,
+                               False to use ``sws_flags`` of the first object with one ``,
+                               None to throw an exception if multiple ``sws_flags`` encountered (default)
+    :return: new filtergraph object
+
+    Remarks
+    -------
+    - extend() and import links
+    - If `auto-link=False`, common labels may be renamed.
+    - For more explicit linking rather than the auto-linking, use `connect()` instead.
+
+    TO-CHECK/TO-DO: what happens if common link labels are already linked
+    """
+
+    if len(fgs) == 0:
+        return fgb.Graph()
+
+    fg = fgb.as_filtergraph(True)
+
+    replace_sws_flags = None
+    for other in fgs[1:]:
+        if use_last_sws_flags is not None:
+            replace_sws_flags = True if fg.sws_flags is None else use_last_sws_flags
+        fg = fg._stack(fgb.as_filtergraph_object(other), auto_link, replace_sws_flags)
+
+    return fg
