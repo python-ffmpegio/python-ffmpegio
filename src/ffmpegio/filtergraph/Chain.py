@@ -72,6 +72,16 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
     def __setitem__(self, key, value):
         super().__setitem__(key, fgb.as_filter(value))
 
+    def get_num_filters(self, chain: int) -> int:
+        """get the number of filters of the specfied chain
+
+        :param chain: id of the chain
+        """
+
+        if chain:
+            raise ValueError(f"{chain=} is invalid. Filter object only has 1 chain.")
+        return len(self)
+
     def append(self, item):
         return super().append(fgb.as_filter(item))
 
@@ -223,6 +233,39 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         self.data = fg.data
         return self
 
+    def iter_chains(
+        self,
+        skip_if_no_input: bool = False,
+        skip_if_no_output: bool = False,
+        chainable_only: bool = False,
+    ) -> Generator[tuple[int, fgb.Chain]]:
+        """iterate over chains of the filtergraphobject
+
+        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
+        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
+        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
+                               arguments to require chainable input or output, defaults to False to
+                               allow any input/output
+        :yield: chain id and chain object
+        """
+
+        if len(self):
+            return
+
+        if skip_if_no_input or chainable_only:
+            try:
+                self.next_input_pad(chainable_only=chainable_only)
+            except StopIteration:
+                return
+
+        if skip_if_no_output or chainable_only:
+            try:
+                self.next_output_pad(chainable_only=chainable_only)
+            except StopIteration:
+                return
+
+        yield (0, self)
+
     def _iter_pads(
         self,
         iter_filter_pad: Callable,
@@ -248,7 +291,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         :yield: filter pad index, filter object, and True if no connection
         """
 
-        if len(self)==0:
+        if len(self) == 0:
             return
 
         if isinstance(chain, int) and chain != 0:

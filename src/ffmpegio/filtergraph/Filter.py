@@ -413,6 +413,16 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             else inc()
         )
 
+    def get_num_filters(self, chain: int) -> int:
+        """get the number of filters of the specfied chain
+
+        :param chain: id of the chain
+        """
+
+        if chain:
+            raise ValueError(f"{chain=} is invalid. Filter object only has 1 chain.")
+        return 1
+
     def add_label(
         self,
         label: str,
@@ -452,7 +462,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         chain: Literal[0] | None,
         exclude_chainable: bool,
         chainable_first: bool,
-        chainable_only:bool
+        chainable_only: bool,
     ) -> Generator[tuple[PAD_INDEX, Filter]]:
         """Iterate over input pads of the filter
 
@@ -479,12 +489,12 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
 
         if chainable_only:
             if pad is None:
-                pad = n-1
+                pad = n - 1
 
-            if pad !=n-1:
+            if pad != n - 1:
                 raise FiltergraphInvalidIndex(f"Invalid {pad=} is not chainable pad")
 
-            if not exclude_chainable and pad==n-1:
+            if not exclude_chainable and pad == n - 1:
                 yield (pad,), self, None
 
         elif pad is None:
@@ -497,6 +507,30 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
                 yield (j,), self, None
         else:
             yield (pad,), self, None
+
+    def iter_chains(
+        self,
+        skip_if_no_input: bool = False,
+        skip_if_no_output: bool = False,
+        chainable_only: bool = False,
+    ) -> Generator[tuple[int, fgb.Chain]]:
+        """iterate over chains of the filtergraphobject
+
+        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
+        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
+        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
+                               arguments to require chainable input or output, defaults to False to
+                               allow any input/output
+        :yield: chain id and chain object
+        """
+
+        if chainable_only:
+            skip_if_no_input = skip_if_no_output = True
+
+        if (not skip_if_no_input or self.get_num_inputs()) and (
+            not skip_if_no_output or self.get_num_outputs()
+        ):
+            yield (0, fgb.Chain([self]))
 
     def iter_input_pads(
         self,
@@ -523,17 +557,14 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
-        npads = self.get_num_inputs()
-
-        if not chainable_only:
         for it in self._iter_pads(
-            npads,
+            self.get_num_inputs(),
             pad,
             filter,
             chain,
             exclude_chainable,
             chainable_first,
-            chainable_only
+            chainable_only,
         ):
             yield it
 
@@ -569,7 +600,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             chain,
             exclude_chainable,
             chainable_first,
-            chainable_only
+            chainable_only,
         ):
             yield it
 

@@ -117,6 +117,20 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         self.autosplit_output = autosplit_output
         """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
+    def get_num_chains(self) -> int:
+        """get the number of hains"""
+        return len(self)
+
+    def get_num_filters(self, chain: int) -> int:
+        """get the number of filters of the specfied chain
+
+        :param chain: id of the chain
+        """
+
+        if chain < 0 or chain >= len(self):
+            raise ValueError(f"{chain=} is invalid.")
+        return len(self[chain])
+
     def _resolve_pad_index(
         self,
         index_or_label: PAD_INDEX | str | None,
@@ -406,6 +420,28 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         self.data = fg.data
         self._links = fg._links
         return self
+
+    def iter_chains(
+        self,
+        skip_if_no_input: bool = False,
+        skip_if_no_output: bool = False,
+        chainable_only: bool = False,
+    ) -> Generator[tuple[int, fgb.Chain]]:
+        """iterate over chains of the filtergraphobject
+
+        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
+        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
+        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
+                               arguments to require chainable input or output, defaults to False to
+                               allow any input/output
+        :yield: chain id and chain object
+        """
+
+        for i, c in enumerate(self):
+            for _, obj in c.iter_chains(
+                skip_if_no_input, skip_if_no_output, chainable_only
+            ):
+                yield i, obj
 
     def _iter_pads(
         self,
