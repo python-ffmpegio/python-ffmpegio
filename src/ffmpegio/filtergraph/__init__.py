@@ -106,7 +106,7 @@ from .Filter import Filter
 from .Chain import Chain
 from .Graph import Graph
 
-from ._convert import as_filter, as_filterchain, as_filtergraph, as_filtergraph_object
+from ._convert import as_filter, as_filterchain, as_filtergraph, as_filtergraph_object, as_at_least_filterchain
 from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
 
 # chain | filter | pad

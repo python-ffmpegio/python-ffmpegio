@@ -4,6 +4,7 @@ from typing import Literal
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 import re
+from itertools import islice
 
 from .typing import PAD_INDEX
 from .exceptions import *
@@ -968,38 +969,65 @@ class FilterGraphObject(ABC):
 
     def _attach(
         self,
-        is_input: bool,
-        other: fgb.abc.FilterGraphObject,
-        index: PAD_INDEX | list[PAD_INDEX],
-        other_index: PAD_INDEX | list[PAD_INDEX],
+        right: list[fgb.Filter | fgb.Chain | str],
+        left_on: list[PAD_INDEX | str | None],
+        right_on: list[PAD_INDEX | str | None],
     ) -> fgb.Chain | fgb.Graph:
-        """helper function attach other filtergraph to this graph
+        """helper function attach other filtergraph to this graph"""
 
-        :param is_input: True to attach other to the right
-        :param other: other filtergraph object to attach
-        :param index: full pad index of this object to attach the other. If multiple
-                      links must be made, supply all the indices as a list
-        :param other_index: full pad index of the other object to  be attached to this.
-                            If multiple links must be made, supply all the indices
-                            as a list.
-        :return: Joined filtergraph object
-        """
-
-        # same operation for Filter & Chain
-
-        if isinstance(other, fgb.Graph):
-            return other._attach(not is_input, self, other_index, index)
-
-        if not (isinstance(index, list) or isinstance(other_index, list)):
-            left, right, left_index, right_index = (
-                (self, other, index, other_index)
-                if is_input
-                else (other, self, other_index, index)
+        n_none = sum(i is None for i in left_on)
+        it_left_pad = islice(self.iter_output_pads(), n_none)
+        left_on = [
+            (
+                next(it_left_pad)
+                if idx is None
+                else self._resolve_pad_index(idx, is_input=False)
             )
+            for idx in left_on
+        ]
+        right_on = [
+            (
+                (None if isinstance(o, str) else o.next_input_pad())
+                if idx is None
+                else right._resolve_pad_index(idx, is_input=True)
+            )
+            for o, idx in zip(right, right_on)
+        ]
 
-            if left._output_pad_is_chainable(
-                left_index
-            ) and right._input_pad_is_chainable(right_index):
-                return left._chain(True, right, left[0], right[0])
+        fg = fgb.as_at_least_filterchain(self)
+        for r, l_idx, r_idx in zip(right, left_on, right_on):
+            fg = fg._connect(r, [(l_idx, r_idx)], chain_siso=True)
 
-        return fgb.as_filtergraph(self)._attach(is_input, other, index, other_index)
+        return fg
+
+    def _rattach(
+        self,
+        left: list[fgb.Filter | fgb.Chain | str],
+        left_on: list[PAD_INDEX | str | None],
+        right_on: list[PAD_INDEX | str | None],
+    ) -> fgb.Chain | fgb.Graph:
+
+        n_none = sum(i is None for i in right_on)
+        it_right_pad = islice(self.iter_input_pads(), n_none)
+        right_on = [
+            (
+                next(it_right_pad)
+                if idx is None
+                else self._resolve_pad_index(idx, is_input=True)
+            )
+            for idx in right_on
+        ]
+        left_on = [
+            (
+                (None if o is None else o.next_output_pad())
+                if idx is None
+                else left._resolve_pad_index(idx, is_input=False)
+            )
+            for o, idx in zip(self, right_on)
+        ]
+
+        fg = fgb.as_at_least_filterchain(self)
+        for l, l_idx, r_idx in zip(left, left_on, right_on):
+            fg = fg._rconnect(l, [(l_idx, r_idx)], chain_siso=True)
+
+        return fg

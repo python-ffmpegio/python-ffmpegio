@@ -5,8 +5,9 @@ from collections.abc import Generator, Sequence
 
 from .typing import PAD_INDEX
 
-from .exceptions import FiltergraphConversionError, FiltergraphInvalidExpression
+from .exceptions import FiltergraphMismatchError, FiltergraphInvalidExpression
 from .. import filtergraph as fgb
+
 
 def connect(
     left: fgb.abc.FilterGraphObject | str,
@@ -16,9 +17,10 @@ def connect(
     chain_siso: bool = True,
     replace_sws_flags: bool | None = None,
 ) -> fgb.Graph:
-    """stack another Graph and make connection from left to right
+    """stack another Graph and make explicit connection from left to right
 
-    :param right: other filtergraph
+    :param left: transmitting filtergraph object
+    :param right: receiving filtergraph object
     :param from_left: output pad ids or labels of this fg
     :param to_right: input pad ids or labels of the `right` fg
     :param chain_siso: True to chain the single-input single-output connection, default: True
@@ -58,20 +60,22 @@ def connect(
         out = right._rconnect(right, links, chain_siso, replace_sws_flags)
     return out
 
+
 def join(
     left,
     right: fgb.abc.FilterGraphObject | str,
     how: Literal["chainable", "per_chain", "all", "auto"] = "per_chain",
-    n_links: int = -1,
+    n_links: int = 0,
+    strict: bool = False,
     match_scalar: bool = False,
     ignore_labels: bool = False,
     chain_siso: bool = True,
     replace_sws_flags: bool = None,
 ) -> fgb.Graph | None:
-    """append another Graph object and auto-connect its inputs to the outputs of this filtergraph
+    """smart filtergraph connector
 
-    :param left: source filtergraph object
-    :param right: sink filtergraph object
+    :param left: transmitting filtergraph object
+    :param right: receiving filtergraph object
     :param how: method on how to mate input and output, defaults to "per_chain".
 
         ===========  ===================================================================
@@ -82,9 +86,10 @@ def join(
         'auto'       tries 'per_chain' first, if fails, then tries 'all'.
         ===========  ===================================================================
 
-    :param n_links: number of left output pads to be connected to the right input pads, default: 0 
-                    (all matching links). If ``how=='per_chain'``, ``n_links`` connections are made 
+    :param n_links: number of left output pads to be connected to the right input pads, default: 0
+                    (all matching links). If ``how=='per_chain'``, ``n_links`` connections are made
                     per chain.
+    :param strict: True to raise exception if numbers of available pads do not match, default: False
     :param match_scalar: True to multiply left if SO-MI connection or right if MO-SI connection
                          to single-ended entity to the other, defaults to False
     :param ignore_labels: True to pair pads w/out checking pad labels, default: True
@@ -103,22 +108,20 @@ def join(
 
     if how == "chainable":
         left_pads = list(
-            left.iter_output_pads(
-                chainable_only=True, unlabeled_only=unlabeled_only
-            )
+            left.iter_output_pads(chainable_only=True, unlabeled_only=unlabeled_only)
         )
         right_pads = list(
-            right.iter_input_pads(
-                chainable_only=True, unlabeled_only=unlabeled_only
-            )
+            right.iter_input_pads(chainable_only=True, unlabeled_only=unlabeled_only)
         )
         if match_scalar:
             nleft = len(left_pads)
             nright = len(right_pads)
             if nleft == 1 and nright > 1:
-                left = (left, left_pads) * nright
+                actions = ([left, left_pads] * nright, right)
             elif nright == 1 and nleft > 1:
-                right = (right, right_pads) * nleft
+                right = (left, [right, right_pads] * nleft)
+        else:
+            ...
 
     elif how == "per_chain":
         left_pads = [
@@ -196,38 +199,87 @@ def join(
         replace_sws_flags,
     )
 
-def attach(
-    left,
-    right: fgb.abc.FilterGraphObject | str,
-    left_on: PAD_INDEX | None = None,
-    right_on: PAD_INDEX | None = None,
-):
-    """attach an output pad to right's input pad
 
-    :param right: output filterchain to be attached
-    :type right: Chain or Filter
+def attach(
+    left: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
+    right: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
+    left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+    right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+) -> fgb.Graph:
+    """attach filter(s), chain(s), or label(s) to a filtergraph object
+
+    :param left: input filtergraph object, filtergraph expression, or label, or list thereof
+    :param right: output filterchain, filtergraph expression, or label, or list thereof
     :param left_on: pad_index, specify the pad on left, default to None (first available)
-    :type left_on: int or str, optional
     :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
-    :type right_on: int or str, optional
     :return: new filtergraph object
-    :rtype: Graph
+
+    One and only one of ``left`` or ``right`` may be a list or a label.
+
+    If pad indices are not specified, only the first available output/input pad is linked. If the
+    primary filtergraph object is ``Filter`` or ``Chain``, the chainable pad (i.e., the last pad) will be
+    chosen.
 
     """
 
-    right = fgb.as_filtergraph_object(right)
-    right_on = right._resolve_pad_index(
-        right_on,
-        is_input=True,
-        chain_id_omittable=True,
-        filter_id_omittable=True,
-        pad_id_omittable=True,
+    def check_obj(obj):
+        try:
+            obj_label = fgb.as_filtergraph_object(obj)
+        except FiltergraphInvalidExpression:
+            try:
+                obj_label = str(obj)
+            except:
+                raise ValueError(
+                    f"{type(obj)} could not be converted to a filtergraph object or a label string."
+                )
+        return obj_label
+
+    def analyze_fgobj(obj):
+        attach_obj = isinstance(obj, list)
+        obj = [check_obj(o) for o in obj] if attach_obj else check_obj(obj)
+        if attach_obj and any(isinstance(o, fgb.Graph) for o in obj):
+            raise ValueError(
+                "Filtergraph object list cannot include any Graph object. Only Filter and Chain objects are allowed."
+            )
+
+        return obj, (attach_obj or isinstance(obj, str))
+
+    left_objs_labels, attach_left = analyze_fgobj(left)
+    right_objs_labels, attach_right = analyze_fgobj(right)
+
+    if not (attach_left or attach_right):
+        # no list or label given
+        if isinstance(right_objs_labels, (fgb.Filter, fgb.Chain)):
+            attach_right = True
+            right_objs_labels = [right_objs_labels]
+        if not attach_right and isinstance(left_objs_labels, (fgb.Filter, fgb.Chain)):
+            attach_left = True
+            left_objs_labels = [left_objs_labels]
+
+    if attach_left == attach_right:
+        raise ValueError(
+            "Both left and right objects are Graphs. One of left or right argument must be a Filter or Chain object."
+        )
+
+    n_links = len(left_objs_labels if attach_right else right_objs_labels)
+
+    def make_pidx_list(pidx, attach, name):
+        if isinstance(pidx, list):
+            out = pidx
+        else:
+            out = [pidx]
+            out = (out * n_links) if attach or pidx is None else out
+
+        if len(out) != n_links:
+            raise ValueError(
+                f"Number of pad indices given in {name} ({len(out)}) does not match the number of the elements to be attached ({n_links})."
+            )
+
+    left_on = make_pidx_list(left_on, attach_left)
+    right_on = make_pidx_list(right_on, attach_right)
+
+    return (
+        left_objs_labels._attach(right_objs_labels, left_on, right_on)
+        if attach_right
+        else right_objs_labels._rattach(left_objs_labels, left_on, right_on)
     )
-    left_on = left._resolve_pad_index(
-        left_on,
-        is_input=False,
-        chain_id_omittable=True,
-        filter_id_omittable=True,
-        pad_id_omittable=True,
-    )
-    return left._connect(right, [(left_on, right_on)], chain_siso=True)
