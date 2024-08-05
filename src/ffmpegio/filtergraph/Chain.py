@@ -65,8 +65,8 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
     FFmpeg expression: \"{str(self)}\"
     Number of filters: {len(self.data)}
-    Input pads ({self.get_num_inputs()}): {', '.join((str(id) for id,_ in self.iter_input_pads()))}
-    Output pads: ({self.get_num_outputs()}): {', '.join((str(id) for id,_ in self.iter_output_pads()))}
+    Input pads ({self.get_num_inputs()}): {', '.join((str(id) for id,*_ in self.iter_input_pads()))}
+    Output pads: ({self.get_num_outputs()}): {', '.join((str(id) for id,*_ in self.iter_output_pads()))}
 """
 
     def __setitem__(self, key, value):
@@ -219,6 +219,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         include_connected: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over input pads of the filters on the filterchain
 
@@ -230,31 +231,33 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :param full_pad_index: True to return 3-element index
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
-        if not chainable_only:
-            for index, filter, other_index in self._iter_pads(
-                fgb.Filter.iter_input_pads,
-                0,
-                pad,
-                filter,
-                chain,
-                exclude_chainable,
-                chainable_first,
-                include_connected,
-                chainable_only,
-            ):
-                if other_index is None:
-                    out_index = None
-                else:
-                    # get the last output pad of the previous filter
-                    out_i = index[1] - 1
-                    out_index = (0, out_i, self[out_i].get_num_outputs() - 1)
-                yield index, filter, out_index
-        elif not exclude_chainable and len(self):
-            for v in self[0].iter_input_pads():
-                yield
+        for index, filter, other_index in self._iter_pads(
+            fgb.Filter.iter_input_pads,
+            0,
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+            include_connected,
+            chainable_only,
+        ):
+            if other_index is None:
+                out_index = None
+            else:
+                # get the last output pad of the previous filter
+                out_i = index[1] - 1
+                out_index = (0, out_i, self[out_i].get_num_outputs() - 1)
+
+            yield (
+                ((0, *index), filter, out_index)
+                if full_pad_index
+                else (index, filter, out_index)
+            )
 
     def iter_output_pads(
         self,
@@ -267,6 +270,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         include_connected: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filters on the filterchain
 
@@ -278,6 +282,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         :param include_connected: True to include pads connected to output streams, defaults to False
         :param unlabeled_only: True to leave out named outputs, defaults to False to return all outputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
+        :param full_pad_index: True to return 3-element index
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -298,7 +303,11 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
                 # get the last input pad of the next filter
                 in_i = index[1] + 1
                 in_index = (0, in_i, self[in_i].get_num_inputs() - 1)
-            yield index, filter, in_index
+            yield (
+                ((0, *index), filter, in_index)
+                if full_pad_index
+                else (index, filter, in_index)
+            )
 
     def _connect(
         self,
@@ -326,7 +335,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
             return NotImplemented
 
         if isinstance(right, fgb.Filter):
-            right = [right]
+            right = fgb.Chain([right])
 
         if chain_siso and self.get_num_outputs() == 1 and right.get_num_inputs() == 1:
             return fgb.Chain([*self, *right])
@@ -360,7 +369,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
             return NotImplemented
 
         if isinstance(left, fgb.Filter):
-            left = [left]
+            left = fgb.Chain([left])
 
         if chain_siso and left.get_num_outputs() == 1 and self.get_num_inputs() == 1:
             return fgb.Chain([*left, *self])
@@ -493,4 +502,3 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
             return False
         else:
             return filter._output_pad_is_chainable((0, 0, index[2]))
-

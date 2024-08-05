@@ -83,7 +83,6 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             | None
         ) = None,
         sws_flags: Sequence[str] | None = None,
-        autosplit_output: bool = True,
     ):
 
         # convert str to a list of filter_specs
@@ -92,7 +91,6 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         elif isinstance(filter_specs, Graph):
             links = filter_specs._links
             sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
-            autosplit_output = filter_specs.autosplit_output
         elif isinstance(filter_specs, fgb.Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
         elif isinstance(filter_specs, fgb.Filter):
@@ -113,9 +111,6 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         )
         """Filter|None: swscale flags for automatically inserted scalers
         """
-
-        self.autosplit_output = autosplit_output
-        """bool: True to insert a split filter when an output pad is linked multiple times. default: True """
 
     def get_num_chains(self) -> int:
         """get the number of hains"""
@@ -217,19 +212,19 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         )(index)
 
     def __str__(self) -> str:
-        # insert split filters if autosplit_output is True
-        fg = self.split_outpad() if self.autosplit_output else self
+
+        fg = self
 
         # label unconnected pads
         label = self._unc_label
         unc_pads = {}
-        i = j = 0
+        i = j = -1
         for i, (index, _, _) in enumerate(self.iter_input_pads(unlabeled_only=True)):
             unc_pads[f"{label}{i}"] = (index, None)
         for j, (index, _, _) in enumerate(self.iter_output_pads(unlabeled_only=True)):
             unc_pads[f"{label}{i+j+1}"] = (None, index)
 
-        links = {**fg._links, **unc_pads} if i or j else fg._links
+        links = {**fg._links, **unc_pads} if i >= 0 or j >= 0 else fg._links
 
         return filter_utils.compose_graph(fg, links, fg.sws_flags and fg.sws_flags[1:])
 
@@ -294,7 +289,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         except Exception as e:
             try:
                 assert len(key) == 2 and all((isinstance(k, int) for k in key))
-                return super().__getitem__(key[0])[1]
+                return super().__getitem__(key[0])[key[1]]
             except:
                 raise TypeError(
                     "Graph indies must be integers, slices, or 2-element tuple of int"
@@ -333,7 +328,6 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
                     len = len(self.data) - n
 
         super().__delitem__(i)
-
 
     def iter_chains(
         self,
@@ -438,6 +432,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         include_connected: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over input pads of the filters on the filtergraph
 
@@ -449,6 +444,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :param full_pad_index: True to return 3-element index
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -485,6 +481,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         include_connected: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over output pads of the filter
 
@@ -496,6 +493,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         :param include_connected: True to include pads connected to output streams, defaults to False
         :param unlabeled_only: True to leave out named outputs, defaults to False to return all outputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
+        :param full_pad_index: True to return 3-element index
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -790,7 +788,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         other: fgb.abc.FilterGraphObject,
         auto_link: bool = False,
         replace_sws_flags: bool | None = None,
-    )->fgb.Graph:
+    ) -> fgb.Graph:
         """stack another Graph to this Graph
 
         :param other: other filtergraph
@@ -799,7 +797,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
                                   False to ignore other's sws_flags,
                                   None to throw an exception (default)
         :return: new filtergraph object
-        
+
         Remarks
         -------
         - extend() and import links
@@ -864,16 +862,16 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             outpad = links[0][0]
 
             try:
-                right = fgb.as_filterchain(right, copy=True)
+                right_chain = fgb.as_filterchain(right, copy=True)
             except FiltergraphConversionError:
                 pass
             else:
                 if (
-                    right[0].get_num_inputs() == 1
+                    right_chain[0].get_num_inputs() == 1
                     and self[outpad[:2]].get_num_outputs() == 1
                 ):  # if chainable
                     fg = fgb.Graph(self)
-                    fg[outpad[0]].append(right)
+                    fg[outpad[0]].extend(right_chain)
                     return fg
 
         right = fgb.as_filtergraph(right)
@@ -882,7 +880,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         n0 = len(self)  # chain index offset
 
         # stack 2 filtergraphs
-        fg = self.stack(right, False, replace_sws_flags)
+        fg = self._stack(right, False, replace_sws_flags)
 
         # link marked chains
         for outpad, inpad in links:
@@ -916,17 +914,17 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             inpad = links[0][1]
 
             try:
-                left = fgb.as_filterchain(left, copy=True)
+                left_chain = fgb.as_filterchain(left, copy=True)
             except FiltergraphConversionError:
                 pass
             else:
                 if (
-                    left[0].get_num_outputs() == 1
+                    left_chain[0].get_num_outputs() == 1
                     and self[inpad[:2]].get_num_inputs() == 1
                 ):  # if chainable
                     fg = fgb.Graph(self)
-                    fg[inpad[0]] = [*left, *fg[inpad[0]]]
-                    fg._links.adjust_filter_ids(inpad[0], 0, len(left))
+                    fg[inpad[0]] = [*left_chain, *fg[inpad[0]]]
+                    fg._links.adjust_filter_ids(inpad[0], 0, len(left_chain))
                     return fg
 
         return fgb.as_filtergraph(left)._connect(

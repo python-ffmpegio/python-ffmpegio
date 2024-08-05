@@ -475,6 +475,10 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         :yield: filter pad index, link label, filter object
         """
 
+        if not n:
+            # takes no input, nothing to iterate
+            return
+
         if (isinstance(filter, int) and filter != 0) or (
             isinstance(chain, int) and chain != 0
         ):
@@ -499,14 +503,97 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
 
         elif pad is None:
             if chainable_first or exclude_chainable:
-                if n > 1:
-                    n = n - 1
+                n = n - 1
                 if chainable_first and not exclude_chainable:
                     yield (n,), self, None
             for j in range(n):
                 yield (j,), self, None
         else:
             yield (pad,), self, None
+
+    def iter_input_pads(
+        self,
+        pad: int | None = None,
+        filter: Literal[0] | None = None,
+        chain: Literal[0] | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        unlabeled_only: bool = False,
+        chainable_only: bool = False,
+        full_pad_index: bool = False,
+    ) -> Generator[tuple[PAD_INDEX, Filter, None]]:
+        """Iterate over input pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last input first then the rest, defaults to False
+        :param include_connected: True to include pads connected to input streams, defaults to False
+        :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :param full_pad_index: True to return 3-element index
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        for index, filter, other_index in self._iter_pads(
+            self.get_num_inputs(),
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+            chainable_only,
+        ):
+            yield (
+                ((0, 0, *index), filter, other_index)
+                if full_pad_index
+                else (index, filter, other_index)
+            )
+
+    def iter_output_pads(
+        self,
+        pad: int | None = None,
+        filter: Literal[0] | None = None,
+        chain: Literal[0] | None = None,
+        *,
+        exclude_chainable: bool = False,
+        chainable_first: bool = False,
+        include_connected: bool = False,
+        unlabeled_only: bool = False,
+        chainable_only: bool = False,
+        full_pad_index: bool = False,
+    ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
+        """Iterate over output pads of the filter
+
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
+        :param chainable_first: True to yield the last output first then the rest, defaults to False
+        :param include_connected: True to include pads connected to output streams, defaults to False
+        :param unlabeled_only: True to leave out named outputs, defaults to False to return only all outputs
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
+        :param full_pad_index: True to return 3-element index
+        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        """
+
+        for index, filter, other_index in self._iter_pads(
+            self.get_num_outputs(),
+            pad,
+            filter,
+            chain,
+            exclude_chainable,
+            chainable_first,
+            chainable_only,
+        ):
+            yield (
+                ((0, 0, *index), filter, other_index)
+                if full_pad_index
+                else (index, filter, other_index)
+            )
 
     def iter_chains(
         self,
@@ -531,78 +618,6 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             not skip_if_no_output or self.get_num_outputs()
         ):
             yield (0, fgb.Chain([self]))
-
-    def iter_input_pads(
-        self,
-        pad: int | None = None,
-        filter: Literal[0] | None = None,
-        chain: Literal[0] | None = None,
-        *,
-        exclude_chainable: bool = False,
-        chainable_first: bool = False,
-        include_connected: bool = False,
-        unlabeled_only: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, Filter]]:
-        """Iterate over input pads of the filter
-
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
-        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
-        :param chainable_first: True to yield the last input first then the rest, defaults to False
-        :param include_connected: True to include pads connected to input streams, defaults to False
-        :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
-        """
-
-        for it in self._iter_pads(
-            self.get_num_inputs(),
-            pad,
-            filter,
-            chain,
-            exclude_chainable,
-            chainable_first,
-            chainable_only,
-        ):
-            yield it
-
-    def iter_output_pads(
-        self,
-        pad: int | None = None,
-        filter: Literal[0] | None = None,
-        chain: Literal[0] | None = None,
-        *,
-        exclude_chainable: bool = False,
-        chainable_first: bool = False,
-        include_connected: bool = False,
-        unlabeled_only: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
-        """Iterate over output pads of the filter
-
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
-        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
-        :param chainable_first: True to yield the last output first then the rest, defaults to False
-        :param include_connected: True to include pads connected to output streams, defaults to False
-        :param unlabeled_only: True to leave out named outputs, defaults to False to return only all outputs
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
-        """
-
-        for it in self._iter_pads(
-            self.get_num_outputs(),
-            pad,
-            filter,
-            chain,
-            exclude_chainable,
-            chainable_first,
-            chainable_only,
-        ):
-            yield it
 
     def _connect(
         self,
@@ -634,7 +649,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
 
         return fgb.Graph(
             [[self], [right]],
-            {i: (l, (1, 0, r[2])) for i, (l, r) in enumerate(links)},
+            {i: ((1, 0, r[2]), l) for i, (l, r) in enumerate(links)},
         )
 
     def _rconnect(

@@ -19,4 +19,19 @@ A None item indicates not specified and
 usually means to assign first available
 """
 
+PAD_PAIR = (
+    tuple[PAD_INDEX, PAD_INDEX]
+    | tuple[PAD_INDEX | list[PAD_INDEX], None]
+    | tuple[None, PAD_INDEX]
+)
+"""Specifies a filter pad linkage or labeling
+
+A tuple pair of input pad and output pad. 
+
+- Set input or output pad is ``None`` to define a pad label
+- If input label is an input stream specifier (e.g., 0:v or 1:a:0) and connects
+  to multiple filter inputs, specify with a list the input pad indices.
+
+"""
+
 JOIN_HOW = Literal["chainable", "per_chain", "all", "auto"]

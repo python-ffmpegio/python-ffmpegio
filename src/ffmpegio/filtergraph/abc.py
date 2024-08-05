@@ -129,7 +129,8 @@ class FilterGraphObject(ABC):
         include_connected: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter]]:
+        full_pad_index: bool = False,
+    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over input pads of the filter
 
         :param pad: pad id, defaults to None
@@ -140,6 +141,7 @@ class FilterGraphObject(ABC):
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :param full_pad_index: True to return 3-element index
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -155,6 +157,7 @@ class FilterGraphObject(ABC):
         include_connected: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
@@ -510,7 +513,6 @@ class FilterGraphObject(ABC):
 
         return fgb.attach(left, self, left_on, right_on)
 
-    @abstractmethod
     def stack(
         self,
         other: fgb.abc.FilterGraphObject | str,
@@ -547,7 +549,7 @@ class FilterGraphObject(ABC):
     ) -> fgb.Graph:
         """stack another Graph to this Graph (no var check)"""
 
-        return fgb.as_filtergraph(self)._stack(other, autolink, replace_sws_flags)
+        return fgb.as_filtergraph(self)._stack(other, auto_link, replace_sws_flags)
 
     @abstractmethod
     def __getitem__(self, key): ...

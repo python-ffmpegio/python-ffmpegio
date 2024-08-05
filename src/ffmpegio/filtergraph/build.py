@@ -128,10 +128,10 @@ def join(
         raise ValueError(f"{how=} is an unknown matching method")
 
     # make sure right is a Graph, Chain, or Filter object
-    left = fgb.as_filtergraph(left)
-    right = fgb.as_filtergraph(right)
+    left = fgb.as_filtergraph_object(left)
+    right = fgb.as_filtergraph_object(right)
 
-    iter_kws = {"unlabeled_only": unlabeled_only}
+    iter_kws = {"unlabeled_only": unlabeled_only, "full_pad_index": True}
     if how == "chainable":
         iter_kws["chainable_only"] = True
 
@@ -146,7 +146,7 @@ def join(
         it_left = (v[0] for v in it_left)
         it_right = (v[0] for v in it_right)
 
-        return zip([*it_left], [*it_right], strict=strict)
+        return list(zip([*it_left], [*it_right], strict=strict))
 
     if how == "per_chain":
         it_left_chain = left.iter_chains(skip_if_no_output=True)

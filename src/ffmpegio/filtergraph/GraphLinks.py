@@ -5,7 +5,7 @@ from collections.abc import Generator, Mapping, Sequence, Callable
 
 from ..utils import is_stream_spec
 from ..errors import FFmpegioError
-from .typing import PAD_INDEX
+from .typing import PAD_INDEX, PAD_PAIR
 
 """
 
@@ -25,13 +25,18 @@ GraphLinks class design:
 """
 
 
+class GraphLinks: ...
+
+
 class GraphLinks(UserDict):
 
     class Error(FFmpegioError):
         pass
 
     @staticmethod
-    def iter_inpad_ids(inpads, include_labels=False):
+    def iter_inpad_ids(
+        inpads: PAD_INDEX | list[PAD_INDEX] | None, include_labels: bool = False
+    ):
         """helper generator to work inpads ids
 
         :param inpads: inpads pad id or ids
@@ -53,19 +58,21 @@ class GraphLinks(UserDict):
                     yield inpad
 
     @staticmethod
-    def validate_label(label, named_only=False, no_stream_spec=False):
-        try:
-            assert re.match(r"[a-zA-Z0-9_]+$", label) or (
-                not no_stream_spec and is_stream_spec(label)
-            )
-        except:
-            if named_only or not isinstance(label, int):
-                msg = f'{label} is not a valid link label. A link label must be a string with only alphanumeric and "_" characters'
+    def validate_label(
+        label: str | int, is_link: bool = False, no_stream_spec: bool = False
+    ):
+        if isinstance(label, int):
+            if not is_link:
                 raise GraphLinks.Error(
-                    msg + "."
-                    if named_only
-                    else msg + " or an int for unnamed internal link."
+                    "A pad label without a link must be a string label."
                 )
+        elif not (
+            (not no_stream_spec and is_stream_spec(label))
+            or re.match(r"[a-zA-Z0-9_]+$", label)
+        ):
+            raise GraphLinks.Error(
+                f'{label=} is not a valid link label. A link label must be a string with only alphanumeric and "_" characters'
+            )
 
     @staticmethod
     def validate_pad_id(id):
@@ -83,7 +90,7 @@ class GraphLinks(UserDict):
             )
 
     @staticmethod
-    def validate_pad_id_pair(ids):
+    def validate_pad_idx_pair(ids: PAD_PAIR):
 
         try:
             assert len(ids) == 2
@@ -111,27 +118,19 @@ class GraphLinks(UserDict):
             )
 
     @staticmethod
-    def validate_item(label, pads):
-        GraphLinks.validate_pad_id_pair(pads)  # this fails if None-None pair
+    def validate_item(label: str | int, pads: PAD_PAIR):
 
-        GraphLinks.validate_label(label, no_stream_spec=pads[1] is not None)
+        GraphLinks.validate_pad_idx_pair(pads)  # this fails if None-None pair
 
-        # stream specifier can only be used as input label
-        if is_stream_spec(label) and pads[1] is not None:
-            raise GraphLinks.Error(
-                f"Input stream specifier ({label}) can only be used as an input label."
-            )
+        inpad_given = pads[0] is not None
+        outpad_given = pads[1] is not None
 
-        # unnamed link cannot be a pad label
-        if isinstance(label, int) and (
-            not len(list(GraphLinks.iter_inpad_ids(pads[0]))) or pads[1] is None
-        ):
-            raise GraphLinks.Error(
-                f"Unnamed (integer) links must specify both inpad and outpad."
-            )
+        GraphLinks.validate_label(
+            label, is_link=inpad_given and outpad_given, no_stream_spec=outpad_given
+        )
 
     @staticmethod
-    def validate(data):
+    def validate(data: dict[str | int, PAD_PAIR]):
 
         inpads = set()  # inpad cannot be repeated
 
@@ -170,7 +169,10 @@ class GraphLinks(UserDict):
     # regex pattern to identify a label with a trailing number
     LabelPattern = re.compile(r"(.+?)(\d+)?$")
 
-    def __init__(self, links=None):
+    def __init__(
+        self,
+        links: dict[str | int, PAD_PAIR] | GraphLinks | None = None,
+    ):
         # validate input arg
         if not isinstance(links, (GraphLinks, type(None))):
             try:

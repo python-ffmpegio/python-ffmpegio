@@ -34,7 +34,7 @@ def as_filter(
                 "Only a Chain object with a single element can be downconverted to Filter."
             )
         else:
-            return filter_spec[0][0]
+            return filter_spec[0]
 
     try:
         return (
