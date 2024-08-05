@@ -58,7 +58,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
-    ) -> PAD_INDEX|None:
+    ) -> PAD_INDEX | None:
         """get next available input pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
@@ -87,7 +87,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
-    ) -> PAD_INDEX|None:
+    ) -> PAD_INDEX | None:
         """get next available output pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
@@ -98,13 +98,13 @@ class FilterGraphObject(ABC):
             return next(
                 self.iter_output_pads(
                     pad,
-                filter,
-                chain,
-                chainable_first=chainable_first,
-                unlabeled_only=unlabeled_only,
-                chainable_only=chainable_only,
-            )
-        )[0]
+                    filter,
+                    chain,
+                    chainable_first=chainable_first,
+                    unlabeled_only=unlabeled_only,
+                    chainable_only=chainable_only,
+                )
+            )[0]
         except StopIteration:
             return None
 

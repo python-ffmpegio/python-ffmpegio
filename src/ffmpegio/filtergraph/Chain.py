@@ -179,8 +179,13 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
             raise FiltergraphInvalidIndex(f"Invalid {chain=} id")
 
         if chainable_only:
-            if filter is not None and filter != i_nochain:
-                raise FiltergraphInvalidIndex(f"{filter=} id is not chainable filter.")
+            if filter is not None:
+                if filter < 0:
+                    filter = len(self) + filter
+                if filter != i_nochain:
+                    raise FiltergraphInvalidIndex(
+                        f"{filter=} id is not chainable filter."
+                    )
             filters = [self.data[i_nochain]]
             i_first = i_nochain
 

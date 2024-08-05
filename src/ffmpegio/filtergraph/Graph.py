@@ -405,10 +405,12 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 
         for i, c in enumerate(chains):
 
+            j = (len(c) + filter) if filter < 0 else filter
+
             for pidx, f, other_pidx in iter_filter_pad(
                 c,
                 pad,
-                filter,
+                j,
                 exclude_chainable=exclude_chainable,
                 chainable_first=chainable_first,
                 include_connected=include_connected,
@@ -428,10 +430,10 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
                 # exclude unlinked label-only pads, including input streams
                 # return output label or output pad connected to
                 is_str = isinstance(other_pidx, str)
-                if (is_str and unlabeled_only) or not (is_str or include_connected):
-                    continue
-
-                yield index, f, other_pidx
+                if (is_str and not unlabeled_only) or (
+                    not is_str and include_connected
+                ):
+                    yield index, f, other_pidx
 
     def iter_input_pads(
         self,

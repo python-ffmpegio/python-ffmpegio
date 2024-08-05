@@ -111,9 +111,9 @@ def test_iter_output_pads(
         ("nullsrc;fps", True, False, False, 1),
         ("fps;nullsink", False, False, False, 2),
         ("fps;nullsink", False, True, False, 1),
-        ("nullsrc[L1][L2];[L2]fps", True, False, False, 0),
-        ("nullsrc[L1][L2];[L2]fps", False, True, False, 1),
-        ("nullsrc[L1][L2];[L2]fps", False, True, True, 0),
+        ("split[L1][L2];[L2]fps", True, False, False, 1),
+        ("split[L1][L2];[L2]fps", False, True, False, 2),
+        ("split[L1][L2];[L2]fps", False, True, True, 1),
     ],
 )
 def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
