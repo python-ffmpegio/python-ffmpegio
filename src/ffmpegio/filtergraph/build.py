@@ -150,7 +150,7 @@ def join(
 
     if how == "per_chain":
         it_left_chain = left.iter_chains(skip_if_no_output=True)
-        it_right_chain = left.iter_chains(skip_if_no_input=True)
+        it_right_chain = right.iter_chains(skip_if_no_input=True)
         chain_pairs = zip([*it_left_chain], [*it_right_chain], strict=strict)
         links = [
             pair
@@ -164,12 +164,22 @@ def join(
             left.iter_output_pads(**iter_kws), right.iter_input_pads(**iter_kws)
         )
 
-    return left._connect(
+    
+    fg = left._connect(
         right,
         links,
         chain_siso,
         replace_sws_flags,
     )
+    if fg==NotImplemented:
+        fg = right._rconnect(
+            left,
+            links,
+            chain_siso,
+            replace_sws_flags,
+        )
+    return fg
+
 
 
 def attach(

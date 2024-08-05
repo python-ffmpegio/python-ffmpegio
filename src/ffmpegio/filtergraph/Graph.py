@@ -346,10 +346,22 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         """
 
         for i, c in enumerate(self):
-            for _, obj in c.iter_chains(
-                skip_if_no_input, skip_if_no_output, chainable_only
+            if (
+                skip_if_no_output
+                and self.next_output_pad(
+                    chain=i, filter=-1, chainable_only=chainable_only
+                )
+                is None
+            ) or (
+                skip_if_no_input
+                and self.next_input_pad(
+                    chain=i, filter=0, chainable_only=chainable_only
+                )
+                is None
             ):
-                yield i, obj
+                continue
+
+            yield i, c
 
     def _iter_pads(
         self,

@@ -102,6 +102,25 @@ def test_iter_output_pads(
             if isinstance(in_index, tuple):
                 assert in_index in in_links
 
+@pytest.mark.parametrize(
+    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
+    [
+        ("fps;scale", False, False, False, 2),
+        ("fps;scale", True, True, True, 2),
+        ("nullsrc;fps", False, False, False, 2),
+        ("nullsrc;fps", True, False, False, 1),
+        ("fps;nullsink", False, False, False, 2),
+        ("fps;nullsink", False, True, False, 1),
+        ("nullsrc[L1][L2];[L2]fps", True, False, False, 0),
+        ("nullsrc[L1][L2];[L2]fps", False, True, False, 1),
+        ("nullsrc[L1][L2];[L2]fps", False, True, True, 0),
+    ],
+)
+def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
+    f = fgb.Graph(expr)
+    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
+    assert len(chains) == ret
+
 
 @pytest.mark.parametrize(
     "index_or_label, ret, is_input, chain_id_omittable, filter_id_omittable, pad_id_omittable, resolve_omitted, chain_fill_value, filter_fill_value, pad_fill_value, chainable_first",

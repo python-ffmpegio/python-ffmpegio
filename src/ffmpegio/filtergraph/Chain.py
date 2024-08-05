@@ -129,18 +129,18 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         :yield: chain id and chain object
         """
 
-        if len(self):
+        if not len(self):
             return
 
-        if skip_if_no_input or chainable_only:
+        if skip_if_no_input:
             try:
-                self.next_input_pad(chainable_only=chainable_only)
+                self.next_input_pad()
             except StopIteration:
                 return
 
-        if skip_if_no_output or chainable_only:
+        if skip_if_no_output:
             try:
-                self.next_output_pad(chainable_only=chainable_only)
+                self.next_output_pad()
             except StopIteration:
                 return
 

@@ -611,9 +611,6 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         :yield: chain id and chain object
         """
 
-        if chainable_only:
-            skip_if_no_input = skip_if_no_output = True
-
         if (not skip_if_no_input or self.get_num_inputs()) and (
             not skip_if_no_output or self.get_num_outputs()
         ):

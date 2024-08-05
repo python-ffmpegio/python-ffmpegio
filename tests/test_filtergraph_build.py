@@ -33,12 +33,12 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
     [
         # fmt: off
         ("scale","fps",'all',0,False,False,'scale,fps'),
+        ("scale","fps,eq",'all',0,False,False,'scale,fps,eq'),
+        ("scale,fps","eq",'all',0,False,False,'scale,fps,eq'),
         ("split","vstack",'all',0,False,False,'[UNC0]split[L0][L1];[L0][L1]vstack[UNC1]'),
         ("split","vstack",'all',1,False,False,'[UNC0]split[L0][UNC2];[L0][UNC1]vstack[UNC3]'),
-        # ("scale", "fps,eq",(0,0,0),(0,0,0),True,'scale,fps,eq'),
-        # ("scale,fps", "eq",(0,1,0),(0,0,0),True,'scale,fps,eq'),
-        # ("scale", "[0:v]vstack[out]",(0,0,0),(0,0,1),True,'[UNC0]scale[L0];[0:v][L0]vstack[out]'),
-        # ("scale", "[in1][0:v]vstack[out]",(0,0,0),(0,0,0),True,'[UNC0]scale[in1];[in1][0:v]vstack[out]'),
+        ("[vin]scale;[ain]asplit","vstack[vout];atrim[aout]",'all',0,False,False,'[vin]scale[L0];[ain]asplit[L1][L2];[L0][L1]vstack[vout];[L2]atrim[aout]'),
+        ("[vin]scale;[ain]asplit","vstack[vout];atrim[aout]",'per_chain',0,False,False,'[vin]scale[L0];[ain]asplit[L1][UNC1];[L0][UNC0]vstack[vout];[L1]atrim[aout]'),
         # fmt: on
     ],
 )

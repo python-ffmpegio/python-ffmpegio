@@ -106,6 +106,22 @@ def test_iter_output_pads(
             if out_index is not None:
                 assert out_index[0] == index[0] - 1
 
+@pytest.mark.parametrize(
+    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
+    [
+        ("fps,scale", False, False, False, 1),
+        ("fps,scale", True, True, True, 1),
+        ("nullsrc,fps", False, False, False, 1),
+        ("nullsrc,fps", True, False, False, 0),
+        ("fps,nullsink", False, False, False, 1),
+        ("fps,nullsink", False, True, False, 0),
+    ],
+)
+def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
+    f = fgb.Chain(expr)
+    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
+    assert len(chains) == ret
+
 
 @pytest.mark.parametrize(
     "op, lhs,rhs,expected",

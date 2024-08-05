@@ -142,6 +142,7 @@ def test_iter_input_pads(
             index, f, out_index = next(it)
             assert index == (r,) and f == fg and out_index == None
 
+
 @pytest.mark.parametrize(
     "expr, pad, filter, chain,  exclude_chainable, chainable_first, ret",
     [
@@ -187,6 +188,24 @@ def test_iter_output_pads(
         for r in ret:
             index, f, in_index = next(it)
             assert index == (r,) and f == fg and in_index == None
+
+
+@pytest.mark.parametrize(
+    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
+    [
+        ("fps", False, False, False, 1),
+        ("fps", True, True, True, 1),
+        ("nullsrc", False, False, False, 1),
+        ("nullsrc", True, False, False, 0),
+        ("nullsink", False, False, False, 1),
+        ("nullsink", False, True, False, 0),
+    ],
+)
+def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
+    f = fgb.Filter(expr)
+    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
+    assert len(chains) == ret
+
 
 def test_apply():
     f = fgb.Filter("fade=in:5:20:color=yellow")

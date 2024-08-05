@@ -58,22 +58,26 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
-    ) -> PAD_INDEX:
+    ) -> PAD_INDEX|None:
         """get next available input pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :returns: The index of the pad or ``None`` if no pad found
         """
-        return next(
-            self.iter_input_pads(
-                pad,
-                filter,
-                chain,
-                chainable_first=chainable_first,
-                unlabeled_only=unlabeled_only,
-                chainable_only=chainable_only,
-            )
-        )[0]
+        try:
+            return next(
+                self.iter_input_pads(
+                    pad,
+                    filter,
+                    chain,
+                    chainable_first=chainable_first,
+                    unlabeled_only=unlabeled_only,
+                    chainable_only=chainable_only,
+                )
+            )[0]
+        except StopIteration:
+            return None
 
     def next_output_pad(
         self,
@@ -83,15 +87,17 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
-    ) -> PAD_INDEX:
+    ) -> PAD_INDEX|None:
         """get next available output pad
 
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :returns: The index of the pad or ``None`` if no pad found
         """
-        return next(
-            self.iter_output_pads(
-                pad,
+        try:
+            return next(
+                self.iter_output_pads(
+                    pad,
                 filter,
                 chain,
                 chainable_first=chainable_first,
@@ -99,6 +105,8 @@ class FilterGraphObject(ABC):
                 chainable_only=chainable_only,
             )
         )[0]
+        except StopIteration:
+            return None
 
     @abstractmethod
     def iter_chains(
