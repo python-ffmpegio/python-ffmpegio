@@ -4,7 +4,7 @@ from collections.abc import Generator, Sequence
 import re
 from functools import partial
 
-from ..caps import filters as list_filters, filter_info, layouts
+from ..caps import filters as list_filters, filter_info, layouts, FilterInfo
 from ..utils import filter as filter_utils
 
 from .. import filtergraph as fgb
@@ -35,6 +35,8 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
 
     class InvalidName(Error):
         def __init__(self, name):
+            from .. import path
+
             super().__init__(
                 f"Filter {name} is not defined in FFmpeg (v{path.FFMPEG_VER}).\n"
             )
@@ -45,6 +47,19 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
     class Unsupported(Error):
         def __init__(self, name, feature) -> None:
             super().__init__(f"{feature} not yet supported feature for {name} filter.")
+
+    _info: dict[str, FilterInfo] = {}
+
+    @staticmethod
+    def _get_info(name: str) -> FilterInfo:
+        try:
+            info = Filter._info[name]
+        except KeyError:
+            try:
+                info = Filter._info[name] = list_filters()[name]
+            except:
+                raise Filter.InvalidName(name)
+        return info
 
     def __new__(self, filter_spec, *args, filter_id=None, **kwargs):
         """_summary_"""
@@ -64,6 +79,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
                 raise ValueError("filter_spec must be a non-empty sequence.")
             name, *opts = filter_spec
             if isinstance(name, str):
+                self._get_info(name)
                 proto.append((name, id) if isinstance(id, str) else name)
             elif not (
                 isinstance(name, Sequence)
@@ -75,6 +91,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
                 )
             else:
                 # name + id: re-id if id arg given
+                self._get_info(name[0])
                 proto.append(tuple(name) if filter_id is None else (name[0], filter_id))
 
             proto.extend(opts)
@@ -289,7 +306,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
             name = name[0]
 
         try:
-            nin = list_filters()[name].num_inputs
+            nin = self._info[name].num_inputs
         except:
             raise Filter.InvalidName(name)
         if nin is not None:  # fixed number
@@ -356,7 +373,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         name = self.name
 
         try:
-            nout = list_filters()[name].num_outputs
+            nout = self._info[name].num_outputs
         except:
             raise Filter.InvalidName(name)
         if nout is not None:  # arbitrary number allowed

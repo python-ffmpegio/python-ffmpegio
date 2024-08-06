@@ -119,14 +119,13 @@ def as_filtergraph_object(
 
     try:
         specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+        return (
+            fgb.Graph(specs, links, sws_flags)
+            if links or sws_flags or len(specs) > 1
+            else fgb.Filter(specs[0][0]) if len(specs[0]) == 1 else fgb.Chain(specs[0])
+        )
     except Exception as exc:
         raise FiltergraphInvalidExpression from exc
-
-    return (
-        fgb.Graph(specs, links, sws_flags)
-        if links or sws_flags or len(specs) > 1
-        else fgb.Filter(specs[0][0]) if len(specs[0]) == 1 else fgb.Chain(specs[0])
-    )
 
 
 def atleast_filterchain(
@@ -149,11 +148,10 @@ def atleast_filterchain(
 
     try:
         specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+        return (
+            fgb.Graph(specs, links, sws_flags)
+            if links or sws_flags or len(specs) > 1
+            else fgb.Chain(specs[0])
+        )
     except Exception as exc:
         raise FiltergraphInvalidExpression from exc
-
-    return (
-        fgb.Graph(specs, links, sws_flags)
-        if links or sws_flags or len(specs) > 1
-        else fgb.Chain(specs[0])
-    )

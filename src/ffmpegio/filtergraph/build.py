@@ -187,17 +187,14 @@ def join(
 
 def attach(
     left: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
-    right: (
-        fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str | None]
-    ),
+    right: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
     left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
     right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
 ) -> fgb.Graph:
     """attach filter(s), chain(s), or label(s) to a filtergraph object
 
     :param left: input filtergraph object, filtergraph expression, or label, or list thereof
-    :param right: output filterchain, filtergraph expression, or label, or list thereof. If omited
-                  (None), ``attach`` performs self linking
+    :param right: output filterchain, filtergraph expression, or label, or list thereof.
     :param left_on: pad_index, specify the pad on left, default to None (first available)
     :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
     :return: new filtergraph object
@@ -236,13 +233,7 @@ def attach(
         return obj, attach_obj
 
     left_objs_labels, attach_left = analyze_fgobj(left)
-
-    self_attach = right is None
-    if self_attach:
-        right_objs_labels = left
-        attach_right = False
-    else:
-        right_objs_labels, attach_right = analyze_fgobj(right)
+    right_objs_labels, attach_right = analyze_fgobj(right)
 
     if not (attach_left or attach_right):
         # no list or label given
@@ -252,24 +243,22 @@ def attach(
         if not attach_right and isinstance(left_objs_labels, (fgb.Filter, fgb.Chain)):
             attach_left = True
             left_objs_labels = [left_objs_labels]
-
     if attach_left == attach_right:
         raise ValueError(
-            "Both left and right objects are Graphs. One of left or right argument must be a Filter or Chain object."
+            "Cannot determine which side is attaching. One of left or right argument must be a Filter or Chain object."
         )
 
-    # put single index arguments as lists of indices
-    if not isinstance(left_on, list):
-        left_on = [left_on]
-    if not isinstance(right_on, list):
-        right_on = [right_on]
+    nlinks = len(left_objs_labels) if attach_left else len(right_objs_labels)
 
-    # self-attachment (intra-linking)
-    if self_attach:
-        fg = fgb.as_filtergraph(left, True)
-        for outpad, inpad in zip(left_on, right_on, strict=True):
-            fg.link(inpad, outpad)
-        return fg
+    # put single index arguments as lists of indices
+    if left_on is None:
+        left_on = [None] * nlinks
+    elif not isinstance(left_on, list):
+        left_on = [left_on]
+    if right_on is None:
+        right_on = [None] * nlinks
+    elif not isinstance(right_on, list):
+        right_on = [right_on]
 
     def resolve_indices(base, branches, base_indices, branch_indices, base_is_input):
         # resolve all the specified pad indices of the base object
@@ -287,7 +276,9 @@ def attach(
         iter_base_pads = (
             base.iter_input_pads if base_is_input else base.iter_output_pads
         )
-        it_base_pad = (idx for idx in iter_base_pads(full_pad_index=True) if idx not in base_def)
+        it_base_pad = (
+            idx for idx in iter_base_pads(full_pad_index=True) if idx not in base_def
+        )
         base_indices = [
             next(it_base_pad)[0] if idx is None else idx for idx in base_indices
         ]
@@ -299,7 +290,7 @@ def attach(
                 idx
                 if isinstance(robj, str)
                 else (
-                    getattr(robj, get_branch_pad)()
+                    getattr(robj, get_branch_pad)(full_pad_index=True)
                     if idx is None
                     else robj._resolve_pad_index(idx, is_input=not base_is_input)
                 )

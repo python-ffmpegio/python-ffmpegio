@@ -58,6 +58,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> PAD_INDEX | None:
         """get next available input pad
 
@@ -67,6 +68,7 @@ class FilterGraphObject(ABC):
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially, defaults to False
         :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :param full_pad_index: True to return 3-element index, defaults to False
         :returns: The index of the pad or ``None`` if no pad found
         """
         try:
@@ -78,6 +80,7 @@ class FilterGraphObject(ABC):
                     chainable_first=chainable_first,
                     unlabeled_only=unlabeled_only,
                     chainable_only=chainable_only,
+                    full_pad_index=full_pad_index,
                 )
             )[0]
         except StopIteration:
@@ -91,6 +94,7 @@ class FilterGraphObject(ABC):
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
+        full_pad_index: bool = False,
     ) -> PAD_INDEX | None:
         """get next available output pad
 
@@ -100,6 +104,7 @@ class FilterGraphObject(ABC):
         :param chainable_first: True to retrieve the last pad first, then the rest sequentially, defaults to False
         :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
+        :param full_pad_index: True to return 3-element index, defaults to False
         :returns: The index of the pad or ``None`` if no pad found
         """
         try:
@@ -111,6 +116,7 @@ class FilterGraphObject(ABC):
                     chainable_first=chainable_first,
                     unlabeled_only=unlabeled_only,
                     chainable_only=chainable_only,
+                    full_pad_index=full_pad_index,
                 )
             )[0]
         except StopIteration:
@@ -157,7 +163,7 @@ class FilterGraphObject(ABC):
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
-        :param full_pad_index: True to return 3-element index
+        :param full_pad_index: True to return 3-element index, defaults to False
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
@@ -185,6 +191,7 @@ class FilterGraphObject(ABC):
         :param include_connected: True to include pads connected to output streams, defaults to False
         :param unlabeled_only: True to leave out named outputs, defaults to False to return all outputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
+        :param full_pad_index: True to return 3-element index, defaults to False
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
 
