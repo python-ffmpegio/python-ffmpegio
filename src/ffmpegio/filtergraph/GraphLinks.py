@@ -86,7 +86,7 @@ class GraphLinks(UserDict):
             and all((isinstance(i, int) and i >= 0 for i in id))
         ):
             raise GraphLinks.Error(
-                f"{id} is not a valid filter pad ID. Filter pad ID must be a 3-element tuple: (chain id, filter id, pad id)"
+                f"{id=} is not a valid filter pad ID. Filter pad ID must be a 3-element tuple: (chain id, filter id, pad id)"
             )
 
     @staticmethod
@@ -694,7 +694,7 @@ class GraphLinks(UserDict):
                     f"the output label [{label}] cannot be a stream specifier."
                 )
 
-            if label in self.find_outpad_label(outpad):
+            if label == self.find_outpad_label(outpad):
                 # already labeled as specified
                 return label
 

@@ -898,7 +898,7 @@ class FilterGraphObject(ABC):
         )
         for l, l_idx, r_idx in zip(left, left_on, right_on):
             if l_idx is None:  # label
-                fg.add_label(l, inpad=l_idx)
+                fg.add_label(l, inpad=r_idx)
             else:
                 fg = fg._rconnect(l, [(l_idx, r_idx)], chain_siso=True)
 

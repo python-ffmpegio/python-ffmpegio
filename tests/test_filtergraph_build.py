@@ -60,6 +60,9 @@ def test_join(left, right, how, n_links, strict, unlabeled_only, ret):
     [
         # fmt: off
         ("scale","fps",(0,0,0),(0,0,0),'scale,fps'),
+        ("scale","fps",None,None,'scale,fps'),
+        ("scale","[out]",None,None,'[UNC0]scale[out]'),
+        ("[in]","scale",None,None,'[in]scale[UNC0]'),
         # fmt: on
     ],
 )

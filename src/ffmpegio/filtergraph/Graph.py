@@ -628,7 +628,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         """
 
         if label is not None:
-            GraphLinks.validate_label(label, named_only=True, no_stream_spec=True)
+            GraphLinks.validate_label(label, is_link=False, no_stream_spec=True)
         if inpad is not None:
             inpad = self._resolve_pad_index(inpad, is_input=True)
             try:
@@ -679,10 +679,10 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
             label = label[1:-1]
 
         GraphLinks.validate_label(
-            label, named_only=True, no_stream_spec=outpad is not None
+            label, is_link=False, no_stream_spec=outpad is not None
         )
         if inpad is not None:
-            GraphLinks.validate_pad_id_pair((inpad, None))
+            GraphLinks.validate_pad_idx_pair((inpad, None))
             for d in GraphLinks.iter_inpad_ids(inpad):
                 try:
                     f = self.data[d[0]][d[1]]

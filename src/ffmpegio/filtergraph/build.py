@@ -229,8 +229,11 @@ def attach(
             raise ValueError(
                 "Filtergraph object list cannot include any Graph object. Only Filter and Chain objects are allowed."
             )
+        if isinstance(obj, str):
+            attach_obj = True
+            obj = [obj]
 
-        return obj, (attach_obj or isinstance(obj, str))
+        return obj, attach_obj
 
     left_objs_labels, attach_left = analyze_fgobj(left)
 
@@ -284,9 +287,9 @@ def attach(
         iter_base_pads = (
             base.iter_input_pads if base_is_input else base.iter_output_pads
         )
-        it_base_pad = (idx for idx in iter_base_pads() if idx not in base_def)
+        it_base_pad = (idx for idx in iter_base_pads(full_pad_index=True) if idx not in base_def)
         base_indices = [
-            next(it_base_pad) if idx is None else idx for idx in base_indices
+            next(it_base_pad)[0] if idx is None else idx for idx in base_indices
         ]
 
         # resolve the specified attaching pad indices
