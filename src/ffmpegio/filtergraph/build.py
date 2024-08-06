@@ -146,16 +146,21 @@ def join(
         it_left = (v[0] for v in it_left)
         it_right = (v[0] for v in it_right)
 
-        return list(zip([*it_left], [*it_right], strict=strict))
+        try:
+            return list(zip([*it_left], [*it_right], strict=strict))
+        except ValueError:
+            raise ValueError(
+                f"Available pads of left and right filtergraph objects do not match ({strict=})"
+            )
 
     if how == "per_chain":
         it_left_chain = left.iter_chains(skip_if_no_output=True)
         it_right_chain = right.iter_chains(skip_if_no_input=True)
         chain_pairs = zip([*it_left_chain], [*it_right_chain], strict=strict)
         links = [
-            pair
+            ((il, *l[1:]), (ir, *r[1:]))  # output -> input
             for (il, lchain), (ir, rchain) in chain_pairs
-            for pair in create_links(
+            for (l, r) in create_links(
                 lchain.iter_output_pads(**iter_kws), rchain.iter_input_pads(**iter_kws)
             )
         ]
@@ -164,14 +169,13 @@ def join(
             left.iter_output_pads(**iter_kws), right.iter_input_pads(**iter_kws)
         )
 
-    
     fg = left._connect(
         right,
         links,
         chain_siso,
         replace_sws_flags,
     )
-    if fg==NotImplemented:
+    if fg == NotImplemented:
         fg = right._rconnect(
             left,
             links,
@@ -179,7 +183,6 @@ def join(
             replace_sws_flags,
         )
     return fg
-
 
 
 def attach(
@@ -252,34 +255,70 @@ def attach(
             "Both left and right objects are Graphs. One of left or right argument must be a Filter or Chain object."
         )
 
-    n_links = len(left_objs_labels if attach_right else right_objs_labels)
+    # put single index arguments as lists of indices
+    if not isinstance(left_on, list):
+        left_on = [left_on]
+    if not isinstance(right_on, list):
+        right_on = [right_on]
 
-    def make_pidx_list(pidx, attach, name):
-        if isinstance(pidx, list):
-            out = pidx
-        else:
-            out = [pidx]
-            out = (out * n_links) if attach or pidx is None else out
-
-        if len(out) != n_links:
-            raise ValueError(
-                f"Number of pad indices given in {name} ({len(out)}) does not match the number of the elements to be attached ({n_links})."
-            )
-
-    left_on = make_pidx_list(left_on, attach_left)
-    right_on = make_pidx_list(right_on, attach_right)
-
+    # self-attachment (intra-linking)
     if self_attach:
         fg = fgb.as_filtergraph(left, True)
-        for outpad, inpad in zip(left_on, right_on):
+        for outpad, inpad in zip(left_on, right_on, strict=True):
             fg.link(inpad, outpad)
         return fg
 
-    return (
-        left_objs_labels._attach(right_objs_labels, left_on, right_on)
-        if attach_right
-        else right_objs_labels._rattach(left_objs_labels, left_on, right_on)
-    )
+    def resolve_indices(base, branches, base_indices, branch_indices, base_is_input):
+        # resolve all the specified pad indices of the base object
+        base_indices = [
+            (
+                idx
+                if idx is None
+                else base._resolve_pad_index(idx, is_input=base_is_input)
+            )
+            for idx in base_indices
+        ]
+
+        # assign unspecified left pads
+        base_def = [idx for idx in base_indices if idx is not None]
+        iter_base_pads = (
+            base.iter_input_pads if base_is_input else base.iter_output_pads
+        )
+        it_base_pad = (idx for idx in iter_base_pads() if idx not in base_def)
+        base_indices = [
+            next(it_base_pad) if idx is None else idx for idx in base_indices
+        ]
+
+        # resolve the specified attaching pad indices
+        get_branch_pad = "next_output_pad" if base_is_input else "next_input_pad"
+        branch_indices = [
+            (
+                idx
+                if isinstance(robj, str)
+                else (
+                    getattr(robj, get_branch_pad)()
+                    if idx is None
+                    else robj._resolve_pad_index(idx, is_input=not base_is_input)
+                )
+            )
+            for robj, idx in zip(branches, branch_indices, strict=True)
+        ]
+
+        return base_indices, branch_indices
+
+    if attach_right:
+        left_on, right_on = resolve_indices(
+            left_objs_labels, right_objs_labels, left_on, right_on, False
+        )
+    else:
+        right_on, left_on = resolve_indices(
+            right_objs_labels, left_objs_labels, right_on, left_on, True
+        )
+
+    if attach_right:
+        return left_objs_labels._attach(right_objs_labels, left_on, right_on)
+    else:
+        return right_objs_labels._rattach(left_objs_labels, left_on, right_on)
 
 
 def concatenate(*fgs):

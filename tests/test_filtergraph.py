@@ -202,7 +202,7 @@ def test_resolve_pad_index(
             None,
         ),
         (
-            fgb.Graph(["fps", "crop"], {"out": ((None, None), (0, 0, 0))}),
+             fgb.Graph(["fps", "crop"], {"out": ((None, None), (0, 0, 0))}),
             "trim",
             "out",
             None,

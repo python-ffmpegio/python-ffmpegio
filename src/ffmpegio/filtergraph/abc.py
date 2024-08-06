@@ -52,16 +52,20 @@ class FilterGraphObject(ABC):
 
     def next_input_pad(
         self,
-        pad=None,
-        filter=None,
-        chain=None,
+        pad: int | None = None,
+        filter: int | None = None,
+        chain: int | None = None,
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
     ) -> PAD_INDEX | None:
         """get next available input pad
 
-        :param chainable_first: True to retrieve the last pad first, then the rest sequentially
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param chainable_first: True to retrieve the last pad first, then the rest sequentially, defaults to False
+        :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :returns: The index of the pad or ``None`` if no pad found
         """
@@ -81,16 +85,20 @@ class FilterGraphObject(ABC):
 
     def next_output_pad(
         self,
-        pad=None,
-        filter=None,
-        chain=None,
+        pad: int | None = None,
+        filter: int | None = None,
+        chain: int | None = None,
         chainable_first: bool = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
     ) -> PAD_INDEX | None:
         """get next available output pad
 
-        :param chainable_first: True to retrieve the last pad first, then the rest sequentially
+        :param pad: pad id, defaults to None
+        :param filter: filter index, defaults to None
+        :param chain: chain index, defaults to None
+        :param chainable_first: True to retrieve the last pad first, then the rest sequentially, defaults to False
+        :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :returns: The index of the pad or ``None`` if no pad found
         """
@@ -845,64 +853,53 @@ class FilterGraphObject(ABC):
     def _attach(
         self,
         right: list[fgb.Filter | fgb.Chain | str],
-        left_on: list[PAD_INDEX | str | None],
-        right_on: list[PAD_INDEX | str | None],
+        left_on: list[PAD_INDEX],
+        right_on: list[PAD_INDEX | None],
     ) -> fgb.Chain | fgb.Graph:
-        """helper function attach other filtergraph to this graph"""
+        """helper function attach other filtergraph to this graph
 
-        n_none = sum(i is None for i in left_on)
-        it_left_pad = islice(self.iter_output_pads(), n_none)
-        left_on = [
-            (
-                next(it_left_pad)
-                if idx is None
-                else self._resolve_pad_index(idx, is_input=False)
-            )
-            for idx in left_on
-        ]
-        right_on = [
-            (
-                (None if isinstance(o, str) else o.next_input_pad())
-                if idx is None
-                else right._resolve_pad_index(idx, is_input=True)
-            )
-            for o, idx in zip(right, right_on)
-        ]
+        :param right: list of filter/chain objects or pad label strings
+        :param left_on: list of output pad indices, matching the size of right
+        :param right_on: list of input pad indices if object or None if label
+        :return: resulting filtergraph
+        """
 
-        fg = fgb.atleast_filterchain(self)
+        fg = (
+            fgb.as_filtergraph(self)
+            if any(idx is None for idx in right_on)
+            else fgb.atleast_filterchain(self)
+        )
         for r, l_idx, r_idx in zip(right, left_on, right_on):
-            fg = fg._connect(r, [(l_idx, r_idx)], chain_siso=True)
+            if r_idx is None:  # label
+                fg.add_label(r, outpad=l_idx)
+            else:
+                fg = fg._connect(r, [(l_idx, r_idx)], chain_siso=True)
 
         return fg
 
     def _rattach(
         self,
         left: list[fgb.Filter | fgb.Chain | str],
-        left_on: list[PAD_INDEX | str | None],
-        right_on: list[PAD_INDEX | str | None],
+        left_on: list[PAD_INDEX | None],
+        right_on: list[PAD_INDEX],
     ) -> fgb.Chain | fgb.Graph:
+        """helper function attach other filtergraph to this graph
 
-        n_none = sum(i is None for i in right_on)
-        it_right_pad = islice(self.iter_input_pads(), n_none)
-        right_on = [
-            (
-                next(it_right_pad)
-                if idx is None
-                else self._resolve_pad_index(idx, is_input=True)
-            )
-            for idx in right_on
-        ]
-        left_on = [
-            (
-                (None if o is None else o.next_output_pad())
-                if idx is None
-                else left._resolve_pad_index(idx, is_input=False)
-            )
-            for o, idx in zip(self, right_on)
-        ]
+        :param right: list of filter/chain objects or pad label strings
+        :param left_on: list of output pad indices if object or None if label, size must match that of left
+        :param right_on: list of input pad indices, matching the size of left
+        :return: resulting filtergraph
+        """
 
-        fg = fgb.atleast_filterchain(self)
+        fg = (
+            fgb.as_filtergraph(self)
+            if any(idx is None for idx in left_on)
+            else fgb.atleast_filterchain(self)
+        )
         for l, l_idx, r_idx in zip(left, left_on, right_on):
-            fg = fg._rconnect(l, [(l_idx, r_idx)], chain_siso=True)
+            if l_idx is None:  # label
+                fg.add_label(l, inpad=l_idx)
+            else:
+                fg = fg._rconnect(l, [(l_idx, r_idx)], chain_siso=True)
 
         return fg

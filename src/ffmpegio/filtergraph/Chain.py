@@ -210,6 +210,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
                 pad,
                 exclude_chainable=no_chainables,
                 chainable_first=chainable_first,
+                chainable_only=chainable_only
             ):
                 yield (i + i_first, *pidx), f, other_pidx
 

@@ -39,11 +39,35 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
         ("split","vstack",'all',1,False,False,'[UNC0]split[L0][UNC2];[L0][UNC1]vstack[UNC3]'),
         ("[vin]scale;[ain]asplit","vstack[vout];atrim[aout]",'all',0,False,False,'[vin]scale[L0];[ain]asplit[L1][L2];[L0][L1]vstack[vout];[L2]atrim[aout]'),
         ("[vin]scale;[ain]asplit","vstack[vout];atrim[aout]",'per_chain',0,False,False,'[vin]scale[L0];[ain]asplit[L1][UNC1];[L0][UNC0]vstack[vout];[L1]atrim[aout]'),
+        ("[vin]scale;[ain]asplit","vstack[vout]",'all',0,False,False,'[vin]scale[L0];[ain]asplit[L1][UNC0];[L0][L1]vstack[vout]'),
+        ("[vin]scale;[ain]asplit","vstack[vout]",'all',0,True,False,None),
+        ("split[out]","[in]vstack",'all',0,False,True,'[UNC0]split[out][L0];[in][L0]vstack[UNC1]'),
         # fmt: on
     ],
 )
 def test_join(left, right, how, n_links, strict, unlabeled_only, ret):
 
-    fg = fgb.join(left, right, how, n_links, strict, unlabeled_only)
+    if ret is None:
+        with pytest.raises(ValueError):
+            fgb.join(left, right, how, n_links, strict, unlabeled_only)
+    else:
+        fg = fgb.join(left, right, how, n_links, strict, unlabeled_only)
+        assert str(fg) == ret
 
-    assert str(fg) == ret
+
+@pytest.mark.parametrize(
+    "left,right,left_on,right_on,ret",
+    [
+        # fmt: off
+        ("scale","fps",(0,0,0),(0,0,0),'scale,fps'),
+        # fmt: on
+    ],
+)
+def test_attach(left, right, left_on, right_on, ret):
+
+    if ret is None:
+        with pytest.raises(ValueError):
+            fgb.attach(left, right, left_on, right_on)
+    else:
+        fg = fgb.attach(left, right, left_on, right_on)
+        assert str(fg) == ret
