@@ -14,7 +14,7 @@ from .exceptions import *
 __all__ = ["Chain"]
 
 
-class Chain(UserList, fgb.abc.FilterGraphObject):
+class Chain(fgb.abc.FilterGraphObject, UserList):
     """List of FFmpeg filters, connected in series
 
     Chain() to instantiate empty Graph object
@@ -33,29 +33,28 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
 
     def __init__(self, filter_specs=None):
         # convert str to a list of filter_specs
-        if isinstance(filter_specs, str):
-            filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-            if links:
-                raise ValueError(
-                    "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
-                )
-            if sws_flags:
-                raise ValueError(
-                    "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph."
-                )
-            if len(filter_specs) != 1:
-                raise ValueError(
-                    "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
-                )
-            filter_specs = filter_specs[0]
-        elif isinstance(filter_specs, fgb.Filter):
-            filter_specs = [filter_specs]
 
-        super().__init__(
-            ()
-            if filter_specs is None
-            else (fgb.as_filter(fspec) for fspec in filter_specs)
-        )
+        if isinstance(filter_specs, fgb.Filter):
+            filter_specs = [filter_specs]
+        else:
+            if isinstance(filter_specs, str):
+                filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+                filter_specs = filter_specs[0]
+                if links:
+                    raise ValueError(
+                        "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
+                    )
+                if sws_flags:
+                    raise ValueError(
+                        "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph."
+                    )
+                if len(filter_specs) != 1:
+                    raise ValueError(
+                        "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
+                    )
+            filter_specs = (fgb.as_filter(fspec) for fspec in filter_specs)
+
+        UserList.__init__(self, () if filter_specs is None else filter_specs)
 
     def __str__(self):
         return filter_utils.compose_graph([self.data])
@@ -69,8 +68,16 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
     Output pads: ({self.get_num_outputs()}): {', '.join((str(id) for id,*_ in self.iter_output_pads()))}
 """
 
+    def __getitem__(self, key: int | slice | tuple[int | slice, int | slice]):
+        if not isinstance(key, (int, slice)):
+            i, key = key
+            if i != 0:
+                raise IndexError("Invalid chain index")
+
+        return UserList.__getitem__(self, key)
+
     def __setitem__(self, key, value):
-        super().__setitem__(key, fgb.as_filter(value))
+        UserList.__setitem__(self, key, fgb.as_filter(value))
 
     def get_num_filters(self, chain: int) -> int:
         """get the number of filters of the specfied chain
@@ -83,17 +90,17 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         return len(self)
 
     def append(self, item):
-        return super().append(fgb.as_filter(item))
+        return UserList.append(self, fgb.as_filter(item))
 
     def extend(self, other):
-        return super().extend([fgb.as_filter(f) for f in other])
+        return UserList.extend(self, [fgb.as_filter(f) for f in other])
 
     def insert(self, i, item):
-        return super().insert(i, fgb.as_filter(item))
+        return UserList.insert(self, i, fgb.as_filter(item))
 
     def __contains__(self, item):
         item = fgb.as_filter(item)
-        return any((f.name == item for f in self.data))
+        return any((f == item for f in self.data))
 
     def __iadd__(self, other):
         fg = self + other
@@ -132,17 +139,11 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
         if not len(self):
             return
 
-        if skip_if_no_input:
-            try:
-                self.next_input_pad()
-            except StopIteration:
-                return
+        if skip_if_no_input and self.next_input_pad() is None:
+            return
 
-        if skip_if_no_output:
-            try:
-                self.next_output_pad()
-            except StopIteration:
-                return
+        if skip_if_no_output and self.next_output_pad() is None:
+            return
 
         yield (0, self)
 
@@ -210,7 +211,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
                 pad,
                 exclude_chainable=no_chainables,
                 chainable_first=chainable_first,
-                chainable_only=chainable_only
+                chainable_only=chainable_only,
             ):
                 yield (i + i_first, *pidx), f, other_pidx
 
@@ -347,7 +348,7 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
             return fgb.Chain([*self, *right])
 
         return fgb.Graph(
-            [self, right], {i: (l, (1, *r[1:])) for i, (l, r) in enumerate(links)}
+            [self, right], {i: ((1, *r[1:]), l) for i, (l, r) in enumerate(links)}
         )
 
     def _rconnect(
@@ -381,34 +382,8 @@ class Chain(UserList, fgb.abc.FilterGraphObject):
             return fgb.Chain([*left, *self])
 
         return fgb.Graph(
-            [left, self], {i: (l, (1, *r[1:])) for i, (l, r) in enumerate(links)}
+            [left, self], {i: ((1, *r[1:]), l) for i, (l, r) in enumerate(links)}
         )
-
-    def get_chainable_input_pad(self) -> tuple[PAD_INDEX, fgb.Filter] | None:
-        """get first filter's input pad, which can be chained
-
-        :return: filter position, input pad poisition, and filter object.
-                 If the head filter is a source filter, returns None.
-        """
-
-        if not len(self):
-            return None
-        f = self[-1]
-        nin = f.get_num_inputs()
-        return ((0, nin - 1), f) if nin else None
-
-    def get_chainable_output_pad(self) -> tuple[PAD_INDEX, fgb.Filter] | None:
-        """get last filter's output pad, which can be chained
-
-        :return: filter position, output pad poisition, and filter object.
-                 If the tail filter is a sink filter, returns None.
-        """
-
-        if not len(self):
-            return None
-        f = self[-1]
-        nout = f.get_num_outputs()
-        return ((len(self) - 1, nout - 1), f) if nout else None
 
     def get_num_inputs(self) -> int:
         return len(list(self.iter_input_pads()))

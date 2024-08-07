@@ -41,7 +41,7 @@ def test_get_num_pads(cls, expr, nin, nout):
         (fgb.Filter, "vstack", None, None, 0, False, (0,)),
         (fgb.Filter, "vstack", None, None, 1, False, -2),
         (fgb.Filter, "vstack", None, None, None, False, (0,)),
-        (fgb.Filter, "color", None, None, None, False, -1),
+        (fgb.Filter, "color", None, None, None, False, None),
         (fgb.Chain, "split,vstack", None, None, None, False, (0, 0)),
         (fgb.Chain, "split,vstack", None, 1, None, False, (1, 0)),
         (fgb.Chain, "split,vstack", None, 1, None, True, (1, 1)),

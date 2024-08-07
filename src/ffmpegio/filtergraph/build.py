@@ -264,24 +264,54 @@ def attach(
         # resolve all the specified pad indices of the base object
         base_indices = [
             (
-                idx
-                if idx is None
-                else base._resolve_pad_index(idx, is_input=base_is_input)
+                # idx
+                # if idx is None
+                # else 
+                base._resolve_pad_index(
+                    idx,
+                    is_input=base_is_input,
+                    chain_id_omittable=True,
+                    filter_id_omittable=True,
+                    pad_id_omittable=True,
+                    resolve_omitted=False,
+                )
             )
             for idx in base_indices
         ]
 
-        # assign unspecified left pads
-        base_def = [idx for idx in base_indices if idx is not None]
-        iter_base_pads = (
-            base.iter_input_pads if base_is_input else base.iter_output_pads
-        )
-        it_base_pad = (
-            idx for idx in iter_base_pads(full_pad_index=True) if idx not in base_def
-        )
-        base_indices = [
-            next(it_base_pad)[0] if idx is None else idx for idx in base_indices
+        # assign unknown pad indices in the order of the following ranking:
+        # indices ranking
+        # - int, int, int    = 3*6 = 18
+        # - int, int, None   = 2*5 = 10
+        # - int, None, int   = 2*4 = 8
+        # - None, int, int   = 2*3 = 6
+        # - int, None, None  = 1*3 = 3
+        # - None, int, None  = 1*2 = 2
+        # - None, None, int  = 1*1 = 1
+        # - None, None, None = 0*0 = 0
+
+        index_scores = [
+            (sum(i is not None for i in index)
+            * sum((3 - j) for j, i in enumerate(index) if i is not None))
+            for index in base_indices
         ]
+        index_assign_order = sorted(
+            range(len(index_scores)), key=index_scores.__getitem__, reverse=True
+        )
+
+        next_base_pad = base.next_input_pad if base_is_input else base.next_output_pad
+        base_def = []
+        for i in index_assign_order:
+            if index_scores[i] < 18:
+                chain, filter, pad = base_indices[i]
+                pad = next_base_pad(
+                    chain=chain, filter=filter, pad=pad, full_pad_index=True, exclude_indices=base_def
+                )
+                if pad is None:
+                    raise ValueError("No more available filter pad found.")
+                base_indices[i] = pad
+
+            base_def.append(base_indices[i])
 
         # resolve the specified attaching pad indices
         get_branch_pad = "next_output_pad" if base_is_input else "next_input_pad"

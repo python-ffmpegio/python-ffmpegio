@@ -127,9 +127,9 @@ def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, 
     "op, lhs,rhs,expected",
     [
         # fmt:off
-        (operator.__add__, fgb.Chain("scale"), "overlay", "scale[L0];[L0]overlay"),
-        (operator.__add__, "scale", fgb.Chain("overlay"), "scale[L0];[L0]overlay"),
-        (operator.__rshift__, fgb.Chain("split"), "hflip", "split[L0];[L0]hflip"),
+        (operator.__add__, fgb.Chain("scale"), "overlay", "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__add__, "scale", fgb.Chain("overlay"), "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__rshift__, fgb.Chain("split"), "hflip", "[UNC0]split[L0][UNC1];[L0]hflip[UNC2]"),
         (operator.__rshift__, fgb.Chain("split"), (1, "overlay"), "split[L0];[L0]overlay"),
         (operator.__rshift__, fgb.Chain("split"), (1, "[in]overlay"), "split[in];[in]overlay"),
         (operator.__rshift__, fgb.Chain("split"), (1, 1, "overlay"), "split[L0];[L0]overlay"),

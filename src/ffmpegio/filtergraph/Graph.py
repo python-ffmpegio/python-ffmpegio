@@ -20,7 +20,7 @@ from .GraphLinks import GraphLinks
 __all__ = ["Graph"]
 
 
-class Graph(UserList, fgb.abc.FilterGraphObject):
+class Graph(fgb.abc.FilterGraphObject, UserList):
     """List of FFmpeg filterchains in parallel with interchain link specifications
 
     Graph() to instantiate empty Graph object
@@ -86,21 +86,20 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
     ):
 
         # convert str to a list of filter_specs
-        if isinstance(filter_specs, str):
-            filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-        elif isinstance(filter_specs, Graph):
+        if isinstance(filter_specs, fgb.Graph):
             links = filter_specs._links
             sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
         elif isinstance(filter_specs, fgb.Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
-        elif isinstance(filter_specs, fgb.Filter):
-            filter_specs = [[filter_specs]]
+        else:
+            if isinstance(filter_specs, fgb.Filter):
+                filter_specs = [[filter_specs]]
+            elif isinstance(filter_specs, str):
+                filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
 
-        super().__init__(
-            ()
-            if filter_specs is None or not len(filter_specs)
-            else (fgb.Chain(fspec) for fspec in filter_specs)
-        )
+            filter_specs = (fgb.Chain(fspec) for fspec in filter_specs)
+
+        UserList.__init__(self, () if filter_specs is None else filter_specs)
 
         self._links = GraphLinks(links)
         """utils.fglinks.GraphLinks: filtergraph link specifications
@@ -271,7 +270,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
 """
 
     def __setitem__(self, key, value):
-        super().__setitem__(key, fgb.as_filterchain(value, copy=True))
+        UserList.__setitem__(self, key, fgb.as_filterchain(value, copy=True))
         # TODO purge invalid links
 
     def __getitem__(self, key):
@@ -283,13 +282,13 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
         :rtype: Graph|Chain|Filter
         """
         try:
-            return super().__getitem__(key)
+            return UserList.__getitem__(self, key)
         except (IndexError, StopIteration) as e:
             raise e
         except Exception as e:
             try:
                 assert len(key) == 2 and all((isinstance(k, int) for k in key))
-                return super().__getitem__(key[0])[key[1]]
+                return UserList.__getitem__(self, key[0])[key[1]]
             except:
                 raise TypeError(
                     "Graph indies must be integers, slices, or 2-element tuple of int"
@@ -327,7 +326,7 @@ class Graph(UserList, fgb.abc.FilterGraphObject):
                     pos = i.start
                     len = len(self.data) - n
 
-        super().__delitem__(i)
+        UserList.__delitem__(self, i)
 
     def iter_chains(
         self,

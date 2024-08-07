@@ -59,6 +59,7 @@ class FilterGraphObject(ABC):
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
+        exclude_indices: Sequence[PAD_INDEX] | None = None,
     ) -> PAD_INDEX | None:
         """get next available input pad
 
@@ -69,20 +70,29 @@ class FilterGraphObject(ABC):
         :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :param full_pad_index: True to return 3-element index, defaults to False
+        :param exclude_indices: List pad indices to skip, defaults to None to allow all
         :returns: The index of the pad or ``None`` if no pad found
         """
+
+        if exclude_indices is None:
+            exclude_indices = ()
+
         try:
             return next(
-                self.iter_input_pads(
-                    pad,
-                    filter,
-                    chain,
-                    chainable_first=chainable_first,
-                    unlabeled_only=unlabeled_only,
-                    chainable_only=chainable_only,
-                    full_pad_index=full_pad_index,
+                (
+                    idx
+                    for idx, *_ in self.iter_input_pads(
+                        pad,
+                        filter,
+                        chain,
+                        chainable_first=chainable_first,
+                        unlabeled_only=unlabeled_only,
+                        chainable_only=chainable_only,
+                        full_pad_index=full_pad_index,
+                    )
+                    if idx not in exclude_indices
                 )
-            )[0]
+            )
         except StopIteration:
             return None
 
@@ -95,6 +105,7 @@ class FilterGraphObject(ABC):
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
+        exclude_indices: Sequence[PAD_INDEX] | None = None,
     ) -> PAD_INDEX | None:
         """get next available output pad
 
@@ -105,11 +116,17 @@ class FilterGraphObject(ABC):
         :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :param full_pad_index: True to return 3-element index, defaults to False
+        :param exclude_indices: List pad indices to skip, defaults to None to allow all
         :returns: The index of the pad or ``None`` if no pad found
         """
+
+        if exclude_indices is None:
+            exclude_indices = ()
+
         try:
             return next(
-                self.iter_output_pads(
+                idx
+                for idx, *_ in self.iter_output_pads(
                     pad,
                     filter,
                     chain,
@@ -118,7 +135,8 @@ class FilterGraphObject(ABC):
                     chainable_only=chainable_only,
                     full_pad_index=full_pad_index,
                 )
-            )[0]
+                if idx not in exclude_indices
+            )
         except StopIteration:
             return None
 
@@ -808,6 +826,9 @@ class FilterGraphObject(ABC):
                 try:
                     index = next(
                         iter_pads(
+                            chain=index[0],
+                            filter=index[1],
+                            pad=index[2],
                             chainable_first=chainable_first,
                             chainable_only=chainable_only,
                         )
