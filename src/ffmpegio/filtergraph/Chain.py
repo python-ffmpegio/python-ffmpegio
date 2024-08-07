@@ -39,7 +39,6 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         else:
             if isinstance(filter_specs, str):
                 filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-                filter_specs = filter_specs[0]
                 if links:
                     raise ValueError(
                         "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
@@ -52,6 +51,8 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
                     raise ValueError(
                         "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
                     )
+                filter_specs = filter_specs[0]
+
             filter_specs = (fgb.as_filter(fspec) for fspec in filter_specs)
 
         UserList.__init__(self, () if filter_specs is None else filter_specs)

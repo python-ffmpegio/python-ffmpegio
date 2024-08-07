@@ -663,17 +663,17 @@ class FilterGraphObject(ABC):
                 else:
                     index, other = other
                     other_index = None
-
             else:
-                index = None
-                other_index = None
+                index = other_index = None
 
             return other, index, other_index
 
         # if output is a list
         if isinstance(other, list):
             # match the pad indices first
-            right, left_on, right_on = zip(*(parse_other(o) for o in other))
+            right, left_on, right_on = [
+                [*t] for t in zip(*(parse_other(o) for o in other))
+            ]
         else:
             # parse other argument, separate the indices if given
             right, left_on, right_on = parse_other(other)
@@ -709,21 +709,21 @@ class FilterGraphObject(ABC):
         def parse_other(other):
             if isinstance(other, tuple):
                 if len(other) > 2:
-                    index, other_index, other = other
+                    other, other_index, index = other
                 else:
-                    index, other = other
+                    other, index = other
                     other_index = None
-
             else:
-                index = None
-                other_index = None
+                index = other_index = None
 
             return other, index, other_index
 
         # if output is a list
         if isinstance(other, list):
             # match the pad indices first
-            left, right_on, left_on = zip(*(parse_other(o) for o in other))
+            left, right_on, left_on = [
+                [*t] for t in zip(*(parse_other(o) for o in other))
+            ]
         else:
             # parse other argument, separate the indices if given
             left, right_on, left_on = parse_other(other)
