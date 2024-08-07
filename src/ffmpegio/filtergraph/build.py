@@ -266,7 +266,7 @@ def attach(
             (
                 # idx
                 # if idx is None
-                # else 
+                # else
                 base._resolve_pad_index(
                     idx,
                     is_input=base_is_input,
@@ -291,8 +291,10 @@ def attach(
         # - None, None, None = 0*0 = 0
 
         index_scores = [
-            (sum(i is not None for i in index)
-            * sum((3 - j) for j, i in enumerate(index) if i is not None))
+            (
+                sum(i is not None for i in index)
+                * sum((3 - j) for j, i in enumerate(index) if i is not None)
+            )
             for index in base_indices
         ]
         index_assign_order = sorted(
@@ -305,7 +307,11 @@ def attach(
             if index_scores[i] < 18:
                 chain, filter, pad = base_indices[i]
                 pad = next_base_pad(
-                    chain=chain, filter=filter, pad=pad, full_pad_index=True, exclude_indices=base_def
+                    chain=chain,
+                    filter=filter,
+                    pad=pad,
+                    full_pad_index=True,
+                    exclude_indices=base_def,
                 )
                 if pad is None:
                     raise ValueError("No more available filter pad found.")
@@ -314,15 +320,17 @@ def attach(
             base_def.append(base_indices[i])
 
         # resolve the specified attaching pad indices
-        get_branch_pad = "next_output_pad" if base_is_input else "next_input_pad"
         branch_indices = [
             (
                 idx
                 if isinstance(robj, str)
-                else (
-                    getattr(robj, get_branch_pad)(full_pad_index=True)
-                    if idx is None
-                    else robj._resolve_pad_index(idx, is_input=not base_is_input)
+                else robj._resolve_pad_index(
+                    idx,
+                    is_input=not base_is_input,
+                    chain_id_omittable=True,
+                    filter_id_omittable=True,
+                    pad_id_omittable=True,
+                    resolve_omitted=True,
                 )
             )
             for robj, idx in zip(branches, branch_indices, strict=True)
