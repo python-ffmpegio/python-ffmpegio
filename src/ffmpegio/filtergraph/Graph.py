@@ -97,6 +97,11 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             elif isinstance(filter_specs, str):
                 filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
 
+            if any(not len(fspec) for fspec in filter_specs):
+                raise ValueError(
+                    "An empty filterchain found. All chains must be populated."
+                )
+
             filter_specs = (fgb.Chain(fspec) for fspec in filter_specs)
 
         UserList.__init__(self, () if filter_specs is None else filter_specs)
@@ -294,21 +299,35 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                     "Graph indies must be integers, slices, or 2-element tuple of int"
                 )
 
-    def append(self, item):
-        self.data.append(fgb.as_filterchain(item, copy=True))
+    def append(self, item: fgb.Chain | str):
 
-    def extend(self, other, auto_link=False, force_link=False):
+        fc = fgb.as_filterchain(item, copy=True)
+        if not len(fc):
+            raise ValueError("Empty filterchain cannot be appended to filtergraph.")
+        self.data.append(fc)
+
+    def extend(
+        self,
+        other: Sequence[fgb.Chain | str] | fgb.FilterGraph,
+        auto_link: bool = False,
+        force_link: bool = False,
+    ):
         other = fgb.as_filtergraph(other)
+        if any(not len(c) for c in other):
+            raise ValueError("Empty filterchain cannot be appended to filtergraph.")
         self._links.update(
             other._links, len(self), auto_link=auto_link, force=force_link
         )
-        self.data.extend(other)
+        self.data.extend(other.data)
 
-    def insert(self, i, item):
-        self.data.insert(i, fgb.as_filterchain(item))
+    def insert(self, i: int, item: fgb.Chain | str):
+        fc = fgb.as_filterchain(item)
+        if not len(fc):
+            raise ValueError("Empty filterchain cannot be appended to filtergraph.")
+        self.data.insert(i, fc)
         self._links.adjust_chains(i, 1)
 
-    def __delitem__(self, i):
+    def __delitem__(self, i:int):
         # identify which indices are to be deleted
 
         indices = range(len(self.data))[i]
@@ -317,6 +336,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             self._links.iter_dsts()
             self._links.adjust_chains(i, -1)
         else:  # slice
+            raise NotImplementedError('deletion by slice is not yet supported')
 
             indices = sorted(indices)
 

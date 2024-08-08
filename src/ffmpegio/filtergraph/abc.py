@@ -39,9 +39,9 @@ class FilterGraphObject(ABC):
         :return: number of output pads
         """
 
+    @abstractmethod
     def get_num_chains(self) -> int:
         """get the number of chains"""
-        return 1
 
     @abstractmethod
     def get_num_filters(self, chain: int) -> int:
@@ -582,6 +582,7 @@ class FilterGraphObject(ABC):
 
         return self._stack(other, auto_link, replace_sws_flags)
 
+    @abstractmethod
     def _stack(
         self,
         other: fgb.abc.FilterGraphObject,
@@ -589,8 +590,6 @@ class FilterGraphObject(ABC):
         replace_sws_flags: bool | None = None,
     ) -> fgb.Graph:
         """stack another Graph to this Graph (no var check)"""
-
-        return fgb.as_filtergraph(self)._stack(other, auto_link, replace_sws_flags)
 
     @abstractmethod
     def __getitem__(self, key): ...

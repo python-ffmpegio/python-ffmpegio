@@ -111,6 +111,7 @@ from .convert import (
     as_filterchain,
     as_filtergraph,
     as_filtergraph_object,
+    as_filtergraph_object_like,
     atleast_filterchain,
 )
 from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
@@ -123,6 +124,7 @@ __all__ = [
     "as_filterchain",
     "as_filtergraph",
     "as_filtergraph_object",
+    "as_filtergraph_object_like",
     "atleast_filterchain",
     "connect",
     "join",

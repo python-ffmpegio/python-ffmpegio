@@ -36,7 +36,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
         if isinstance(filter_specs, fgb.Filter):
             filter_specs = [filter_specs]
-        else:
+        elif filter_specs is not None:
             if isinstance(filter_specs, str):
                 filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
                 if links:
@@ -79,6 +79,10 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
     def __setitem__(self, key, value):
         UserList.__setitem__(self, key, fgb.as_filter(value))
+
+    def get_num_chains(self) -> int:
+        """get the number of chains"""
+        return len(self)
 
     def get_num_filters(self, chain: int) -> int:
         """get the number of filters of the specfied chain
@@ -388,6 +392,25 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         return fgb.Graph(
             [left, self], {i: ((1, *r[1:]), l) for i, (l, r) in enumerate(links)}
         )
+
+    def _stack(
+        self,
+        other: fgb.abc.FilterGraphObject,
+        auto_link: bool = False,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph to this Graph (no var check)"""
+
+        other = fgb.atleast_filterchain(other)
+
+        # if other is not a filter, elevate self to match first
+        return (
+            fgb.Graph([self, other])
+            if isinstance(other, fgb.Chain)
+            else fgb.Graph(self)._stack(other, auto_link, replace_sws_flags)
+        )
+
+        return fgb.as_filtergraph(self)._stack(other, auto_link, replace_sws_flags)
 
     def get_num_inputs(self) -> int:
         return len(list(self.iter_input_pads()))

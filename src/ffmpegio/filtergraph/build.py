@@ -131,6 +131,12 @@ def join(
     left = fgb.as_filtergraph_object(left)
     right = fgb.as_filtergraph_object(right)
 
+    # handle joining empty graph
+    if not right.get_num_chains():
+        return left
+    if not left.get_num_chains():
+        return right
+
     iter_kws = {"unlabeled_only": unlabeled_only, "full_pad_index": True}
     if how == "chainable":
         iter_kws["chainable_only"] = True
@@ -381,16 +387,25 @@ def stack(
     TO-CHECK/TO-DO: what happens if common link labels are already linked
     """
 
-    if len(fgs) == 0:
+    it = iter(fg for fg in fgs if fg.get_num_chains())
+    try:
+        fg = next(it)
+    except StopIteration:
         return fgb.Graph()
 
-    if len(fgs)==1:
-        return fgs[0]
-
-    fg = fgb.as_filtergraph(fgs[0])
-
     replace_sws_flags = None
-    for other in fgs[1:]:
+
+    try:
+        fg1 = next(it)
+    except StopIteration:
+        return fg
+    except:
+        fg = fgb.as_filtergraph(fg)
+        if use_last_sws_flags is not None:
+            replace_sws_flags = True if fg.sws_flags is None else use_last_sws_flags
+        fg = fg._stack(fg1, auto_link, replace_sws_flags)
+
+    for other in it:
         if use_last_sws_flags is not None:
             replace_sws_flags = True if fg.sws_flags is None else use_last_sws_flags
         fg = fg._stack(fgb.as_filtergraph_object(other), auto_link, replace_sws_flags)

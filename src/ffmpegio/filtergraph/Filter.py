@@ -440,6 +440,10 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             raise ValueError(f"{chain=} is invalid. Filter object only has 1 chain.")
         return 1
 
+    def get_num_chains(self) -> int:
+        """get the number of chains"""
+        return 1
+
     def add_label(
         self,
         label: str,
@@ -696,6 +700,40 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
         return fgb.Graph(
             [[left], [self]],
             {i: (l, (1, 0, r[2])) for i, (l, r) in enumerate(links)},
+        )
+
+    def _stack(
+        self,
+        other: fgb.abc.FilterGraphObject,
+        auto_link: bool = False,
+        replace_sws_flags: bool | None = None,
+    ) -> fgb.Graph:
+        """stack another Graph to this Graph
+
+        :param other: other filtergraph
+        :param auto_link: True to connect matched I/O labels, defaults to None
+        :param replace_sws_flags: True to use other's sws_flags if present,
+                                  False to ignore other's sws_flags,
+                                  None to throw an exception (default)
+        :return: new filtergraph object
+
+        Remarks
+        -------
+        - extend() and import links
+        - If `auto-link=False`, common labels may be renamed.
+        - For more explicit linking rather than the auto-linking, use `connect()` instead.
+
+        TO-CHECK/TO-DO: what happens if common link labels are already linked
+        """
+
+        other = fgb.as_filtergraph_object(other)
+        # if other is not a filter, elevate self to match first
+        return (
+            fgb.Graph([[self], [other]])
+            if isinstance(other, fgb.Filter)
+            else fgb.as_filtergraph_object_like(self, other)._stack(
+                other, auto_link, replace_sws_flags
+            )
         )
 
     def apply(self, options, filter_id=None):

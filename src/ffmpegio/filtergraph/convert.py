@@ -128,6 +128,27 @@ def as_filtergraph_object(
         raise FiltergraphInvalidExpression from exc
 
 
+def as_filtergraph_object_like(
+    filter_specs: str | fgb.abc.FilterGraphObject,
+    like: fgb.abc.FilterGraphObject,
+    copy: bool = False,
+) -> fgb.abc.FilterGraphObject:
+    """Try to convert input filtergraph spec to match the type of like object
+
+    :param filter_spec: filtergraph expression or object.
+    :param like: reference filtergraph object to match the type
+    :param copy: True to copy even if the input is a Filter object.
+    :return: Filtergraph object of the same type as ``like`` object.
+             No copy is performed if the input is already a ``Graph`` and ``copy=False``.
+    """
+    otype = type(like)
+    return (
+        filter_specs
+        if not copy and isinstance(filter_specs, otype)
+        else otype(filter_specs)
+    )
+
+
 def atleast_filterchain(
     filter_specs: str | fgb.abc.FilterGraphObject, copy: bool = False
 ) -> fgb.Chain | fgb.Graph:
