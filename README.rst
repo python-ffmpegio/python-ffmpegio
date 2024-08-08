@@ -11,7 +11,7 @@
   :alt: PyPI - Python Version
 .. |github-license| image:: https://img.shields.io/github/license/python-ffmpegio/python-ffmpegio
   :alt: GitHub License
-.. |github-status| image:: https://img.shields.io/github/workflow/status/python-ffmpegio/python-ffmpegio/Run%20Tests
+.. |github-status| image:: https://img.shields.io/github/actions/workflow/status/python-ffmpegio/python-ffmpegio/test_n_pub.yml?branch=main
   :alt: GitHub Workflow Status
 
 Python `ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
