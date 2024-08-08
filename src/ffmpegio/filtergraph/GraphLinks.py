@@ -283,7 +283,8 @@ class GraphLinks(UserDict):
         if label is not None:
             del self.data[label]
         if outpad is not None:
-            for label in self.find_outpad_label(outpad):
+            label = self.find_outpad_label(outpad)
+            if label is not None:
                 del self.data[label]
         if inpad is not None:
             label = self.find_inpad_label(inpad)

@@ -613,13 +613,13 @@ class FilterGraphObject(ABC):
         """duplicate-n-stack"""
         if not isinstance(__n, int):
             return NotImplemented
-        return fgb.stack(*((self) * __n))
+        return fgb.stack(*((self,) * __n))
 
     def __rmul__(self, __n: int) -> fgb.Graph:
         """duplicate-n-stack"""
         if not isinstance(__n, int):
             return NotImplemented
-        return fgb.stack(*((self) * __n))
+        return fgb.stack(*((self,) * __n))
 
     def __or__(self, other: FilterGraphObject | str) -> fgb.Graph:
         """stack"""
@@ -657,7 +657,7 @@ class FilterGraphObject(ABC):
         """
 
         def parse_other(other):
-            if isinstance(other, tuple):
+            if not isinstance(other, fgb.Filter) and isinstance(other, tuple):
                 if len(other) > 2:
                     index, other_index, other = other
                 else:
@@ -707,7 +707,7 @@ class FilterGraphObject(ABC):
         """
 
         def parse_other(other):
-            if isinstance(other, tuple):
+            if not isinstance(other, fgb.Filter) and isinstance(other, tuple):
                 if len(other) > 2:
                     other, other_index, index = other
                 else:
@@ -901,8 +901,10 @@ class FilterGraphObject(ABC):
             if r_idx is None:  # label
                 fg.add_label(r, outpad=l_idx)
             else:
-                fg = fg._connect(r, [(l_idx, r_idx)], chain_siso=True)
-
+                out = fg._connect(r, [(l_idx, r_idx)], chain_siso=True)
+                if out == NotImplemented:
+                    out = r._rconnect(fg, [(l_idx, r_idx)], chain_siso=True)
+                fg = out
         return fg
 
     def _rattach(
@@ -919,15 +921,58 @@ class FilterGraphObject(ABC):
         :return: resulting filtergraph
         """
 
-        fg = (
-            fgb.as_filtergraph(self)
-            if any(idx is None for idx in left_on)
-            else fgb.atleast_filterchain(self)
-        )
+        # fg = (
+        #     fgb.as_filtergraph(self)
+        #     if any(idx is None for idx in left_on)
+        #     else fgb.atleast_filterchain(self)
+        # )
+
+        if not len(left):
+            return type(self)(self)
+
+        # find chain offset after stacking
+        nleft = 0
+        n0 = [
+            0,
+            *(
+                nleft := nleft + (0 if l_idx is None else (l.get_num_chains()))
+                for l, l_idx in zip(left, left_on)
+            ),
+        ]
+
+        # combine the left filtergraphs first
+        fg = fgb.stack(*(l for l in left if not isinstance(l, str)))
+
+        # adjust left pad indices
+        left_on = [idx and (idx[0] + n, *idx[1:]) for idx, n in zip(left_on, n0)]
+
+        if len(fg):
+            # connect stacked left and right
+            out = fg._connect(
+                self,
+                [
+                    (lidx, ridx)
+                    for lidx, ridx in zip(left_on, right_on)
+                    if lidx is not None
+                ],
+                chain_siso=True,
+            )
+            if out == NotImplemented:
+                out = self._rconnect(
+                    fg,
+                    [
+                        (lidx, ridx)
+                        for lidx, ridx in zip(left_on, right_on)
+                        if lidx is not None
+                    ],
+                    chain_siso=True,
+                )
+        else:
+            out = fgb.as_filtergraph(self)
+
+        # add labels to the combined graph
         for l, l_idx, r_idx in zip(left, left_on, right_on):
             if l_idx is None:  # label
-                fg.add_label(l, inpad=r_idx)
-            else:
-                fg = fg._rconnect(l, [(l_idx, r_idx)], chain_siso=True)
+                out.add_label(l, inpad=(r_idx[0] + nleft, *r_idx[1:]))
 
-        return fg
+        return out

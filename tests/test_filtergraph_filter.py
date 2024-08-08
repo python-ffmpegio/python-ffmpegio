@@ -219,69 +219,21 @@ def test_apply():
 @pytest.mark.parametrize(
     "op, lhs,rhs,expected",
     [
-        (
-            operator.__add__,
-            fgb.Filter("scale"),
-            "overlay",
-            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
-        ),
-        (
-            operator.__add__,
-            "scale",
-            fgb.Filter("overlay"),
-            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
-        ),
-        (operator.__rshift__, fgb.Filter("split"), "hflip", "split[L0];[L0]hflip"),
-        (
-            operator.__rshift__,
-            fgb.Filter("split"),
-            (1, "overlay"),
-            "split[L0];[L0]overlay",
-        ),
-        (
-            operator.__rshift__,
-            fgb.Filter("split"),
-            (1, "[in]overlay"),
-            "split[in];[in]overlay",
-        ),  # X
-        (
-            operator.__rshift__,
-            fgb.Filter("split"),
-            (1, 1, "overlay"),
-            "split[L0];[L0]overlay",
-        ),
-        (
-            operator.__rshift__,
-            fgb.Filter("split"),
-            (None, "[over]", "[base][over]overlay"),
-            "split[over];[base][over]overlay",
-        ),  # X
-        (operator.__rshift__, "hflip", fgb.Filter("overlay"), "hflip[L0];[L0]overlay"),
-        (
-            operator.__rshift__,
-            ("split", 1),
-            fgb.Filter("overlay"),
-            "split[L0];[L0]overlay",
-        ),  # X
-        (
-            operator.__rshift__,
-            ("split", (0, 1)),
-            fgb.Filter("overlay"),
-            "split[L0];[L0]overlay",
-        ),  # X
-        (
-            operator.__rshift__,
-            ("split[out]", 1),
-            fgb.Filter("overlay"),
-            "split[out];[out]overlay",
-        ),  # X
-        (
-            operator.__rshift__,
-            ("split[out]", "[out]", None),
-            fgb.Filter("overlay"),
-            "split[out];[out]overlay",
-        ),  # X
+        #fmt:off
+        (operator.__add__, fgb.Filter("scale"), "overlay", "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__add__, "scale", fgb.Filter("overlay"), "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__rshift__, fgb.Filter("split"), "hflip", "[UNC0]split[L0][UNC1];[L0]hflip[UNC2]"),
+        (operator.__rshift__, fgb.Filter("split"), (1, "overlay"), "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]"),
+        (operator.__rshift__, fgb.Filter("split"), (1, "[in]overlay"), "[UNC0]split[UNC2][in];[in][UNC1]overlay[UNC3]"),  # X
+        (operator.__rshift__, fgb.Filter("split"), (1, 1, "overlay"), "[UNC0]split[UNC2][L0];[UNC1][L0]overlay[UNC3]"),
+        (operator.__rshift__, fgb.Filter("split"), (None, "[over]", "[base][over]overlay"), "[UNC0]split[over][UNC1];[base][over]overlay[UNC2]"),  # X
+        (operator.__rshift__, "hflip", fgb.Filter("overlay"), "[UNC0]hflip[L0];[L0][UNC1]overlay[UNC2]"),
+        (operator.__rshift__, ("split", 1), fgb.Filter("overlay"), "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]"),  # X
+        (operator.__rshift__, ("split", (0, 1)), fgb.Filter("overlay"), "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]"),  # X
+        (operator.__rshift__, ("split[out]", 1), fgb.Filter("overlay"), "[UNC0]split[out][UNC2];[UNC1][out]overlay[UNC3]"),  # X
+        (operator.__rshift__, ("split[out]", "[out]", None), fgb.Filter("overlay"), "[UNC0]split[out][UNC2];[out][UNC1]overlay[UNC3]"),  # X
         # (operator.__rshift__, fgb.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
+        #fmt:on
     ],
 )
 def test_ops(op, lhs, rhs, expected):

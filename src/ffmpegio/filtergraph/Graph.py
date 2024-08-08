@@ -91,7 +91,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             sws_flags = filter_specs.sws_flags and filter_specs.sws_flags[1:]
         elif isinstance(filter_specs, fgb.Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
-        else:
+        elif filter_specs is not None:
             if isinstance(filter_specs, fgb.Filter):
                 filter_specs = [[filter_specs]]
             elif isinstance(filter_specs, str):
@@ -884,13 +884,14 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                     and self[outpad[:2]].get_num_outputs() == 1
                 ):  # if chainable
                     fg = fgb.Graph(self)
+                    fg.unlink(outpad=links[0][0])
                     fg[outpad[0]].extend(right_chain)
                     return fg
 
         right = fgb.as_filtergraph(right)
 
         # sift through the connections for chainable and unchainables
-        n0 = len(self)  # chain index offset
+        n0 = self.get_num_chains()  # chain index offset
 
         # stack 2 filtergraphs
         fg = self._stack(right, False, replace_sws_flags)
@@ -939,6 +940,20 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                     fg[inpad[0]] = [*left_chain, *fg[inpad[0]]]
                     fg._links.adjust_filter_ids(inpad[0], 0, len(left_chain))
                     return fg
+
+        left = fgb.as_filtergraph(left)
+
+        # sift through the connections for chainable and unchainables
+        n0 = len(left)  # chain index offset
+
+        # stack 2 filtergraphs
+        fg = left._stack(self, False, replace_sws_flags)
+
+        # link marked chains
+        for outpad, inpad in links:
+            fg._links.link((inpad[0] + n0, *inpad[1:]), outpad)
+
+        return fg
 
         return fgb.as_filtergraph(left)._connect(
             self, links, chain_siso, replace_sws_flags

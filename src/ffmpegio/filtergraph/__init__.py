@@ -105,7 +105,7 @@ from . import abc
 from .Filter import Filter
 from .Chain import Chain
 from .Graph import Graph
-from .build import connect, join, attach
+from .build import connect, join, attach, stack, concatenate
 from .convert import (
     as_filter,
     as_filterchain,
@@ -127,6 +127,8 @@ __all__ = [
     "connect",
     "join",
     "attach",
+    "stack",
+    "concatenate",
     "Filter",
     "Chain",
     "Graph",

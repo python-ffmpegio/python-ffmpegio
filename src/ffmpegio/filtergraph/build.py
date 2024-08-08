@@ -8,7 +8,7 @@ from .typing import PAD_INDEX, JOIN_HOW
 from .exceptions import FiltergraphMismatchError, FiltergraphInvalidExpression
 from .. import filtergraph as fgb
 
-__all__ = ["connect", "join", "attach"]
+__all__ = ["connect", "join", "attach", "stack", "concatenate"]
 
 
 def connect(
@@ -384,7 +384,10 @@ def stack(
     if len(fgs) == 0:
         return fgb.Graph()
 
-    fg = fgb.as_filtergraph(True)
+    if len(fgs)==1:
+        return fgs[0]
+
+    fg = fgb.as_filtergraph(fgs[0])
 
     replace_sws_flags = None
     for other in fgs[1:]:

@@ -204,17 +204,20 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
         # iterate over all filters
         for i, f in enumerate(filters):
-            no_chainables = not include_connected and (
-                exclude_chainable or i != i_nochain
+            no_chainables = (not include_connected and i != i_nochain) or (
+                exclude_chainable and i == i_nochain
             )
-            for pidx, f, other_pidx in iter_filter_pad(
-                f,
-                pad,
-                exclude_chainable=no_chainables,
-                chainable_first=chainable_first,
-                chainable_only=chainable_only,
-            ):
-                yield (i + i_first, *pidx), f, other_pidx
+            try:
+                for pidx, f, other_pidx in iter_filter_pad(
+                    f,
+                    pad,
+                    exclude_chainable=no_chainables,
+                    chainable_first=chainable_first,
+                    chainable_only=chainable_only,
+                ):
+                    yield (i + i_first, *pidx), f, other_pidx
+            except FiltergraphInvalidIndex:
+                pass
 
     def iter_input_pads(
         self,

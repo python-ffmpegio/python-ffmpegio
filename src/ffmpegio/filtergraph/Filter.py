@@ -15,7 +15,7 @@ from .exceptions import *
 __all__ = ["Filter"]
 
 
-class Filter(tuple, fgb.abc.FilterGraphObject):
+class Filter(fgb.abc.FilterGraphObject, tuple):
     """FFmpeg filter definition immutable class
 
     :param filter_spec: _description_
@@ -127,7 +127,7 @@ class Filter(tuple, fgb.abc.FilterGraphObject):
         return tuple.__new__(Filter, proto)
 
     def __getitem__(self, key):
-        value = super().__getitem__(key)
+        value = tuple.__getitem__(self, key)
 
         if isinstance(value, dict):
             value = {**value}

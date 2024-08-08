@@ -190,10 +190,10 @@ def test_resolve_pad_index(
 @pytest.mark.parametrize(
     "fg,fc,left_on,right_on,out",
     [
-        ("fps;crop", "trim", None, None, "[UNC0]fps,trim[UNC1];[UNC2]crop[UNC3]"),
-        ("fps[out];crop", "trim", None, None, "fps,trim;crop"),
-        ("fps;crop", "trim", (1, 0, 0), None, "fps;crop,trim"),
-        ("fps;crop[out]", "trim", "out", None, "fps;crop,trim"),
+        ("fps;crop", "trim", None, None, "[UNC0]fps,trim[UNC2];[UNC1]crop[UNC3]"),
+        ("fps[out];crop", "trim", None, None, "[UNC0]fps,trim[UNC2];[UNC1]crop[UNC3]"),
+        ("fps;crop", "trim", (1, 0, 0), None, "[UNC0]fps[UNC2];[UNC1]crop,trim[UNC3]"),
+        ("fps;crop[out]", "trim", "out", None, "[UNC0]fps[UNC2];[UNC1]crop,trim[UNC3]"),
         (
             fgb.Graph(["fps", "crop"], {"out": ((None, (1, 0, 0)), (0, 0, 0))}),
             "trim",
@@ -202,20 +202,20 @@ def test_resolve_pad_index(
             None,
         ),
         (
-             fgb.Graph(["fps", "crop"], {"out": ((None, None), (0, 0, 0))}),
+             fgb.Graph(["fps", "crop"], {"out": (None, (0, 0, 0))}),
             "trim",
             "out",
             None,
-            "fps,trim;crop",
+            "[UNC0]fps,trim[UNC2];[UNC1]crop[UNC3]",
         ),
-        ("fps[L];[L]crop", "trim", None, None, "fps[L];[L]crop,trim"),
-        ("split=2[C];[C]crop", "trim", None, None, "split=2[C][L0];[C]crop;[L0]trim"),
+        ("fps[L];[L]crop", "trim", None, None, "[UNC0]fps[L];[L]crop,trim[UNC1]"),
+        ("split=2[C];[C]crop", "trim", None, None, "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]"),
         (
             "split=2[C][out];[C]crop",
             "trim",
             "out",
             None,
-            "split=2[C][out];[C]crop;[out]trim",
+            "[UNC0]split=2[C][out];[C]crop[UNC1];[out]trim[UNC2]",
         ),
     ],
 )
@@ -399,6 +399,9 @@ def test_join(fg, r, how, match_scalar, ignore_labels, out):
         assert str(fg) == out
 
 
+def test_iter():
+    fg = fgb.Graph("[0:v][1:v]vstack=inputs=2,split=outputs=2")
+    [*fg.iter_output_pads(pad=1,full_pad_index=True)]
 # @pytest.mark.parametrize(
 #     "f1e,f2",
 #     [
@@ -420,30 +423,30 @@ def test_filter_arithmetics():
 
     fg2 = fgb.fps() | fgb.scale()
     assert isinstance(fg2, fgb.Graph)
-    assert str(fg2) == "fps;scale"
+    assert str(fg2) == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
 
     fg3 = fgb.setpts() * 3
     assert isinstance(fg3, fgb.Graph)
-    assert str(fg3) == "setpts;setpts;setpts"
+    assert str(fg3) == "[UNC0]setpts[UNC3];[UNC1]setpts[UNC4];[UNC2]setpts[UNC5]"
 
     assert str(("[in]" >> fgb.geq()) >> "[out]") == "[in]geq[out]"
     assert str("[in]" >> (fgb.geq() >> "[out]")) == "[in]geq[out]"
 
     assert (
-        str(["[0:v]", "[1:v]"] >> fgb.vstack(inputs=2)) == "[0:v][1:v]vstack=inputs=2"
+        str(["[0:v]", "[1:v]"] >> fgb.vstack(inputs=2)) == "[0:v][1:v]vstack=inputs=2[UNC0]"
     )
-    assert str(fgb.split(2) >> [(1, "[main]"), "[sub]"]) == "split=2[sub][main]"
+    assert str(fgb.split(2) >> [(1, "[main]"), "[sub]"]) == "[UNC0]split=2[sub][main]"
     fc = fgb.vstack(inputs=2) + fgb.split(outputs=2)
     assert (
         str([("[0:v]", 1), "[1:v]"] >> fc)
-        == "[1:v][0:v]vstack=inputs=2,split=outputs=2"
+        == "[1:v][0:v]vstack=inputs=2,split=outputs=2[UNC0][UNC1]"
     )
     assert (
-        str(fc >> ["[main]", "[sub]"]) == "vstack=inputs=2,split=outputs=2[main][sub]"
+        str(fc >> ["[main]", "[sub]"]) == "[UNC0][UNC1]vstack=inputs=2,split=outputs=2[main][sub]"
     )
     assert (
         str(["[0:v]", "[1:v]"] >> fgb.Graph(fc) >> [(1, "[main]"), "[sub]"])
-        == "[0:v][1:v]vstack=inputs=2,split=outputs=2[main][sub]"
+        == "[0:v][1:v]vstack=inputs=2,split=outputs=2[sub][main]"
     )
 
     fg1 = fgb.trim() >> fgb.crop()

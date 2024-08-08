@@ -140,7 +140,7 @@ def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, 
         (operator.__rshift__, ("split[out]",1), fgb.Chain("overlay"), "[UNC0]split[out][UNC2];[UNC1][out]overlay[UNC3]"),
         (operator.__rshift__, ("split[out]", '[out]',None), fgb.Chain("overlay"), "[UNC0]split[out][UNC2];[out][UNC1]overlay[UNC3]"),
         (operator.__rshift__, ["scale","fps"], fgb.Chain("hstack"), "[UNC0]scale[L0];[UNC1]fps[L1];[L0][L1]hstack[UNC2]"),
-        (operator.__rshift__, fgb.Chain("split"), ["[v1]","[v2]"], "[UNC0]split[v0][v1]"),
+        (operator.__rshift__, fgb.Chain("split"), ["[v1]","[v2]"], "[UNC0]split[v1][v2]"),
         # (operator.__rshift__, fgb.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
         # fmt:on
     ],
