@@ -237,30 +237,26 @@ def test_attach(fg, fc, left_on, right_on, out):
 
 
 @pytest.mark.parametrize(
-    "fg,fc,left_on,skip_named,out",
+    "right,left,right_on,out",
     [
-        ("fps;crop", "trim", None, None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
-        ("[in]fps;crop", "trim", None, None, "[UNC0]trim[in];[in]fps[UNC2];[UNC1]crop[UNC3]"),
-        ("fps;crop", "trim", (1, 0, 0), None, "trim,crop;fps"),
-        ("fps;[in]crop", "trim", "in", None, "trim,crop;fps"),
-        ("[L]fps;crop[L]", "trim", None, None, "[UNC0]trim[L0];[L]fps[UNC1];[L0]crop[L]"),
-        ("[C]overlay;crop[C]", "trim", None, None, "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]"),
-        (
-            "[C][in]overlay;crop[C]",
-            "trim",
-            "in",
-            None,
-            "trim[in];[C][in]overlay;crop[C]",
-        ),
+        # fmt: off
+        ("fps;crop", "trim", None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
+        ("[in]fps;crop", "trim", None, "[UNC0]trim[in];[in]fps[UNC2];[UNC1]crop[UNC3]"),
+        ("fps;crop", "trim", (1, 0, 0), "trim,crop;fps"),
+        ("fps;[in]crop", "trim", "in", "trim,crop;fps"),
+        ("[L]fps;crop[L]", "trim", None, "[UNC0]trim[L0];[L]fps[UNC1];[L0]crop[L]"),
+        ("[C]overlay;crop[C]", "trim", None, "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]"),
+        ("[C][in]overlay;crop[C]", "trim", "in", "trim[in];[C][in]overlay;crop[C]"),
+        # fmt: on
     ],
 )
-def test_rattach(fg, fc, left_on, skip_named, out):
-    fg = fgb.Graph(fg)
+def test_rattach(right, left, right_on, out):
+    fg = fgb.Graph(right)
     if out is None:
         with pytest.raises(fgb.Graph.Error):
-            fg = fg.rattach(fc, left_on, skip_named)
+            fg = fg.rattach(left, right_on=right_on)
     else:
-        fg = fg.rattach(fc, left_on, skip_named)
+        fg = fg.rattach(left, right_on=right_on)
         assert str(fg) == out
 
 

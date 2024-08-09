@@ -130,7 +130,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             raise ValueError(f"{chain=} is invalid.")
         return len(self[chain])
 
-    def _resolve_pad_index(
+    def resolve_pad_index(
         self,
         index_or_label: PAD_INDEX | str | None,
         *,
@@ -196,7 +196,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                 ) from exc
 
         # obtain 3-element tuple index (unvalidated)
-        return super()._resolve_pad_index(
+        return super().resolve_pad_index(
             index_or_label,
             is_input=is_input,
             chain_id_omittable=chain_id_omittable,
@@ -638,14 +638,14 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if label is not None:
             GraphLinks.validate_label(label, is_link=False, no_stream_spec=True)
         if inpad is not None:
-            inpad = self._resolve_pad_index(inpad, is_input=True)
+            inpad = self.resolve_pad_index(inpad, is_input=True)
             try:
                 f = self.data[inpad[0]][inpad[1]]
                 assert inpad[2] >= 0 and inpad[2] < f.get_num_inputs()
             except:
                 raise Graph.InvalidFilterPadId("input", inpad)
         if outpad is not None:
-            outpad = self._resolve_pad_index(outpad, is_input=False)
+            outpad = self.resolve_pad_index(outpad, is_input=False)
             try:
                 f = self.data[outpad[0]][outpad[1]]
                 assert outpad[2] >= 0 and outpad[2] < f.get_num_outputs()

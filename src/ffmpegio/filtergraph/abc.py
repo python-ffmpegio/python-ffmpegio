@@ -277,7 +277,7 @@ class FilterGraphObject(ABC):
         Raises error if specified label does not resolve uniquely to an input pad
         """
 
-        index = self._resolve_pad_index(index_or_label, is_input=True)
+        index = self.resolve_pad_index(index_or_label, is_input=True)
         return index, self._get_label(True, index)
 
     def get_output_pad(
@@ -293,7 +293,7 @@ class FilterGraphObject(ABC):
         Raises error if specified index does not resolve uniquely to an output pad
         """
 
-        index = self._resolve_pad_index(index_or_label, is_input=False)
+        index = self.resolve_pad_index(index_or_label, is_input=False)
         return index, self._get_label(False, index)
 
     @abstractmethod
@@ -729,7 +729,7 @@ class FilterGraphObject(ABC):
 
         return fgb.attach(left, self, left_on, right_on)
 
-    def _resolve_pad_index(
+    def resolve_pad_index(
         self,
         index_or_label: PAD_INDEX | str | None,
         *,
@@ -855,6 +855,95 @@ class FilterGraphObject(ABC):
             f"{index_or_label=} is either already connected or invalid {pad_type} pad."
         )
 
+    def resolve_pad_indices(
+        self,
+        indices_or_labels: Sequence[PAD_INDEX | str | None],
+        *,
+        is_input: bool = True,
+        resolve_omitted: bool = True,
+        chainable_first: bool = False,
+        unlabeled_only: bool = False,
+        chainable_only: bool = False,
+    ) -> list[PAD_INDEX]:
+        """Resolve unconnected labels or pad indices to full 3-element pad indices
+
+        :param indices_or_labels: a list of pad indices or pad labels or ``None`` to auto-select
+        :param is_input: True to resolve an input pad, else an output pad, defaults to True
+        :param chainable_first: if True, chainable pad is selected first, defaults to False
+        :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
+        :param chainable_only: True to only iterate chainable pads, defaults to False to return all pads
+
+        One and only one of ``index`` and ``label`` must be specified. If the given index
+        or label is invalid, it raises FiltergraphPadNotFoundError.
+
+        Omitted pads
+
+        """
+
+        # resolve all the specified pad indices of the self object
+        indices = [
+            (
+                self.resolve_pad_index(
+                    idx,
+                    is_input=is_input,
+                    chain_id_omittable=True,
+                    filter_id_omittable=True,
+                    pad_id_omittable=True,
+                    resolve_omitted=False,
+                )
+            )
+            for idx in indices_or_labels
+        ]
+
+        if resolve_omitted:
+
+            # assign unknown pad indices in the order of the following ranking:
+            # indices ranking
+            # - int, int, int    = 3*6 = 18
+            # - int, int, None   = 2*5 = 10
+            # - int, None, int   = 2*4 = 8
+            # - None, int, int   = 2*3 = 6
+            # - int, None, None  = 1*3 = 3
+            # - None, int, None  = 1*2 = 2
+            # - None, None, int  = 1*1 = 1
+            # - None, None, None = 0*0 = 0
+
+            index_scores = [
+                (
+                    sum(i is not None for i in index)
+                    * sum((3 - j) for j, i in enumerate(index) if i is not None)
+                )
+                for index in indices
+            ]
+            index_assign_order = sorted(
+                range(len(index_scores)), key=index_scores.__getitem__, reverse=True
+            )
+
+            next_base_pad = self.next_input_pad if is_input else self.next_output_pad
+            known_indices = set()
+            for i in index_assign_order:
+                if index_scores[i] < 18:
+                    chain, filter, pad = indices[i]
+                    pad = next_base_pad(
+                        chain=chain,
+                        filter=filter,
+                        pad=pad,
+                        chainable_first=chainable_first,
+                        unlabeled_only=unlabeled_only,
+                        chainable_only=chainable_only,
+                        full_pad_index=True,
+                        exclude_indices=known_indices,
+                    )
+                    if pad is None:
+                        raise ValueError("No more available filter pad found.")
+                    indices[i] = pad
+
+                known_indices.add(indices[i])
+        elif len(indices) != len(set(indices)):
+            raise FiltergrapDuplicatehPadFoundError()
+
+        return indices
+
     @abstractmethod
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         """index must be 3-element tuple"""
@@ -882,12 +971,15 @@ class FilterGraphObject(ABC):
         right: list[fgb.Filter | fgb.Chain | str],
         left_on: list[PAD_INDEX],
         right_on: list[PAD_INDEX | None],
+        right_first: bool,
     ) -> fgb.Chain | fgb.Graph:
         """helper function attach other filtergraph to this graph
 
         :param right: list of filter/chain objects or pad label strings
         :param left_on: list of output pad indices, matching the size of right
         :param right_on: list of input pad indices if object or None if label
+        :param right_first: True to preserve the chain indices of the right filtergraph object, defaults
+                            to False to preserve the chain order of the self object
         :return: resulting filtergraph
         """
 
@@ -900,9 +992,16 @@ class FilterGraphObject(ABC):
             if r_idx is None:  # label
                 fg.add_label(r, outpad=l_idx)
             else:
-                out = fg._connect(r, [(l_idx, r_idx)], chain_siso=True)
+                out = fg._connect(
+                    r, [(l_idx, r_idx)], chain_siso=True, right_first=right_first
+                )
                 if out == NotImplemented:
-                    out = r._rconnect(fg, [(l_idx, r_idx)], chain_siso=True)
+                    out = r._rconnect(
+                        fg,
+                        [(l_idx, r_idx)],
+                        chain_siso=True,
+                        left_first=not right_first,
+                    )
                 fg = out
         return fg
 
@@ -911,12 +1010,15 @@ class FilterGraphObject(ABC):
         left: list[fgb.Filter | fgb.Chain | str],
         left_on: list[PAD_INDEX | None],
         right_on: list[PAD_INDEX],
+        left_first: bool,
     ) -> fgb.Chain | fgb.Graph:
         """helper function attach other filtergraph to this graph
 
         :param right: list of filter/chain objects or pad label strings
         :param left_on: list of output pad indices if object or None if label, size must match that of left
         :param right_on: list of input pad indices, matching the size of left
+        :param right_first: True to preserve the chain indices of the left filtergraph object, defaults
+                            to False to preserve the chain order of the self object
         :return: resulting filtergraph
         """
 
