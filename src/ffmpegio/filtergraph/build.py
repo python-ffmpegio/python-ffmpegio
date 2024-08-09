@@ -69,8 +69,8 @@ def connect(
 def join(
     left: fgb.abc.FilterGraphObject | str,
     right: fgb.abc.FilterGraphObject | str,
-    how: JOIN_HOW = "per_chain",
-    n_links: int | Literal["all"] = "all",
+    how: JOIN_HOW | None = None,
+    n_links: int | Literal["all"] | None = None,
     strict: bool = False,
     unlabeled_only: bool = False,
     chain_siso: bool = True,
@@ -98,6 +98,11 @@ def join(
                                 None to throw an exception (default)
     :return: Graph with the appended filter chains or None if inplace=True.
     """
+
+    if how is None:
+        how = "per_chain"
+    if n_links is None:
+        n_links = "all"
 
     # auto-mode, 1-deep recursion
     if how == "auto":
@@ -399,7 +404,7 @@ def stack(
         fg1 = next(it)
     except StopIteration:
         return fg
-    except:
+    else:
         fg = fgb.as_filtergraph(fg)
         if use_last_sws_flags is not None:
             replace_sws_flags = True if fg.sws_flags is None else use_last_sws_flags

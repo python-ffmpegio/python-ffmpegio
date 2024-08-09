@@ -197,7 +197,7 @@ class GraphLinks(UserDict):
         inpad: PAD_INDEX,
         outpad: PAD_INDEX,
         label: str | None = None,
-        preserve_src_label: bool = False,
+        preserve_output_label: bool = False,
         force: bool = False,
     ) -> str | int:
         """set a filtergraph link
@@ -205,8 +205,7 @@ class GraphLinks(UserDict):
         :param inpad: input pad ids
         :param outpad: output pad id
         :param label: desired label name, defaults to None (=reuse inpad/outpad label or unnamed link)
-        :param preserve_src_label: True to keep existing output labels of outpad, defaults to False
-                                   to remove one output label of the outpad
+        :param preserve_output_label: True to use the existing output label over the input label, defaults to False
         :param force: True to drop conflicting existing link, defaults to False
         :return: assigned label of the created link. Unnamed links gets a
                  unique integer value assigned to it.
@@ -227,29 +226,26 @@ class GraphLinks(UserDict):
         if in_label is not None:
             if not (force or self.is_input(in_label)):
                 raise GraphLinks.Error(f"input pad {inpad} already linked.")
-            if force or isinstance(self.data[in_label][0][0], tuple):
+            if force or self.is_linked(in_label):
                 # if in_label has multi-inpads, cannot reuse it
                 self.unlink(inpad=inpad)
                 in_label = None
 
         # check if output label already exists. pick the first match
-        out_label = (
-            None
-            if preserve_src_label
-            else next(
-                (k for k, (d, s) in self.data.items() if d is None and s == outpad),
-                None,
-            )
-        )
+        out_label = self.find_outpad_label(outpad)
+        if out_label is not None:
+            if not force and self.is_linked(out_label):
+                raise GraphLinks.Error(f"output pad {outpad} already linked.")
+            if force and self.is_linked(out_label):
+                # if in_label has multi-inpads, cannot reuse it
+                self.unlink(outpad=outpad)
+                out_label = None
 
         # finalize the label name
         # if not defined by user, select new label to be inpad or outpad label if found
-        label = (
-            label
-            or (isinstance(in_label, str) and in_label)
-            or (isinstance(out_label, str) and out_label)
-            or None
-        )
+
+        if label is None:
+            label = out_label if preserve_output_label or in_label is None else in_label
 
         if not (in_label or out_label):
             # new label, register
@@ -636,6 +632,16 @@ class GraphLinks(UserDict):
                 if check_input_stream and not res and outpad is None
                 else res
             )
+
+    def chain_has_link(self, chain_id: int) -> bool:
+        """True if there is any link/label defined on the chain specified by its id"""
+        for inpads, outpad in self.values():
+            if outpad and outpad[0] == chain_id:
+                return True
+            for inpad in self.iter_inpad_ids(inpads):
+                if inpad[0] == chain_id:
+                    return True
+        return False
 
     def create_label(self, label, inpad=None, outpad=None, force=None):
         """label a filter pad

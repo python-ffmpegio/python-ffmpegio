@@ -327,26 +327,16 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         self.data.insert(i, fc)
         self._links.adjust_chains(i, 1)
 
-    def __delitem__(self, i:int):
-        # identify which indices are to be deleted
+    def __delitem__(self, i: int):
 
-        indices = range(len(self.data))[i]
-        if isinstance(indices, int):
-            (k for k, v in self._links.items() if v[1] is not None and v[1][0] == i)
-            self._links.iter_dsts()
-            self._links.adjust_chains(i, -1)
-        else:  # slice
-            raise NotImplementedError('deletion by slice is not yet supported')
+        if i < 0:
+            i += len(self)
 
-            indices = sorted(indices)
-
-            if i.step is not None and i.step == 1:
-                # contiguous
-                if i.start is not None:
-                    pos = i.start
-                    len = len(self.data) - n
-
+        # delete the chain
         UserList.__delitem__(self, i)
+
+        # delete all links with the specified chain
+        self._links.del_chain(i)
 
     def iter_chains(
         self,
@@ -620,7 +610,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         inpad: PAD_INDEX,
         outpad: PAD_INDEX,
         label: str | None = None,
-        preserve_src_label: bool = False,
+        preserve_output_label: bool = False,
         force: bool = False,
     ) -> str | int:
         """set a filtergraph link
@@ -628,8 +618,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         :param inpad: input pad ids
         :param outpad: output pad index
         :param label: desired label name, defaults to None (=reuse inpad/outpad label or unnamed link)
-        :param preserve_src_label: True to keep existing output labels of outpad, defaults to False
-                                   to remove one output label of the outpad
+        :param preserve_output_label: True to use the existing output label over the input label, defaults to False
         :param force: True to drop conflicting existing link, defaults to False
         :return: assigned label of the created link. Unnamed links gets a
                  unique integer value assigned to it.
@@ -663,7 +652,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             except:
                 raise Graph.InvalidFilterPadId("output", outpad)
 
-        return self._links.link(inpad, outpad, label, preserve_src_label, force)
+        return self._links.link(inpad, outpad, label, preserve_output_label, force)
 
     def add_label(
         self,
@@ -890,35 +879,54 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         """
 
-        if chain_siso and len(links) == 1:
+        fg = Graph(self)
+        right = fgb.as_filtergraph(right, copy=True)
 
-            outpad = links[0][0]
+        if chain_siso:
 
-            try:
-                right_chain = fgb.as_filterchain(right, copy=True)
-            except FiltergraphConversionError:
-                pass
-            else:
+            # chain links if chains
+            must_stack = [True] * len(links)
+            ichains = []
+
+            for i, (outpad, inpad) in enumerate(links):
+                (ochain, ofilter, _) = outpad
+                (ichain, ifilter, _) = inpad
                 if (
-                    right_chain[0].get_num_inputs() == 1
-                    and self[outpad[:2]].get_num_outputs() == 1
-                ):  # if chainable
-                    fg = fgb.Graph(self)
-                    fg.unlink(outpad=links[0][0])
-                    fg[outpad[0]].extend(right_chain)
-                    return fg
+                    fg[ochain].is_last_filter(ofilter)
+                    and fg[ochain, ofilter].get_num_outputs() == 1
+                    and ifilter == 0
+                    and right[ichain, ifilter].get_num_inputs() == 1
+                    and fg._links.find_outpad_label(outpad) is None
+                    and not right._links.chain_has_link(inpad[0])
+                ):
+                    if ichain in ichains:
+                        raise ValueError(f"Duplicate input pad given ({inpad})")
 
-        right = fgb.as_filtergraph(right)
+                    must_stack[i] = False
 
-        # sift through the connections for chainable and unchainables
-        n0 = self.get_num_chains()  # chain index offset
+                    # add the right chain to the matching left chain
+                    fg[ochain].extend(right[ichain])
+                    ichains.append(ichain)
 
-        # stack 2 filtergraphs
-        fg = self._stack(right, False, replace_sws_flags)
+            # remove attached chains from right fg
+            for i in reversed(ichains):
+                right._links.adjust_chains(i, -1)
+                del right[i]
 
-        # link marked chains
-        for outpad, inpad in links:
-            fg._links.link((inpad[0] + n0, *inpad[1:]), outpad)
+        # stack the remaining chains
+        if len(right):
+
+            links = [l for l, do_stack in zip(links, must_stack) if do_stack]
+
+            # sift through the connections for chainable and unchainables
+            n0 = fg.get_num_chains()  # chain index offset
+
+            # stack 2 filtergraphs
+            fg = fg._stack(right, False, replace_sws_flags)
+
+            # link marked chains
+            for outpad, inpad in links:
+                fg._links.link((inpad[0] + n0, *inpad[1:]), outpad)
 
         return fg
 
@@ -942,38 +950,6 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         * link labels may be auto-renamed if there is a conflict
 
         """
-
-        if chain_siso and len(links) == 1:
-
-            inpad = links[0][1]
-
-            try:
-                left_chain = fgb.as_filterchain(left, copy=True)
-            except FiltergraphConversionError:
-                pass
-            else:
-                if (
-                    left_chain[0].get_num_outputs() == 1
-                    and self[inpad[:2]].get_num_inputs() == 1
-                ):  # if chainable
-                    fg = fgb.Graph(self)
-                    fg[inpad[0]] = [*left_chain, *fg[inpad[0]]]
-                    fg._links.adjust_filter_ids(inpad[0], 0, len(left_chain))
-                    return fg
-
-        left = fgb.as_filtergraph(left)
-
-        # sift through the connections for chainable and unchainables
-        n0 = len(left)  # chain index offset
-
-        # stack 2 filtergraphs
-        fg = left._stack(self, False, replace_sws_flags)
-
-        # link marked chains
-        for outpad, inpad in links:
-            fg._links.link((inpad[0] + n0, *inpad[1:]), outpad)
-
-        return fg
 
         return fgb.as_filtergraph(left)._connect(
             self, links, chain_siso, replace_sws_flags

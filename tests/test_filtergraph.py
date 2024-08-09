@@ -12,11 +12,11 @@ import pytest
         # fmt: off
         ("[0:v][1:v]vstack", None, None, None, False, False, False, False, []),
         ("[0:v][1:v]vstack", None, None, None, False, False, True, False, [(0,0,0),(0,0,1)]),
-        ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, False, [(0,0,1),(0,1,0),(1,0,1)]),
-        ("[0:v][in]vstack,split[out];[out]vstack", None, None, 0, False, False, False, False, [(0,0,1),(0,1,0)]),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, False, [(0,0,1),(1,0,1)]),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, 0, False, False, False, False, [(0,0,1)]),
         ("[0:v][in]vstack,split[out];[out]vstack", None, None, 1, False, False, False, False, [(1,0,1)]),
         ("[0:v][in]vstack,split[out];[out]vstack", None, None, 2, False, False, False, False, None),
-        ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, True, [(0,1,0),(1,0,1)]),
+        ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, True, [(1,0,1)]),
         # fmt: on
     ],
 )
@@ -101,6 +101,7 @@ def test_iter_output_pads(
             assert index == r and f == fg[r[0]][r[1]]
             if isinstance(in_index, tuple):
                 assert in_index in in_links
+
 
 @pytest.mark.parametrize(
     "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
@@ -202,14 +203,20 @@ def test_resolve_pad_index(
             None,
         ),
         (
-             fgb.Graph(["fps", "crop"], {"out": (None, (0, 0, 0))}),
+            fgb.Graph(["fps", "crop"], {"out": (None, (0, 0, 0))}),
             "trim",
             "out",
             None,
             "[UNC0]fps,trim[UNC2];[UNC1]crop[UNC3]",
         ),
         ("fps[L];[L]crop", "trim", None, None, "[UNC0]fps[L];[L]crop,trim[UNC1]"),
-        ("split=2[C];[C]crop", "trim", None, None, "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]"),
+        (
+            "split=2[C];[C]crop",
+            "trim",
+            None,
+            None,
+            "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]",
+        ),
         (
             "split=2[C][out];[C]crop",
             "trim",
@@ -232,12 +239,12 @@ def test_attach(fg, fc, left_on, right_on, out):
 @pytest.mark.parametrize(
     "fg,fc,left_on,skip_named,out",
     [
-        ("fps;crop", "trim", None, None, "trim,fps;crop"),
-        ("[in]fps;crop", "trim", None, None, "trim,fps;crop"),
+        ("fps;crop", "trim", None, None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
+        ("[in]fps;crop", "trim", None, None, "[UNC0]trim[in];[in]fps[UNC2];[UNC1]crop[UNC3]"),
         ("fps;crop", "trim", (1, 0, 0), None, "trim,crop;fps"),
         ("fps;[in]crop", "trim", "in", None, "trim,crop;fps"),
-        ("[L]fps;crop[L]", "trim", None, None, "trim,crop[L];[L]fps"),
-        ("[C]overlay;crop[C]", "trim", None, None, "trim[L0];[C][L0]overlay;crop[C]"),
+        ("[L]fps;crop[L]", "trim", None, None, "[UNC0]trim[L0];[L]fps[UNC1];[L0]crop[L]"),
+        ("[C]overlay;crop[C]", "trim", None, None, "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]"),
         (
             "[C][in]overlay;crop[C]",
             "trim",
@@ -375,33 +382,31 @@ def test_connect(fg, r, to_l, to_r, chain, out):
 
 
 @pytest.mark.parametrize(
-    "fg, r, how, match_scalar, ignore_labels, out",
+    "fg, r, how, unlabeled_only, out",
     [
         # fmt: off
-        ("fps;crop", "trim;scale", None, False, False, "fps,trim;crop,scale"),
-        ("[in1]fps;crop[ou1]", "[in2]trim;scale[out2]", None, False, True, "[in1]fps,trim;crop,scale[out2]"),
-        ("fps;crop", "trim", None, True, False, "fps,trim;crop,trim"),
-        ("fps", "trim;crop", None, True, False, "fps,trim;fps,crop"),
-        ("fps", "overlay", 'per_chain', False, False, "fps[L0];[L0]overlay"),
-        ("fps", "overlay", 'all', True, False, "fps[L0];fps[L1];[L0][L1]overlay"),
-        ("fps", "overlay", 'chainable', True, False, "fps[L0];[L0]overlay"),
+        ("fps;crop", "trim;scale", None, False, "[UNC0]fps,trim[UNC2];[UNC1]crop,scale[UNC3]"),
+        ("[in1]fps;crop[ou1]", "[in2]trim;scale[out2]", None, True, "[UNC0]fps[in1];[UNC1]crop[ou1];[in1]trim[UNC2];[ou1]scale[out1]"),
+        ("fps", "overlay", 'per_chain', False, "[UNC0]fps[L0];[L0][UNC1]overlay[UNC2]"),
         # fmt: on
     ],
 )
-def test_join(fg, r, how, match_scalar, ignore_labels, out):
+def test_join(fg, r, how, unlabeled_only, out):
     # other, auto_link=False, replace_sws_flags=None,
     fg = fgb.Graph(fg)
     if out is None:
         with pytest.raises(fgb.Graph.Error):
-            fg = fg.join(r, how, match_scalar, ignore_labels)
+            fg = fg.join(r, how, unlabeled_only=unlabeled_only)
     else:
-        fg = fg.join(r, how, match_scalar, ignore_labels)
+        fg = fg.join(r, how, unlabeled_only=unlabeled_only)
         assert str(fg) == out
 
 
 def test_iter():
     fg = fgb.Graph("[0:v][1:v]vstack=inputs=2,split=outputs=2")
-    [*fg.iter_output_pads(pad=1,full_pad_index=True)]
+    [*fg.iter_output_pads(pad=1, full_pad_index=True)]
+
+
 # @pytest.mark.parametrize(
 #     "f1e,f2",
 #     [
@@ -433,7 +438,8 @@ def test_filter_arithmetics():
     assert str("[in]" >> (fgb.geq() >> "[out]")) == "[in]geq[out]"
 
     assert (
-        str(["[0:v]", "[1:v]"] >> fgb.vstack(inputs=2)) == "[0:v][1:v]vstack=inputs=2[UNC0]"
+        str(["[0:v]", "[1:v]"] >> fgb.vstack(inputs=2))
+        == "[0:v][1:v]vstack=inputs=2[UNC0]"
     )
     assert str(fgb.split(2) >> [(1, "[main]"), "[sub]"]) == "[UNC0]split=2[sub][main]"
     fc = fgb.vstack(inputs=2) + fgb.split(outputs=2)
@@ -442,7 +448,8 @@ def test_filter_arithmetics():
         == "[1:v][0:v]vstack=inputs=2,split=outputs=2[UNC0][UNC1]"
     )
     assert (
-        str(fc >> ["[main]", "[sub]"]) == "[UNC0][UNC1]vstack=inputs=2,split=outputs=2[main][sub]"
+        str(fc >> ["[main]", "[sub]"])
+        == "[UNC0][UNC1]vstack=inputs=2,split=outputs=2[main][sub]"
     )
     assert (
         str(["[0:v]", "[1:v]"] >> fgb.Graph(fc) >> [(1, "[main]"), "[sub]"])
@@ -468,8 +475,8 @@ def test_filter_empty_handling():
     assert str(fg1 + fg3) == "trim,crop"
     assert str(fg1 | fg3) == "trim,crop"
 
-    assert str(fg2 + fg3) == "fps;scale"
-    assert str(fg2 | fg3) == "fps;scale"
+    assert str(fg2 + fg3) == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
+    assert str(fg2 | fg3) == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
 
 
 def test_script():

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import UserList
 from collections.abc import Callable, Generator
-from functools import reduce
+from typing import Sequence
 
 from ..utils import filter as filter_utils
 from .. import filtergraph as fgb
@@ -97,7 +97,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     def append(self, item):
         return UserList.append(self, fgb.as_filter(item))
 
-    def extend(self, other):
+    def extend(self, other: fgb.Chain | Sequence[fgb.Filter | str]):
         return UserList.extend(self, [fgb.as_filter(f) for f in other])
 
     def insert(self, i, item):
@@ -417,6 +417,10 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
     def get_num_outputs(self) -> int:
         return len(list(self.iter_output_pads()))
+
+    def is_last_filter(self, filter_id: int) -> bool:
+        """Returns True if the given id is the last filter of the chain"""
+        return filter_id == len(self) - 1
 
     def add_label(
         self,
