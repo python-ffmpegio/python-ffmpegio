@@ -9,6 +9,7 @@ logger = logging.getLogger("ffmpegio")
 
 from . import utils, plugins
 from .filtergraph import Graph, Filter, Chain
+from .filtergraph.abc import FilterGraphObject
 from .errors import FFmpegioError
 
 UrlType = Literal["input", "output"]
@@ -287,14 +288,16 @@ def check_alpha_change(args, dir=None, ifile=0, ofile=0):
 
 
 def _build_video_basic_filter(
-    fill_color=None,
-    remove_alpha=None,
-    scale=None,
-    crop=None,
-    flip=None,
-    transpose=None,
-    square_pixels=None,
-):
+    fill_color: str | None = None,
+    remove_alpha: bool = False,
+    scale: str | Sequence | None = None,
+    crop: str | Sequence | None = None,
+    flip: Literal["horizontal", "vertical", "both"] | None = None,
+    transpose: str | Sequence | None = None,
+    square_pixels: (
+        Literal["upscale", "downscale", "upscale_even", "downscale_even"] | None
+    ) = None,
+) -> FilterGraphObject:
     bg_color = fill_color or "white"
 
     vfilters = (
