@@ -1,20 +1,25 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
+from numbers import Number
+
 from math import cos, radians, sin
 import re, fractions
 from .. import caps
 from .._utils import *
+
+from .typing import get_args, MediaType, StreamSpec, Any
 
 # TODO: auto-detect endianness
 # import sys
 # sys.byteorder
 
 
-def escape(txt):
+def escape(txt: str) -> str:
     """apply FFmpeg single quote escaping
 
     :param txt: Unescaped string
-    :type txt: any stringifiable object
     :return: Escaped string
-    :rtype: str
 
     See https://ffmpeg.org/ffmpeg-utils.html#Quoting-and-escaping
     """
@@ -30,13 +35,11 @@ def escape(txt):
         return re.sub(r"(['\\])", r"\\\1", txt)
 
 
-def unescape(txt):
+def unescape(txt: str) -> str:
     """undo FFmpeg single quote escaping
 
     :param txt: Escaped string
-    :type txt: str
     :return: Original string
-    :rtype: str
 
     See https://ffmpeg.org/ffmpeg-utils.html#Quoting-and-escaping
     """
@@ -83,18 +86,17 @@ def unescape(txt):
     return "".join(blks)
 
 
-def parse_stream_spec(spec, file_index=False):
+def parse_stream_spec(
+    spec: str | int | Sequence[int, int], file_index=False
+) -> StreamSpec:
     """Parse stream specifier string
 
     :param spec: stream specifier string. If file_index=False and given an int
                  value, it specifies the stream index. If file_index=True and given
                  a 2-element sequence, it specifies the file index in spec[0] and
                  stream index in spec[1].
-    :type spec: str or int or [int,int]
     :param file_index: True to expect spec to start with a file index, defaults to False
-    :type file_index: bool, optional
     :return: stream spec dict
-    :rtype: dict
 
     The reverse of `stream_spec()`
     """
@@ -148,15 +150,12 @@ def parse_stream_spec(spec, file_index=False):
             return {"index": int(spec)}
 
 
-def is_stream_spec(spec, file_index=False):
+def is_stream_spec(spec, file_index: bool | None = None) -> bool:
     """True if valid stream specifier string
 
     :param spec: stream specifier string to be tested
-    :type spec: str
     :param file_index: True if spec starts with a file index, None to allow with or without file_index defaults to False
-    :type file_index: bool|None, optional
     :return: True if valid stream specifier
-    :rtype: bool
     """
     try:
         parse_stream_spec(spec, True if file_index is None else file_index)
@@ -172,15 +171,15 @@ def is_stream_spec(spec, file_index=False):
 
 
 def stream_spec(
-    index=None,
-    type=None,
-    program_id=None,
-    pid=None,
-    tag=None,
-    usable=None,
-    file_index=None,
-    no_join=False,
-):
+    index: int | None = None,
+    type: MediaType | None = None,
+    program_id: int | None = None,
+    pid: int | None = None,
+    tag: str | tuple[str, str] | None = None,
+    usable: bool | None = None,
+    file_index: int | None = None,
+    no_join: bool = False,
+) -> str:
     """Get stream specifier string
 
     :param index: Matches the stream with this index. If stream_index is used as
@@ -189,7 +188,6 @@ def stream_spec(
     streams as detected by libavformat except when a program ID is also
     specified. In this case it is based on the ordering of the streams in the
     program., defaults to None
-    :type index: int, optional
     :param type: One of following: ’v’ or ’V’ for video, ’a’ for audio, ’s’ for
     subtitle, ’d’ for data, and ’t’ for attachments. ’v’ matches all video
     streams, ’V’ only matches video streams which are not attached pictures,
@@ -202,30 +200,22 @@ def stream_spec(
     additional_stream_specifier is used, then it matches streams which both are
     part of the program and match the additional_stream_specifier, defaults to
     None
-    :type program_id: int, optional
     :param pid: stream id given by the container (e.g. PID in MPEG-TS
     container), defaults to None
-    :type pid: str, optional
     :param tag: metadata tag key having the specified value. If value is not
     given, matches streams that contain the given tag with any value, defaults
     to None
-    :type tag, str or tuple(key,value), optional
     :param usable: streams with usable configuration, the codec must be defined
     and the essential information such as video dimension or audio sample rate
     must be present, defaults to None
-    :type usable: bool, optional
     :param file_index: file index to be prepended if specified, defaults to None
-    :type file_index: int, optional
     :param filter_output: True to append "out" to stream type, defaults to False
-    :type filter_output: bool, optional
     :param no_join: True to return list of stream specifier elements, defaults to False
-    :type no_join: bool, optional
     :return: stream specifier string or empty string if all arguments are None
-    :rtype: str
 
     Note matching by metadata will only work properly for input files.
 
-    Note index, pid, tag, and usable are mutually exclusive. Only one of them
+    Note index, stream_id, tag, and usable are mutually exclusive. Only one of them
     can be specified.
 
     """
@@ -262,16 +252,15 @@ def stream_spec(
     return spec if no_join else ":".join(spec)
 
 
-def get_pixel_config(input_pix_fmt, pix_fmt=None):
+def get_pixel_config(
+    input_pix_fmt: str, pix_fmt: str | None = None
+) -> tuple[str, int, str, bool]:
     """get best pixel configuration to read video data in specified pixel format
 
     :param input_pix_fmt: input pixel format
-    :type input_pix_fmt: str
     :param pix_fmt: desired output pixel format, defaults to None (auto-select)
-    :type pix_fmt: str, optional
     :return: output pix_fmt, number of components, data type string, and whether
              alpha component must be removed
-    :rtype: tuple(str, int, str, bool)
 
     =====  =====  =========  ===================================
     ncomp  dtype  pix_fmt    Description
@@ -328,18 +317,16 @@ def get_pixel_config(input_pix_fmt, pix_fmt=None):
     )
 
 
-def alpha_change(input_pix_fmt, output_pix_fmt, dir=None):
+def alpha_change(
+    input_pix_fmt: str, output_pix_fmt: str | None, dir: int | None = None
+) -> bool | int | None:
     """get best pixel configuration to read video data in specified pixel format
 
     :param input_pix_fmt: input pixel format
-    :type input_pix_fmt: str
     :param output_pix_fmt: output pixel format
-    :type output_pix_fmt: str, optional
     :param dir: specify the change direction for boolean answer, defaults to None
-    :type dir: int, optional
     :return: dir None: 0 if no change, 1 if alpha added, -1 if alpha removed, None if indeterminable
              dir int: True if changes in the specified direction or False
-    :rtype: bool, int, None
 
     """
     if input_pix_fmt is None or output_pix_fmt is None:
@@ -350,15 +337,11 @@ def alpha_change(input_pix_fmt, output_pix_fmt, dir=None):
     return d if dir is None else d > 0 if dir > 0 else d < 0 if dir < 0 else d == 0
 
 
-def get_pixel_format(fmt):
+def get_pixel_format(fmt: str) -> tuple[str, int]:
     """get data format and number of components associated with video pixel format
 
     :param fmt: ffmpeg pix_fmt
-    :type fmt: str
-    :param return_format: True to return raw audio format name instead of pcm codec name
-    :type return_format: bool
     :return: data type string and the number of components associated with the pix_fmt
-    :rtype: tuple[str, int]
     """
     try:
         return dict(
@@ -379,30 +362,28 @@ def get_pixel_format(fmt):
         raise ValueError(f"{fmt} is not a valid grayscale/rgb pix_fmt")
 
 
-def get_video_format(fmt, s):
+def get_video_format(
+    fmt: str, s: tuple[int, int] | str
+) -> tuple[str, tuple[int, int, int]]:
     """get pixel data type and frame array (height,width,ncomp)
 
     :param fmt: ffmpeg pix_fmt or data type string
-    :type fmt: str
     :param s: frame size  (width,height)
-    :type s: tuple[int, int]
     :return: data type string and shape tuple
-    :rtype: tuple[str, tuple[int, int, int]]
     """
     dtype, ncomp = get_pixel_format(fmt)
     s = parse_video_size(s)
     return dtype, (*s[::-1], ncomp)
 
 
-def guess_video_format(shape, dtype):
+def guess_video_format(
+    shape: Sequence[int, int, int], dtype: str
+) -> tuple[tuple[int, int], str]:
     """get video format
 
     :param shape: frame data shape
-    :type shape: Sequence[int,int,int]
     :param dtype: frame data type
-    :type dtype: str
     :return: frame size and pix_fmt
-    :rtype: tuple[tuple[int,int],str]
 
     ```
         X = np.ones((100,480,640,3),'|u1')
@@ -438,7 +419,14 @@ def guess_video_format(shape, dtype):
     return size, pix_fmt
 
 
-def get_rotated_shape(w, h, deg):
+def get_rotated_shape(w: int, h: int, deg: float) -> tuple[int, int]:
+    """compute the shape of rotated rectangle
+
+    :param w: rectangle width
+    :param h: rectangle height
+    :param deg: rotation angle in degrees, positive in clockwise direction
+    :return: the (width, height) after rotation
+    """
     theta = radians(deg)
     C = cos(theta)
     S = sin(theta)
@@ -447,13 +435,11 @@ def get_rotated_shape(w, h, deg):
     # return int(round(abs(X[0, 0] - X[0, 2]))), int(round(abs(X[1, 1]))), theta
 
 
-def get_audio_codec(fmt):
+def get_audio_codec(fmt: str) -> tuple[str, str]:
     """get pcm audio codec & format
 
     :param fmt: ffmpeg sample_fmt
-    :type fmt: str or data type string
     :return: tuple of pcm codec name and container format
-    :rtype: tuple
     """
     try:
         return dict(
@@ -468,15 +454,12 @@ def get_audio_codec(fmt):
         raise ValueError(f"{fmt} is not a valid raw audio sample_fmt")
 
 
-def get_audio_format(fmt, ac=None):
+def get_audio_format(fmt: str, ac: int | None = None) -> str | tuple[str, tuple[int]]:
     """get audio sample data format
 
     :param fmt: ffmpeg sample_fmt or data type string
-    :type fmt: str or data type string
     :param ac: number of channels, default to None (to return only dtype)
-    :type ac: int, optional
     :return: data type string and array shape tuple
-    :rtype: tuple[str, tuple[int]] | str
     """
     try:
         dtype = {
@@ -492,15 +475,14 @@ def get_audio_format(fmt, ac=None):
         raise ValueError(f"Unsupported or unknown sample_fmt ({fmt}) specified.")
 
 
-def guess_audio_format(dtype, shape=None):
+def guess_audio_format(
+    dtype: str, shape: Sequence[int] | None = None
+) -> tuple[int, str]:
     """get audio format
 
     :param dtype: sample data type
-    :type dtype: str
     :param shape: sample data shape
-    :type shape: Sequence[int]
     :return: tuple of # of channels and sample_fmt
-    :rtype: tuple(int,str)
 
     ```
         X = np.ones((1000,2),np.int16)
@@ -530,7 +512,7 @@ def guess_audio_format(dtype, shape=None):
     return sample_fmt, (None if shape is None else shape[-1])
 
 
-def parse_video_size(expr):
+def parse_video_size(expr: str | tuple[int, int]) -> tuple[int, int]:
 
     if isinstance(expr, str):
         m = re.match(r"(\d+)x(\d+)", expr)
@@ -542,14 +524,14 @@ def parse_video_size(expr):
         return expr
 
 
-def parse_frame_rate(expr):
+def parse_frame_rate(expr) -> fractions.Fraction:
     try:
         return fractions.Fraction(expr)
     except ValueError:
         return caps.frame_rate_presets[expr]
 
 
-def parse_color(expr):
+def parse_color(expr) -> tuple[int, int, int, int | None]:
     m = re.match(
         r"([^@]+)?(?:@(0x[\da-f]{2}|[0-1]\.[0-9]+))?$",
         expr,
@@ -577,7 +559,7 @@ def parse_color(expr):
     return int(rgb[:2], 16), int(rgb[2:4], 16), int(rgb[4:], 16), alpha
 
 
-def compose_color(r, *args):
+def compose_color(r: str | Sequence[Number], *args: tuple[Number]) -> str:
 
     if isinstance(r, str):
         colors = caps.colors()
@@ -598,7 +580,7 @@ def compose_color(r, *args):
         return "".join((conv(x) for x in (r, *args)))
 
 
-def layout_to_channels(layout):
+def layout_to_channels(layout: str) -> int:
     layouts = caps.layouts()["layouts"]
     names = caps.layouts()["channels"].keys()
     if layout in layouts:
@@ -623,15 +605,13 @@ def layout_to_channels(layout):
     return sum([each_ch(ch) for ch in re.split(r"\+|\|", layout)])
 
 
-def parse_time_duration(expr):
+def parse_time_duration(expr: str | float) -> float:
     """convert time/duration expression to seconds
 
     if expr is not str, the input is returned without any processing
 
-    :param expr: time/duration expression
-    :type expr: str
+    :param expr: time/duration expression (or in seconds to pass through)
     :return: time/duration in seconds
-    :rtype: float
     """
     if isinstance(expr, str):
         m = re.match(r"(-)?((\d{2})\:)?(\d{2}):(\d{2}(?:\.\d+)?)", expr)
@@ -652,30 +632,24 @@ def parse_time_duration(expr):
     return expr
 
 
-def find_stream_options(options, name):
+def find_stream_options(options: dict[str, Any], name: str) -> dict[str, Any]:
     """find option keys, which may be stream-specific
 
     :param options: source option dict (content will be modified)
-    :type options: dict
     :param suffix: matching suffix
-    :type suffix: str
     :return: popped options
-    :rtype: dict
     """
 
     re_opt = re.compile(rf"{name}(?=\:|$)")
     return [k for k in options if re_opt.match(k)]
 
 
-def pop_extra_options(options, suffix):
+def pop_extra_options(options: dict[str, Any], suffix: str) -> dict[str, Any]:
     """pop matching keys from options dict
 
     :param options: source option dict (content will be modified)
-    :type options: dict
     :param suffix: matching suffix
-    :type suffix: str
     :return: popped options
-    :rtype: dict
     """
     n = len(suffix)
     return {
@@ -684,15 +658,14 @@ def pop_extra_options(options, suffix):
     }
 
 
-def pop_extra_options_multi(options, suffix):
+def pop_extra_options_multi(
+    options: dict[str, Any], suffix: str
+) -> tuple[str, dict[int, dict[str, Any]]]:
     """pop regex matching keys from options dict and
 
     :param options: source option dict (content will be modified)
-    :type options: dict
     :param suffix: matching suffix regex expression with one group, capturing the (int) id
-    :type suffix: str
     :return: dict of popped options with int id key
-    :rtype: str, dict(int, dict)
 
     example:
 
@@ -718,18 +691,13 @@ def pop_extra_options_multi(options, suffix):
 
     return popped
 
-def pop_global_options(options):
+
+def pop_global_options(options: dict[str, Any]) -> dict[str, Any]:
     """pop global options from options dict
 
     :param options: source option dict (content will be modified)
-    :type options: dict
     :return: popped options
-    :rtype: dict
     """
 
     all_gopts = caps.options("global")
-    return {
-        k: options.pop(k)
-        for k in [k for k in options.keys() if k in all_gopts]
-    }
-
+    return {k: options.pop(k) for k in [k for k in options.keys() if k in all_gopts]}
