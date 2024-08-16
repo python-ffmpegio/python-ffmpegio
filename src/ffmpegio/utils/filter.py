@@ -1,7 +1,6 @@
 from fractions import Fraction
 import re, itertools
 from collections.abc import Sequence
-from .. import utils
 
 # Filter string parser/composer
 # For FilterGraph class, see ../filtergraph.py
