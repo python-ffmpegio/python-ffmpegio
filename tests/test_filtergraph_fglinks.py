@@ -1,9 +1,8 @@
 import logging
-from ffmpegio.caps import filters
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio.utils.fglinks import GraphLinks
+from ffmpegio.filtergraph.GraphLinks import GraphLinks
 from pprint import pprint
 import pytest
 
@@ -16,8 +15,8 @@ import pytest
         (((1, 2, 3), (4, 5, 6)), 2),
     ],
 )
-def test_iter_dst_ids(dsts, expects):
-    assert len(list(GraphLinks.iter_dst_ids(dsts))) == expects
+def test_iter_inpad_ids(dsts, expects):
+    assert len(list(GraphLinks.iter_inpad_ids(dsts))) == expects
 
 
 @pytest.mark.parametrize(
@@ -26,9 +25,9 @@ def test_iter_dst_ids(dsts, expects):
         (("0:v",), True),
         (("label",), True),
         (("-label",), False),
-        ((0,), True),
-        ((0.0,), False),
-        ((0, True), False),
+        ((0, True), True),
+        ((0.0, True), False),
+        ((0, False), False),
     ],
 )
 def test_validate_label(args, ok):
@@ -48,12 +47,12 @@ def test_validate_label(args, ok):
         ((0, 0, "0"), False),
     ],
 )
-def test_validate_pad_id(id, ok):
+def test_validate_pad_idx(id, ok):
     if ok:
-        GraphLinks.validate_pad_id(id)
+        GraphLinks.validate_pad_idx(id)
     else:
         with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_pad_id(id)
+            GraphLinks.validate_pad_idx(id)
 
 
 @pytest.mark.parametrize(
@@ -66,12 +65,12 @@ def test_validate_pad_id(id, ok):
         (((None,), (0, 0, 0)), False),
     ],
 )
-def test_validate_pad_id_pair(ids, ok):
+def test_validate_pad_idx_pair(ids, ok):
     if ok:
-        GraphLinks.validate_pad_id_pair(ids)
+        GraphLinks.validate_pad_idx_pair(ids)
     else:
         with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_pad_id_pair(ids)
+            GraphLinks.validate_pad_idx_pair(ids)
 
 
 @pytest.mark.parametrize(
@@ -105,8 +104,8 @@ def test_validate(data, ok):
         with pytest.raises(GraphLinks.Error):
             GraphLinks.validate(data)
 
-@pytest.mark.parametrize(
 
+@pytest.mark.parametrize(
     ("args", "expects"),
     [
         (((0, 0, 0), None), ((0, 0, 0), None)),
@@ -134,9 +133,9 @@ def base_links():
             "l": ((0, 0, 0), (0, 0, 0)),  # regular link
             0: ((1, 1, 0), (0, 1, 0)),  # unnamed link
             "in": ((2, 1, 0), None),  # named input
-            "min": ([(3, 0, 0), (3, 1, 0)], None),  # named inputs
+            "0:v": ([(3, 0, 0), (3, 1, 0)], None),  # named inputs
             "out": (None, (1, 1, 0)),  # named output
-            "sout1": (None, (1, 0, 0)),  # split output label#1
+            "sout1": (None, (6, 0, 0)),  # split output label#2
             "sout2": ((2, 0, 0), (1, 0, 0)),  # split output label#2
         }
     )
@@ -152,19 +151,13 @@ def test_init(base_links):
     [
         ([0, 3, None], [0, 1, 2]),
         (["a", "b"], ["a", "b"]),
-        (["a0", "b1", "c2"], ["a0", "b1", "c1"]),
-        (["a2", "a3"], ["a1", "a2"]),  # 2
-        (["a", "a"], ["a1", "a2"]),  # numbered named links
-        (["a", "a3"], ["a1", "a2"]),  # numbered named links
-        (["a1", "a"], ["a1", "a2"]),  # numbered named links
-        (["a1", "a3"], ["a1", "a2"]),  # numbered named links
     ],
 )
-def test_register_label(labels, expects):
+def test_resolve_label(labels, expects):
     links = GraphLinks()
 
     def update(label):
-        links.data[links._register_label(label)] = None
+        links.data[links._resolve_label(label)] = None
 
     for label in labels:
         update(label)
@@ -189,11 +182,11 @@ def test_iter_links(base_links):
 def test_iter_inputs(base_links):
     res = {
         ("in", (2, 1, 0)),  # regular link
-        ("min", (3, 0, 0)),  # unnamed link
-        ("min", (3, 1, 0)),  # split output label#2
+        ("0:v", (3, 0, 0)),  # unnamed link
+        ("0:v", (3, 1, 0)),  # split output label#2
     }
 
-    for v in base_links.iter_inputs():
+    for v in base_links.iter_inputs(exclude_stream_specs=False):
         assert v in res
         res.discard(v)
 
@@ -203,7 +196,7 @@ def test_iter_inputs(base_links):
 def test_iter_outputs(base_links):
     res = {
         ("out", (1, 1, 0)),  # regular link
-        ("sout1", (1, 0, 0)),  # split output label#2
+        ("sout1", (6, 0, 0)),  # split output label#2
     }
 
     for v in base_links.iter_outputs():
@@ -213,19 +206,19 @@ def test_iter_outputs(base_links):
     assert not len(res)
 
 
-def test_iter_dsts(base_links):
+def test_iter_input_pads(base_links):
     res = {
         ("l", (0, 0, 0), (0, 0, 0)),  # regular link
         (0, (1, 1, 0), (0, 1, 0)),  # unnamed link
         ("in", (2, 1, 0), None),  # named input
-        ("min", (3, 0, 0), None),  # named inputs
-        ("min", (3, 1, 0), None),  # named inputs
+        ("0:v", (3, 0, 0), None),  # named inputs
+        ("0:v", (3, 1, 0), None),  # named inputs
         ("out", None, (1, 1, 0)),  # named output
-        ("sout1", None, (1, 0, 0)),  # split output label#1
+        ("sout1", None, (6, 0, 0)),  # split output label#1
         ("sout2", (2, 0, 0), (1, 0, 0)),  # split output label#2
     }
 
-    for v in base_links.iter_dsts():
+    for v in base_links.iter_input_pads():
         assert v in res
         res.discard(v)
 
@@ -246,7 +239,7 @@ def test__getitem__(key, expects, base_links):
 
 @pytest.mark.parametrize(
     ("key", "expects"),
-    [("l", 0), (0, 0), ("in", 1), ("min", 1), ("sout1", 2)],
+    [("l", 0), (0, 0), ("in", 1), ("0:v", 1), ("sout1", 2)],
 )
 def test_label_checks(key, expects, base_links):
 
@@ -266,83 +259,77 @@ def test_label_checks(key, expects, base_links):
         ((10, 0, 0), None, False),
     ],
 )
-def test_find_dst_labels(id, label, input, base_links):
-    retval = base_links.find_dst_label(id)
+def test_find_inpad_labels(id, label, input, base_links):
+    retval = base_links.find_inpad_label(id)
     assert retval == label if label else retval is None
-    retval = base_links.find_input_label(id)
-    assert retval == label if input else retval is None
 
 
 @pytest.mark.parametrize(
     ("id", "label", "output"),
     [
-        ((0, 0, 0), ["l"], False),
-        ((1, 1, 0), ["out"], ["out"]),
+        ((0, 0, 0), "l", False),
+        ((1, 1, 0), "out", "out"),
         (None, None, False),
-        ((1, 0, 0), ["sout1", "sout2"], ["sout1"]),
     ],
 )
-def test_find_src_labels(id, label, output, base_links):
+def test_find_outpad_labels(id, label, output, base_links):
 
-    retval = base_links.find_src_labels(id)
-    retval1 = base_links.find_output_labels(id)
+    retval = base_links.find_outpad_label(id)
     if label is None:
-        assert retval is None and retval1 is None
+        assert retval is None
     else:
         assert retval == (label if label else [])
-        assert retval1 == (output if output else [])
 
 
 @pytest.mark.parametrize(
-    ("label", "dst", "src"),
+    ("dst", "src", "res"),
     [
-        (None, None, (0, 0, 0)),
-        (None, (0, 0, 0), None),
-        ("sout2", (2, 0, 0), (1, 0, 0)),
-        (None, (4, 0, 0), (1, 0, 0)),
+        ((0, 0, 0), (0, 0, 0), True),  # regular link
+        ((1, 1, 0), (0, 1, 0), True),  # unnamed link
+        ((1, 1, 0), (0, 1, 1), False),  # unnamed link
+        ((2, 1, 0), None, False),  # named input
+        ((3, 0, 0), None, False),  # named inputs
     ],
 )
-def test_links(label, src, dst, base_links):
+def test_links(src, dst, res, base_links):
 
-    if label is None:
-        assert not base_links.are_linked(dst, src)
-        assert base_links.find_link_label(dst, src) is None
-    else:
-        assert base_links.are_linked(dst, src)
-        assert base_links.find_link_label(dst, src) == label
+    assert base_links.are_linked(dst, src) == res
 
 
 def test_unlink(base_links):
     base_links.unlink(label="l")
     assert "l" not in base_links
 
-    base_links.unlink(src=(1, 0, 0))
+    base_links.unlink(outpad=(6, 0, 0))
     assert "sout1" not in base_links
-    assert "sout2" not in base_links
 
-    base_links.unlink(dst=(1, 1, 0))
+    base_links.unlink(inpad=(1, 1, 0))
     assert 0 not in base_links
 
-    base_links.unlink(dst=(3, 0, 0))
-    assert "min" in base_links  # the other input still present
+    base_links.unlink(inpad=(3, 0, 0))
+    assert "0:v" in base_links  # the other input still present
 
 
 @pytest.mark.parametrize(
     ("args", "ok", "unlinked"),
     [
+        # fmt:off
         (((4, 0, 0), (4, 0, 0)), 1, None),  # no conflict
         (((4, 0, 0), (4, 0, 0), "test"), "test", None),  # no conflict
-        (((4, 0, 0), (4, 0, 0), "l"), "l2", None),  # no conflict, label number mod
+        (((4, 0, 0), (4, 0, 0), 0), 1, None),  # no conflict, label number mod
         ((None, (4, 0, 0)), False, None),  # can't do output label
         (((4, 0, 0), None), False, None),  # can't do input label
-        (((4, 0, 0), (0, 0, 0)), 1, None),  # duplicate src ok
+        (((4, 0, 0), (0, 0, 0)), False, None),  # duplicate src not ok
         (((0, 0, 0), (4, 0, 0)), False, None),  # duplicate dst not ok
         (((0, 0, 0), (4, 0, 0), None, False, True), 1, "l"),  # forced
         (((0, 0, 0), (4, 0, 0), None, True), False, "1"),  # bad src
-        (((2, 1, 0), (4, 0, 0)), "in", None),  # links to inherit 'in' input label
-        (((4, 0, 0), (1, 1, 0)), "out", None),  # links to inherit 'out' output label
+        (((2, 1, 0), (4, 0, 0)), 1, None),  # links to not inherit 'in' input label
+        (((2, 1, 0), (4, 0, 0), None, 'input'),  "in", None),  # links to inherit 'in' input label
+        (((4, 0, 0), (1, 1, 0), None, 'output'), "out", None),  # links to inherit 'out' output label
         (((4, 0, 0), (1, 1, 0), None, True), 1, None),  # new label
-        (((3, 0, 0), (4, 0, 0)), 1, None),  # links to inherit 'in' input label
+        (((3, 0, 0), (4, 0, 0)), 1, None),
+        # links to inherit 'in' input label
+        # fmt:on
     ],
 )
 def test_link(args, ok, unlinked, base_links):
@@ -368,8 +355,8 @@ def test_link(args, ok, unlinked, base_links):
         (("test", (2, 1, 0)), False, None),  # existing input
         (("test", (0, 0, 0)), False, None),  # existing link dst
         (("test", (0, 0, 0), None, True), "test", "l"),  # existing link dst
-        (("in", (2, 1, 0)), "in", None),  # existing input
-        (("in", (4, 1, 0)), "in2", None),  # new input, number adjusted
+        (("in", (2, 1, 0)), False, None),  # existing input
+        (("0:v", (4, 2, 1)), "0:v", None),  # new input, number adjusted
     ],
 )
 def test_create_label(args, ok, unlinked, base_links):
@@ -390,36 +377,21 @@ def test_update(base_links):
 
     base_links.update({})  # no action``
 
-    assert base_links.update({"test": ((4, 0, 0), (4, 0, 0))})["test"] == "test"
+    base_links.update({"test": ((4, 0, 0), (4, 0, 0))})
+    assert base_links["test"] == ((4, 0, 0), (4, 0, 0))
     assert "test" in base_links
 
     # existing dst
     with pytest.raises(GraphLinks.Error):
         base_links.update({"test": ((4, 0, 0), (4, 0, 0))})
-    assert base_links.update({"l": ((4, 0, 0), (4, 0, 0))}, force=True)["l"] == "l2"
+    
+    base_links.update({"l": ((4, 0, 0), (4, 0, 0))}, force=True)
+    assert base_links["l"] == ((4, 0, 0), (4, 0, 0))
 
-    assert base_links.update({"in": (None, (5, 0, 0))}, auto_link=True)["in"] == "in"
-    assert base_links.is_linked("in")
-    assert base_links.update({"out": ((6, 0, 0), None)}, auto_link=True)["out"] == "out"
-    assert base_links.is_linked("out")
-
-
-def test_get_repeated_src_info(base_links):
-    base_links.update({"link": (((4, 0, 0), (5, 0, 0)), (1, 0, 0))})
-    base_links.update({"a": (((6, 0, 0), (7, 0, 0)), (2, 0, 0))}, force=True)
-    info = base_links.get_repeated_src_info()
-    assert info == {
-        (1, 0, 0): {
-            "link_0": (4, 0, 0),
-            "link_1": (5, 0, 0),
-            "sout1": None,
-            "sout2": (2, 0, 0),
-        },
-        (2, 0, 0): {
-            "a_0": (6, 0, 0),
-            "a_1": (7, 0, 0),
-        },
-    }
+    base_links.update({"in": (None, (5, 0, 0))}, auto_link=True)
+    assert base_links["in"] == ((2, 1, 0), (5, 0, 0))
+    base_links.update({"out": ((6, 0, 0), None)}, auto_link=True)
+    assert base_links["out"] == ((6, 0, 0), (1, 1, 0))
 
 
 @pytest.mark.parametrize(
@@ -428,11 +400,10 @@ def test_get_repeated_src_info(base_links):
         ((None, (0, 0, 0)), 0, 0),
         (((0, 0, 0), None), 0, 0),
         ((((0, 0, 0), (0, 0, 1)), None), 0, 0),
-        ((((0, 0, 0), None), (0, 0, 0)), 1, 0),
     ],
 )
 def test_remove_label(links, n, nin):
-    label = "label"
+    label = "label" if links[0] is None or len(links[0]) < 2 else "0:v"
     o = GraphLinks({label: links})
     o.remove_label(label)
     assert len(o) == n
@@ -443,7 +414,7 @@ def test_remove_label(links, n, nin):
 # "l": ((0, 0, 0), (0, 0, 0)),  # regular link
 # 0: ((1, 1, 0), (0, 1, 0)),  # unnamed link
 # "in": ((2, 1, 0), None),  # named input
-# "min": ([(3, 0, 0), (3, 1, 0)], None),  # named inputs
+# "0:v": ([(3, 0, 0), (3, 1, 0)], None),  # named inputs
 # "out": (None, (1, 1, 0)),  # named output
 # "sout1": (None, (1, 0, 0)),  # split output label#1
 # "sout2": ((2, 0, 0), (1, 0, 0)),  # split output label#2

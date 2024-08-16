@@ -239,7 +239,7 @@ def run(
             fchains[l.media_type] = c = as_filtergraph(c)
 
         # assign the logger to get the output of the previous logger
-        c >>= f
+        fchains[l.media_type] = c >> f
 
     if len(fchains["video"]):
         fchains["video"] >>= Filter("metadata", "print", file="-")

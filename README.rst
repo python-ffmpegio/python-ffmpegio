@@ -235,14 +235,14 @@ Filtergraph Builder
    >>> v2 = (v0 | v1) + fgb.concat(2)
    >>> v5 = (v2|v3) + fgb.overlay(eof_action='repeat') + fgb.drawbox(50, 50, 120, 120, 'red', t=5)
    >>> v5
-   <ffmpegio.filtergraph.Graph object at 0x1e67f955b80>
+   <ffmpegio.filtergraph.Graph.Graph object at 0x2a4ef084bd0>
        FFmpeg expression: "[0]trim=start_frame=10:end_frame=20[L0];[0]trim=start_frame=30:end_frame=40[L1];[L0][L1]concat=2[L2];[1]hflip[L3];[L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5"
        Number of chains: 5
          chain[0]: [0]trim=start_frame=10:end_frame=20[L0];
          chain[1]: [0]trim=start_frame=30:end_frame=40[L1];
          chain[2]: [L0][L1]concat=2[L2];
          chain[3]: [1]hflip[L3];
-         chain[4]: [L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5      
+         chain[4]: [L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5[UNC0]      
        Available input pads (0): 
        Available output pads: (1): (4, 1, 0)
 
