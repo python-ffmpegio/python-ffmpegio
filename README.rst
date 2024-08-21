@@ -40,12 +40,15 @@ Main Features
 
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
   the system
-* Transcode a media file to another in Python
 * Read, write, filter, and create functions for audio, image, and video data
 * Context-managing `ffmpegio.open` to perform stream read/write operations of video and audio
-* Automatically detect and convert audio & video formats to and from `numpy.ndarray` properties
+* Media readers can output the data in a Numpy array (if Numpy is available) or a plain :code:`bytes` 
+  objects in a :code:`dict`. The mode of operation can be switched with :code:`ffmpegio.use` function.
+* Automatically detect and convert audio & video formats to and from `numpy.ndarray` attributes
+* Write Matplotlib figures to images or to a video (a simpler interface than Matplotlib's Animation writers). 
 * Probe media file information
 * Accepts all FFmpeg options including filter graphs
+* Transcode a media file to another in Python
 * Supports a user callback whenever FFmpeg updates its progress information file 
   (see `-progress` FFmpeg option)
 * `ffconcat` scripter to make the use of `-f concat` demuxer easier
