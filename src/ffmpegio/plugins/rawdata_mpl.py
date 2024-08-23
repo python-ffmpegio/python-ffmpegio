@@ -7,8 +7,6 @@ import io
 
 hookimpl = HookimplMarker("ffmpegio")
 
-__version__ = "0.1.1"
-
 
 @hookimpl
 def video_info(obj: Figure) -> Tuple[Tuple[int, int, int], str]:

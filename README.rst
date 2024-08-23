@@ -20,8 +20,9 @@ multimedia framework, which can handle most of the multimedia formats available 
 
 .. note::
   
-  Since v0.3.0, `ffmpegio` Python distribution package has been split into `ffmpegio-core` and `ffmpegio` to allow
-  Numpy-independent installation.
+  As of v0.11.0, :code:`ffmpegio` and :code:`ffmpegio-core` Python distribution packages have been (re)merged
+  as well as the other official plugins (:code:`ffmpegio-plugin-mpl`, :code:`ffmpegio-plugin-downloader`, and
+  :code:`ffmpegio-plugin-static-ffmpeg`). :code:`ffmpegio-core` will display a to-be-deprecated message when imported
 
 Install the full `ffmpegio` package via ``pip``:
 
@@ -29,11 +30,17 @@ Install the full `ffmpegio` package via ``pip``:
 
    pip install ffmpegio
 
-If `numpy.ndarray` data I/O is not needed, instead use 
 
-.. code-block:: bash
+.. table:: External packages to enable additional features
+  :class: tight-table
 
-   pip install ffmpegio-core
+  ====================  ========================================================================
+  Package Name (PyPI)   Description
+  ====================  ========================================================================
+  `numpy`               Support Numpy array inputs and outputs intead of bytes
+  `matplotlib`          Support generation of images or videos from Matplotlib figure 
+  `ffmepeg-downloader`  Support finding the FFmpeg path installed by the `ffdl` command
+  ====================  ========================================================================
 
 Main Features
 -------------
