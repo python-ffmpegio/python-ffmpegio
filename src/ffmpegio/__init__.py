@@ -43,6 +43,7 @@ try:
 except Exception as e:
     logger.warning(str(e))
 
+use = plugins.use
 
 def __getattr__(name):
     if name == "ffmpeg_ver":
@@ -64,7 +65,7 @@ from .utils.parser import FLAG
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
     "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
-    "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat"]
+    "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat", "use"]
 # fmt:on
 
 __version__ = "0.10.0"
