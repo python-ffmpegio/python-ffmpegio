@@ -3,6 +3,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 import pytest
 
+from ffmpegio import ffmpeg_info
 import ffmpegio.probe as probe
 
 # print(
@@ -28,6 +29,9 @@ def test_url_types():
         out1 = probe.query(f)
         f.seek(0)
         del out1["filename"]
+        if ffmpeg_info()['version'] < '6':
+            del out['bit_rate']
+            del out['size']
         assert out1 == out
 
         # piping in byte content of the file yields a few other differences
