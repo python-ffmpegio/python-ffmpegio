@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-
-from collections.abc import Callable
+from typing import Any
+from collections.abc import Callable, Sequence
 
 from time import time
 import logging
@@ -11,7 +11,7 @@ logger = logging.getLogger("ffmpegio")
 from namedpipe import NPopen
 
 from .. import utils, configure, ffmpegprocess
-from ..threading import LoggerThread, ReaderThread, WriterThread
+from ..threading import LoggerThread, ReaderThread, WriterThread, Empty
 
 # fmt:off
 __all__ = ["EncodedStreamMerger"]
@@ -53,7 +53,7 @@ class EncodedStreamMerger:
     def __init__(
         self,
         output_url: str,
-        *input_formats_or_opts,
+        *input_formats_or_opts: Sequence[str | dict | None],
         nb_inputs: int | None = None,
         blocksize: int | None = None,
         default_timeout: float | None = None,
@@ -61,7 +61,7 @@ class EncodedStreamMerger:
         show_log: bool | None = None,
         sp_kwargs: dict | None = None,
         np_kwargs: dict | None = None,
-        **output_options,
+        **output_options: dict[str, Any],
     ) -> None:
 
         #:float: default filter operation timeout in seconds
@@ -230,6 +230,14 @@ class EncodedStreamMerger:
         except BrokenPipeError as e:
             # TODO check log for error in FFmpeg
             raise e
+
+    def read(self, n: int = -1, timeout: float | None = None) -> bytes:
+
+        return self._reader.read(n, timeout)
+
+    def read_nowait(self, n: int = -1) -> bytes:
+
+        return self._reader.read_nowait(n)
 
     def flush(self, timeout: float | None = None):
         """Close the stream input and retrieve the remaining output samples
