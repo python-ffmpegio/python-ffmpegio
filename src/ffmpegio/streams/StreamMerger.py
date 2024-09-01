@@ -52,9 +52,9 @@ class EncodedStreamMerger:
 
     def __init__(
         self,
-        output_url: str,
         *input_formats_or_opts: Sequence[str | dict | None],
         nb_inputs: int | None = None,
+        output_url: str | None = None,
         blocksize: int | None = None,
         default_timeout: float | None = None,
         progress: Callable | None = None,
@@ -70,11 +70,12 @@ class EncodedStreamMerger:
         # set this to false in _finalize() if guaranteed for the logger to have output stream info
         self._loggertimeout = True
 
-        if nb_inputs is None and not len(input_formats_or_opts):
+        nin = len(input_formats_or_opts)
+        if nb_inputs is None and not nin:
             raise ValueError(
                 "At least one input format/options must be given OR specify nb_inputs."
             )
-        if nb_inputs is not None and nb_inputs != len(input_formats_or_opts):
+        if nb_inputs is not None and nin > 0 and nb_inputs != nin:
             raise ValueError(
                 "Both nb_inputs and input format/options are given but nb_inputs does not agree with the number of inputs specified."
             )
@@ -90,8 +91,13 @@ class EncodedStreamMerger:
 
         nb_inputs = len(inopts)
         self._input_pipes = inpipes = [
-            NPopen("w", *np_kwargs) for _ in range(nb_inputs)
+            NPopen("w", **(np_kwargs or {})) for _ in range(nb_inputs)
         ]
+
+        self._output_pipe = None
+        if output_url is None:
+            self._output_pipe = outpipe = NPopen("r", **(np_kwargs or {}))
+            output_url = outpipe.path
 
         # create input format list
         self._args = ffmpeg_args = configure.empty()
@@ -104,8 +110,9 @@ class EncodedStreamMerger:
         self._writers = [WriterThread(p, 0) for p in inpipes]
 
         # create the stdout reader without assigning the source stream
-        self._reader = ReaderThread(None, blocksize, 0)
-        self._reader_needs_info = True
+        self._reader = None
+        if self._output_pipe is not None:
+            self._reader = ReaderThread(self._output_pipe, blocksize, 0)
 
         # create logger without assigning the source stream
         self._logger = LoggerThread(None, show_log)
@@ -233,14 +240,28 @@ class EncodedStreamMerger:
 
     def read(self, n: int = -1, timeout: float | None = None) -> bytes:
 
-        return self._reader.read(n, timeout)
+        try:
+            return self._reader.read(n, timeout)
+        except AttributeError as e:
+            if self._reader is None:
+                raise RuntimeError(
+                    "read() not supported. FFmpeg is outputting directly to a file"
+                )
+            raise
 
     def read_nowait(self, n: int = -1) -> bytes:
 
-        return self._reader.read_nowait(n)
+        try:
+            return self._reader.read_nowait(n)
+        except AttributeError as e:
+            if self._reader is None:
+                raise RuntimeError(
+                    "read_nowait() not supported. FFmpeg is outputting directly to a file"
+                )
+            raise
 
     def flush(self, timeout: float | None = None):
-        """Close the stream input and retrieve the remaining output samples
+        """Flush the write buffers of the stream if applicable.
 
         :param timeout: timeout duration in seconds, defaults to None
         :type timeout: float, optional
