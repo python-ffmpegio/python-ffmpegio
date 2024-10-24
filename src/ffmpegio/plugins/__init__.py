@@ -66,9 +66,9 @@ def list_plugins() -> list:
     return [pm.get_name(p) for p in pm.get_plugins()]
 
 def use(name: Literal["read_numpy", "read_bytes"] | str):
-    """Select the plugin to use (among contentios plugins)
+    """Select the plugin to use (among contentious plugins)
 
-    :param name: The plugin to switch to. This can either be ``'read_numpy'`` or
+    :param name: The plugin to use. This can either be ``'read_numpy'`` or
                  ``'read_bytes'`` or a plugin module name:
 
                  - ``"read_numpy"`` - All the media readers to output a Numpy array.
