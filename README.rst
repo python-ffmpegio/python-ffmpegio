@@ -18,40 +18,17 @@ Python `ffmpegio` package aims to bring the full capability of `FFmpeg <https://
 to read, write, probe, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
 multimedia framework, which can handle most of the multimedia formats available today.
 
-.. note::
-  
-  As of v0.11.0, :code:`ffmpegio` and :code:`ffmpegio-core` Python distribution packages have been (re)merged
-  as well as the other official plugins (:code:`ffmpegio-plugin-mpl`, :code:`ffmpegio-plugin-downloader`, and
-  :code:`ffmpegio-plugin-static-ffmpeg`). :code:`ffmpegio-core` will display a to-be-deprecated message when imported
-
-Install the full `ffmpegio` package via ``pip``:
-
-.. code-block:: bash
-
-   pip install ffmpegio
-
-
-.. table:: External packages to enable additional features
-  :class: tight-table
-
-  ====================  ========================================================================
-  Package Name (PyPI)   Description
-  ====================  ========================================================================
-  `numpy`               Support Numpy array inputs and outputs intead of bytes
-  `matplotlib`          Support generation of images or videos from Matplotlib figure 
-  `ffmepeg-downloader`  Support finding the FFmpeg path installed by the `ffdl` command
-  ====================  ========================================================================
-
 Main Features
 -------------
 
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
-  the system
+  your system
 * Read, write, filter, and create functions for audio, image, and video data
 * Context-managing `ffmpegio.open` to perform stream read/write operations of video and audio
-* Media readers can output the data in a Numpy array (if Numpy is available) or a plain :code:`bytes` 
+* Media readers can output the data in a Numpy array (if Numpy is installed) or a plain :code:`bytes` 
   objects in a :code:`dict`. The mode of operation can be switched with :code:`ffmpegio.use` function.
-* Automatically detect and convert audio & video formats to and from `numpy.ndarray` attributes
+* Media writers can write a new media file from either data given in a Numpy array or :code:`bytes` 
+  objects in a :code:`dict`. 
 * Write Matplotlib figures to images or to a video (a simpler interface than Matplotlib's Animation writers). 
 * Probe media file information
 * Accepts all FFmpeg options including filter graphs
@@ -61,6 +38,39 @@ Main Features
 * `ffconcat` scripter to make the use of `-f concat` demuxer easier
 * I/O device enumeration to eliminate the need to look up device names. (currently supports only: Windows DirectShow)
 * More features to follow
+
+Installation
+------------
+
+Install the full `ffmpegio` package via ``pip``:
+
+.. code-block:: bash
+
+   pip install ffmpegio
+
+Following optional external packages are required to enable the :code:`ffmpegio` features that interact 
+with them.
+
+.. table:: 
+  :class: tight-table
+
+  ==========================  ======================================================================== =====================================
+  Distro package name         :code:`ffmpegio` features                                                Deprecated plugin names
+  ==========================  ======================================================================== =====================================
+  :code:`numpy`               Support Numpy array inputs and outputs intead of bytes                   :code:`ffmpegio`
+  :code:`matplotlib`          Support generation of images or videos from Matplotlib figure            :code:`ffmpegio-plugin-mpl`
+  :code:`ffmepeg-downloader`  Support finding the FFmpeg path installed by the :code:`ffdl` command    :code:`ffmpegio-plugin-downloader`
+  :code:`static-ffmpeg`       Support finding the FFmpeg binaries in :code:`site-packages` dir         :code:`ffmpegio-plugin-static-ffmpeg`
+  ==========================  ======================================================================== =====================================
+
+These features are automatically enabled if the external packages are installed along along side with `ffmpegio`.
+:code:`ffmpegio` is imported 
+
+.. note::
+  
+  Prior to v0.11.0, these features were only enabled via installing separate plugin packages (listed in the table above). 
+  After v0.11 :code:`ffmpegio` and :code:`ffmpegio-core` are identical except for the deprecation warning on 
+  :code:`ffmpegio-core`.
 
 Documentation
 -------------

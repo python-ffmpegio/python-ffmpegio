@@ -61,6 +61,9 @@ from .transcode import transcode
 from . import streams as _streams
 from .utils.parser import FLAG
 
+# check if ffmpegio-core is installed, if it is warn its deprecation
+from ._utils import deprecate_core
+deprecate_core()
 
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
