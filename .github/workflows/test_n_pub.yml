@@ -60,7 +60,7 @@ jobs:
           pip install -U build pytest pytest-github-actions-annotate-failures 
 
       - name: Install ffmpegio package
-        run: pip install -q .
+        run: pip install -q . numpy
 
       - name: Run tests
         run: pytest -vv
