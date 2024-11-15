@@ -31,7 +31,9 @@ Features
 
 FFmpeg can read/write virtually any multimedia file out there, and :code:`ffmpegio` uses 
 the FFmpeg's prowess to perform media I/O (and other) operations in Python. It offers two
-basic modes of operation: block read/write and stream read/write. Another feature of 
+basic modes of operation: block read/write and stream read/write. For the read operations,
+it can output data either in a Numpy array or in a plain :code:`bytes`. The Numpy mode is
+enabled by default if Numpy is available in the system. Another feature of 
 :code:`ffmpegio` is to report the properties of the media files, using FFprobe.
 
 Media Probe

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "ffmpegio-core"
+name = "ffmpegio"
 description = "Media I/O with FFmpeg"
 readme = "README.rst"
 keywords = ["multimedia", "ffmpeg"]

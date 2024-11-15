@@ -35,6 +35,7 @@ Features
 * `ffconcat` scripter to make the use of `-f concat` demuxer easier
 * I/O device enumeration to eliminate the need to look up device names. (currently supports only: Windows DirectShow)
 * Advanced users can gain finer controls of FFmpeg I/O with :py:mod:`ffmpegio.ffmpegprocess` submodule
+* Supports custom plugins to read/write directly to a desired data type
 
 .. * (planned) Multi-stream read/write
 
@@ -49,13 +50,22 @@ Where to start
 
    pip install ffmpegio
 
-If `numpy.ndarray` I/O is not needed, use instead
+* :py:mod:`ffmpegio` is shipped with 3 plugins, which are enabled if their dependency is satisfied 
+  when the package is loaded in Python.
 
-.. code-block:: bash
+  
+.. table:: External packages to enable additional features
+  :class: tight-table
 
-   pip install ffmpegio-core
+  =======================  ========================================================================
+  Package Name (PyPI)      Description
+  =======================  ========================================================================
+  ``numpy``                Support Numpy array inputs and outputs intead of bytes
+  ``matplotlib``           Support generation of images or videos from Matplotlib figures 
+  ``ffmepeg-downloader``   Finding FFmpeg installed by the `ffdl` command
+  ``static-ffmpeg``        Finding FFmpeg installed by this package
+  =======================  ========================================================================
 
-See :ref:`Installation <install>` for more explanation.
 
 Examples
 --------

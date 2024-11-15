@@ -28,6 +28,24 @@ def test_rawdata_bytes():
     assert hook.audio_info(obj=data) == (shape, dtype)
     assert hook.audio_bytes(obj=data) == b
 
+def test_use():
+    import numpy as np
+
+    plugins.use("read_numpy")
+
+    dtype = "|u1"
+    shape = (2, 2, 3)
+    b = b"\0" * prod(shape)
+
+    hook = plugins.get_hook()
+    data = hook.bytes_to_video(b=b, dtype=dtype, shape=shape, squeeze=False)
+    assert isinstance(data, np.ndarray)
+
+    plugins.use("read_bytes")
+    hook = plugins.get_hook()
+    data = hook.bytes_to_video(b=b, dtype=dtype, shape=shape, squeeze=False)
+    assert isinstance(data, dict)
+
 
 if __name__ == "__main__":
     print(plugins.pm.get_plugins())

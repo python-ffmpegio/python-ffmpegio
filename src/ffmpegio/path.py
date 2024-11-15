@@ -129,9 +129,6 @@ def find(ffmpeg_path=None, ffprobe_path=None):
             )
         FFMPEG_BIN = ffmpeg_path
         FFPROBE_BIN = ffprobe_path
-    elif which("ffmpeg") and which("ffprobe"):
-        FFMPEG_BIN = "ffmpeg"
-        FFPROBE_BIN = "ffprobe"
     else:
         res = plugins.get_hook().finder()
         if res is None:
