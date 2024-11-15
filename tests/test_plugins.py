@@ -31,7 +31,7 @@ def test_rawdata_bytes():
 def test_use():
     import numpy as np
 
-    plugins.use("numpy")
+    plugins.use("read_numpy")
 
     dtype = "|u1"
     shape = (2, 2, 3)
@@ -41,7 +41,7 @@ def test_use():
     data = hook.bytes_to_video(b=b, dtype=dtype, shape=shape, squeeze=False)
     assert isinstance(data, np.ndarray)
 
-    plugins.use("bytes")
+    plugins.use("read_bytes")
     hook = plugins.get_hook()
     data = hook.bytes_to_video(b=b, dtype=dtype, shape=shape, squeeze=False)
     assert isinstance(data, dict)
