@@ -75,7 +75,7 @@ def use(name: Literal["read_numpy", "read_bytes"] | str):
                                Also, reverts Numpy array input processing by
                                all the writers to the default. Numpy must be
                                installed for this plugin to be activated.
-                 - ``"bytes"`` - All the media readers to output a dict with keys:
+                 - ``"read_bytes"`` - All the media readers to output a dict with keys:
                                     ``"buffer"`` (``bytes``) of the retrieved data,
                                     ``"dtype"`` (``str``) Numpy dtype string of ``'"buffer"'``,
                                     and ``"shape"`` (``tuple`` of ``int``s) the data array shape
@@ -85,9 +85,9 @@ def use(name: Literal["read_numpy", "read_bytes"] | str):
                  `plugin://my.plugin.name`.
     """
 
-    if name == "numpy":
+    if name == "read_numpy":
         _try_register_builtin("ffmpegio.plugins.rawdata_numpy", True)
-    elif name == "bytes":
+    elif name == "read_bytes":
         _try_register_builtin("ffmpegio.plugins.rawdata_bytes", True)
     else:
         matched_name = re.match(r"plugin://(.+)$", name)
