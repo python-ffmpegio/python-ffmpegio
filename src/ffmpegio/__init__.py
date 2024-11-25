@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """FFmpeg I/O interface
