@@ -6,6 +6,7 @@ from collections.abc import Sequence
 import json, re
 from fractions import Fraction
 from functools import lru_cache
+from os import PathLike
 
 from .path import ffprobe, PIPE
 from .utils import parse_stream_spec
@@ -196,7 +197,7 @@ def _exec(
             ["-show_optional_fields", "always" if keep_optional_fields else "never"]
         )
 
-    pipe = not isinstance(url, str)
+    pipe = not isinstance(url, (str, PathLike))
     args.append("-" if pipe else url)
 
     if pipe:
