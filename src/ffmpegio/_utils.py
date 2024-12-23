@@ -25,5 +25,5 @@ def deprecate_core():
         return
 
     warnings.warn(
-        message="ffmpegio-core distribution package has been deprecated and consolidated to ffmpegio package since v0.11.0. Please uninstall ffmpegio-core and install only the ffmpegio package to receive future updates."
+        message="!!PACKAGE CONFLICT!! ffmpegio-core distribution package has been deprecated. Please read the following link for the instructions: https://github.com/python-ffmpegio/python-ffmpegio/wiki/Instructions-to-upgrade-to-v0.11.0."
     )
