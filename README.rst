@@ -1,4 +1,4 @@
-`ffmpegio-core`: Media I/O with FFmpeg in Python
+`ffmpegio`: Media I/O with FFmpeg in Python
 ===================================================
 
 |pypi| |pypi-status| |pypi-pyvers| |github-license| |github-status|
@@ -70,7 +70,7 @@ These features are automatically enabled if the external packages are installed 
   
   Prior to v0.11.0, these features were only enabled via installing separate plugin packages (listed in the table above). 
   :code:`ffmpegio` v0.11 and :code:`ffmpegio-core` v0.11 are identical, and :code:`ffmpegio-core` will no longer receive
-  the updates.
+  the updates. For the version upgrade instruction, please read `this Wiki entry <https://github.com/python-ffmpegio/python-ffmpegio/wiki/Instructions-to-upgrade-to-v0.11.0>`__`
 
 Documentation
 -------------
