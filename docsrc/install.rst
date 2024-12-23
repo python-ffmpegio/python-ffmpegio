@@ -5,29 +5,37 @@ Installation
 ============
 
 To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
-having the FFmpeg binary files at a location :py:mod:`ffmpegio` can find.
+having the FFmpeg binary files at a location :py:mod:`ffmpegio` can find. In addition,
+optional external packages can be installed to enable the :code:`ffmpegio` features that interact 
+with them.
 
-Install the :py:mod:`ffmpegio` package via :code:`pip`. There are two options: `ffmpegio` and `ffmpegio-core`.
+Install the :py:mod:`ffmpegio` package via :code:`pip`.
 
 .. code-block::
 
    pip install ffmpegio
 
-This option installs the `ffmpegio` and `ffmpegio_plugin_numpy` packages so that the media data I/O are
-performed with `numpy.ndarray` objects. Naturally, `ffmpegio_plugin_numpy` requires `numpy` dependency. 
-For use cases in which media data I/O is not needed, it unnecessarily bloats the site-package install. 
-In such case, use the core-only install:
-
-.. code-block::
-
-   pip install ffmpegio-core
-
-This option only installs the `ffmpegio` package without `numpy` dependency. While media I/O functions
-(e.g., `open()`, `video.read()`, and `audio.write()`) are still available, the data are represented binary
-a `dict` object containing `bytes` data.
-
 Install FFmpeg program
 ^^^^^^^^^^^^^^^^^^^^^^
+
+There are two platform independent approaches to install FFmpeg for the use in Python:
+
+::code::`ffmpeg-downloader`
+"""""""""""""""""""""""""""
+
+.. code-block:: 
+   pip install ffmpeg-downloader
+   ffdl install -U # grabs the latest version
+
+   # optionally
+   ffdl install -U --add-path to have it on the system path in Windows or MacOS
+
+::code::`static-ffmpeg`
+"""""""""""""""""""""""
+
+.. code-block:: 
+   pip install static-ffmpeg
+   static_ffmpeg_paths
 
 The installation of FFmpeg is platform dependent. For Ubuntu/Debian Linux,
 

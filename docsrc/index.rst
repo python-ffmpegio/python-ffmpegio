@@ -1,96 +1,103 @@
-ffmpegio: Media I/O with FFmpeg in Python
+`ffmpegio-core`: Media I/O with FFmpeg in Python
 ===================================================
 
-.. image:: https://img.shields.io/pypi/v/ffmpegio
+|pypi| |pypi-status| |pypi-pyvers| |github-license| |github-status|
+
+.. |pypi| image:: https://img.shields.io/pypi/v/ffmpegio
   :alt: PyPI
-.. image:: https://img.shields.io/pypi/status/ffmpegio
+.. |pypi-status| image:: https://img.shields.io/pypi/status/ffmpegio
   :alt: PyPI - Status
-.. image:: https://img.shields.io/pypi/pyversions/ffmpegio
+.. |pypi-pyvers| image:: https://img.shields.io/pypi/pyversions/ffmpegio
   :alt: PyPI - Python Version
-.. image:: https://img.shields.io/github/license/python-ffmpegio/python-ffmpegio
+.. |github-license| image:: https://img.shields.io/github/license/python-ffmpegio/python-ffmpegio
   :alt: GitHub License
-.. image:: https://img.shields.io/github/workflow/status/python-ffmpegio/python-ffmpegio/Run%20Tests
+.. |github-status| image:: https://img.shields.io/github/actions/workflow/status/python-ffmpegio/python-ffmpegio/test_n_pub.yml?branch=main
   :alt: GitHub Workflow Status
 
-* GitHub Repository <https://github.com/python-ffmpegio/python-ffmpegio>
-* GitHub Discussion Board <https://github.com/python-ffmpegio/python-ffmpegio/discussions>
-
-Python :py:mod:`ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
-to read, write, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
+Python `ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
+to read, write, probe, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
 multimedia framework, which can handle most of the multimedia formats available today.
 
-Features
---------
+Main Features
+-------------
 
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
-  the system
-* Transcode a media file to another in Python
+  your system
 * Read, write, filter, and create functions for audio, image, and video data
-* Context-managing :py:func:`ffmpegio.open` to perform stream read/write operations of video and audio
-* Automatically detect and convert audio & video formats to and from `numpy.ndarray` properties
+* Context-managing `ffmpegio.open` to perform stream read/write operations of video and audio
+* Media readers can output the data in a Numpy array (if Numpy is installed) or a plain :code:`bytes` 
+  objects in a :code:`dict`. The mode of operation can be switched with :code:`ffmpegio.use` function.
+* Media writers can write a new media file from either data given in a Numpy array or :code:`bytes` 
+  objects in a :code:`dict`. 
+* Write Matplotlib figures to images or to a video (a simpler interface than Matplotlib's Animation writers). 
 * Probe media file information
 * Accepts all FFmpeg options including filter graphs
+* Transcode a media file to another in Python
 * Supports a user callback whenever FFmpeg updates its progress information file 
   (see `-progress` FFmpeg option)
 * `ffconcat` scripter to make the use of `-f concat` demuxer easier
 * I/O device enumeration to eliminate the need to look up device names. (currently supports only: Windows DirectShow)
-* Advanced users can gain finer controls of FFmpeg I/O with :py:mod:`ffmpegio.ffmpegprocess` submodule
-* Supports custom plugins to read/write directly to a desired data type
+* More features to follow
 
-.. * (planned) Multi-stream read/write
+Installation
+------------
 
-Where to start
---------------
-
-* Read :ref:`Quick-start guide <quick>`
-
-* Install via ``pip``:
+Install the full `ffmpegio` package via ``pip``:
 
 .. code-block:: bash
 
    pip install ffmpegio
 
-* :py:mod:`ffmpegio` is shipped with 3 plugins, which are enabled if their dependency is satisfied 
-  when the package is loaded in Python.
+Following optional external packages are required to enable the :code:`ffmpegio` features that interact 
+with them.
 
-  
-.. table:: External packages to enable additional features
+.. table:: 
   :class: tight-table
 
-  =======================  ========================================================================
-  Package Name (PyPI)      Description
-  =======================  ========================================================================
-  ``numpy``                Support Numpy array inputs and outputs intead of bytes
-  ``matplotlib``           Support generation of images or videos from Matplotlib figures 
-  ``ffmepeg-downloader``   Finding FFmpeg installed by the `ffdl` command
-  ``static-ffmpeg``        Finding FFmpeg installed by this package
-  =======================  ========================================================================
+  ==========================  ======================================================================== =====================================
+  Distro package name         :code:`ffmpegio` features                                                Deprecated plugin names
+  ==========================  ======================================================================== =====================================
+  :code:`numpy`               Support Numpy array inputs and outputs intead of bytes                   :code:`ffmpegio`
+  :code:`matplotlib`          Support generation of images or videos from Matplotlib figure            :code:`ffmpegio-plugin-mpl`
+  :code:`ffmepeg-downloader`  Support the FFmpeg binaries installed by the :code:`ffdl` command        :code:`ffmpegio-plugin-downloader`
+  :code:`static-ffmpeg`       Support the FFmpeg binaries installed by :code:`static-ffmpeg`           :code:`ffmpegio-plugin-static-ffmpeg`
+  ==========================  ======================================================================== =====================================
 
+These features are automatically enabled if the external packages are installed along along side with `ffmpegio`.
+:code:`ffmpegio` is imported 
+
+.. note::
+  
+  Prior to v0.11.0, these features were only enabled via installing separate plugin packages (listed in the table above). 
+  :code:`ffmpegio` v0.11 and :code:`ffmpegio-core` v0.11 are identical, and :code:`ffmpegio-core` will no longer receive
+  the updates.
+
+Documentation
+-------------
+
+Visit our `GitHub page here <https://python-ffmpegio.github.io/python-ffmpegio/>`__
 
 Examples
 --------
 
-To import :py:mod:`ffmpegio`
+To import `ffmpegio`
 
 .. code-block:: python
 
   >>> import ffmpegio
 
-
-- :ref:`ex_trancode`
-- :ref:`ex_read_audio`
-- :ref:`ex_read_image`
-- :ref:`ex_read_video`
-- :ref:`ex_read_media`
-- :ref:`ex_write`
-- :ref:`ex_filter`
-- :ref:`ex_filter`
-- :ref:`ex_stream`
-- :ref:`ex_devices`
-- :ref:`ex_progress`
-- :ref:`ex_direct`
-
-.. _ex_trancode:
+- `Transcoding <transcoding_>`_
+- `Read Audio Files <Read Audio Files_>`_
+- `Read Image Files / Capture Video Frames <Read Image Files / Capture Video Frames_>`_
+- `Read Video Files <Read Video Files_>`_
+- `Read Multiple Files or Streams <Read Multiple Files or Streams_>`_
+- `Write Audio, Image, & Video Files <Write Audio, Image, & Video Files_>`_
+- `Filter Audio, Image, & Video Data <Filter Audio, Image, & Video Data_>`_
+- `Stream I/O <Stream I/O_>`_
+- `Device I/O Enumeration <Device I/O Enumeration_>`_
+- `Progress Callback <Progress Callback_>`_
+- `Filtergraph Builder`_
+- `Run FFmpeg and FFprobe Directly <Run FFmpeg and FFprobe Directly_>`_
 
 Transcoding
 ^^^^^^^^^^^
@@ -115,8 +122,6 @@ Transcoding
   >>> with ffconcat: # generates temporary ffconcat file
   >>>     ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat', codec='copy', safe_in=0)
 
-.. _ex_read_audio:
-
 Read Audio Files
 ^^^^^^^^^^^^^^^^
 
@@ -132,8 +137,6 @@ Read Audio Files
   >>> # read filtered audio samples first 10 seconds
   >>> #   filter: equalizer which attenuate 10 dB at 1 kHz with a bandwidth of 200 Hz 
   >>> fs, x = ffmpegio.audio.read('myaudio.mp3', t=10.0, af='equalizer=f=1000:t=h:width=200:g=-10')
-
-.. _ex_read_image:
 
 Read Image Files / Capture Video Frames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -165,8 +168,6 @@ Read Image Files / Capture Video Frames
   >>> I = ffmpegio.image.read('myaudio.mp3', filter_complex='showspectrumpic=s=960x540', pix_fmt='rgb24')
 
 
-.. _ex_read_video:
-
 Read Video Files
 ^^^^^^^^^^^^^^^^
 
@@ -179,8 +180,6 @@ Read Video Files
   >>> # get running spectrogram of audio input (must specify pix_fmt if input is audio)
   >>> fs, F = ffmpegio.video.read('myvideo.mp4', pix_fmt='rgb24', filter_complex='showspectrum=s=1280x480')
   
-
-.. _ex_read_media:
 
 Read Multiple Files or Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -201,8 +200,6 @@ Read Multiple Files or Streams
   >>> #  rates: dict of frame rates: keys="v:0" and "v:1"
   >>> #  data: dict of video frame arrays: keys="v:0" and "v:1"
 
-.. _ex_write:
-
 Write Audio, Image, & Video Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -217,9 +214,7 @@ Write Audio, Image, & Video Files
   >>> # create an audio file from a numpy array
   >>> ffmpegio.audio.write('myaudio.mp3', rate, x)
 
-.. _ex_filter:
-
-Filter Audio, Image, & Video data
+Filter Audio, Image, & Video Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
@@ -234,8 +229,6 @@ Filter Audio, Image, & Video data
   >>> filter = "drawtext=fontsize=30:fontfile=FreeSerif.ttf:text='hello world':x=(w-text_w)/2:y=(h-text_h)/2"
   >>> fs_out, F_out = ffmpegio.video.filter(filter, fs_in, F_in)
 
-.. _ex_stream:
-
 Stream I/O
 ^^^^^^^^^^
 
@@ -244,11 +237,34 @@ Stream I/O
   >>> # process video 100 frames at a time and save output as a new video 
   >>> # with the same frame rate
   >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100) as fin,
-  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fin.frame_rate) as fout:
+  >>>      ffmpegio.open('myoutput.mp4', 'wv', rate=fin.rate) as fout:
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
 
-.. _ex_devices:
+Filtergraph Builder
+^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   >>> # build complex filtergraph
+   >>> from ffmpegio import filtergraph as fgb
+   >>>
+   >>> v0 = "[0]" >> fgb.trim(start_frame=10, end_frame=20)
+   >>> v1 = "[0]" >> fgb.trim(start_frame=30, end_frame=40)
+   >>> v3 = "[1]" >> fgb.hflip()
+   >>> v2 = (v0 | v1) + fgb.concat(2)
+   >>> v5 = (v2|v3) + fgb.overlay(eof_action='repeat') + fgb.drawbox(50, 50, 120, 120, 'red', t=5)
+   >>> v5
+   <ffmpegio.filtergraph.Graph.Graph object at 0x2a4ef084bd0>
+       FFmpeg expression: "[0]trim=start_frame=10:end_frame=20[L0];[0]trim=start_frame=30:end_frame=40[L1];[L0][L1]concat=2[L2];[1]hflip[L3];[L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5"
+       Number of chains: 5
+         chain[0]: [0]trim=start_frame=10:end_frame=20[L0];
+         chain[1]: [0]trim=start_frame=30:end_frame=40[L1];
+         chain[2]: [L0][L1]concat=2[L2];
+         chain[3]: [1]hflip[L3];
+         chain[4]: [L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5[UNC0]      
+       Available input pads (0): 
+       Available output pads: (1): (4, 1, 0)
 
 Device I/O Enumeration
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -263,9 +279,7 @@ Device I/O Enumeration
   >>>     for frame in webcam:
   >>>         process_frame(frame)
 
-.. _ex_progress:
-
-Progress callback
+Progress Callback
 ^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
@@ -287,8 +301,6 @@ Progress callback
   >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100, progress=progress) as fin:
   >>>     for frames in fin:
   >>>         myprocess(frames)
-
-.. _ex_direct:
 
 Run FFmpeg and FFprobe Directly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -318,45 +330,3 @@ Run FFmpeg and FFprobe Directly
                               }, capture_log=True)
   >>> print(out.stderr) # print the captured FFmpeg logs (banner text omitted)
   >>> b = out.stdout # width*height bytes of the first frame
-
-Introductory Info
------------------
-
-.. toctree::
-    :maxdepth: 1
-
-    quick
-    install
-
-
-High-level API Reference
-------------------------
-
-.. toctree::
-    :maxdepth: 1
-
-    basicio
-    probe
-    options
-    filtergraph
-    caps
-    analysis
-    devices
-    concat
-
-Advanced Topics
----------------
-
-.. toctree::
-    :maxdepth: 1
-
-    adv-ffmpeg
-    adv-args
-
-External Links
---------------
-
-.. toctree::
-    :maxdepth: 1
-
-    links

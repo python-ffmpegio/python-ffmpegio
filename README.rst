@@ -59,8 +59,8 @@ with them.
   ==========================  ======================================================================== =====================================
   :code:`numpy`               Support Numpy array inputs and outputs intead of bytes                   :code:`ffmpegio`
   :code:`matplotlib`          Support generation of images or videos from Matplotlib figure            :code:`ffmpegio-plugin-mpl`
-  :code:`ffmepeg-downloader`  Support finding the FFmpeg path installed by the :code:`ffdl` command    :code:`ffmpegio-plugin-downloader`
-  :code:`static-ffmpeg`       Support finding the FFmpeg binaries in :code:`site-packages` dir         :code:`ffmpegio-plugin-static-ffmpeg`
+  :code:`ffmepeg-downloader`  Support the FFmpeg binaries installed by the :code:`ffdl` command        :code:`ffmpegio-plugin-downloader`
+  :code:`static-ffmpeg`       Support the FFmpeg binaries installed by :code:`static-ffmpeg`           :code:`ffmpegio-plugin-static-ffmpeg`
   ==========================  ======================================================================== =====================================
 
 These features are automatically enabled if the external packages are installed along along side with `ffmpegio`.
@@ -69,8 +69,8 @@ These features are automatically enabled if the external packages are installed 
 .. note::
   
   Prior to v0.11.0, these features were only enabled via installing separate plugin packages (listed in the table above). 
-  After v0.11 :code:`ffmpegio` and :code:`ffmpegio-core` are identical except for the deprecation warning on 
-  :code:`ffmpegio-core`.
+  :code:`ffmpegio` v0.11 and :code:`ffmpegio-core` v0.11 are identical, and :code:`ffmpegio-core` will no longer receive
+  the updates.
 
 Documentation
 -------------
@@ -94,6 +94,7 @@ To import `ffmpegio`
 - `Write Audio, Image, & Video Files <Write Audio, Image, & Video Files_>`_
 - `Filter Audio, Image, & Video Data <Filter Audio, Image, & Video Data_>`_
 - `Stream I/O <Stream I/O_>`_
+- `Video from Matplotlib Figure <Video from Matplotlib Figure_>`_
 - `Device I/O Enumeration <Device I/O Enumeration_>`_
 - `Progress Callback <Progress Callback_>`_
 - `Filtergraph Builder`_
@@ -241,6 +242,46 @@ Stream I/O
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
 
+Video from Matplotlib Figure
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable this feature, you must also install :code:`matplotlib`:
+
+.. code-block::
+
+  pip install matplotlib
+
+
+.. code-block:: python
+
+  >>> # process video 100 frames at a time and save output as a new video 
+  >>> # with the same frame rate
+  >>> import ffmpegio
+  >>> from matplotlib import pyplot as plt
+  >>> import numpy as np
+  >>> 
+  >>> fig, ax = plt.subplots()
+  >>> 
+  >>> x = np.arange(0, 2*np.pi, 0.01)
+  >>> line, = ax.plot(x, np.sin(x))
+  >>> 
+  >>> interval=20 # delay in milliseconds
+  >>> save_count=50 # number of frames
+  >>> 
+  >>> def animate(i):
+  >>>     line.set_ydata(np.sin(x + i / 50))  # update the data.
+  >>>     return line
+  >>> 
+  >>> with ffmpegio.open(
+  >>>   "output.mp4", # output file name
+  >>>   "wv", # open file in write-video mode
+  >>>   1e3/interval, # framerate in frames/second
+  >>>   pix_fmt="yuv420p", # specify the pixel format (default is yuv444p)
+  >>> ) as f:
+  >>>     for n in range(save_count):
+  >>>         animate(n) # update figure
+  >>>         f.write(fig) # write new frame
+
 Filtergraph Builder
 ^^^^^^^^^^^^^^^^^^^
 
@@ -329,4 +370,4 @@ Run FFmpeg and FFprobe Directly
                                            ("-", {"f": "rawvideo", "vframes": 1, "pix_fmt": "gray", "an": None})
                               }, capture_log=True)
   >>> print(out.stderr) # print the captured FFmpeg logs (banner text omitted)
-   >>> b = out.stdout # width*height bytes of the first frame
+  >>> b = out.stdout # width*height bytes of the first frame
