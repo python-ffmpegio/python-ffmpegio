@@ -6,9 +6,12 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.11.0] - 2024-12-22
+
 ### Changed
 
 - allow writers' `extra_inputs` arguments to be `str` or `tuple[str, dict|None]`
+- `probe` functions accepts PathLike object as the media url
 
 ### Added
 
@@ -445,7 +448,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.10.0...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.1...v0.10.0
 [0.9.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.8.6...v0.9.0
