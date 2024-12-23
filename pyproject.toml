@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "ffmpegio"
+name = "ffmpegio-core"
 description = "Media I/O with FFmpeg"
-readme = "README.rst"
+readme = "README.md"
 keywords = ["multimedia", "ffmpeg"]
 license = { text = "GPL-2.0 License" }
 classifiers = [
