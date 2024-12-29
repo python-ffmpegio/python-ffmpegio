@@ -1,2 +1,1 @@
 pytest
-ffmpegio-plugin-downloader; os_name=='nt'
