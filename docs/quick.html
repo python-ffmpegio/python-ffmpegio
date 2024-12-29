@@ -1,0 +1,524 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick Start Guide &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Quick Start Guide</a><ul>
+<li><a class="reference internal" href="#install">Install</a></li>
+<li><a class="reference internal" href="#features">Features</a></li>
+<li><a class="reference internal" href="#media-probe">Media Probe</a></li>
+<li><a class="reference internal" href="#block-read-write">Block Read/Write</a></li>
+<li><a class="reference internal" href="#stream-read-write">Stream Read/Write</a></li>
+<li><a class="reference internal" href="#specify-read-time-range">Specify Read Time Range</a></li>
+<li><a class="reference internal" href="#specify-output-frame-sample-size">Specify Output Frame/Sample Size</a></li>
+<li><a class="reference internal" href="#specify-sample-formats">Specify Sample Formats</a></li>
+<li><a class="reference internal" href="#progress-callback">Progress Callback</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Quick Start Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/quick.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="quick-start-guide">
+<span id="quick"></span><h1>Quick Start Guide<a class="headerlink" href="#quick-start-guide" title="Link to this heading"></a></h1>
+<section id="install">
+<h2>Install<a class="headerlink" href="#install" title="Link to this heading"></a></h2>
+<p>To use <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code>, the package must be installed on Python as well as
+having the FFmpeg binary files at a location <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> can find.</p>
+<p>Install the full <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> package via <code class="docutils literal notranslate"><span class="pre">pip</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ffmpegio
+</pre></div>
+</div>
+<p>If <cite>numpy.ndarray</cite> data I/O is not needed, instead use</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ffmpegio-core
+</pre></div>
+</div>
+<p>If FFmpeg is not installed on your system, please follow the instructions on
+<a class="reference internal" href="install.html#install"><span class="std std-ref">Installation page</span></a></p>
+</section>
+<section id="features">
+<h2>Features<a class="headerlink" href="#features" title="Link to this heading"></a></h2>
+<p>FFmpeg can read/write virtually any multimedia file out there, and <code class="code docutils literal notranslate"><span class="pre">ffmpegio</span></code> uses
+the FFmpeg’s prowess to perform media I/O (and other) operations in Python. It offers two
+basic modes of operation: block read/write and stream read/write. For the read operations,
+it can output data either in a Numpy array or in a plain <code class="code docutils literal notranslate"><span class="pre">bytes</span></code>. The Numpy mode is
+enabled by default if Numpy is available in the system. Another feature of
+<code class="code docutils literal notranslate"><span class="pre">ffmpegio</span></code> is to report the properties of the media files, using FFprobe.</p>
+</section>
+<section id="media-probe">
+<h2>Media Probe<a class="headerlink" href="#media-probe" title="Link to this heading"></a></h2>
+<p>To process a media file, you first need to know what’s in it. Within FFmpeg
+ecosystem, this task is handled by <a class="reference external" href="https://ffmpeg.org/ffprobe.html">ffprobe</a>.
+<code class="code docutils literal notranslate"><span class="pre">ffmpegio</span></code>’s <a class="reference internal" href="probe.html#probe"><span class="std std-ref">ffmpegio:probe</span></a> module wraps ffprobe with 5
+basic functions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">ffmpegio</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">pprint</span> <span class="kn">import</span> <span class="n">pprint</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;mytestvideo.mpg&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">format_info</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">probe</span><span class="o">.</span><span class="n">format_basic</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pprint</span><span class="p">(</span><span class="n">format_info</span><span class="p">)</span>
+<span class="go">{&#39;duration&#39;: 66.403256,</span>
+<span class="go">&#39;filename&#39;: &#39;mytestvideo.mpg&#39;,</span>
+<span class="go">&#39;format_name&#39;: &#39;mpegts&#39;,</span>
+<span class="go">&#39;nb_streams&#39;: 2,</span>
+<span class="go">&#39;start_time&#39;: 0.0}</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">stream_info</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">probe</span><span class="o">.</span><span class="n">streams_basic</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pprint</span><span class="p">(</span><span class="n">stream_info</span><span class="p">)</span>
+<span class="go">[{&#39;codec_name&#39;: &#39;mp2&#39;, &#39;codec_type&#39;: &#39;audio&#39;, &#39;index&#39;: 0},</span>
+<span class="go">{&#39;codec_name&#39;: &#39;h264&#39;, &#39;codec_type&#39;: &#39;video&#39;, &#39;index&#39;: 1}]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">vst_info</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">probe</span><span class="o">.</span><span class="n">video_streams_basic</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pprint</span><span class="p">(</span><span class="n">vst_info</span><span class="p">)</span>
+<span class="go">[{&#39;codec_name&#39;: &#39;h264&#39;,</span>
+<span class="go">&#39;display_aspect_ratio&#39;: Fraction(22, 15),</span>
+<span class="go">&#39;duration&#39;: 66.39972222222222,</span>
+<span class="go">&#39;frame_rate&#39;: Fraction(15000, 1001),</span>
+<span class="go">&#39;height&#39;: 240,</span>
+<span class="go">&#39;index&#39;: 1,</span>
+<span class="go">&#39;pix_fmt&#39;: &#39;yuv420p&#39;,</span>
+<span class="go">&#39;sample_aspect_ratio&#39;: Fraction(1, 1),</span>
+<span class="go">&#39;start_time&#39;: 0.0,</span>
+<span class="go">&#39;width&#39;: 352}]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ast_info</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">probe</span><span class="o">.</span><span class="n">audio_streams_basic</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">pprint</span><span class="p">(</span><span class="n">ast_info</span><span class="p">)</span>
+<span class="go">[{&#39;channel_layout&#39;: &#39;stereo&#39;,</span>
+<span class="go">&#39;channels&#39;: 2,</span>
+<span class="go">&#39;codec_name&#39;: &#39;mp2&#39;,</span>
+<span class="go">&#39;duration&#39;: 66.40325555555556,</span>
+<span class="go">&#39;index&#39;: 0,</span>
+<span class="go">&#39;nb_samples&#39;: 2928384,</span>
+<span class="go">&#39;sample_fmt&#39;: &#39;fltp&#39;,</span>
+<span class="go">&#39;sample_rate&#39;: 44100,</span>
+<span class="go">&#39;start_time&#39;: 0.0}]</span>
+</pre></div>
+</div>
+<p>To obtain the complete ffprobe output, use <a class="reference internal" href="probe.html#ffmpegio.probe.full_details" title="ffmpegio.probe.full_details"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.probe.full_details()</span></code></a>,
+and to obtain specific format or stream fields, use <a class="reference internal" href="probe.html#ffmpegio.probe.query" title="ffmpegio.probe.query"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.probe.query()</span></code></a>.
+For more information on <code class="xref py py-mod docutils literal notranslate"><span class="pre">probe</span></code>, see <a class="reference internal" href="probe.html#probe"><span class="std std-ref">Media Probe Function References</span></a>.</p>
+</section>
+<section id="block-read-write">
+<h2>Block Read/Write<a class="headerlink" href="#block-read-write" title="Link to this heading"></a></h2>
+<p>Suppose you need to analyze short audio data in <code class="code docutils literal notranslate"><span class="pre">mytestfile.mp3</span></code>, you can
+read all its samples by</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;mytestfile.wav&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It returns the sampling rate <code class="code docutils literal notranslate"><span class="pre">fs</span></code> and <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.2)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> <code class="code docutils literal notranslate"><span class="pre">x</span></code>.
+The audio data is always represetned by a 2-D array, each of which column represents
+an audio channel. So, a 2-second stereo recording at 8000 samples/second yields
+<code class="code docutils literal notranslate"><span class="pre">x.shape</span></code> to be <code class="code docutils literal notranslate"><span class="pre">(16000,2)</span></code>. Also, the sample format is preserved: If
+the samples in the wav file is 16-bit, <code class="code docutils literal notranslate"><span class="pre">x</span></code> is of <code class="code docutils literal notranslate"><span class="pre">numpy.int16</span></code> dtype.</p>
+<p>Now, you’ve processed this audio data and produced the 8000-sample 1-D array <code class="code docutils literal notranslate"><span class="pre">y</span></code>
+at reduced sampling rate at 4000-samples/second. You want to save this new audio
+data as FLAC file. To do so, you run:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;myoutput.flac&#39;</span><span class="p">,</span> <span class="mi">4000</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>There are video counterparts to these two functions:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">F</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;mytestvideo.mp4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;myoutput.avi&#39;</span><span class="p">,</span> <span class="n">fs</span><span class="p">,</span> <span class="n">F</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Let’s suppose <code class="code docutils literal notranslate"><span class="pre">mytestvideo.mp4</span></code> is 10 seconds long, containing a
+<code class="code docutils literal notranslate"><span class="pre">yuv420p</span></code>-encoded color video stream with the frame size of 640x480 pixels,
+and the frame rate of 29.97 (30000/1001) frames/second. Then, the <code class="xref py py-func docutils literal notranslate"><span class="pre">video.read()</span></code>
+returns a 2-element tuple: the first element <code class="code docutils literal notranslate"><span class="pre">fs</span></code> is the frame rate in
+<code class="xref py py-class docutils literal notranslate"><span class="pre">fractions.Fraction</span></code> and the second element <code class="code docutils literal notranslate"><span class="pre">F</span></code> contains all the frames
+of the video in <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.2)"><code class="xref py py-class docutils literal notranslate"><span class="pre">numpy.ndarray</span></code></a> with shape <code class="code docutils literal notranslate"><span class="pre">(299,</span> <span class="pre">480,</span> <span class="pre">640,</span> <span class="pre">3)</span></code>.
+Because the video is in color, each pixel is represented in 24-bit RGB, thus
+<code class="code docutils literal notranslate"><span class="pre">F.dtype</span></code> is <code class="code docutils literal notranslate"><span class="pre">numpy.uint8</span></code>. The video write is the reciprocal of
+the read operation.</p>
+<p>For image (or single video frame) I/O, there is a pair of functions as well:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">I</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myimage.png&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s1">&#39;myoutput.bmp&#39;</span><span class="p">,</span> <span class="n">I</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The image data <code class="code docutils literal notranslate"><span class="pre">I</span></code> is like the video frame data, but without the leading
+dimension.</p>
+</section>
+<section id="stream-read-write">
+<span id="quick-streamio"></span><h2>Stream Read/Write<a class="headerlink" href="#stream-read-write" title="Link to this heading"></a></h2>
+<p>Block read/write is simple and convenient for a short file, but it quickly
+becomes slow and inefficient as the data size grows; this is especially true
+for video. To enable on-demand data retrieval, <code class="code docutils literal notranslate"><span class="pre">ffmpegio</span></code> offers stream
+read/write operation. It mimics the familiar Python’s file I/O with
+<a class="reference internal" href="basicio.html#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.open()</span></code></a>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;mytestvideo.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;rv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span> <span class="c1"># opens the first video stream</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="nb">print</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">rate</span><span class="p">)</span> <span class="c1"># frame rate fraction in frames/second</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">F</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span> <span class="c1"># read the first frame</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">F</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span> <span class="c1"># read the next 5 frames at once</span>
+</pre></div>
+</div>
+<p>Another example, which uses read and write streams simultaneously:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;mytestvideo.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;rv&#39;</span><span class="p">,</span> <span class="n">blocksize</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span>     <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;myoutput.avi&#39;</span><span class="p">,</span> <span class="s1">&#39;wv&#39;</span><span class="p">,</span> <span class="n">f</span><span class="o">.</span><span class="n">rate</span><span class="p">)</span> <span class="k">as</span> <span class="n">g</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>        <span class="k">for</span> <span class="n">frames</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span> <span class="c1"># iterates over all frames, 100 frames at a time</span>
+<span class="gp">&gt;&gt;&gt; </span>            <span class="n">output</span> <span class="o">=</span> <span class="n">my_processor</span><span class="p">(</span><span class="n">frames</span><span class="p">)</span> <span class="c1"># function to process data</span>
+<span class="gp">&gt;&gt;&gt; </span>            <span class="n">g</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">output</span><span class="p">)</span> <span class="c1"># send the processed frames to &#39;myoutput.avi&#39;</span>
+</pre></div>
+</div>
+<p>By default, <code class="code docutils literal notranslate"><span class="pre">ffmpegio.open()</span></code> opens the first media stream available to read.
+However, the operation mode can be specified via the <code class="code docutils literal notranslate"><span class="pre">mode</span></code> second argument.
+The above example, opens <code class="code docutils literal notranslate"><span class="pre">mytestvideo.mp4</span></code> file in <code class="code docutils literal notranslate"><span class="pre">'rv'</span></code> or “read
+video” mode and <code class="code docutils literal notranslate"><span class="pre">myoutput.avi</span></code> in <code class="code docutils literal notranslate"><span class="pre">'wv'</span></code> or “write video” mode. The
+file reader object <code class="code docutils literal notranslate"><span class="pre">f</span></code> is an Iterable object, which returns the next set of
+frames (the number set by the <code class="code docutils literal notranslate"><span class="pre">blocksize</span></code> argument). For more,
+see <a class="reference internal" href="basicio.html#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.open()</span></code></a>.</p>
+</section>
+<section id="specify-read-time-range">
+<h2>Specify Read Time Range<a class="headerlink" href="#specify-read-time-range" title="Link to this heading"></a></h2>
+<p>For both block and stream read operations, you can specify the time range to read
+data from. There are four options available:</p>
+<table class="tight-table docutils align-default" id="id1">
+<caption><span class="caption-text">Read Timing Options</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">ss</span></code></p></td>
+<td><p>Start time in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">t</span></code></p></td>
+<td><p>Duration in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">to</span></code></p></td>
+<td><p>End time in seconds (ignored if <code class="code docutils literal notranslate"><span class="pre">t_in</span></code> is also specified)</p></td>
+</tr>
+</tbody>
+</table>
+<p>Note it is also possible to specify these timing options for the input (i.e., using the
+options <code class="code docutils literal notranslate"><span class="pre">ss_in</span></code>, <code class="code docutils literal notranslate"><span class="pre">t_in</span></code>, and <code class="code docutils literal notranslate"><span class="pre">to_in</span></code>). The input options, especially
+<code class="code docutils literal notranslate"><span class="pre">ss_in</span></code>, may run faster but potentially less accurate. See <a class="reference external" href="https://ffmpeg.org/ffmpeg.html#Options">FFmpeg documentation</a> for the explanation.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;myvideo.mp4&#39;</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1">#read only the first 1 seconds</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">F</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1">#read from 1.2 second mark to 2.5 second mark</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">F</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="mf">2.5</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>To specify by the frame numbers for video and sample numbers for audio, user must
+convert the units to seconds using <code class="xref py py-func docutils literal notranslate"><span class="pre">probe()</span></code>. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># get frame rate of the (first) video stream</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">info</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">probe</span><span class="o">.</span><span class="n">video_streams_basic</span><span class="p">(</span><span class="s1">&#39;myvideo.mp4&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;frame_rate&#39;</span><span class="p">]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1">#read 30 frame from the 11th frame (remember Python uses 0-based index)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;myvideo.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;rv&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">10</span><span class="o">/</span><span class="n">fs</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">30</span><span class="o">/</span><span class="n">fs</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="n">frame</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span>    <span class="c1"># do your thing with the frame data</span>
+</pre></div>
+</div>
+<p>Likewise, for an audio input stream:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># get sampling rate of the (first) audio stream</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">info</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">probe</span><span class="o">.</span><span class="n">audio_streams_basic</span><span class="p">(</span><span class="s1">&#39;myaudio.wav&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span> <span class="o">=</span> <span class="n">info</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;sample_rate&#39;</span><span class="p">]</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1">#read first 10000 audio samples</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myaudio.wav&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">10000</span><span class="o">/</span><span class="n">fs</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="specify-output-frame-sample-size">
+<h2>Specify Output Frame/Sample Size<a class="headerlink" href="#specify-output-frame-sample-size" title="Link to this heading"></a></h2>
+<p>FFmpeg let you change video size or the number of audio channels via output
+options <code class="code docutils literal notranslate"><span class="pre">s</span></code> and <code class="code docutils literal notranslate"><span class="pre">ac</span></code>, respectively, without setting up a
+filtergraph. For example,</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># auto-scale video frame</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">F</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myvideo.mp4&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span> <span class="c1"># natively 320x240</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">F</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(30, 240, 320, 3)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># halve the size</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">width</span> <span class="o">=</span> <span class="mi">160</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">height</span> <span class="o">=</span> <span class="mi">120</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_</span><span class="p">,</span> <span class="n">G</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myvideo.mp4&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">s</span><span class="o">=</span><span class="p">(</span><span class="n">width</span><span class="p">,</span><span class="n">height</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">G</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(29, 120, 160, 3)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># auto-convert to mono</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myaudio.wav&#39;</span><span class="p">)</span> <span class="c1"># natively stereo</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myaudio.wav&#39;</span><span class="p">,</span> <span class="n">ac</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="c1"># to mono</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(44100, 2)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(44100, 1)</span>
+</pre></div>
+</div>
+<p>To customize the conversion configuration, use <code class="code docutils literal notranslate"><span class="pre">vf</span></code> output option
+with with <code class="code docutils literal notranslate"><span class="pre">scale</span></code> filter or <code class="code docutils literal notranslate"><span class="pre">af</span></code> output option with
+<code class="code docutils literal notranslate"><span class="pre">channelmap</span></code> or <code class="code docutils literal notranslate"><span class="pre">pan</span></code> or other channel mixing filter</p>
+</section>
+<section id="specify-sample-formats">
+<h2>Specify Sample Formats<a class="headerlink" href="#specify-sample-formats" title="Link to this heading"></a></h2>
+<p>FFmpeg can also convert the formats of video pixels and sound samples on the fly.
+This feature is enabled in <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> via output options <code class="code docutils literal notranslate"><span class="pre">pix_fmt</span></code>
+for video and <code class="code docutils literal notranslate"><span class="pre">sample_fmt</span></code> for audio.</p>
+<blockquote>
+<div><table class="tight-table docutils align-default" id="id2">
+<caption><span class="caption-text">Video <code class="code docutils literal notranslate"><span class="pre">pix_fmt</span></code> Option Values</span><a class="headerlink" href="#id2" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="code docutils literal notranslate"><span class="pre">pix_fmt</span></code></p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">gray</span></code></p></td>
+<td><p>grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">ya8</span></code></p></td>
+<td><p>grayscale with transparent alpha channel</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">rgb24</span></code></p></td>
+<td><p>RGB</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">rgba</span></code></p></td>
+<td><p>RGB with alpha transparent alpha channel</p></td>
+</tr>
+</tbody>
+</table>
+<table class="tight-table docutils align-default" id="id3">
+<caption><span class="caption-text">Audio <code class="code docutils literal notranslate"><span class="pre">sample_fmt</span></code> Option Values</span><a class="headerlink" href="#id3" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p><code class="code docutils literal notranslate"><span class="pre">sample_fmt</span></code></p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>min</p></th>
+<th class="head"><p>max</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">u8</span></code></p></td>
+<td><p>unsigned 8-bit integer</p></td>
+<td><p>0</p></td>
+<td><p>255</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">s16</span></code></p></td>
+<td><p>signed 16-bit integer</p></td>
+<td><p>-32768</p></td>
+<td><p>32767</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">s32</span></code></p></td>
+<td><p>signed 32-bit integer</p></td>
+<td><p>-2147483648</p></td>
+<td><p>2147483647</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">flt</span></code></p></td>
+<td><p>single-precision floating point</p></td>
+<td><p>-1.0</p></td>
+<td><p>1.0</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">dbl</span></code></p></td>
+<td><p>double-precision floating point</p></td>
+<td><p>-1.0</p></td>
+<td><p>1.0</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+<p>For example,</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># auto-convert video frames to grayscale</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">RGB</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myvideo.mp4&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span> <span class="c1"># natively rgb24</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_</span><span class="p">,</span> <span class="n">GRAY</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">video</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myvideo.mp4&#39;</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">pix_fmt</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">RGB</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(29, 640, 480, 3)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">GRAY</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(29, 640, 480, 1)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># auto-convert PNG image to remove transparency with white background</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">RGBA</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myimage.png&#39;</span><span class="p">)</span> <span class="c1"># natively rgba with transparency</span>
+<span class="go">.. &gt;&gt;&gt; RGB = ffmpegio.image.read(&#39;myimage.png&#39;, pix_fmt=&#39;rgb24&#39;, fill_color=&#39;white&#39;)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">RGB</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(100, 396, 4)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">RGB</span><span class="o">.</span><span class="n">shape</span>
+<span class="go">(100, 396, 3)</span>
+
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># auto-convert to audio samples to double precision</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">fs</span><span class="p">,</span> <span class="n">x</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myaudio.wav&#39;</span><span class="p">)</span> <span class="c1"># natively s16</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">_</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">audio</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;myaudio.wav&#39;</span><span class="p">,</span> <span class="n">sample_fmt</span><span class="o">=</span><span class="s1">&#39;dbl&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">x</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+<span class="go">2324</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">y</span><span class="o">.</span><span class="n">max</span><span class="p">()</span>
+<span class="go">0.0709228515625</span>
+</pre></div>
+</div>
+<p>Note when converting from an image with alpha channel (FFmpeg does not support
+alpha channel in video input) the background color may be specified with
+<code class="code docutils literal notranslate"><span class="pre">fill_color</span></code> option (which defaults to <code class="docutils literal notranslate"><span class="pre">'white'</span></code>).
+See <a class="reference external" href="https://ffmpeg.org/ffmpeg-utils.html#Color">the FFmpeg color specification</a>
+for the list of predefined color names.</p>
+<table class="tight-table docutils align-default" id="id4">
+<caption><span class="caption-text">Examples of changing image format</span><a class="headerlink" href="#id4" title="Link to this table"></a></caption>
+<tbody>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">'rgba'</span></code> (original)</p></td>
+<td><figure class="align-default">
+<img alt="_images/quick-1.png" class="plot-directive" src="_images/quick-1.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">'rgb24'</span></code> with ‘Linen’ background</p></td>
+<td><figure class="align-default">
+<img alt="_images/quick-2.png" class="plot-directive" src="_images/quick-2.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">,</span> <span class="n">pix_fmt</span><span class="o">=</span><span class="s1">&#39;rgb24&#39;</span><span class="p">,</span> <span class="n">fill_color</span><span class="o">=</span><span class="s1">&#39;linen&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">'ya8'</span></code></p></td>
+<td><figure class="align-default">
+<img alt="_images/quick-3.png" class="plot-directive" src="_images/quick-3.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">,</span> <span class="n">pix_fmt</span><span class="o">=</span><span class="s1">&#39;ya8&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">'gray'</span></code> with light gray background</p></td>
+<td><figure class="align-default">
+<img alt="_images/quick-4.png" class="plot-directive" src="_images/quick-4.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">,</span> <span class="n">pix_fmt</span><span class="o">=</span><span class="s1">&#39;gray&#39;</span><span class="p">,</span>
+    <span class="n">fill_color</span><span class="o">=</span><span class="s1">&#39;#F0F0F0&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="progress-callback">
+<span id="quick-callback"></span><h2>Progress Callback<a class="headerlink" href="#progress-callback" title="Link to this heading"></a></h2>
+<p>FFmpeg has <code class="code docutils literal notranslate"><span class="pre">-progress</span></code> option, which sends program-friendly progress
+information to url. <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> takes advantage of this option to
+let user monitor the transcoding progress with a callback, which could be
+set with <code class="code docutils literal notranslate"><span class="pre">progress</span></code> argument of all media operations. The callback
+function must have the following signature:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">progress_callback</span><span class="p">(</span><span class="n">status</span><span class="p">:</span><span class="nb">dict</span><span class="p">,</span> <span class="n">done</span><span class="p">:</span><span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="o">|</span><span class="nb">bool</span>
+</pre></div>
+</div>
+<p>The <code class="code docutils literal notranslate"><span class="pre">status</span></code> dict containing the information similar to what FFmpeg
+displays on console. The second argument <code class="code docutils literal notranslate"><span class="pre">done</span></code> is only <code class="code docutils literal notranslate"><span class="pre">True</span></code>
+on the last progress call. Here is an example of <code class="code docutils literal notranslate"><span class="pre">status</span></code> dict:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="s1">&#39;bitrate&#39;</span><span class="p">:</span> <span class="s1">&#39;61.9kbits/s&#39;</span><span class="p">,</span>
+<span class="s1">&#39;drop_frames&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+<span class="s1">&#39;dup_frames&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+<span class="s1">&#39;fps&#39;</span><span class="p">:</span> <span class="mf">336.18</span><span class="p">,</span>
+<span class="s1">&#39;frame&#39;</span><span class="p">:</span> <span class="mi">1014</span><span class="p">,</span>
+<span class="s1">&#39;out_time&#39;</span><span class="p">:</span> <span class="s1">&#39;00:00:33.877914&#39;</span><span class="p">,</span>
+<span class="s1">&#39;out_time_ms&#39;</span><span class="p">:</span> <span class="mi">33877914</span><span class="p">,</span>
+<span class="s1">&#39;out_time_us&#39;</span><span class="p">:</span> <span class="mi">33877914</span><span class="p">,</span>
+<span class="s1">&#39;speed&#39;</span><span class="p">:</span> <span class="s1">&#39;11.2x&#39;</span><span class="p">,</span>
+<span class="s1">&#39;stream_0_0_q&#39;</span><span class="p">:</span> <span class="mf">29.0</span><span class="p">,</span>
+<span class="s1">&#39;total_size&#39;</span><span class="p">:</span> <span class="mi">262192</span><span class="p">}</span>
+</pre></div>
+</div>
+<p>While FFmpeg does not report percent progress, it is possible to compute it from
+<code class="code docutils literal notranslate"><span class="pre">frame</span></code> or <code class="code docutils literal notranslate"><span class="pre">out_time</span></code> if you know the total number of output frames
+or the output duration, respectively.</p>
+<p>If an FFmpeg media stream object is invoked by <a class="reference internal" href="basicio.html#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.open()</span></code></a>
+with <code class="code docutils literal notranslate"><span class="pre">progress</span></code> callback argument, the callback function can terminate
+the FFmpeg execution by returning <code class="code docutils literal notranslate"><span class="pre">True</span></code>. This feature is useful for GUI
+programming.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

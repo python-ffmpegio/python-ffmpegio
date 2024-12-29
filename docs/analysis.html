@@ -1,0 +1,2041 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ffmpegio.analyze: Frame Metadata Analysis Module &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.analyze</span></code>: Frame Metadata Analysis Module</a><ul>
+<li><a class="reference internal" href="#simple-examples">Simple examples</a></li>
+<li><a class="reference internal" href="#available-filter-loggers">Available filter loggers</a></li>
+<li><a class="reference internal" href="#analyze-api-reference">Analyze API Reference</a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.run"><code class="docutils literal notranslate"><span class="pre">run()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.video.detect"><code class="docutils literal notranslate"><span class="pre">detect()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.audio.detect"><code class="docutils literal notranslate"><span class="pre">detect()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger"><code class="docutils literal notranslate"><span class="pre">MetadataLogger</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.filter"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.filter</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.filter_name"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.log"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.media_type"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.meta_names"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.options"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.options</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.output"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.output</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger.ref_in"><code class="docutils literal notranslate"><span class="pre">MetadataLogger.ref_in</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter"><code class="docutils literal notranslate"><span class="pre">APhaseMeter</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.Phase"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.Phase</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.Phase.mono_interval"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.Phase.mono_interval</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.Phase.out_phase_interval"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.Phase.out_phase_interval</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.Phase.time"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.Phase.time</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.Phase.value"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.Phase.value</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.filter"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.filter</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.filter_name"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.log"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.media_type"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.meta_names"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.output"><code class="docutils literal notranslate"><span class="pre">APhaseMeter.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats"><code class="docutils literal notranslate"><span class="pre">ASpectralStats</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats.filter_name"><code class="docutils literal notranslate"><span class="pre">ASpectralStats.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats.log"><code class="docutils literal notranslate"><span class="pre">ASpectralStats.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats.media_type"><code class="docutils literal notranslate"><span class="pre">ASpectralStats.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats.meta_names"><code class="docutils literal notranslate"><span class="pre">ASpectralStats.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats.output"><code class="docutils literal notranslate"><span class="pre">ASpectralStats.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats"><code class="docutils literal notranslate"><span class="pre">AStats</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats.filter"><code class="docutils literal notranslate"><span class="pre">AStats.filter</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats.filter_name"><code class="docutils literal notranslate"><span class="pre">AStats.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats.log"><code class="docutils literal notranslate"><span class="pre">AStats.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats.media_type"><code class="docutils literal notranslate"><span class="pre">AStats.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats.meta_names"><code class="docutils literal notranslate"><span class="pre">AStats.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.AStats.output"><code class="docutils literal notranslate"><span class="pre">AStats.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect"><code class="docutils literal notranslate"><span class="pre">SilenceDetect</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.Silent"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.Silent</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.Silent.interval"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.Silent.interval</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.filter_name"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.log"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.media_type"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.meta_names"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.output"><code class="docutils literal notranslate"><span class="pre">SilenceDetect.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox"><code class="docutils literal notranslate"><span class="pre">BBox</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.BBox"><code class="docutils literal notranslate"><span class="pre">BBox.BBox</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.BBox.position"><code class="docutils literal notranslate"><span class="pre">BBox.BBox.position</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.BBox.time"><code class="docutils literal notranslate"><span class="pre">BBox.BBox.time</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.filter_name"><code class="docutils literal notranslate"><span class="pre">BBox.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.log"><code class="docutils literal notranslate"><span class="pre">BBox.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.media_type"><code class="docutils literal notranslate"><span class="pre">BBox.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.meta_names"><code class="docutils literal notranslate"><span class="pre">BBox.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BBox.output"><code class="docutils literal notranslate"><span class="pre">BBox.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect"><code class="docutils literal notranslate"><span class="pre">BlackDetect</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.Black"><code class="docutils literal notranslate"><span class="pre">BlackDetect.Black</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.Black.interval"><code class="docutils literal notranslate"><span class="pre">BlackDetect.Black.interval</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.filter_name"><code class="docutils literal notranslate"><span class="pre">BlackDetect.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.log"><code class="docutils literal notranslate"><span class="pre">BlackDetect.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.media_type"><code class="docutils literal notranslate"><span class="pre">BlackDetect.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.meta_names"><code class="docutils literal notranslate"><span class="pre">BlackDetect.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.output"><code class="docutils literal notranslate"><span class="pre">BlackDetect.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame"><code class="docutils literal notranslate"><span class="pre">BlackFrame</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.BlackFrames"><code class="docutils literal notranslate"><span class="pre">BlackFrame.BlackFrames</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.BlackFrames.pblack"><code class="docutils literal notranslate"><span class="pre">BlackFrame.BlackFrames.pblack</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.BlackFrames.time"><code class="docutils literal notranslate"><span class="pre">BlackFrame.BlackFrames.time</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.filter_name"><code class="docutils literal notranslate"><span class="pre">BlackFrame.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.log"><code class="docutils literal notranslate"><span class="pre">BlackFrame.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.media_type"><code class="docutils literal notranslate"><span class="pre">BlackFrame.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.meta_names"><code class="docutils literal notranslate"><span class="pre">BlackFrame.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.output"><code class="docutils literal notranslate"><span class="pre">BlackFrame.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect"><code class="docutils literal notranslate"><span class="pre">BlurDetect</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.Blur"><code class="docutils literal notranslate"><span class="pre">BlurDetect.Blur</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.Blur.blur"><code class="docutils literal notranslate"><span class="pre">BlurDetect.Blur.blur</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.Blur.time"><code class="docutils literal notranslate"><span class="pre">BlurDetect.Blur.time</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.filter_name"><code class="docutils literal notranslate"><span class="pre">BlurDetect.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.log"><code class="docutils literal notranslate"><span class="pre">BlurDetect.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.media_type"><code class="docutils literal notranslate"><span class="pre">BlurDetect.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.meta_names"><code class="docutils literal notranslate"><span class="pre">BlurDetect.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.output"><code class="docutils literal notranslate"><span class="pre">BlurDetect.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect"><code class="docutils literal notranslate"><span class="pre">FreezeDetect</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.Frozen"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.Frozen</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.Frozen.interval"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.Frozen.interval</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.filter_name"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.log"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.media_type"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.meta_names"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.output"><code class="docutils literal notranslate"><span class="pre">FreezeDetect.output</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet"><code class="docutils literal notranslate"><span class="pre">ScDet</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.AllScenes"><code class="docutils literal notranslate"><span class="pre">ScDet.AllScenes</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.AllScenes.changed"><code class="docutils literal notranslate"><span class="pre">ScDet.AllScenes.changed</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.AllScenes.mafd"><code class="docutils literal notranslate"><span class="pre">ScDet.AllScenes.mafd</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.AllScenes.score"><code class="docutils literal notranslate"><span class="pre">ScDet.AllScenes.score</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.AllScenes.time"><code class="docutils literal notranslate"><span class="pre">ScDet.AllScenes.time</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.Scenes"><code class="docutils literal notranslate"><span class="pre">ScDet.Scenes</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.Scenes.mafd"><code class="docutils literal notranslate"><span class="pre">ScDet.Scenes.mafd</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.Scenes.score"><code class="docutils literal notranslate"><span class="pre">ScDet.Scenes.score</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.Scenes.time"><code class="docutils literal notranslate"><span class="pre">ScDet.Scenes.time</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.filter_name"><code class="docutils literal notranslate"><span class="pre">ScDet.filter_name</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.log"><code class="docutils literal notranslate"><span class="pre">ScDet.log()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.media_type"><code class="docutils literal notranslate"><span class="pre">ScDet.media_type</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.meta_names"><code class="docutils literal notranslate"><span class="pre">ScDet.meta_names</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.options"><code class="docutils literal notranslate"><span class="pre">ScDet.options</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.analyze.ScDet.output"><code class="docutils literal notranslate"><span class="pre">ScDet.output</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.analyze</span></code>: Frame Metadata Analysis Module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/analysis.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ffmpegio-analyze-frame-metadata-analysis-module">
+<span id="analyze"></span><h1><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.analyze</span></code>: Frame Metadata Analysis Module<a class="headerlink" href="#ffmpegio-analyze-frame-metadata-analysis-module" title="Link to this heading"></a></h1>
+<p>There are a number of <a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html">FFmpeg filters</a> which analyze video
+and audio streams and inject per-frame results into frame metadata to be used in a later stage of
+a filtergraph. <a class="reference internal" href="#ffmpegio.analyze.run" title="ffmpegio.analyze.run"><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.analyze.run</span></code></a> retrieves the injected metadata by appending <code class="docutils literal notranslate"><span class="pre">metadata</span></code>
+and <code class="docutils literal notranslate"><span class="pre">ametadata</span></code> filters and logs the frame metadata outputs. You can use either the supplied Python
+classes or a custom class, which conforms to <a class="reference internal" href="#ffmpegio.analyze.MetadataLogger" title="ffmpegio.analyze.MetadataLogger"><code class="xref py py-class docutils literal notranslate"><span class="pre">MetadataLogger</span></code></a> interface to specify the FFmpeg
+filter and to log its output.</p>
+<section id="simple-examples">
+<h2>Simple examples<a class="headerlink" href="#simple-examples" title="Link to this heading"></a></h2>
+<p>The following example detects intervals of pure black frames within the first 30 seconds of the video:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">ffmpegio</span> <span class="kn">import</span> <span class="n">analyze</span> <span class="k">as</span> <span class="n">ffa</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">logger</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">ffa</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;input.mp4&quot;</span><span class="p">,</span> <span class="n">ffa</span><span class="o">.</span><span class="n">BlackDetect</span><span class="p">(</span><span class="n">pix_th</span><span class="o">=</span><span class="mf">0.0</span><span class="p">),</span> <span class="n">t</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+<span class="go">Black(interval=[[0.0, 0.166667]])</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Assign options (e.g., <code class="docutils literal notranslate"><span class="pre">pix_th</span></code>) of the underlying FFmpeg analysis filter (e.g., <code class="docutils literal notranslate"><span class="pre">blackdetect</span></code>) as
+keyword options of its logger object (e.g., <code class="docutils literal notranslate"><span class="pre">BlackDetect</span></code>)</p></li>
+<li><p>FFmpeg input options (e.g., <code class="docutils literal notranslate"><span class="pre">t</span></code>) can be assigned as the keyword arguments of <a class="reference internal" href="#ffmpegio.analyze.run" title="ffmpegio.analyze.run"><code class="xref py py-func docutils literal notranslate"><span class="pre">run()</span></code></a>.</p></li>
+<li><p>The logger output is a namedtuple.</p></li>
+</ul>
+<p>Next example analyzes the audio stream and plot its spectral entropy of the first channel:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">logger</span><span class="p">,</span><span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">ffa</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;input.mp4&quot;</span><span class="p">,</span> <span class="n">ffa</span><span class="o">.</span><span class="n">ASpectralStats</span><span class="p">(</span><span class="n">measure</span><span class="o">=</span><span class="s1">&#39;entropy&#39;</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">time</span><span class="p">,</span> <span class="n">logger</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">entropy</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Finally, multiple loggers can run simultaneously:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">loggers</span> <span class="o">=</span> <span class="p">[</span>
+<span class="gp">... </span>  <span class="n">ffa</span><span class="o">.</span><span class="n">AStats</span><span class="p">(),</span>       <span class="c1"># time domain statistics of audio channels</span>
+<span class="gp">... </span>  <span class="n">ffa</span><span class="o">.</span><span class="n">BBox</span><span class="p">(),</span>         <span class="c1"># bounding box of video frames</span>
+<span class="gp">... </span>  <span class="n">ffa</span><span class="o">.</span><span class="n">BlackDetect</span><span class="p">()]</span>  <span class="c1"># detect black frame intervals</span>
+<span class="gp">...</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">ffa</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;input.mp4&quot;</span><span class="p">,</span> <span class="o">*</span><span class="n">loggers</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">loggers</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">loggers</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">loggers</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="available-filter-loggers">
+<h2>Available filter loggers<a class="headerlink" href="#available-filter-loggers" title="Link to this heading"></a></h2>
+<p>Following loggers are currently available as a part of the <code class="xref py py-mod docutils literal notranslate"><span class="pre">analyze</span></code> module</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Type</p></th>
+<th class="head"><p>Python class</p></th>
+<th class="head"><p>FFmpeg filter</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>audio</p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter" title="ffmpegio.analyze.APhaseMeter"><code class="xref py py-class docutils literal notranslate"><span class="pre">APhaseMeter</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#aphasemeter">aphasemeter</a></p></td>
+<td><p>Measures phase of input audio</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.ASpectralStats" title="ffmpegio.analyze.ASpectralStats"><code class="xref py py-class docutils literal notranslate"><span class="pre">ASpectralStats</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#aspectralstats">aspectralstats</a></p></td>
+<td><p>Frequency domain statistical information</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.AStats" title="ffmpegio.analyze.AStats"><code class="xref py py-class docutils literal notranslate"><span class="pre">AStats</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#astats-1">astats</a></p></td>
+<td><p>Time domain statistical information</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect" title="ffmpegio.analyze.SilenceDetect"><code class="xref py py-class docutils literal notranslate"><span class="pre">SilenceDetect</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#silencedetect">silencedetect</a></p></td>
+<td><p>Detect silence</p></td>
+</tr>
+<tr class="row-even"><td><p>video</p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.BBox" title="ffmpegio.analyze.BBox"><code class="xref py py-class docutils literal notranslate"><span class="pre">BBox</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#bbox">bbox</a></p></td>
+<td><p>Compute the bounding box</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.BlackDetect" title="ffmpegio.analyze.BlackDetect"><code class="xref py py-class docutils literal notranslate"><span class="pre">BlackDetect</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#blackdetect">blackdetect</a></p></td>
+<td><p>Detect intervals of black frames</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.BlackFrame" title="ffmpegio.analyze.BlackFrame"><code class="xref py py-class docutils literal notranslate"><span class="pre">BlackFrame</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#blackframe">blackframe</a></p></td>
+<td><p>Detect black frames</p></td>
+</tr>
+<tr class="row-odd"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.BlurDetect" title="ffmpegio.analyze.BlurDetect"><code class="xref py py-class docutils literal notranslate"><span class="pre">BlurDetect</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#blurdetect-1">blurdetect</a></p></td>
+<td><p>Detect blurriness of frames</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect" title="ffmpegio.analyze.FreezeDetect"><code class="xref py py-class docutils literal notranslate"><span class="pre">FreezeDetect</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#freezedetect">freezedetect</a></p></td>
+<td><p>Detect frozen video</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p><code class="xref py py-class docutils literal notranslate"><span class="pre">PSNR</span></code></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#psnr">psnr</a></p></td>
+<td><p>Compute peak signal to noise ratio</p></td>
+</tr>
+<tr class="row-even"><td><p></p></td>
+<td><p><a class="reference internal" href="#ffmpegio.analyze.ScDet" title="ffmpegio.analyze.ScDet"><code class="xref py py-class docutils literal notranslate"><span class="pre">ScDet</span></code></a></p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#scdet-1">scdet</a></p></td>
+<td><p>Detect video scene change</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="analyze-api-reference">
+<h2>Analyze API Reference<a class="headerlink" href="#analyze-api-reference" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.analyze.run" title="ffmpegio.analyze.run"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.analyze.run</span></code></a></p></td>
+<td><p>analyze media streams' frames with FFmpeg filters</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.video.detect" title="ffmpegio.video.detect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.detect</span></code></a></p></td>
+<td><p>detect video frame features</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.detect" title="ffmpegio.audio.detect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.detect</span></code></a></p></td>
+<td><p>detect audio stream features</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger" title="ffmpegio.analyze.MetadataLogger"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.analyze.MetadataLogger</span></code></a></p></td>
+<td><p>Abstract class for <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> frame metadata loggers</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.analyze.run">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">loggers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">references</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_units</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_at_zero</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">input_options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.run" title="Link to this definition"></a></dt>
+<dd><p>analyze media streams’ frames with FFmpeg filters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – video file url</p></li>
+<li><p><strong>*loggers</strong> (<em>tuple</em><em>[</em><a class="reference internal" href="#ffmpegio.analyze.MetadataLogger" title="ffmpegio.analyze.MetadataLogger"><em>MetadataLogger</em></a><em>]</em>) – class object with the metadata logging interface</p></li>
+<li><p><strong>references</strong> (<em>seq</em><em> of </em><em>str</em><em> or </em><em>seq</em><em> of </em><em>(</em><em>str</em><em>, </em><em>dict</em><em>)</em><em>, </em><em>optional</em>) – reference input urls or pairs of url and input option
+dict, defaults to None</p></li>
+<li><p><strong>ss</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – start time to process, defaults to None</p></li>
+<li><p><strong>t</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – duration of data to process, defaults to None</p></li>
+<li><p><strong>to</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – stop processing at this time (ignored if t is also specified), defaults to None</p></li>
+<li><p><strong>time_units</strong> (<em>'seconds'</em><em>, </em><em>'frames'</em><em>, </em><em>'pts'</em><em>, </em><em>optional</em>) – units of detected time stamps (not for ss, t, or to), defaults to None (‘seconds’)</p></li>
+<li><p><strong>start_at_zero</strong> (<em>bool</em><em>, </em><em>optional</em>) – ignore start time, defaults to False</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg (primary) input options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>logger objects passed in</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[<a class="reference internal" href="#ffmpegio.analyze.MetadataLogger" title="ffmpegio.analyze.MetadataLogger">MetadataLogger</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.video.detect">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></span><span class="sig-name descname"><span class="pre">detect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_at_zero</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_units</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scene_all_scores</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.detect" title="Link to this definition"></a></dt>
+<dd><p>detect video frame features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – video file url</p></li>
+<li><p><strong>*features</strong> (<em>tuple</em><em>, </em><em>a subset</em><em> of </em><em>(</em><em>'scene'</em><em>, </em><em>'black'</em><em>, </em><em>'blackframe'</em><em>, </em><em>'freeze'</em><em>)</em><em>, </em><em>optional</em>) – <p>specify frame features to detect:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>feature</p></th>
+<th class="head"><p>FFmpeg filter</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>’scene’</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#scdet-1">scdet</a></p></td>
+<td><p>Detect video scene change</p></td>
+</tr>
+<tr class="row-odd"><td><p>’black’</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#blackdetect">blackdetect</a></p></td>
+<td><p>Detect video intervals that are (almost) completely black</p></td>
+</tr>
+<tr class="row-even"><td><p>’blackframe’</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#blackframe">blackframe</a></p></td>
+<td><p>Detect frames that are (almost) completely black</p></td>
+</tr>
+<tr class="row-odd"><td><p>’freeze’</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#freezedetect">freezedetect</a></p></td>
+<td><p>Detect frozen video</p></td>
+</tr>
+</tbody>
+</table>
+<p>defaults to include all the features</p>
+</p></li>
+<li><p><strong>ss</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – start time to process, defaults to None</p></li>
+<li><p><strong>t</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – duration of data to process, defaults to None</p></li>
+<li><p><strong>to</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – stop processing at this time (ignored if t is also specified), defaults to None</p></li>
+<li><p><strong>start_at_zero</strong> (<em>bool</em><em>, </em><em>optional</em>) – ignore start time, defaults to False</p></li>
+<li><p><strong>time_units</strong> (<em>'seconds'</em><em>, </em><em>'frames'</em><em>, </em><em>'pts'</em><em>, </em><em>optional</em>) – units of detected time stamps (not for ss, t, or to), defaults to None (‘seconds’)</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>scene_all_scores</strong> (<em>bool</em><em>, </em><em>optional</em>) – (only for ‘scene’ feature) True to return scores for all frames, defaults to False</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
+of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
+options for each individual FFmpeg filter can be specified with &lt;feature&gt;_options dict keyword argument.
+Any other arguments are treated as a common option to all FFmpeg filters. For the available options
+for each filter, follow the link on the feature table above to the FFmpeg documentation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>detection outcomes. A namedtuple is returned for each feature in the order specified.
+All namedtuple fields contain a list with the element specified as below:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>feature</p></th>
+<th class="head"><p>named tuple field</p></th>
+<th class="head"><p>element type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>’scene’</p></td>
+<td><p>’time’</p></td>
+<td><p>numeric</p></td>
+<td><p>Timestamp of the frame</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p>’change’</p></td>
+<td><p>bool</p></td>
+<td><p>True if scene change detected (only present if <code class="docutils literal notranslate"><span class="pre">scene_all_scores=True</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p>’score’</p></td>
+<td><p>’float’</p></td>
+<td><p>Absolute difference of MAFD of current and previous frame</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p>’mafd’</p></td>
+<td><p>float</p></td>
+<td><p>Mean absolute frame difference. See <a class="reference external" href="https://rusty.today/posts/ffmpeg-scene-change-detector">this commentary</a> for detailed discussion of the MAFD.</p></td>
+</tr>
+<tr class="row-even"><td><p>’black’</p></td>
+<td><p>’interval’</p></td>
+<td><p>(numeric, numeric)</p></td>
+<td><p>Interval of black frames</p></td>
+</tr>
+<tr class="row-odd"><td><p>’blackframe’</p></td>
+<td><p>’time’</p></td>
+<td><p>numeric</p></td>
+<td><p>Timestamp of a black frame</p></td>
+</tr>
+<tr class="row-even"><td></td>
+<td><p>’pblack’</p></td>
+<td><p>int</p></td>
+<td><p>Percentage of black pixels</p></td>
+</tr>
+<tr class="row-odd"><td><p>’freeze’</p></td>
+<td><p>’interval’</p></td>
+<td><p>(numeric, numeric)</p></td>
+<td><p>Interval of frozen frames</p></td>
+</tr>
+</tbody>
+</table>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple of namedtuples</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.audio.detect">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></span><span class="sig-name descname"><span class="pre">detect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">features</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ss</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">to</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_at_zero</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time_units</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.detect" title="Link to this definition"></a></dt>
+<dd><p>detect audio stream features</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – audio file url</p></li>
+<li><p><strong>*features</strong> (<em>tuple</em><em>, </em><em>a subset</em><em> of </em><em>(</em><em>'silence'</em><em>,</em><em>)</em><em>, </em><em>optional</em>) – <p>specify features to detect:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>feature</p></th>
+<th class="head"><p>FFmpeg filter</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>’silence’</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#silencedetect">silencedetect</a></p></td>
+<td><p>Detect silence in an audio stream</p></td>
+</tr>
+</tbody>
+</table>
+<p>defaults to include all the features</p>
+</p></li>
+<li><p><strong>ss</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – start time to process, defaults to None</p></li>
+<li><p><strong>t</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – duration of data to process, defaults to None</p></li>
+<li><p><strong>to</strong> (<em>int</em><em>, </em><em>float</em><em>, </em><em>str</em><em>, </em><em>optional</em>) – stop processing at this time (ignored if t is also specified), defaults to None</p></li>
+<li><p><strong>start_at_zero</strong> (<em>bool</em><em>, </em><em>optional</em>) – ignore start time, defaults to False</p></li>
+<li><p><strong>time_units</strong> (<em>'seconds'</em><em>, </em><em>'frames'</em><em>, </em><em>'pts'</em><em>, </em><em>optional</em>) – units of detected time stamps (not for ss, t, or to), defaults to None (‘seconds’)</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
+of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
+options for each individual FFmpeg filter can be specified with &lt;feature&gt;_options dict keyword argument.
+Any other arguments are treated as a common option to all FFmpeg filters. For the available options
+for each filter, follow the link on the feature table above to the FFmpeg documentation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><p>detection outcomes. A namedtuple is returned for each feature in the order specified.
+All namedtuple fields contain a list with the element specified as below:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>feature</p></th>
+<th class="head"><p>named tuple field</p></th>
+<th class="head"><p>element type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>’silence’</p></td>
+<td><p>’interval’</p></td>
+<td><p>(numeric, numeric)</p></td>
+<td><p>(only if mono=False) Silent interval</p></td>
+</tr>
+<tr class="row-odd"><td></td>
+<td><p>’chX’</p></td>
+<td><p>(numeric, numeric)</p></td>
+<td><p>(only if mono=True) Silent interval of channel X (multiple)</p></td>
+</tr>
+</tbody>
+</table>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple of namedtuples</p>
+</dd>
+</dl>
+<p class="rubric">Examples</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">MetadataLogger</span></span><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger" title="Link to this definition"></a></dt>
+<dd><p>Abstract class for <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> frame metadata loggers</p>
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.filter">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">filter</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="filtergraph.html#ffmpegio.filtergraph.Filter" title="ffmpegio.filtergraph.Filter.Filter"><span class="pre">Filter</span></a></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.filter" title="Link to this definition"></a></dt>
+<dd><p>filter specification expression to be used in FilterGraph</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.options">
+<span class="sig-name descname"><span class="pre">options</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.options" title="Link to this definition"></a></dt>
+<dd><p>FFmpeg filter options (value must be stringifiable)</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">NamedTuple</span></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.output" title="Link to this definition"></a></dt>
+<dd><p>log output as a namedtuple</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.MetadataLogger.ref_in">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">ref_in</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#ffmpegio.analyze.MetadataLogger.ref_in" title="Link to this definition"></a></dt>
+<dd><p>None)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>stream specifier for reference input url only if applicable (default</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">APhaseMeter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg aphasemeter filter to measure stereo audio phase differences</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-aphasemeter-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">aphasemeter</span></code> filter options<a class="headerlink" href="#ffmpeg-aphasemeter-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>phasing</p></td>
+<td><p>bool</p></td>
+<td><p>mono and out-of-phase detection output (default false)</p></td>
+</tr>
+<tr class="row-odd"><td><p>tolerance</p></td>
+<td><p>float</p></td>
+<td><p>phase tolerance for mono detection (from 0 to 1) (default 0). Alias param name: <strong>t</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>angle</p></td>
+<td><p>float</p></td>
+<td><p>angle threshold for out-of-phase detection (from 90 to 180) (default 170). Alias param name: <strong>a</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>duration</p></td>
+<td><p>duration</p></td>
+<td><p>minimum mono or out-of-phase duration in seconds (default 2). Alias param name: <strong>d</strong></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.Phase">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Phase</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mono_interval</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_phase_interval</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.Phase" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>value</strong> (<em>List</em><em>[</em><em>float</em><em>]</em>)</p></li>
+<li><p><strong>mono_interval</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>, </em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>]</em>)</p></li>
+<li><p><strong>out_phase_interval</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>, </em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.Phase.mono_interval">
+<span class="sig-name descname"><span class="pre">mono_interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.Phase.mono_interval" title="Link to this definition"></a></dt>
+<dd><p>intervals in which stereo stream is in-phase</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.Phase.out_phase_interval">
+<span class="sig-name descname"><span class="pre">out_phase_interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.Phase.out_phase_interval" title="Link to this definition"></a></dt>
+<dd><p>intervals in which stereo stream is out-of-phase</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.Phase.time">
+<span class="sig-name descname"><span class="pre">time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.Phase.time" title="Link to this definition"></a></dt>
+<dd><p>timestamps in seconds, frames, or pts</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.Phase.value">
+<span class="sig-name descname"><span class="pre">value</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.Phase.value" title="Link to this definition"></a></dt>
+<dd><p>detected phases</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.filter">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">filter</span></span><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.filter" title="Link to this definition"></a></dt>
+<dd><p>filter specification expression to be used in FilterGraph</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'aphasemeter'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'aphasemeter'</span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'audio'</span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'aphasemeter'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('aphasemeter',)</span></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.APhaseMeter.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.APhaseMeter.Phase" title="ffmpegio.analyze.APhaseMeter.Phase"><span class="pre">Phase</span></a></em><a class="headerlink" href="#ffmpegio.analyze.APhaseMeter.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ASpectralStats">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">ASpectralStats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.ASpectralStats" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg aspectralstats filter to measure frequency domain statistics about audio frames</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-aspectralstats-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">aspectralstats</span></code> filter options<a class="headerlink" href="#ffmpeg-aspectralstats-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>win_size</p></td>
+<td><p>int</p></td>
+<td><p>set the window size (from 32 to 65536) (default 2048)</p></td>
+</tr>
+<tr class="row-odd"><td><p>win_func</p></td>
+<td><p>str|int</p></td>
+<td><p>set window function (see below for the accepted values) (default hann)</p></td>
+</tr>
+<tr class="row-even"><td><p>overlap</p></td>
+<td><p>float</p></td>
+<td><p>set window overlap (from 0 to 1) (default 0.5)</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="supported-win-func-option-values">
+<h3>Supported <code class="docutils literal notranslate"><span class="pre">win_func</span></code> option values<a class="headerlink" href="#supported-win-func-option-values" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">win_func</span></code> option can be set to any of the following window function by its name or
+id:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>id</p></th>
+<th class="head"><p>desc</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>bartlett</p></td>
+<td><p>4</p></td>
+<td><p>Bartlett</p></td>
+</tr>
+<tr class="row-odd"><td><p>bhann</p></td>
+<td><p>11</p></td>
+<td><p>Bartlett-Hann</p></td>
+</tr>
+<tr class="row-even"><td><p>bharris</p></td>
+<td><p>7</p></td>
+<td><p>Blackman-Harris</p></td>
+</tr>
+<tr class="row-odd"><td><p>blackman</p></td>
+<td><p>3</p></td>
+<td><p>Blackman</p></td>
+</tr>
+<tr class="row-even"><td><p>bnuttall</p></td>
+<td><p>8</p></td>
+<td><p>Blackman-Nuttall</p></td>
+</tr>
+<tr class="row-odd"><td><p>bohman</p></td>
+<td><p>19</p></td>
+<td><p>Bohman</p></td>
+</tr>
+<tr class="row-even"><td><p>cauchy</p></td>
+<td><p>16</p></td>
+<td><p>Cauchy</p></td>
+</tr>
+<tr class="row-odd"><td><p>dolph</p></td>
+<td><p>15</p></td>
+<td><p>Dolph-Chebyshev</p></td>
+</tr>
+<tr class="row-even"><td><p>flattop</p></td>
+<td><p>6</p></td>
+<td><p>Flat-top</p></td>
+</tr>
+<tr class="row-odd"><td><p>gauss</p></td>
+<td><p>13</p></td>
+<td><p>Gauss</p></td>
+</tr>
+<tr class="row-even"><td><p>hamming</p></td>
+<td><p>2</p></td>
+<td><p>Hamming</p></td>
+</tr>
+<tr class="row-odd"><td><p>hann</p></td>
+<td><p>1</p></td>
+<td><p>Hann</p></td>
+</tr>
+<tr class="row-even"><td><p>hanning</p></td>
+<td><p>1</p></td>
+<td><p>Hanning</p></td>
+</tr>
+<tr class="row-odd"><td><p>lanczos</p></td>
+<td><p>12</p></td>
+<td><p>Lanczos</p></td>
+</tr>
+<tr class="row-even"><td><p>nuttall</p></td>
+<td><p>10</p></td>
+<td><p>Nuttall</p></td>
+</tr>
+<tr class="row-odd"><td><p>parzen</p></td>
+<td><p>17</p></td>
+<td><p>Parzen</p></td>
+</tr>
+<tr class="row-even"><td><p>poisson</p></td>
+<td><p>18</p></td>
+<td><p>Poisson</p></td>
+</tr>
+<tr class="row-odd"><td><p>rect</p></td>
+<td><p>0</p></td>
+<td><p>Rectangular</p></td>
+</tr>
+<tr class="row-even"><td><p>sine</p></td>
+<td><p>9</p></td>
+<td><p>Sine</p></td>
+</tr>
+<tr class="row-odd"><td><p>tukey</p></td>
+<td><p>14</p></td>
+<td><p>Tukey</p></td>
+</tr>
+<tr class="row-even"><td><p>welch</p></td>
+<td><p>5</p></td>
+<td><p>Welch</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ASpectralStats.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'aspectralstats'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'aspectralstats'</span></em><a class="headerlink" href="#ffmpegio.analyze.ASpectralStats.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ASpectralStats.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.ASpectralStats.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ASpectralStats.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'audio'</span></em><a class="headerlink" href="#ffmpegio.analyze.ASpectralStats.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ASpectralStats.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'aspectralstats'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('aspectralstats',)</span></em><a class="headerlink" href="#ffmpegio.analyze.ASpectralStats.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ASpectralStats.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><a class="headerlink" href="#ffmpegio.analyze.ASpectralStats.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+<p>ASpectalStats’ log output is a dynamically composed namedtuple. Each
+statistic is stored in its own named field as a <code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code> of
+per-channel <code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of measurements. The <code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code> is
+keyed by the audio channel ids (positive <code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>).
+One exception is the <code class="xref py py-obj docutils literal notranslate"><span class="pre">time</span></code> field, which is a plain <code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code>
+of the starting timestamps of analysis windows.</p>
+<p>Here is the full list of possible fields for FFmpeg v5:</p>
+<ul class="simple">
+<li><p>time</p></li>
+<li><p>mean</p></li>
+<li><p>variance</p></li>
+<li><p>centroid</p></li>
+<li><p>spread</p></li>
+<li><p>skewness</p></li>
+<li><p>kurtosis</p></li>
+<li><p>entropy</p></li>
+<li><p>flatness</p></li>
+<li><p>crest</p></li>
+<li><p>flux</p></li>
+<li><p>slope</p></li>
+<li><p>decrease</p></li>
+<li><p>rolloff</p></li>
+</ul>
+<p>All the stats are computed in the linear scale (not in dB).</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">AStats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.AStats" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg astats filter to measure time domain statistics per audio frames</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-astats-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">astats</span></code> filter options<a class="headerlink" href="#ffmpeg-astats-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>length</p></td>
+<td><p>float</p></td>
+<td><p>window length (from 0 to 10) (default 0.05)</p></td>
+</tr>
+<tr class="row-odd"><td><p>metadata</p></td>
+<td><p>bool</p></td>
+<td><p>true to inject metadata in the filtergraph (default false)</p></td>
+</tr>
+<tr class="row-even"><td><p>reset</p></td>
+<td><p>int</p></td>
+<td><p>number of frames over which cumulative stats are calculated before being reset (from 0 to INT_MAX) (default 0)</p></td>
+</tr>
+<tr class="row-odd"><td><p>measure_perchannel</p></td>
+<td><p>str</p></td>
+<td><p>parameters to measure per channel (default “all”) “none” to disable</p></td>
+</tr>
+<tr class="row-even"><td><p>measure_overall</p></td>
+<td><p>str</p></td>
+<td><p>parameters to measure overall (default “all”) “none” to disable</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="measurement-parameters">
+<h3>Measurement parameters<a class="headerlink" href="#measurement-parameters" title="Link to this heading"></a></h3>
+<p>Following parameters can be used for <code class="docutils literal notranslate"><span class="pre">measure_perchannel</span></code> and <code class="docutils literal notranslate"><span class="pre">measure_overall</span></code>. To specify
+multiple parameters, combine them with <code class="docutils literal notranslate"><span class="pre">+</span></code> (plus) signs. E.g., “DC_offset+Min_level”.</p>
+<ul class="simple">
+<li><p>DC_offset</p></li>
+<li><p>Min_level</p></li>
+<li><p>Max_level</p></li>
+<li><p>Min_difference</p></li>
+<li><p>Max_difference</p></li>
+<li><p>Mean_difference</p></li>
+<li><p>RMS_differenc</p></li>
+<li><p>Peak_level</p></li>
+<li><p>RMS_level</p></li>
+<li><p>RMS_peak</p></li>
+<li><p>RMS_trough</p></li>
+<li><p>Crest_factor</p></li>
+<li><p>Flat_factor</p></li>
+<li><p>Peak_count</p></li>
+<li><p>Bit_depth</p></li>
+<li><p>Dynamic_range</p></li>
+<li><p>Zero_crossings</p></li>
+<li><p>Zero_crossings_rate</p></li>
+<li><p>Noise_floor</p></li>
+<li><p>Noise_floor_count</p></li>
+<li><p>Entropy</p></li>
+<li><p>Number_of_samples</p></li>
+<li><p>Number_of_NaNs</p></li>
+<li><p>Number_of_Infs</p></li>
+<li><p>Number_of_denormals</p></li>
+</ul>
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats.filter">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">filter</span></span><a class="headerlink" href="#ffmpegio.analyze.AStats.filter" title="Link to this definition"></a></dt>
+<dd><p>filter specification expression to be used in FilterGraph</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'astats'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'astats'</span></em><a class="headerlink" href="#ffmpegio.analyze.AStats.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.AStats.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+<p>lavfi.astats.1.Number of Infs=0.000000
+lavfi.astats.2.Number of denormals=0.000000
+lavfi.astats.Overall.DC_offset=-0.000003
+lavfi.astats.Overall.Min_level=-0.092316
+lavfi.astats.Overall.Max_level=0.100442</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'audio'</span></em><a class="headerlink" href="#ffmpegio.analyze.AStats.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'astats'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('astats',)</span></em><a class="headerlink" href="#ffmpegio.analyze.AStats.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.AStats.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">NamedTuple</span></em><a class="headerlink" href="#ffmpegio.analyze.AStats.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+<p>AStats’ log output is a dynamically composed namedtuple. Every field
+contains lists of statistics. Except for the <code class="xref py py-obj docutils literal notranslate"><span class="pre">time</span></code> field, which is
+a plain list, the fields are a <code class="xref py py-obj docutils literal notranslate"><span class="pre">dict</span></code>, each of which item
+keyed by the channel number in <code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code> (1, 2, …) or literal
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">&quot;overall&quot;</span></code> and contains a <code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of the statistics
+computed at each analysis window. The full list of possible fields
+for FFmpeg v5 and its individual stat datatype is shown below:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>field name</p></th>
+<th class="head"><p>datatype</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>time</p></td>
+<td><p>float|int</p></td>
+<td><p>timestamps in seconds, frames, or pts</p></td>
+</tr>
+<tr class="row-odd"><td><p>dc_offset</p></td>
+<td><p>float</p></td>
+<td><p>DC offset</p></td>
+</tr>
+<tr class="row-even"><td><p>min_level</p></td>
+<td><p>float</p></td>
+<td><p>Min level</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_level</p></td>
+<td><p>float</p></td>
+<td><p>Max level</p></td>
+</tr>
+<tr class="row-even"><td><p>min_difference</p></td>
+<td><p>float</p></td>
+<td><p>Min difference</p></td>
+</tr>
+<tr class="row-odd"><td><p>max_difference</p></td>
+<td><p>float</p></td>
+<td><p>Max difference</p></td>
+</tr>
+<tr class="row-even"><td><p>mean_difference</p></td>
+<td><p>float</p></td>
+<td><p>Mean difference</p></td>
+</tr>
+<tr class="row-odd"><td><p>rms_difference</p></td>
+<td><p>float</p></td>
+<td><p>RMS difference</p></td>
+</tr>
+<tr class="row-even"><td><p>peak_level</p></td>
+<td><p>float</p></td>
+<td><p>Peak level dB</p></td>
+</tr>
+<tr class="row-odd"><td><p>rms_level</p></td>
+<td><p>float</p></td>
+<td><p>RMS level dB</p></td>
+</tr>
+<tr class="row-even"><td><p>rms_peak</p></td>
+<td><p>float</p></td>
+<td><p>RMS peak dB</p></td>
+</tr>
+<tr class="row-odd"><td><p>rms_trough</p></td>
+<td><p>float</p></td>
+<td><p>RMS trough dB</p></td>
+</tr>
+<tr class="row-even"><td><p>crest_factor</p></td>
+<td><p>float</p></td>
+<td><p>Crest factor</p></td>
+</tr>
+<tr class="row-odd"><td><p>flat_factor</p></td>
+<td><p>float</p></td>
+<td><p>Flat factor</p></td>
+</tr>
+<tr class="row-even"><td><p>peak_count</p></td>
+<td><p>int</p></td>
+<td><p>Peak count</p></td>
+</tr>
+<tr class="row-odd"><td><p>noise_floor</p></td>
+<td><p>float</p></td>
+<td><p>Noise floor dB</p></td>
+</tr>
+<tr class="row-even"><td><p>noise_floor_count</p></td>
+<td><p>int</p></td>
+<td><p>Noise floor count</p></td>
+</tr>
+<tr class="row-odd"><td><p>entropy</p></td>
+<td><p>float</p></td>
+<td><p>Entropy</p></td>
+</tr>
+<tr class="row-even"><td><p>bit_depth</p></td>
+<td><p>int</p></td>
+<td><p>Bit depth (available)</p></td>
+</tr>
+<tr class="row-odd"><td><p>bit_depth2</p></td>
+<td><p>int</p></td>
+<td><p>Bit depth (used)</p></td>
+</tr>
+<tr class="row-even"><td><p>dynamic_range</p></td>
+<td><p>float</p></td>
+<td><p>Dynamic range</p></td>
+</tr>
+<tr class="row-odd"><td><p>zero_crossings</p></td>
+<td><p>float</p></td>
+<td><p>Zero crossings</p></td>
+</tr>
+<tr class="row-even"><td><p>zero_crossings_rate</p></td>
+<td><p>float</p></td>
+<td><p>Zero crossings rate</p></td>
+</tr>
+<tr class="row-odd"><td><p>number_of_nans</p></td>
+<td><p>int</p></td>
+<td><p>Number of NaNs</p></td>
+</tr>
+<tr class="row-even"><td><p>number_of_infs</p></td>
+<td><p>int</p></td>
+<td><p>Number of Infs</p></td>
+</tr>
+<tr class="row-odd"><td><p>number_of_denormals</p></td>
+<td><p>int</p></td>
+<td><p>Number of denormals</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">SilenceDetect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg silencedetect filter to detect silent audio intervals</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-silencedetect-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">silencedetect</span></code> filter options<a class="headerlink" href="#ffmpeg-silencedetect-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>noise</p></td>
+<td><p>double</p></td>
+<td><p>noise tolerance (from 0 to DBL_MAX) (default 0.001). Alias param name: <strong>n</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>duration</p></td>
+<td><p>duration</p></td>
+<td><p>minimum duration in seconds (default 2). Alias param name: <strong>d</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>mono</p></td>
+<td><p>bool</p></td>
+<td><p>check each channel separately (default false). Alias param name: <strong>m</strong></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.Silent">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Silent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.Silent" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass for <code class="docutils literal notranslate"><span class="pre">mono=False</span></code> (default)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>interval</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>, </em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>]</em>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.Silent.interval">
+<span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.Silent.interval" title="Link to this definition"></a></dt>
+<dd><p>pairs of start and end timestamps of frozen frame intervals</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'silencedetect'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'silencedetect'</span></em><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>ch</strong> (<em>str</em><em> | </em><em>None</em>) – audio channel key</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'audio'</span></em><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'silence_start'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'silence_end'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('silence_start',</span> <span class="pre">'silence_end')</span></em><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.SilenceDetect.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.Silent" title="ffmpegio.analyze.SilenceDetect.Silent"><span class="pre">Silent</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">NamedTuple</span></em><a class="headerlink" href="#ffmpegio.analyze.SilenceDetect.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+<p>If the silentdetect filter is configured with <code class="docutils literal notranslate"><span class="pre">mono=False</span></code> (default), the returned log is
+a <a class="reference internal" href="#ffmpegio.analyze.SilenceDetect.Silent" title="ffmpegio.analyze.SilenceDetect.Silent"><code class="xref py py-class docutils literal notranslate"><span class="pre">SilenceDetect.Silent</span></code></a> object.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">mono=True</span></code>, the returned log is a dynamically formed namedtuple of the name <strong>SilentPerCh</strong>,
+each of which field is named <code class="docutils literal notranslate"><span class="pre">ch#</span></code> (where <code class="docutils literal notranslate"><span class="pre">#</span></code> is an integer) and contains a list of the
+silent intevals of the specified audio channel.</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">BBox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BBox" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg bbox filter to compute bounding box for each frame</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-bbox-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">bbox</span></code> filter options<a class="headerlink" href="#ffmpeg-bbox-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>min_val</p></td>
+<td><p>int</p></td>
+<td><p>minimum luminance value for bounding box (from 0 to 65535) (default 16)</p></td>
+</tr>
+<tr class="row-odd"><td><p>enable</p></td>
+<td><p>str</p></td>
+<td><p>support for timeline. See <a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#Timeline-editing">FFmpeg documentation</a>.</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.BBox">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BBox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">position</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BBox.BBox" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>position</strong> (<em>List</em><em>[</em><em>List</em><em>[</em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>, </em><em>int</em><em>]</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.BBox.position">
+<span class="sig-name descname"><span class="pre">position</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BBox.BBox.position" title="Link to this definition"></a></dt>
+<dd><p>bbox positions [x0,x1,w,h]</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.BBox.time">
+<span class="sig-name descname"><span class="pre">time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BBox.BBox.time" title="Link to this definition"></a></dt>
+<dd><p>timestamps in seconds, frames, or pts</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'bbox'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'bbox'</span></em><a class="headerlink" href="#ffmpegio.analyze.BBox.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BBox.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'video'</span></em><a class="headerlink" href="#ffmpegio.analyze.BBox.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'bbox'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('bbox',)</span></em><a class="headerlink" href="#ffmpegio.analyze.BBox.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BBox.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.BBox.BBox" title="ffmpegio.analyze.BBox.BBox"><span class="pre">BBox</span></a></em><a class="headerlink" href="#ffmpegio.analyze.BBox.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">BlackDetect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlackDetect" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg blackdetect filter to detect video intervals that are (almost) black</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-blackdetect-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">blackdetect</span></code> filter options<a class="headerlink" href="#ffmpeg-blackdetect-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>black_min_duration</p></td>
+<td><p>float</p></td>
+<td><p>set minimum detected black duration in seconds (from 0 to DBL_MAX) (default 2)</p></td>
+</tr>
+<tr class="row-odd"><td><p>picture_black_ratio_th</p></td>
+<td><p>float</p></td>
+<td><p>set the picture black ratio threshold (from 0 to 1) (default 0.98). Alias param name: <strong>pic_th</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>pixel_black_th</p></td>
+<td><p>float</p></td>
+<td><p>set the pixel black threshold (from 0 to 1) (default 0.1). Alias param name: <strong>pix_th</strong></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.Black">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Black</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.Black" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>interval</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>, </em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>]</em>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.Black.interval">
+<span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.Black.interval" title="Link to this definition"></a></dt>
+<dd><p>pairs of start and end timestamps of black intervals</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'blackdetect'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – metadata key</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'video'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('black_start',</span> <span class="pre">'black_end')</span></em><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackDetect.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.BlackDetect.Black" title="ffmpegio.analyze.BlackDetect.Black"><span class="pre">Black</span></a></em><a class="headerlink" href="#ffmpegio.analyze.BlackDetect.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">BlackFrame</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlackFrame" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg blackframe filter to detect frames that are (almost) black</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-blackframe-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">blackframe</span></code> filter options<a class="headerlink" href="#ffmpeg-blackframe-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>amount</p></td>
+<td><p>int</p></td>
+<td><p>percentage of the pixels that have to be below the threshold for the frame to be considered black (from 0 to 100) (default 98)</p></td>
+</tr>
+<tr class="row-odd"><td><p>threshold</p></td>
+<td><p>int</p></td>
+<td><p>threshold below which a pixel value is considered black (from 0 to 255) (default 32). Alias param name: <strong>thresh</strong></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.BlackFrames">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">BlackFrames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pblack</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.BlackFrames" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>pblack</strong> (<em>List</em><em>[</em><em>int</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.BlackFrames.pblack">
+<span class="sig-name descname"><span class="pre">pblack</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.BlackFrames.pblack" title="Link to this definition"></a></dt>
+<dd><p>percentage of black pixels</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.BlackFrames.time">
+<span class="sig-name descname"><span class="pre">time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.BlackFrames.time" title="Link to this definition"></a></dt>
+<dd><p>timestamps in seconds, frames, or pts</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'blackframe'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'video'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'blackframe'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlackFrame.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.BlackFrame.BlackFrames" title="ffmpegio.analyze.BlackFrame.BlackFrames"><span class="pre">BlackFrames</span></a></em><a class="headerlink" href="#ffmpegio.analyze.BlackFrame.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">BlurDetect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlurDetect" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg blurdetect filter to detect video frames that are blurry</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-blurdetect-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">blurdetect</span></code> filter options<a class="headerlink" href="#ffmpeg-blurdetect-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>high</p></td>
+<td><p>float</p></td>
+<td><p>high threshold (from 0 to 1) (default 0.117647)</p></td>
+</tr>
+<tr class="row-odd"><td><p>low</p></td>
+<td><p>float</p></td>
+<td><p>low threshold (from 0 to 1) (default 0.0588235)</p></td>
+</tr>
+<tr class="row-even"><td><p>radius</p></td>
+<td><p>int</p></td>
+<td><p>search radius for maxima detection (from 1 to 100) (default 50)</p></td>
+</tr>
+<tr class="row-odd"><td><p>block_pct</p></td>
+<td><p>int</p></td>
+<td><p>block pooling threshold when calculating blurriness (from 1 to 100) (default 80)</p></td>
+</tr>
+<tr class="row-even"><td><p>block_width</p></td>
+<td><p>int</p></td>
+<td><p>block width for block-based abbreviation of blurriness (from -1 to INT_MAX) (default -1)</p></td>
+</tr>
+<tr class="row-odd"><td><p>block_height</p></td>
+<td><p>int</p></td>
+<td><p>block height for block-based abbreviation of blurriness (from -1 to INT_MAX) (default -1)</p></td>
+</tr>
+<tr class="row-even"><td><p>planes</p></td>
+<td><p>int</p></td>
+<td><p>set planes to filter (from 0 to 15) (default 1)</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.Blur">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Blur</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">blur</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.Blur" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>blur</strong> (<em>List</em><em>[</em><em>float</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.Blur.blur">
+<span class="sig-name descname"><span class="pre">blur</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.Blur.blur" title="Link to this definition"></a></dt>
+<dd><p>blurness score</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.Blur.time">
+<span class="sig-name descname"><span class="pre">time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.Blur.time" title="Link to this definition"></a></dt>
+<dd><p>timestamps in seconds, frames, or pts</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'blurdetect'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'blurdetect'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'video'</span></em><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'blur'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('blur',)</span></em><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.BlurDetect.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.BlurDetect.Blur" title="ffmpegio.analyze.BlurDetect.Blur"><span class="pre">Blur</span></a></em><a class="headerlink" href="#ffmpegio.analyze.BlurDetect.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">FreezeDetect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg freezedetect filter to detect frozen video input</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p>
+</dd>
+</dl>
+<section id="ffmpeg-freezedetect-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">freezedetect</span></code> filter options<a class="headerlink" href="#ffmpeg-freezedetect-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>noise</p></td>
+<td><p>float</p></td>
+<td><p>noise tolerance (from 0 to 1) (default 0.001). Alias param name: <strong>n</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>duration</p></td>
+<td><p>duration</p></td>
+<td><p>minimum duration in seconds (default 2). Alias param name: <strong>d</strong></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.Frozen">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Frozen</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">interval</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.Frozen" title="Link to this definition"></a></dt>
+<dd><p>output log namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>interval</strong> (<em>List</em><em>[</em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>, </em><em>float</em><em> | </em><em>int</em><em> | </em><em>None</em><em>]</em>)</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.Frozen.interval">
+<span class="sig-name descname"><span class="pre">interval</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.Frozen.interval" title="Link to this definition"></a></dt>
+<dd><p>pairs of start and end timestamps of frozen frame intervals</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'freezedetect'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'freezedetect'</span></em><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'video'</span></em><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'freeze'</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('freeze',)</span></em><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.FreezeDetect.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.FreezeDetect.Frozen" title="ffmpegio.analyze.FreezeDetect.Frozen"><span class="pre">Frozen</span></a></em><a class="headerlink" href="#ffmpegio.analyze.FreezeDetect.output" title="Link to this definition"></a></dt>
+<dd><p>log output</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.analyze.</span></span><span class="sig-name descname"><span class="pre">ScDet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">all_scores</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.ScDet" title="Link to this definition"></a></dt>
+<dd><p>Logger for FFmpeg scdet filter to detect video scene change</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>all_scores</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return scene scores on all the frames, defaults to False</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>any</em><em>]</em>) – FFmpeg filter options (see below)</p></li>
+</ul>
+</dd>
+</dl>
+<section id="ffmpeg-scdet-filter-options">
+<h3>FFmpeg <code class="docutils literal notranslate"><span class="pre">scdet</span></code> filter options<a class="headerlink" href="#ffmpeg-scdet-filter-options" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>threshold</p></td>
+<td><p>float</p></td>
+<td><p>Set the scene change detection threshold as a percentage of maximum change.
+Good values are in the [8.0, 14.0] range. The range for threshold is [0., 100.].
+Defaults to 10. Alias param name: <strong>t</strong></p></td>
+</tr>
+<tr class="row-odd"><td><p>sc_pass</p></td>
+<td><p>int</p></td>
+<td><p>Set the flag to pass scene change frames to the next filter. Default value is
+0 You can enable it if you want to get snapshot of scene change frames only.
+Alias param name: <strong>s</strong></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.AllScenes">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">AllScenes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">changed</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mafd</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.ScDet.AllScenes" title="Link to this definition"></a></dt>
+<dd><p>Output namedtuple subclass for all_scores=True</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>Tuple</em><em>[</em><em>float</em><em> | </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>changed</strong> (<em>Tuple</em><em>[</em><em>bool</em><em>]</em>)</p></li>
+<li><p><strong>score</strong> (<em>Tuple</em><em>[</em><em>float</em><em>]</em>)</p></li>
+<li><p><strong>mafd</strong> (<em>Tuple</em><em>[</em><em>float</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.AllScenes.changed">
+<span class="sig-name descname"><span class="pre">changed</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">bool</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.AllScenes.changed" title="Link to this definition"></a></dt>
+<dd><p>scene change flags</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.AllScenes.mafd">
+<span class="sig-name descname"><span class="pre">mafd</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.AllScenes.mafd" title="Link to this definition"></a></dt>
+<dd><p>mafd scores</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.AllScenes.score">
+<span class="sig-name descname"><span class="pre">score</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.AllScenes.score" title="Link to this definition"></a></dt>
+<dd><p>scene change scores</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.AllScenes.time">
+<span class="sig-name descname"><span class="pre">time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.AllScenes.time" title="Link to this definition"></a></dt>
+<dd><p>log times</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.Scenes">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Scenes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">score</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mafd</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.ScDet.Scenes" title="Link to this definition"></a></dt>
+<dd><p>Default output namedtuple subclass</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>Tuple</em><em>[</em><em>float</em><em> | </em><em>int</em><em>]</em>)</p></li>
+<li><p><strong>score</strong> (<em>Tuple</em><em>[</em><em>float</em><em>]</em>)</p></li>
+<li><p><strong>mafd</strong> (<em>Tuple</em><em>[</em><em>float</em><em>]</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.Scenes.mafd">
+<span class="sig-name descname"><span class="pre">mafd</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.Scenes.mafd" title="Link to this definition"></a></dt>
+<dd><p>mafd scores</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.Scenes.score">
+<span class="sig-name descname"><span class="pre">score</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.Scenes.score" title="Link to this definition"></a></dt>
+<dd><p>scene change scores</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.Scenes.time">
+<span class="sig-name descname"><span class="pre">time</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.Scenes.time" title="Link to this definition"></a></dt>
+<dd><p>log times</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.filter_name">
+<span class="sig-name descname"><span class="pre">filter_name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'scdet'</span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.filter_name" title="Link to this definition"></a></dt>
+<dd><p>(static) name of the FFmpeg filter to use</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.analyze.ScDet.log" title="Link to this definition"></a></dt>
+<dd><p>log the metadata</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>t</strong> (<em>float</em><em>|</em><em>int</em>) – timestamps in seconds, frames, or pts</p></li>
+<li><p><strong>name</strong> (<em>str</em>) – one of the class’ meta_names</p></li>
+<li><p><strong>key</strong> (<em>str</em><em> | </em><em>None</em>) – secondary metadata key if found</p></li>
+<li><p><strong>value</strong> (<em>str</em>) – metadata value</p></li>
+</ul>
+</dd>
+</dl>
+<p>This method is called by <code class="xref py py-func docutils literal notranslate"><span class="pre">analyze.run()</span></code> if a metadata line begins
+with one of the class’ <code class="docutils literal notranslate"><span class="pre">meta_names</span></code> entry. The <cite>log</cite> method shall store
+the metadata info in a private storage property of the class so they can be
+returned later by the <cite>output</cite> property.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.media_type">
+<span class="sig-name descname"><span class="pre">media_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Literal</span><span class="p"><span class="pre">[</span></span><span class="s"><span class="pre">'video'</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="s"><span class="pre">'audio'</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'video'</span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.media_type" title="Link to this definition"></a></dt>
+<dd><p>(static) target stream media type</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.meta_names">
+<span class="sig-name descname"><span class="pre">meta_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">('scd',)</span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.meta_names" title="Link to this definition"></a></dt>
+<dd><p>(static) metadata names to be logged</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.options">
+<span class="sig-name descname"><span class="pre">options</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.options" title="Link to this definition"></a></dt>
+<dd><p>FFmpeg filter options (value must be stringifiable)</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.analyze.ScDet.output">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">output</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.ScDet.Scenes" title="ffmpegio.analyze.ScDet.Scenes"><span class="pre">Scenes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="#ffmpegio.analyze.ScDet.AllScenes" title="ffmpegio.analyze.ScDet.AllScenes"><span class="pre">AllScenes</span></a></em><a class="headerlink" href="#ffmpegio.analyze.ScDet.output" title="Link to this definition"></a></dt>
+<dd><p>log output. Scenes if all_scores==True else AllScenes</p>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

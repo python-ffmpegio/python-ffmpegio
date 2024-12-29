@@ -1,0 +1,519 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FFmpeg Option References &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">FFmpeg Option References</a><ul>
+<li><a class="reference internal" href="#common-ffmpeg-options">Common FFmpeg Options</a><ul>
+<li><a class="reference internal" href="#s-output-option"><cite>s</cite> output option</a></li>
+<li><a class="reference internal" href="#map-output-options"><cite>map</cite> output options</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#video-pixel-formats-pix-fmt">Video Pixel Formats <code class="code docutils literal notranslate"><span class="pre">pix_fmt</span></code></a></li>
+<li><a class="reference internal" href="#audio-sample-formats-sample-fmt">Audio Sample Formats <code class="code docutils literal notranslate"><span class="pre">sample_fmt</span></code></a></li>
+<li><a class="reference internal" href="#built-in-video-manipulation-options">Built-in Video Manipulation Options</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">FFmpeg Option References</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/options.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ffmpeg-option-references">
+<span id="options"></span><h1>FFmpeg Option References<a class="headerlink" href="#ffmpeg-option-references" title="Link to this heading"></a></h1>
+<p>All open/read/write/filter functions in <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> accepts any
+<a class="reference external" href="https://ffmpeg.org/ffmpeg.html#Options">FFmpeg options</a> as their keyword arguments. Two rules
+apply to construct Python function argument:</p>
+<ol class="arabic simple">
+<li><p>Drop the <code class="docutils literal notranslate"><span class="pre">-</span></code> from FFmpeg option name, e.g., enter <code class="docutils literal notranslate"><span class="pre">-ss</span> <span class="pre">50</span></code> as <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">ss=50,</span> <span class="pre">...)</span></code>; and</p></li>
+<li><p>All the options are assumed output options by default. To specify input options, append <code class="docutils literal notranslate"><span class="pre">_in</span></code>
+to the option name. To apply <code class="docutils literal notranslate"><span class="pre">-ss</span> <span class="pre">50</span></code> to input url, enter <code class="docutils literal notranslate"><span class="pre">(...,</span> <span class="pre">ss_in=50,</span> <span class="pre">...)</span></code>. Global
+options are automatically identified.</p></li>
+</ol>
+<p>The option values can be specified in any data type, but it must have a <code class="docutils literal notranslate"><span class="pre">__str__</span></code> function defined
+to convert Python data to correct FFmpeg string expression.</p>
+<section id="common-ffmpeg-options">
+<h2>Common FFmpeg Options<a class="headerlink" href="#common-ffmpeg-options" title="Link to this heading"></a></h2>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>V</p></th>
+<th class="head"><p>A</p></th>
+<th class="head"><p>I</p></th>
+<th class="head"><p>O</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>ss</p></td>
+<td><p>float</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Start time in seconds</p></td>
+</tr>
+<tr class="row-odd"><td><p>t</p></td>
+<td><p>float</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Duration in seconds</p></td>
+</tr>
+<tr class="row-even"><td><p>to</p></td>
+<td><p>float</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>End time in seconds (ignored if both <cite>ss`</cite> and <cite>t</cite> are set)</p></td>
+</tr>
+<tr class="row-odd"><td><p>r</p></td>
+<td><p>numeric</p></td>
+<td><p>X</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Video frame rate in frames/second</p></td>
+</tr>
+<tr class="row-even"><td><p>ar</p></td>
+<td><p>numeric</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Audio sampling rate in samples/second</p></td>
+</tr>
+<tr class="row-odd"><td><p>s</p></td>
+<td><p>(int,int)</p></td>
+<td><p>X</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Video frame size (width, height). Alt. str expression: <cite>wxh</cite></p></td>
+</tr>
+<tr class="row-even"><td><p>pix_fmt</p></td>
+<td><p>str</p></td>
+<td><p>X</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Video frame pixel format, defaults to auto-detect</p></td>
+</tr>
+<tr class="row-odd"><td><p>vf</p></td>
+<td><p>str</p></td>
+<td></td>
+<td><p>X</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>Video filtergraph (leave output pad unlabeled)</p></td>
+</tr>
+<tr class="row-even"><td><p>ac</p></td>
+<td><p>int</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Number of audio channels, defaults to auto-detect</p></td>
+</tr>
+<tr class="row-odd"><td><p>sample_fmt</p></td>
+<td><p>int</p></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>X</p></td>
+<td><p>Audio sample format, defaults to None (same as input)</p></td>
+</tr>
+<tr class="row-even"><td><p>af</p></td>
+<td><p>str</p></td>
+<td><p>X</p></td>
+<td></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>Audio filtergraph (leave output pad unlabeled)</p></td>
+</tr>
+<tr class="row-odd"><td><p>crf</p></td>
+<td><p>int</p></td>
+<td><p>X</p></td>
+<td></td>
+<td></td>
+<td><p>X</p></td>
+<td><p>H.264 video encoding constant quality factor (0-51)</p></td>
+</tr>
+</tbody>
+</table>
+<section id="s-output-option">
+<h3><cite>s</cite> output option<a class="headerlink" href="#s-output-option" title="Link to this heading"></a></h3>
+<p>FFmpeg’s <code class="code docutils literal notranslate"><span class="pre">-s</span></code> output option sets the output video frame size by using the scale video filter. However,
+it does not allow non-positive values for width and height which the scale filter accepts.
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> alters this behavior by checking the <code class="code docutils literal notranslate"><span class="pre">s</span></code> argument for &lt;=0 width or height
+and convert to <code class="code docutils literal notranslate"><span class="pre">vf</span></code> argument.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>width/height</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>n (n&gt;0)</p></td>
+<td><p>Specifying the output size to be n pixels</p></td>
+</tr>
+<tr class="row-odd"><td><p>0</p></td>
+<td><p>Use the input size for the output</p></td>
+</tr>
+<tr class="row-even"><td><p>-n</p></td>
+<td><p>Scale the dimension proportional to the other dimension then
+make sure that the calculated dimension is divisible by n
+and adjust the value if necessary. Only one of width or
+height can be negative valued.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Note that passing both <code class="code docutils literal notranslate"><span class="pre">s</span></code> with a non-positive value and <code class="code docutils literal notranslate"><span class="pre">vf</span></code>
+will raise an exception.</p>
+</section>
+<section id="map-output-options">
+<h3><cite>map</cite> output options<a class="headerlink" href="#map-output-options" title="Link to this heading"></a></h3>
+<p>The output option <cite>-map</cite> is the (only?) FFmpeg option, which could be specified multiple times
+in command line input. This goes against <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code>’s FFmpeg dict structure, and so <cite>map</cite>
+argument is handled differently from the others. First, <cite>map</cite> argument must be a non-<cite>str</cite> sequence,
+and each of its element is converted to <cite>-map</cite> option. Furthermore, each element could be a str or
+else a sequence which items are then stringified and joined together with <cite>‘:’</cite>.</p>
+</section>
+</section>
+<section id="video-pixel-formats-pix-fmt">
+<h2>Video Pixel Formats <code class="code docutils literal notranslate"><span class="pre">pix_fmt</span></code><a class="headerlink" href="#video-pixel-formats-pix-fmt" title="Link to this heading"></a></h2>
+<p>There are many video pixel formats that FFmpeg support, which you can obtain with
+<code class="xref py py-func docutils literal notranslate"><span class="pre">caps.pix_fmts()</span></code> function. For the I/O purpose, <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> video/image
+functions operate strictly with RGB or grayscale formats listed below.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>ncomp</p></th>
+<th class="head"><p>dtype</p></th>
+<th class="head"><p>pix_fmt</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>|u8</p></td>
+<td><p>gray</p></td>
+<td><p>grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray10le</p></td>
+<td><p>10-bit grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray12le</p></td>
+<td><p>12-bit grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray14le</p></td>
+<td><p>14-bit grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray16le</p></td>
+<td><p>16-bit grayscale (default for &lt;u2)</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>&lt;f4</p></td>
+<td><p>grayf32le</p></td>
+<td><p>floating-point grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>2</p></td>
+<td><p>|u1</p></td>
+<td><p>ya8</p></td>
+<td><p>grayscale with alpha channel</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>ya16le</p></td>
+<td><p>16-bit grayscale with alpha channel</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>|u1</p></td>
+<td><p>rgb24</p></td>
+<td><p>RGB</p></td>
+</tr>
+<tr class="row-odd"><td><p>3</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>rgb48le</p></td>
+<td><p>16-bit RGB</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
+<td><p>|u1</p></td>
+<td><p>rgba</p></td>
+<td><p>RGB with alpha transparency channel</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>rgba64le</p></td>
+<td><p>16-bit RGB with alpha channel</p></td>
+</tr>
+</tbody>
+</table>
+<p>Note that each video pixel format has a specific <cite>dtype</cite> (or <cite>dtype_in</cite>) str argument, which
+follows the NumPy array data type convention.</p>
+</section>
+<section id="audio-sample-formats-sample-fmt">
+<h2>Audio Sample Formats <code class="code docutils literal notranslate"><span class="pre">sample_fmt</span></code><a class="headerlink" href="#audio-sample-formats-sample-fmt" title="Link to this heading"></a></h2>
+<p>FFmpeg offers its audio channels in both interleaved and planar sample formats (<cite>sample_fmt</cite>,
+run <code class="xref py py-func docutils literal notranslate"><span class="pre">caps.sample_fmts()</span></code> to list available formats). For the I/O purpose,
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> audio functions always use the interleaved formats:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>dtype</p></th>
+<th class="head"><p>sample_fmt</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>|u1</p></td>
+<td><p>u8</p></td>
+</tr>
+<tr class="row-odd"><td><p>&lt;i2</p></td>
+<td><p>s16</p></td>
+</tr>
+<tr class="row-even"><td><p>&lt;i4</p></td>
+<td><p>s32</p></td>
+</tr>
+<tr class="row-odd"><td><p>&lt;f4</p></td>
+<td><p>flt</p></td>
+</tr>
+<tr class="row-even"><td><p>&lt;f8</p></td>
+<td><p>dbl</p></td>
+</tr>
+</tbody>
+</table>
+<p>Like <cite>pix_fmt</cite>, <cite>sample_fmt</cite> also has concrete relationship to the <cite>dtype</cite> option</p>
+</section>
+<section id="built-in-video-manipulation-options">
+<h2>Built-in Video Manipulation Options<a class="headerlink" href="#built-in-video-manipulation-options" title="Link to this heading"></a></h2>
+<p>While the use of the <code class="code docutils literal notranslate"><span class="pre">vf</span></code> or <code class="code docutils literal notranslate"><span class="pre">filter_complex</span></code> option enables the full spectrum
+of FFmpeg’s filtering capability (<a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#Description">FFmpeg Documentation</a>),
+<code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code>’s video and image routines adds several convenience
+video options to perform simple video maninpulations without the need of setting
+up a filtergraph.</p>
+<table class="tight-table docutils align-default" id="id1">
+<caption><span class="caption-text">Options to manipulate video frames</span><a class="headerlink" href="#id1" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>value</p></th>
+<th class="head"><p>FFmpeg filter</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">crop</span></code></p></td>
+<td><p>seq(int[, int[, int[, int]]])</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#crop">crop</a></p></td>
+<td><p>video frame cropping/padding, values representing the number of pixels to crop from [left top right bottom].
+If positive, the video frame is cropped from the respective edge. If negative, the video frame is padded on
+the respective edge. If right or bottom is missing, uses the same value as left or top, respectively. If top
+is missing, it defaults to 0.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">flip</span></code></p></td>
+<td><p>{<code class="code docutils literal notranslate"><span class="pre">'horizontal'</span></code>, <code class="code docutils literal notranslate"><span class="pre">'vertical'</span></code>, <code class="code docutils literal notranslate"><span class="pre">'both'</span></code>}</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#hflip">hflip</a> or <a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#vflip">vflip</a></p></td>
+<td><p>flip the video frames horizontally, vertically, or both.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">transpose</span></code></p></td>
+<td><p>int</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#transpose-1">transpose</a></p></td>
+<td><p>tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
+For the others, see the FFmpeg documentation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">square_pixels</span></code></p></td>
+<td><p>{<code class="code docutils literal notranslate"><span class="pre">'upscale'</span></code>, <code class="code docutils literal notranslate"><span class="pre">'downscale'</span></code>, <code class="code docutils literal notranslate"><span class="pre">'upscale_even'</span></code>,
+<code class="code docutils literal notranslate"><span class="pre">'downscale_even'</span></code>}</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#scale-1">scale</a> and <a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#setsar-1">setsar</a></p></td>
+<td><p>Resize video frames so that their pixels are square (i.e., SAR=1:1).
+<code class="code docutils literal notranslate"><span class="pre">'upscale'</span></code> stretches the short side
+of the pixels while <code class="code docutils literal notranslate"><span class="pre">'downscale'</span></code> compresses the long side.
+<code class="code docutils literal notranslate"><span class="pre">'even'</span></code> makes sure that the resulting frame size is even (required by some codecs).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="code docutils literal notranslate"><span class="pre">remove_alpha</span></code></p></td>
+<td><p>bool</p></td>
+<td><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#overlay-1">overlay</a> and <a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#color-1">color</a></p></td>
+<td><p>Fill transparent background with <code class="code docutils literal notranslate"><span class="pre">fill_color</span></code> color. This filter is automatically
+inserted if input <code class="code docutils literal notranslate"><span class="pre">'pix_fmt'</span></code> has alpha but not the output.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="code docutils literal notranslate"><span class="pre">fill_color</span></code></p></td>
+<td><p>str</p></td>
+<td><p>n/a</p></td>
+<td><p>This option is used for the auto-conversion of an image with transparency to
+opaque by setting the output option <code class="code docutils literal notranslate"><span class="pre">pix_fmt</span></code>. The option value
+specifies a color according to
+<a class="reference external" href="https://ffmpeg.org/ffmpeg-utils.html#Color">FFmpeg Color Specifications</a>.
+Default color is <code class="code docutils literal notranslate"><span class="pre">'white'</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Note that the these operations are pre-wired to perform in a specific order:</p>
+<figure class="align-default" id="id2">
+<div class="align-default"><svg height="200" viewBox="0 0 448 200" width="448" xmlns="http://www.w3.org/2000/svg" xmlns:inkspace="http://www.inkscape.org/namespaces/inkscape" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs id="defs_block">
+    <filter height="1.504" id="filter_blur" inkspace:collect="always" width="1.1575" x="-0.07875" y="-0.252">
+      <feGaussianBlur id="feGaussianBlur3780" inkspace:collect="always" stdDeviation="4.2" />
+    </filter>
+  </defs>
+  <title>blockdiag</title>
+  <desc />
+  <rect fill="rgb(0,0,0)" height="40" stroke="rgb(0,0,0)" style="filter:url(#filter_blur);opacity:0.7;fill-opacity:1" width="128" x="67" y="46" />
+  <rect fill="rgb(0,0,0)" height="40" stroke="rgb(0,0,0)" style="filter:url(#filter_blur);opacity:0.7;fill-opacity:1" width="128" x="259" y="46" />
+  <rect fill="rgb(0,0,0)" height="40" stroke="rgb(0,0,0)" style="filter:url(#filter_blur);opacity:0.7;fill-opacity:1" width="128" x="67" y="126" />
+  <rect fill="rgb(0,0,0)" height="40" stroke="rgb(0,0,0)" style="filter:url(#filter_blur);opacity:0.7;fill-opacity:1" width="128" x="259" y="126" />
+  <rect fill="rgb(255,255,255)" height="40" stroke="rgb(0,0,0)" width="128" x="64" y="40" />
+  <text fill="rgb(0,0,0)" font-family="sans-serif" font-size="11" font-style="normal" font-weight="normal" text-anchor="middle" textLength="65" x="128.5" y="65">square_pixels</text>
+  <rect fill="rgb(255,255,255)" height="40" stroke="rgb(0,0,0)" width="128" x="256" y="40" />
+  <text fill="rgb(0,0,0)" font-family="sans-serif" font-size="11" font-style="normal" font-weight="normal" text-anchor="middle" textLength="20" x="320.0" y="64">crop</text>
+  <rect fill="rgb(255,255,255)" height="40" stroke="rgb(0,0,0)" width="128" x="64" y="120" />
+  <text fill="rgb(0,0,0)" font-family="sans-serif" font-size="11" font-style="normal" font-weight="normal" text-anchor="middle" textLength="15" x="128.5" y="146">flip</text>
+  <rect fill="rgb(255,255,255)" height="40" stroke="rgb(0,0,0)" width="128" x="256" y="120" />
+  <text fill="rgb(0,0,0)" font-family="sans-serif" font-size="11" font-style="normal" font-weight="normal" text-anchor="middle" textLength="44" x="320.0" y="145">transpose</text>
+  <path d="M 192 60 L 248 60" fill="none" stroke="rgb(0,0,0)" />
+  <polygon fill="rgb(0,0,0)" points="255,60 248,56 248,64 255,60" stroke="rgb(0,0,0)" />
+  <path d="M 320 80 L 320 100" fill="none" stroke="rgb(0,0,0)" />
+  <path d="M 128 100 L 320 100" fill="none" stroke="rgb(0,0,0)" />
+  <path d="M 128 100 L 128 112" fill="none" stroke="rgb(0,0,0)" />
+  <polygon fill="rgb(0,0,0)" points="128,119 124,112 132,112 128,119" stroke="rgb(0,0,0)" />
+  <path d="M 192 140 L 248 140" fill="none" stroke="rgb(0,0,0)" />
+  <polygon fill="rgb(0,0,0)" points="255,140 248,136 248,144 255,140" stroke="rgb(0,0,0)" />
+</svg>
+</div>
+<figcaption>
+<p><span class="caption-text">Video Manipulation Order</span><a class="headerlink" href="#id2" title="Link to this image"></a></p>
+</figcaption>
+</figure>
+<p>Be aware of this ordering as these filters are non-commutative (i.e., a change in the
+order of operation alters the outcome). If your desired order of filters differs or
+need to use additional filters, use the <code class="code docutils literal notranslate"><span class="pre">vf</span></code> option to specify your own filtergraph.</p>
+<table class="tight-table docutils align-default" id="id3">
+<caption><span class="caption-text">Examples of manipulated images</span><a class="headerlink" href="#id3" title="Link to this table"></a></caption>
+<tbody>
+<tr class="row-odd"><td><figure class="align-default">
+<img alt="_images/options-1.png" class="plot-directive" src="_images/options-1.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-even"><td><figure class="align-default">
+<img alt="_images/options-2.png" class="plot-directive" src="_images/options-2.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">,</span> <span class="n">crop</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">transpose</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+</td>
+</tr>
+<tr class="row-odd"><td><figure class="align-default">
+<img alt="_images/options-3.png" class="plot-directive" src="_images/options-3.png" />
+</figure>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpegio</span><span class="o">.</span><span class="n">image</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;ffmpeg-logo.png&#39;</span><span class="p">,</span> <span class="n">crop</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span> <span class="n">flip</span><span class="o">=</span><span class="s1">&#39;both&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="mi">200</span><span class="p">,</span><span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+</pre></div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

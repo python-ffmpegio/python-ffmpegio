@@ -1,0 +1,205 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Specification of FFmpeg Argument dict ffmpeg_args &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Specification of FFmpeg Argument dict <code class="code docutils literal notranslate"><span class="pre">ffmpeg_args</span></code></a><ul>
+<li><a class="reference internal" href="#examples">Examples</a></li>
+<li><a class="reference internal" href="#ffmpeg-filtergraph-class-specification">FFmpeg FilterGraph Class Specification</a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Specification of FFmpeg Argument dict <code class="code docutils literal notranslate"><span class="pre">ffmpeg_args</span></code></li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/adv-args.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="specification-of-ffmpeg-argument-dict-ffmpeg-args">
+<span id="adv-args"></span><h1>Specification of FFmpeg Argument dict <code class="code docutils literal notranslate"><span class="pre">ffmpeg_args</span></code><a class="headerlink" href="#specification-of-ffmpeg-argument-dict-ffmpeg-args" title="Link to this heading"></a></h1>
+<p>FFmpeg command can be invoked directly with <a class="reference internal" href="adv-ffmpeg.html#ffmpegio.ffmpegprocess.run" title="ffmpegio.ffmpegprocess.run"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.ffmpegprocess.run()</span></code></a> or
+<a class="reference internal" href="adv-ffmpeg.html#ffmpegio.ffmpegprocess.Popen" title="ffmpegio.ffmpegprocess.Popen"><code class="xref py py-class docutils literal notranslate"><span class="pre">ffmpegio.ffmpegprocess.Popen</span></code></a> (see <a class="reference internal" href="adv-ffmpeg.html#adv-ffmpeg"><span class="std std-ref">the reference page</span></a>
+for the details). Both of them fully support the FFmpeg command line option
+arguments, which can be specified via  as <code class="xref py py-mod docutils literal notranslate"><span class="pre">subprocess</span></code> via <code class="code docutils literal notranslate"><span class="pre">ffmpeg_args</span></code>
+argument, which may be supplied as a string or a list of strings to be compatible
+with <code class="xref py py-mod docutils literal notranslate"><span class="pre">subprocess</span></code> in a plain dict object.</p>
+<p>The FFmpeg command line options structure:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ffmpeg<span class="w"> </span><span class="o">[</span>global_options<span class="o">]</span><span class="w"> </span><span class="o">{[</span>input_file_options<span class="o">]</span><span class="w"> </span>-i<span class="w"> </span>input_url<span class="o">}</span><span class="w"> </span>...<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="o">{[</span>output_file_options<span class="o">]</span><span class="w"> </span>output_url<span class="o">}</span><span class="w"> </span>...
+</pre></div>
+</div>
+<p>All the options and urls are mapped to <code class="code docutils literal notranslate"><span class="pre">ffmpeg_args</span></code> by:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ffmpeg_args</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="n">input_url</span><span class="p">,</span> <span class="n">input_file_options</span><span class="p">),</span> <span class="o">...</span><span class="p">],</span>
+    <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="n">output_url</span><span class="p">,</span> <span class="n">output_file_options</span><span class="p">),</span> <span class="o">...</span><span class="p">],</span>
+    <span class="s2">&quot;global_options&quot;</span><span class="p">:</span> <span class="n">global_options</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Any Python sequence types may be used in place of the tuples are lists in the above definition.</p>
+<p><code class="code docutils literal notranslate"><span class="pre">input_file_options</span></code>, <code class="code docutils literal notranslate"><span class="pre">output_file_options</span></code>, and <code class="code docutils literal notranslate"><span class="pre">global_options</span></code> are optional. If
+URL does not require any options, set its options to <code class="code docutils literal notranslate"><span class="pre">None</span></code>. If no global options, the
+<code class="code docutils literal notranslate"><span class="pre">&quot;global_options&quot;</span></code> dict entry may be omitted or set to <code class="code docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>To specify options, each set of options is a dict with option keys as the dict keys <strong>without</strong> the
+leading dash (-). For stream-specific options, the key shall include the full stream specifiers. For
+example, use <code class="code docutils literal notranslate"><span class="pre">&quot;b:v&quot;</span></code> as the dict key to specify the video bitrate.</p>
+<p>Option values may be given as any Python type, so long as it can be converted to <code class="code docutils literal notranslate"><span class="pre">str</span></code> at the
+time of the subprocess invocation. If an option does not take any values, then use <code class="code docutils literal notranslate"><span class="pre">None</span></code>. For
+any option which can be defined multiple times (e.g., <code class="code docutils literal notranslate"><span class="pre">map</span></code>), specify its value as a sequence
+with each of its elements defining a value for each FFmpeg option. Another exception are the filters
+(<code class="code docutils literal notranslate"><span class="pre">vf</span></code>, <code class="code docutils literal notranslate"><span class="pre">af</span></code>, and <code class="code docutils literal notranslate"><span class="pre">filter_complex</span></code>) which values may be given with special option
+value structure (to be covered later).</p>
+<p>All defined options are passed unchecked to FFmpeg.</p>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
+<p>First, here are how to set up some of the examples in <a class="reference external" href="https://ffmpeg.org/ffmpeg.html#Description">FFmpeg Documentation</a>
+for the <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># To set the video bitrate of the output file to 64 kbit/s:</span>
+<span class="c1">#   ffmpeg -i input.avi -b:v 64k -bufsize 64k output.avi</span>
+<span class="n">ffmpeg_args</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;input.avi&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)],</span>
+    <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;output.avi&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;b:v&quot;</span><span class="p">:</span> <span class="s2">&quot;64k&quot;</span><span class="p">,</span> <span class="s2">&quot;bufsize&quot;</span><span class="p">:</span> <span class="s2">&quot;64k&quot;</span><span class="p">})],</span>
+<span class="p">}</span>
+
+<span class="c1"># To force the frame rate of the input file (valid for raw formats only) to 1 fps and</span>
+<span class="c1"># the frame rate of the output file to 24 fps:</span>
+<span class="c1">#   ffmpeg -r 1 -i input.m2v -r 24 output.avi</span>
+<span class="n">ffmpeg_args</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;input.avi&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">})],</span>
+    <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;output.avi&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;r&quot;</span><span class="p">:</span> <span class="mi">24</span><span class="p">})],</span>
+<span class="p">}</span>
+
+<span class="c1"># automatic stream selection</span>
+<span class="c1">#   ffmpeg -i A.avi -i B.mp4 out1.mkv out2.wav -map 1:a -c:a copy out3.mov</span>
+<span class="n">ffmpeg_args</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;A.avi&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;B.mp4&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)],</span>
+    <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;out1.mkv&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;out2.wav&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;out3.mov&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;map&quot;</span><span class="p">:</span> <span class="s2">&quot;1:a&quot;</span><span class="p">,</span> <span class="s2">&quot;c:a&quot;</span><span class="p">:</span> <span class="s2">&quot;copy&quot;</span><span class="p">}),</span>
+    <span class="p">],</span>
+<span class="p">}</span>
+
+<span class="c1"># unlabeled filtergraph outputs</span>
+<span class="c1">#   ffmpeg -i A.avi -i C.mkv -i B.mp4 -filter_complex &quot;overlay&quot; out1.mp4 out2.srt</span>
+<span class="n">ffmpeg_args</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;A.avi&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;C.mkv&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;B.mp4&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)],</span>
+    <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;out1.mp4&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;out2.srt&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;global_options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;filter_complex&quot;</span><span class="p">:</span> <span class="s2">&quot;overlay&quot;</span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1"># labeled filtergraph outputs</span>
+<span class="c1">#   ffmpeg -i A.avi -i B.mp4 -i C.mkv -filter_complex &quot;[1:v]hue=s=0[outv];overlay;aresample&quot; \</span>
+<span class="c1">#      -map &#39;[outv]&#39; -an        out1.mp4 \</span>
+<span class="c1">#                               out2.mkv \</span>
+<span class="c1">#      -map &#39;[outv]&#39; -map 1:a:0 out3.mkv</span>
+<span class="n">ffmpeg_args</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;A.avi&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;B.mp4&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;C.mkv&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)],</span>
+    <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;out1.mp4&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;map&quot;</span><span class="p">:</span> <span class="s2">&quot;[outv]&quot;</span><span class="p">,</span> <span class="s2">&quot;an&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">}),</span>
+        <span class="p">(</span><span class="s2">&quot;out2.mkv&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;out3.mkv&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;map&quot;</span><span class="p">:</span> <span class="p">(</span><span class="s2">&quot;[outv]&quot;</span><span class="p">,</span> <span class="s2">&quot;1:a:0&quot;</span><span class="p">)}),</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;global_options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;filter_complex&quot;</span><span class="p">:</span> <span class="s2">&quot;[1:v]hue=s=0[outv];overlay;aresample&quot;</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="ffmpeg-filtergraph-class-specification">
+<h2>FFmpeg FilterGraph Class Specification<a class="headerlink" href="#ffmpeg-filtergraph-class-specification" title="Link to this heading"></a></h2>
+<p>TBD</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

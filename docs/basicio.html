@@ -1,0 +1,954 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Basic I/O Function References &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Basic I/O Function References</a><ul>
+<li><a class="reference internal" href="#basic-functions">Basic Functions</a><ul>
+<li><a class="reference internal" href="#ffmpegio.ffmpeg_info"><code class="docutils literal notranslate"><span class="pre">ffmpeg_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.get_path"><code class="docutils literal notranslate"><span class="pre">get_path()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.set_path"><code class="docutils literal notranslate"><span class="pre">set_path()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.is_ready"><code class="docutils literal notranslate"><span class="pre">is_ready()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.video.create"><code class="docutils literal notranslate"><span class="pre">create()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.video.read"><code class="docutils literal notranslate"><span class="pre">read()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.video.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.video.filter"><code class="docutils literal notranslate"><span class="pre">filter()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.image.create"><code class="docutils literal notranslate"><span class="pre">create()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.image.read"><code class="docutils literal notranslate"><span class="pre">read()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.image.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.image.filter"><code class="docutils literal notranslate"><span class="pre">filter()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.audio.create"><code class="docutils literal notranslate"><span class="pre">create()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.audio.read"><code class="docutils literal notranslate"><span class="pre">read()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.audio.write"><code class="docutils literal notranslate"><span class="pre">write()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.audio.filter"><code class="docutils literal notranslate"><span class="pre">filter()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.open"><code class="docutils literal notranslate"><span class="pre">open()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.transcode"><code class="docutils literal notranslate"><span class="pre">transcode()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Basic I/O Function References</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/basicio.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="basic-i-o-function-references">
+<span id="basicio"></span><h1>Basic I/O Function References<a class="headerlink" href="#basic-i-o-function-references" title="Link to this heading"></a></h1>
+<section id="basic-functions">
+<h2>Basic Functions<a class="headerlink" href="#basic-functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.ffmpeg_info" title="ffmpegio.ffmpeg_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.ffmpeg_info</span></code></a></p></td>
+<td><p>Get FFmpeg version and configuration information</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.set_path" title="ffmpegio.set_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.set_path</span></code></a></p></td>
+<td><p>Set FFmpeg and FFprobe executables</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.get_path" title="ffmpegio.get_path"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.get_path</span></code></a></p></td>
+<td><p>Get the path to FFmpeg/FFprobe executable</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.is_ready" title="ffmpegio.is_ready"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.is_ready</span></code></a></p></td>
+<td><p><cite>True</cite> if ffmpeg and ffprobe binaries are located</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.video.create" title="ffmpegio.video.create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.create</span></code></a></p></td>
+<td><p>Create a video using a source video filter</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.video.read" title="ffmpegio.video.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.read</span></code></a></p></td>
+<td><p>Read video frames</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.video.write" title="ffmpegio.video.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.write</span></code></a></p></td>
+<td><p>Write Numpy array to a video file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.video.filter" title="ffmpegio.video.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.video.filter</span></code></a></p></td>
+<td><p>Filter video frames.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.image.create" title="ffmpegio.image.create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.create</span></code></a></p></td>
+<td><p>Create an image using a source video filter</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.image.read" title="ffmpegio.image.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.read</span></code></a></p></td>
+<td><p>Read an image file or a snapshot of a video frame</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.image.filter" title="ffmpegio.image.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.filter</span></code></a></p></td>
+<td><p>Filter image pixels.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.image.write" title="ffmpegio.image.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.image.write</span></code></a></p></td>
+<td><p>Write a NumPy array to an image file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.create" title="ffmpegio.audio.create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.create</span></code></a></p></td>
+<td><p>Create audio data using an audio source filter</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.audio.read" title="ffmpegio.audio.read"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.read</span></code></a></p></td>
+<td><p>Read audio samples.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.audio.write" title="ffmpegio.audio.write"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.write</span></code></a></p></td>
+<td><p>Write a NumPy array to an audio file.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.audio.filter" title="ffmpegio.audio.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.audio.filter</span></code></a></p></td>
+<td><p>Filter audio samples.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.open" title="ffmpegio.open"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.open</span></code></a></p></td>
+<td><p>Open a multimedia file/stream for read/write</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.transcode" title="ffmpegio.transcode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.transcode</span></code></a></p></td>
+<td><p>Transcode media files to another format/encoding</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.ffmpeg_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">ffmpeg_info</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.ffmpeg_info" title="Link to this definition"></a></dt>
+<dd><p>Get FFmpeg version and configuration information</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>versions of ffmpeg and its av libraries as well as build configuration</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>‘version’</p></td>
+<td><p>str</p></td>
+<td><p>FFmpeg version</p></td>
+</tr>
+<tr class="row-odd"><td><p>‘configuration’</p></td>
+<td><p>list</p></td>
+<td><p>list of build configuration options</p></td>
+</tr>
+<tr class="row-even"><td><p>‘library_versions’</p></td>
+<td><p>dict</p></td>
+<td><p>version numbers of dependent av libraries</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.get_path">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">get_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">probe</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.get_path" title="Link to this definition"></a></dt>
+<dd><p>Get the path to FFmpeg/FFprobe executable</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>probe</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return FFprobe path instead, defaults to False</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Path to FFmpeg/FFprobe exectutable</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.set_path">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">set_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ffmpeg_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ffprobe_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.set_path" title="Link to this definition"></a></dt>
+<dd><p>Set FFmpeg and FFprobe executables</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ffmpeg_path</strong> (<em>str</em><em>, </em><em>optional</em>) – Full path to either the ffmpeg executable file or
+to the folder housing both ffmpeg and ffprobe, defaults to None</p></li>
+<li><p><strong>ffprobe_path</strong> (<em>str</em><em>, </em><em>optional</em>) – Full path to the ffprobe executable file, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>ffmpeg path, ffprobe path, and ffmpeg version</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[str,str,str]</p>
+</dd>
+</dl>
+<p>If <cite>ffmpeg_path</cite> specifies a directory, the names of the executables are
+auto-set to <cite>ffmpeg</cite> and <cite>ffprobe</cite>.</p>
+<p>If the file locations are specified, the presence of the files will be
+tested and an exception will be raised if both ffmpeg and ffprobe are not
+valid executables.</p>
+<p>If no argument is specified, the executables are auto-detected in the following orders.</p>
+<ol class="arabic simple">
+<li><p><cite>ffmpeg</cite> and <cite>ffprobe</cite> commands, i.e., the path to the parent directory
+is included in the system PATH environmental variable.</p></li>
+<li><p>Run the <cite>finder</cite> plugin functions in the LIFO order and use the first valid
+paths. There are two plugins currently offered: <cite>ffmpegio-plugin-downloader</cite>
+and <cite>ffmpegio-plugin-static-ffmpeg</cite>.</p></li>
+<li><p>In Windows, additional locations are searched (e.g., C:Program Filesffmpeg).
+See the documentation for the full list.</p></li>
+</ol>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.is_ready">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">is_ready</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.is_ready" title="Link to this definition"></a></dt>
+<dd><p><cite>True</cite> if ffmpeg and ffprobe binaries are located</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if both ffmpeg and ffprobe are found</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.video.create">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></span><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.create" title="Link to this definition"></a></dt>
+<dd><p>Create a video using a source video filter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – name of the source filter</p></li>
+<li><p><strong>*args</strong> (<em>seq</em><em>, </em><em>optional</em>) – sequential filter option arguments. Only valid for
+a single-filter expr, and they will overwrite the
+options set by expr.</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – Named filter options or FFmpeg options. Items are
+only considered as the filter options if expr is a
+single-filter graph, and take the precedents over
+general FFmpeg options. Append ‘_in’ for input
+option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>), and ‘_out’ for
+output option names if they conflict with the filter
+options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>frame rate and video data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[Fraction,object]</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>…seealso::</dt><dd><p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#Video-Sources">https://ffmpeg.org/ffmpeg-filters.html#Video-Sources</a> for available
+video source filters</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.video.read">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></span><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.read" title="Link to this definition"></a></dt>
+<dd><p>Read video frames</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the video file to read.</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>frame rate and video frame data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(fractions.Fraction, object)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.video.write">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></span><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">two_pass</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass1_omits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass1_extras</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_inputs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.write" title="Link to this definition"></a></dt>
+<dd><p>Write Numpy array to a video file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the video file to write.</p></li>
+<li><p><strong>rate_in</strong> (<cite>float</cite>, <cite>int</cite>, or <cite>fractions.Fraction</cite>) – frame rate in frames/second</p></li>
+<li><p><strong>data</strong> (<em>object</em>) – video frame data object, accessed by <cite>video_info</cite> and <cite>video_bytes</cite> plugin hooks</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to overwrite if output url exists, defaults to None
+(auto-select)</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>two_pass</strong> – True to encode in 2-pass</p></li>
+<li><p><strong>pass1_omits</strong> (<em>seq</em><em>(</em><em>str</em><em>)</em><em>, </em><em>optional</em>) – list of output arguments to ignore in pass 1, defaults to None</p></li>
+<li><p><strong>pass1_extras</strong> (<em>dict</em><em>(</em><em>int:dict</em><em>(</em><em>str</em><em>)</em><em>)</em><em>, </em><em>optional</em>) – list of additional output arguments to include in pass 1, defaults to None</p></li>
+<li><p><strong>extra_inputs</strong> (<em>seq</em><em>(</em><em>str</em><em>|</em><em>(</em><em>str</em><em>,</em><em>dict</em><em>)</em><em>)</em>) – list of additional input sources, defaults to None. Each source may be url
+string or a pair of a url string and an option dict.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.video.filter">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.video.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.video.filter" title="Link to this definition"></a></dt>
+<dd><p>Filter video frames.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em><em>,  </em><em>None</em>) – SISO filter graph or None if implicit filtering via output options.</p></li>
+<li><p><strong>rate</strong> (<cite>float</cite>, <cite>int</cite>, or <cite>fractions.Fraction</cite>) – input frame rate in frames/second</p></li>
+<li><p><strong>input</strong> (<em>object</em>) – input video frame data object, accessed by <cite>video_info</cite> and <cite>video_bytes</cite> plugin hooks</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>output frame rate and video frame data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.image.create">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></span><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.create" title="Link to this definition"></a></dt>
+<dd><p>Create an image using a source video filter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<em>str</em>) – name of the source filter</p></li>
+<li><p><strong>*args</strong> (<em>seq</em><em>, </em><em>optional</em>) – sequential filter option arguments. Only valid for
+a single-filter expr, and they will overwrite the
+options set by expr.</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – Named filter options or FFmpeg options. Items are
+only considered as the filter options if expr is a
+single-filter graph, and take the precedents over
+general FFmpeg options. Append ‘_in’ for input
+option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>), and ‘_out’ for
+output option names if they conflict with the filter
+options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>image data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>object</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>See <a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#Video-Sources">https://ffmpeg.org/ffmpeg-filters.html#Video-Sources</a> for
+available video source filters</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.image.read">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></span><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.read" title="Link to this definition"></a></dt>
+<dd><p>Read an image file or a snapshot of a video frame</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the image or video file to read.</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>image data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>object</p>
+</dd>
+</dl>
+<p>Note on **options: To specify the video frame capture time, use <cite>time</cite>
+option which is an alias of <cite>start</cite> standard option.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.image.write">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></span><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_inputs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.write" title="Link to this definition"></a></dt>
+<dd><p>Write a NumPy array to an image file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the image file to write.</p></li>
+<li><p><strong>data</strong> (<em>object</em>) – image data, accessed by <cite>video_info()</cite> and <cite>video_bytes()</cite> plugin hooks</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to overwrite if output url exists, defaults to None
+(auto-select)</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>extra_inputs</strong> (<em>seq</em><em>(</em><em>str</em><em>|</em><em>(</em><em>str</em><em>,</em><em>dict</em><em>)</em><em>)</em>) – list of additional input sources, defaults to None. Each source may be url
+string or a pair of a url string and an option dict.</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.image.filter">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.image.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.image.filter" title="Link to this definition"></a></dt>
+<dd><p>Filter image pixels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em><em>, </em><em>None</em>) – SISO filter graph or None if implicit filtering via output options.</p></li>
+<li><p><strong>input</strong> (<em>object</em>) – input image data, accessed by <cite>video_info</cite> and <cite>video_bytes</cite> plugin hooks</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>output sampling rate and data, created by <cite>bytes_to_video</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>(int, object)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.audio.create">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></span><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.create" title="Link to this definition"></a></dt>
+<dd><p>Create audio data using an audio source filter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em>) – name of the source filter or full filter expression</p></li>
+<li><p><strong>*args</strong> (<em>seq</em><em>, </em><em>optional</em>) – sequential filter option arguments. Only valid for
+a single-filter expr, and they will overwrite the
+options set by expr.</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – Named filter options or FFmpeg options. Items are
+only considered as the filter options if expr is a
+single-filter graph, and take the precedents over
+general FFmpeg options. Append ‘_in’ for input
+option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>), and ‘_out’ for
+output option names if they conflict with the filter
+options.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>sampling rate and audio data (a plugin may change this behavior
+with the <cite>bytes_to_audio</cite> hook.)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[int, object]</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p><a class="reference external" href="https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources">https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources</a> for available
+audio source filters</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Nearly all the source filters by default continue outputting
+indefinitely. Set its  <cite>duration</cite> option or FFmpeg’s <cite>t</cite> (duration)
+or <cite>to</cite> (end time) input/output options to make sure the function
+returns properly.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>output data object is determined by the selected  hook</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.audio.read">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></span><span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.read" title="Link to this definition"></a></dt>
+<dd><p>Read audio samples.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the audio file to read.</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>sample rate in samples/second and audio data object specified by <cite>bytes_to_audio</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple(float, object)</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Even if <code class="code docutils literal notranslate"><span class="pre">start_time</span></code> option is set, all the prior samples will be read.
+The retrieved data will be truncated before returning it to the caller.
+This is to ensure the timing accuracy. As such, do not use this function
+to perform block-wise processing. Instead use the streaming solution,
+see <code class="xref py py-func docutils literal notranslate"><span class="pre">open()</span></code>.</p>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.audio.write">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></span><span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extra_inputs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.write" title="Link to this definition"></a></dt>
+<dd><p>Write a NumPy array to an audio file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em>) – URL of the audio file to write.</p></li>
+<li><p><strong>rate_in</strong> (<em>int</em>) – The sample rate in samples/second.</p></li>
+<li><p><strong>data</strong> (<em>object</em>) – input audio data object, converted to bytes by <cite>audio_bytes</cite> plugin hook .</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to overwrite if output url exists, defaults to None
+(auto-select)</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>extra_inputs</strong> (<em>seq</em><em>(</em><em>str</em><em>|</em><em>(</em><em>str</em><em>,</em><em>dict</em><em>)</em><em>)</em>) – list of additional input sources, defaults to None. Each source may be url
+string or a pair of a url string and an option dict.</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.audio.filter">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.audio.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_rate</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_fmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.audio.filter" title="Link to this definition"></a></dt>
+<dd><p>Filter audio samples.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em><em>, </em><em>None</em>) – SISO filter graph or None if implicit filtering via output options.</p></li>
+<li><p><strong>input_rate</strong> (<em>int</em>) – Input sample rate in samples/second</p></li>
+<li><p><strong>input</strong> (<em>object</em>) – input audio data, accessed by <cite>audio_info()</cite> and <cite>audio_bytes()</cite> plugin hooks.</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>output sampling rate and audio data object, created by <cite>bytes_to_audio</cite> plugin hook</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple(int, object)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.open">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">open</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url_fg</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype_in</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rate</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwds</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.open" title="Link to this definition"></a></dt>
+<dd><p>Open a multimedia file/stream for read/write</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url_fg</strong> (<em>str</em><em> or </em><em>seq</em><em>(</em><em>str</em><em>)</em>) – URL of the media source/destination for file read/write or filtergraph definition
+for filter operation.</p></li>
+<li><p><strong>mode</strong> (<em>str</em>) – specifies the mode in which the FFmpeg is used, see below</p></li>
+<li><p><strong>rate_in</strong> (<em>Fraction</em><em>, </em><em>float</em><em>, </em><em>int</em><em>, </em><em>optional</em>) – (write and filter only, required) input frame rate (video) or sampling rate
+(audio), defaults to None</p></li>
+<li><p><strong>shape_in</strong> (<em>seq</em><em> of </em><em>int</em><em>, </em><em>optional</em>) – (write and filter only) input video frame size (height x width [x ncomponents]),
+or audio sample size (channels,), defaults to None</p></li>
+<li><p><strong>dtype_in</strong> (<em>str</em><em>, </em><em>optional</em>) – (write and filter only) input data type, defaults to None</p></li>
+<li><p><strong>rate</strong> (<em>Fraction</em><em>, </em><em>float</em><em>, </em><em>int</em><em>, </em><em>optional</em>) – (filter only, required) output frame rate (video write) or sample rate (audio
+write), defaults to None</p></li>
+<li><p><strong>dtype</strong> (<em>str</em><em>, </em><em>optional</em>) – (read and filter specific) output data type, defaults to None</p></li>
+<li><p><strong>shape</strong> (<em>seq</em><em> of </em><em>int</em><em>, </em><em>optional</em>) – (read and filter specific) output video frame size (height x width [x ncomponents]),
+or audio sample size (channels,), defaults to None</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to echo the ffmpeg log to stdout, default to False</p></li>
+<li><p><strong>progress</strong> (<em>Callable</em><em>, </em><em>optional</em>) – progress callback function (see <a class="reference internal" href="quick.html#quick-callback"><span class="std std-ref">Progress Callback</span></a>)</p></li>
+<li><p><strong>blocksize</strong> (<em>int</em><em>, </em><em>optional</em>) – (read and filter only) Number of frames to read by <cite>read()</cite> method, default to None (auto)</p></li>
+<li><p><strong>extra_inputs</strong> (<em>List</em><em>[</em><em>Tuple</em><em>[</em><em>str</em><em>,</em><em>dict</em><em>]</em><em>]</em><em>, </em><em>optional</em>) – (write only) List of additional (non-pipe) inputs to pass onto FFmpeg. Each
+input is defined by a tuple of its url or a dict of input options, default to None</p></li>
+<li><p><strong>default_timeout</strong> (<em>float</em><em>, </em><em>optional</em>) – (filter only) default filter timeout in seconds, defaults to None (10 ms)</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – Keyword arguments for FFmpeg process (see <a class="reference internal" href="adv-ffmpeg.html#ffmpegio.ffmpegprocess.Popen" title="ffmpegio.ffmpegprocess.Popen"><code class="xref py py-class docutils literal notranslate"><span class="pre">ffmpegio.ffmpegprocess.Popen</span></code></a>), default to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – FFmpeg options, append ‘_in’ for input option names (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>ffmpegio stream object</p>
+</dd>
+</dl>
+<p>Start FFmpeg and open I/O link to it to perform read/write/filter operation and return
+a corresponding stream object. If the file cannot be opened, an error is raised.
+See <a class="reference internal" href="quick.html#quick-streamio"><span class="std std-ref">Stream Read/Write</span></a> for more examples of how to use this function.</p>
+<p>Just like built-in <cite>open()</cite>, it is good practice to use the with keyword when dealing with
+ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are
+properly closed after ffmpeg terminates, even if an exception is raised at some point.
+Using with is also much shorter than writing equivalent try-finally blocks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Examples<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>url_fg</strong> (<em>str</em>)</p></li>
+<li><p><strong>mode</strong> (<em>str</em>)</p></li>
+<li><p><strong>rate_in</strong> (<em>float</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>shape_in</strong> (<em>Tuple</em><em>[</em><em>int</em><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>dtype_in</strong> (<em>str</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>rate</strong> (<em>float</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>shape</strong> (<em>Tuple</em><em>[</em><em>int</em><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<p>Open an MP4 file and process all the frames:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;video_source.mp4&#39;</span><span class="p">,</span> <span class="s1">&#39;rv&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">frame</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+    <span class="k">while</span> <span class="n">frame</span><span class="p">:</span>
+        <span class="c1"># process the captured frame data</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Read an audio stream of MP4 file and write it to a FLAC file as samples
+are decoded:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;video_source.mp4&#39;</span><span class="p">,</span><span class="s1">&#39;ra&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">rd</span><span class="p">:</span>
+    <span class="n">fs</span> <span class="o">=</span> <span class="n">rd</span><span class="o">.</span><span class="n">sample_rate</span>
+    <span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s1">&#39;video_dst.flac&#39;</span><span class="p">,</span><span class="s1">&#39;wa&#39;</span><span class="p">,</span><span class="n">rate_in</span><span class="o">=</span><span class="n">fs</span><span class="p">)</span> <span class="k">as</span> <span class="n">wr</span><span class="p">:</span>
+        <span class="n">frame</span> <span class="o">=</span> <span class="n">rd</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+        <span class="k">while</span> <span class="n">frame</span><span class="p">:</span>
+            <span class="n">wr</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+            <span class="n">frame</span> <span class="o">=</span> <span class="n">rd</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Additional Notes<span class="colon">:</span></dt>
+<dd class="field-odd"><p></p></dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>url_fg</strong> (<em>str</em>)</p></li>
+<li><p><strong>mode</strong> (<em>str</em>)</p></li>
+<li><p><strong>rate_in</strong> (<em>float</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>shape_in</strong> (<em>Tuple</em><em>[</em><em>int</em><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>dtype_in</strong> (<em>str</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>rate</strong> (<em>float</em><em> | </em><em>None</em>)</p></li>
+<li><p><strong>shape</strong> (<em>Tuple</em><em>[</em><em>int</em><em>, </em><em>...</em><em>] </em><em>| </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+<p><cite>url_fg</cite> can be a string specifying either the pathname (absolute or relative to the current
+working directory) of the media target (file or streaming media) to be opened or a string describing
+the filtergraph to be implemented. Its interpretation depends on the <cite>mode</cite> argument.</p>
+<p><cite>mode</cite> is an optional string that specifies the mode in which the FFmpeg is opened.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mode</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>‘r’</p></td>
+<td><p>read from url</p></td>
+</tr>
+<tr class="row-odd"><td><p>‘w’</p></td>
+<td><p>write to url</p></td>
+</tr>
+<tr class="row-even"><td><p>‘f’</p></td>
+<td><p>filter data defined by fg</p></td>
+</tr>
+<tr class="row-odd"><td><p>‘v’</p></td>
+<td><p>operate on video stream, ‘vv’ if multi-video reader</p></td>
+</tr>
+<tr class="row-even"><td><p>‘a’</p></td>
+<td><p>operate on audio stream, ‘aa’ if multi-audio reader</p></td>
+</tr>
+</tbody>
+</table>
+<p><cite>rate</cite> and <cite>rate_in</cite>: Video frame rates shall be given in frames/second and
+may be given as a number, string, or <cite>fractions.Fraction</cite>. Audio sample rate in
+samples/second (per channel) and shall be given as an integer or string.</p>
+<p>Optional <cite>shape</cite> or <cite>shape_in</cite> for video defines the video frame size and
+number of components with a 2 or 3 element sequence: <cite>(width, height[, ncomp])</cite>.
+The number of components and other optional <cite>dtype</cite> (or <cite>dtype_in</cite>) implicitly
+define the pixel format (FFmpeg pix_fmt option):</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>ncomp</p></th>
+<th class="head"><p>dtype</p></th>
+<th class="head"><p>pix_fmt</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>|u8</p></td>
+<td><p>gray</p></td>
+<td><p>grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray10le</p></td>
+<td><p>10-bit grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray12le</p></td>
+<td><p>12-bit grayscale</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray14le</p></td>
+<td><p>14-bit grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>gray16le</p></td>
+<td><p>16-bit grayscale (default &lt;u2 choice)</p></td>
+</tr>
+<tr class="row-odd"><td><p>1</p></td>
+<td><p>&lt;f4</p></td>
+<td><p>grayf32le</p></td>
+<td><p>floating-point grayscale</p></td>
+</tr>
+<tr class="row-even"><td><p>2</p></td>
+<td><p>|u1</p></td>
+<td><p>ya8</p></td>
+<td><p>grayscale with alpha channel</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>ya16le</p></td>
+<td><p>16-bit grayscale with alpha channel</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>|u1</p></td>
+<td><p>rgb24</p></td>
+<td><p>RGB</p></td>
+</tr>
+<tr class="row-odd"><td><p>3</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>rgb48le</p></td>
+<td><p>16-bit RGB</p></td>
+</tr>
+<tr class="row-even"><td><p>4</p></td>
+<td><p>|u1</p></td>
+<td><p>rgba</p></td>
+<td><p>RGB with alpha transparency channel</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>&lt;u2</p></td>
+<td><p>rgba64le</p></td>
+<td><p>16-bit RGB with alpha channel</p></td>
+</tr>
+</tbody>
+</table>
+<p>For audio stream, single-element seq argument, <cite>shape</cite> or <cite>shape_in</cite>,
+specifies the number of channels while <cite>dtype</cite> and <cite>dtype_in</cite> determines
+the sample format (FFmpeg sample_fmt option):</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>dtype</p></th>
+<th class="head"><p>sample_fmt</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>|u1</p></td>
+<td><p>u8</p></td>
+</tr>
+<tr class="row-odd"><td><p>&lt;i2</p></td>
+<td><p>s16</p></td>
+</tr>
+<tr class="row-even"><td><p>&lt;i4</p></td>
+<td><p>s32</p></td>
+</tr>
+<tr class="row-odd"><td><p>&lt;f4</p></td>
+<td><p>flt</p></td>
+</tr>
+<tr class="row-even"><td><p>&lt;f8</p></td>
+<td><p>dbl</p></td>
+</tr>
+</tbody>
+</table>
+<p>If dtypes and shapes are not specified at the time of opening, they will
+be set during the first write/filter operation using the input data.</p>
+<p>In addition, <cite>open()</cite> accepts the standard FFmpeg option keyword arguments.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.transcode">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">transcode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_log</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">two_pass</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass1_omits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pass1_extras</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">options</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.transcode" title="Link to this definition"></a></dt>
+<dd><p>Transcode media files to another format/encoding</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> (<em>str</em><em> or </em><em>a list</em><em> of </em><em>str</em><em> or </em><em>a sequence</em><em> of </em><em>(</em><em>str</em><em>,</em><em>dict</em><em>)</em>) – url/path of the input media file or a sequence of tuples, each
+containing an input url and its options dict</p></li>
+<li><p><strong>outputs</strong> (<em>str</em><em> or </em><em>sequence</em><em> of </em><em>(</em><em>str</em><em>, </em><em>dict</em><em>)</em>) – url/path of the output media file or a sequence of tuples, each
+containing an output url and its options dict</p></li>
+<li><p><strong>progress</strong> (<em>callable object</em><em>, </em><em>optional</em>) – progress callback function, defaults to None</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to overwrite if output url exists, defaults to None
+(auto-select)</p></li>
+<li><p><strong>show_log</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to show FFmpeg log messages on the console,
+defaults to None (no show/capture)
+Ignored if stream format must be retrieved automatically.</p></li>
+<li><p><strong>two_pass</strong> – True to encode in 2-pass</p></li>
+<li><p><strong>pass1_omits</strong> (<em>seq</em><em>(</em><em>str</em><em>)</em><em>, or </em><em>seq</em><em>(</em><em>seq</em><em>(</em><em>str</em><em>)</em><em>) </em><em>optional</em>) – list of output arguments to ignore in pass 1, defaults to
+None (removes ‘c:a’ or ‘acodec’). For multiple outputs,
+specify use list of the list of arguments, matching the
+length of outputs, for per-output omission.</p></li>
+<li><p><strong>pass1_extras</strong> (<em>dict</em><em>(</em><em>int:dict</em><em>(</em><em>str</em><em>)</em><em>)</em><em>, </em><em>optional</em>) – list of additional output arguments to include in pass 1,
+defaults to None (add ‘an’ if <cite>pass1_omits</cite> also None)</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>, </em><em>optional</em>) – dictionary with keywords passed to <cite>subprocess.run()</cite> or
+<cite>subprocess.Popen()</cite> call used to run the FFmpeg, defaults
+to None</p></li>
+<li><p><strong>**options</strong> (<em>dict</em><em>, </em><em>optional</em>) – <p>FFmpeg options. For output and global options, use FFmpeg
+option names as is. For input options, append “_in” to the
+option name. For example, r_in=2000 to force the input frame
+rate to 2000 frames/s (see <a class="reference internal" href="options.html"><span class="doc">FFmpeg Option References</span></a>).</p>
+<p>If multiple inputs or outputs are specified, these input
+or output options specified here are treated as common
+options, and the url-specific duplicate options in the
+<code class="docutils literal notranslate"><span class="pre">inputs</span></code> or <code class="docutils literal notranslate"><span class="pre">outputs</span></code> sequence will overwrite those
+specified here.</p>
+</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>if any of the outputs is stdout, returns output bytes</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bytes | None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

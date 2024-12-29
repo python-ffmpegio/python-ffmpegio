@@ -1,0 +1,647 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FFConcat Class: Concatenating Media Files &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#"><cite>FFConcat</cite> Class: Concatenating Media Files</a><ul>
+<li><a class="reference internal" href="#ffmpegio.FFConcat"><code class="docutils literal notranslate"><span class="pre">FFConcat</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.duration"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.duration</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.inpoint"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.inpoint</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.lines"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.lines</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.metadata"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.metadata</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.options"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.options</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.outpoint"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.outpoint</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.FileItem.path"><code class="docutils literal notranslate"><span class="pre">FFConcat.FileItem.path</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem"><code class="docutils literal notranslate"><span class="pre">FFConcat.StreamItem</span></code></a><ul>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem.codec"><code class="docutils literal notranslate"><span class="pre">FFConcat.StreamItem.codec</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem.extradata"><code class="docutils literal notranslate"><span class="pre">FFConcat.StreamItem.extradata</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem.id"><code class="docutils literal notranslate"><span class="pre">FFConcat.StreamItem.id</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem.lines"><code class="docutils literal notranslate"><span class="pre">FFConcat.StreamItem.lines</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem.metadata"><code class="docutils literal notranslate"><span class="pre">FFConcat.StreamItem.metadata</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.add_chapter"><code class="docutils literal notranslate"><span class="pre">FFConcat.add_chapter()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.add_file"><code class="docutils literal notranslate"><span class="pre">FFConcat.add_file()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.add_files"><code class="docutils literal notranslate"><span class="pre">FFConcat.add_files()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.add_glob"><code class="docutils literal notranslate"><span class="pre">FFConcat.add_glob()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.add_stream"><code class="docutils literal notranslate"><span class="pre">FFConcat.add_stream()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.as_filter"><code class="docutils literal notranslate"><span class="pre">FFConcat.as_filter()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.chapters"><code class="docutils literal notranslate"><span class="pre">FFConcat.chapters</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.compose"><code class="docutils literal notranslate"><span class="pre">FFConcat.compose()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.ffconcat_url"><code class="docutils literal notranslate"><span class="pre">FFConcat.ffconcat_url</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.input"><code class="docutils literal notranslate"><span class="pre">FFConcat.input</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.last_file"><code class="docutils literal notranslate"><span class="pre">FFConcat.last_file</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.last_stream"><code class="docutils literal notranslate"><span class="pre">FFConcat.last_stream</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.parse"><code class="docutils literal notranslate"><span class="pre">FFConcat.parse()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.pipe_url"><code class="docutils literal notranslate"><span class="pre">FFConcat.pipe_url</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.script"><code class="docutils literal notranslate"><span class="pre">FFConcat.script</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.streams"><code class="docutils literal notranslate"><span class="pre">FFConcat.streams</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.update"><code class="docutils literal notranslate"><span class="pre">FFConcat.update()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.FFConcat.url"><code class="docutils literal notranslate"><span class="pre">FFConcat.url</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active"><cite>FFConcat</cite> Class: Concatenating Media Files</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/concat.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ffconcat-class-concatenating-media-files">
+<span id="concat"></span><h1><cite>FFConcat</cite> Class: Concatenating Media Files<a class="headerlink" href="#ffconcat-class-concatenating-media-files" title="Link to this heading"></a></h1>
+<p>FFmpeg supports different approaches to concatenate media files as described on
+<a class="reference external" href="https://trac.ffmpeg.org/wiki/Concatenate">their Wiki Page</a>. If many files
+are concatenated, any of these approaches results in lengthy command (or a
+ffconcat listing file). The <a class="reference internal" href="#ffmpegio.FFConcat" title="ffmpegio.FFConcat"><code class="xref py py-class docutils literal notranslate"><span class="pre">ffmpegio.FFConcat</span></code></a> class primarily focus on
+the concat demuxer and abstracts the ffconcat listing file when running <cite>ffmpegio</cite>
+commands.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ffmpegio.</span></span><span class="sig-name descname"><span class="pre">FFConcat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">script</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pipe_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ffconcat_url</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat" title="Link to this definition"></a></dt>
+<dd><p>Create FFmpeg concat demuxer source generator</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>script</strong> (<em>str</em><em>, </em><em>optional</em>) – concat script to parse, defaults to None (empty script)</p></li>
+<li><p><strong>pipe_url</strong> (<em>bool</em><em>, </em><em>optional</em>) – stdin pipe or None to use a temp file, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+<p>FFConcat instance is intended to be used as an input url object when invoking <cite>ffmpegprocess.run</cite>
+or <cite>ffmpegprocess.Popen</cite>. The FFmpeg command parser stringify the ConatDemuxer instance to either the
+temp file path or the pipe name, depending on the chosen operation mode. The temporary listing is
+automatically generated within the FFConcat context. If the listing is send in via pipe, the
+listing data can be obtained via <cite>ffconcat.input</cite>.</p>
+<p>The listing can be populated either by parsing a valid ffconcat script via the constructor or
+<cite>ffconcat.parse()</cite>. Or an individual item (file, stream, option, or chapter) can be added by
+<cite>ffconcat.add_file()</cite>, <cite>ffconcat.add_stream()</cite>, <cite>ffconcat.add_option()</cite>, or
+<cite>ffconcat.add_chapter()</cite>. Files can also be added in batch by <cite>ffconcat.add_files()</cite>.</p>
+<p>Aside from the intended operations with <cite>ffmpegprocess</cite>, a listing file can be explicitly created by
+calling <cite>ffconcat.compose()</cite> with a valid writable text file object.</p>
+<p>Alternately, the files in the listing can be used for a concat filtergraph use with <cite>as_filter()</cite>.</p>
+<p class="rubric">Examples</p>
+<ol class="arabic">
+<li><p>Concatenate mkv files with a temp listing file</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;/video/video1.mkv&#39;</span><span class="p">,</span><span class="s1">&#39;/video/video2.mkv&#39;</span><span class="p">]</span>
+<span class="n">ffconcat</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">FFConcat</span><span class="p">()</span>
+<span class="n">ffconcat</span><span class="o">.</span><span class="n">add_files</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">ffconcat</span><span class="p">:</span> <span class="c1"># generates temporary ffconcat file</span>
+    <span class="n">ffmpegio</span><span class="o">.</span><span class="n">transcode</span><span class="p">(</span><span class="n">ffconcat</span><span class="p">,</span> <span class="s1">&#39;output.mkv&#39;</span><span class="p">,</span> <span class="n">f_in</span><span class="o">=</span><span class="s1">&#39;concat&#39;</span><span class="p">,</span> <span class="n">safe_in</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Note that the files in an ffconcat listing file are defined relative to
+to the location of the ffconcat file. As such, both video files must be
+defined with absolute paths because the temporary ffconcat file is in a
+tempdir. Because the absolute paths are given, <cite>safe_in=0</cite> option must
+be specified.</p>
+</li>
+<li><p>Save generated ffconcat file in a same folder as the source video files</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;video1.mkv&#39;</span><span class="p">,</span><span class="s1">&#39;video2.mkv&#39;</span><span class="p">]</span>
+<span class="n">ffconcat</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">FFConcat</span><span class="p">(</span><span class="n">ffconcat_url</span><span class="o">=</span><span class="s1">&#39;/video/concat.txt&#39;</span><span class="p">)</span>
+<span class="n">ffconcat</span><span class="o">.</span><span class="n">add_files</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">ffconcat</span><span class="p">:</span> <span class="c1"># generates ffconcat file at ffconcat_url</span>
+    <span class="n">ffmpegio</span><span class="o">.</span><span class="n">transcode</span><span class="p">(</span><span class="n">ffconcat</span><span class="p">,</span> <span class="s1">&#39;output.mkv&#39;</span><span class="p">,</span> <span class="n">f_in</span><span class="o">=</span><span class="s1">&#39;concat&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>By creating the ffconcat listing file in the directory where the video files
+are, the files in the listing can be defined relatively (i.e., just filenames).
+FFConcat will overwrite the file if exists, and the generated ffconcat file
+will not be deleted.</p>
+</li>
+<li><p>Concatenate mkv files with listing piped to stdin</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;file:video1.mkv&#39;</span><span class="p">,</span><span class="s1">&#39;file:video2.mkv&#39;</span><span class="p">]</span>
+<span class="n">ffconcat</span> <span class="o">=</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">FFConcat</span><span class="p">(</span><span class="n">pipe_url</span><span class="o">=</span><span class="s1">&#39;-&#39;</span><span class="p">)</span>
+<span class="n">ffconcat</span><span class="o">.</span><span class="n">add_files</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+<span class="n">ffmpegio</span><span class="o">.</span><span class="n">transcode</span><span class="p">(</span><span class="n">ffconcat</span><span class="p">,</span> <span class="s1">&#39;output.mkv&#39;</span><span class="p">,</span> <span class="n">f_in</span><span class="o">=</span><span class="s1">&#39;concat&#39;</span><span class="p">,</span>
+                   <span class="n">protocol_whitelist_in</span><span class="o">=</span><span class="s2">&quot;pipe,file&quot;</span><span class="p">,</span> <span class="n">safe_in</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Because of files are specified by data passed in via pipe (protocol)
+the files in the <cite>FFConcat</cite> must specify the protocol: <cite>file:</cite>. Also,
+additional input options are necessary: <cite>protocol_whitelist_in=”pipe,file”</cite>
+and <cite>safe_in=0</cite>.</p>
+</li>
+<li><p>The concat script may be populated/altered inside the <cite>with</cite> statement,
+but <cite>update()</cite> must be called to update the prepared script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;video1.mkv&#39;</span><span class="p">,</span><span class="s1">&#39;video2.mkv&#39;</span><span class="p">]</span>
+<span class="k">with</span> <span class="n">ffmpegio</span><span class="o">.</span><span class="n">FFConcat</span><span class="p">(</span><span class="n">ffconcat_url</span><span class="o">=</span><span class="s1">&#39;/video/concat.txt&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">ffconcat</span><span class="p">:</span>
+    <span class="n">ffconcat</span><span class="o">.</span><span class="n">add_files</span><span class="p">(</span><span class="n">files</span><span class="p">)</span>
+    <span class="n">ffconcat</span><span class="o">.</span><span class="n">update</span><span class="p">()</span> <span class="c1"># must call update() before transcode</span>
+    <span class="n">ffmpegio</span><span class="o">.</span><span class="n">transcode</span><span class="p">(</span><span class="n">ffconcat</span><span class="p">,</span><span class="s1">&#39;output.mkv&#39;</span><span class="p">,</span> <span class="n">f_in</span><span class="o">=</span><span class="s1">&#39;concat&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<ol class="arabic" start="4">
+<li><p>Rather than using demuxer, it can be used to compose concat filter command:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">inputs</span><span class="p">,</span><span class="n">fg</span> <span class="o">=</span> <span class="n">ffconcat</span><span class="o">.</span><span class="n">as_filter</span><span class="p">(</span><span class="n">v</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">a</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="n">ffmpegio</span><span class="o">.</span><span class="n">ffmpeg</span><span class="p">(</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="n">inputs</span><span class="p">,</span>
+        <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="p">[(</span><span class="s2">&quot;output.mkv&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)],</span>
+        <span class="s2">&quot;global_options&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;filter_complex&quot;</span><span class="p">:</span> <span class="n">fg</span><span class="p">},</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">FileItem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem" title="Link to this definition"></a></dt>
+<dd><p>File listing item</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filepath</strong> (<em>str</em>) – url of the file to be included</p></li>
+<li><p><strong>duration</strong> (<em>str</em><em> or </em><em>numeric</em><em>, </em><em>optional</em>) – duration of the file, defaults to None</p></li>
+<li><p><strong>inpoint</strong> (<em>str</em><em> or </em><em>numeric</em><em>, </em><em>optional</em>) – in point of the file, defaults to None</p></li>
+<li><p><strong>outpoint</strong> (<em>str</em><em> or </em><em>numeric</em><em>, </em><em>optional</em>) – out point of the file, defaults to None</p></li>
+<li><p><strong>metadata</strong> (<em>dict</em><em>, </em><em>optional</em>) – Metadata of the packets of the file, defaults to None</p></li>
+<li><p><strong>options</strong> (<em>dict</em><em>, </em><em>optional</em>) – Option to access, open and probe the file, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.duration">
+<span class="sig-name descname"><span class="pre">duration</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.duration" title="Link to this definition"></a></dt>
+<dd><p>duration of the file, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str or numeric or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.inpoint">
+<span class="sig-name descname"><span class="pre">inpoint</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.inpoint" title="Link to this definition"></a></dt>
+<dd><p>start time of the file, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str or numeric or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.lines">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lines</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.lines" title="Link to this definition"></a></dt>
+<dd><p>ffconcat lines of the file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.metadata" title="Link to this definition"></a></dt>
+<dd><p>metadata of the packets of the file, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.options">
+<span class="sig-name descname"><span class="pre">options</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.options" title="Link to this definition"></a></dt>
+<dd><p>option key-value pairs to be included</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str,Any]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.outpoint">
+<span class="sig-name descname"><span class="pre">outpoint</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.outpoint" title="Link to this definition"></a></dt>
+<dd><p>end time of the file, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str or numeric or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.FileItem.path">
+<span class="sig-name descname"><span class="pre">path</span></span><a class="headerlink" href="#ffmpegio.FFConcat.FileItem.path" title="Link to this definition"></a></dt>
+<dd><p>url of the file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.StreamItem">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">StreamItem</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">codec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extradata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.StreamItem" title="Link to this definition"></a></dt>
+<dd><p>Stream listing item</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> (<em>str</em><em>, </em><em>optional</em>) – ID of the stream, defaults to None</p></li>
+<li><p><strong>codec</strong> (<em>str</em><em>, </em><em>optional</em>) – Codec for the stream, defaults to None</p></li>
+<li><p><strong>metadata</strong> (<em>dict</em><em>, </em><em>optional</em>) – Metadata for the stream, defaults to None</p></li>
+<li><p><strong>extradata</strong> (<em>str</em><em> or </em><em>bytes-like</em><em>, </em><em>optional</em>) – Extradata for the stream in hexadecimal, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.StreamItem.codec">
+<span class="sig-name descname"><span class="pre">codec</span></span><a class="headerlink" href="#ffmpegio.FFConcat.StreamItem.codec" title="Link to this definition"></a></dt>
+<dd><p>codec of the stream, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.StreamItem.extradata">
+<span class="sig-name descname"><span class="pre">extradata</span></span><a class="headerlink" href="#ffmpegio.FFConcat.StreamItem.extradata" title="Link to this definition"></a></dt>
+<dd><p>extra data of the stream, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bytes or str or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.StreamItem.id">
+<span class="sig-name descname"><span class="pre">id</span></span><a class="headerlink" href="#ffmpegio.FFConcat.StreamItem.id" title="Link to this definition"></a></dt>
+<dd><p>id of the stream, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.StreamItem.lines">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">lines</span></span><a class="headerlink" href="#ffmpegio.FFConcat.StreamItem.lines" title="Link to this definition"></a></dt>
+<dd><p>ffconcat lines of the stream</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>List[str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.StreamItem.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><a class="headerlink" href="#ffmpegio.FFConcat.StreamItem.metadata" title="Link to this definition"></a></dt>
+<dd><p>of the stream, optional</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict or None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.add_chapter">
+<span class="sig-name descname"><span class="pre">add_chapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">start</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.add_chapter" title="Link to this definition"></a></dt>
+<dd><p>add a chapter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> (<em>str</em>) – chapter ID</p></li>
+<li><p><strong>start</strong> (<em>numeric</em><em> or </em><em>str</em>) – start time</p></li>
+<li><p><strong>end</strong> (<em>numeric</em><em> or </em><em>str</em>) – end time</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.add_file">
+<span class="sig-name descname"><span class="pre">add_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">duration</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">outpoint</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">options</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.add_file" title="Link to this definition"></a></dt>
+<dd><p>append a file to the list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filepath</strong> (<em>str</em>) – url of the file to be included</p></li>
+<li><p><strong>duration</strong> (<em>str</em><em> or </em><em>numeric</em><em>, </em><em>optional</em>) – duration of the file, defaults to None</p></li>
+<li><p><strong>inpoint</strong> (<em>str</em><em> or </em><em>numeric</em><em>, </em><em>optional</em>) – in point of the file, defaults to None</p></li>
+<li><p><strong>outpoint</strong> (<em>str</em><em> or </em><em>numeric</em><em>, </em><em>optional</em>) – out point of the file, defaults to None</p></li>
+<li><p><strong>metadata</strong> (<em>dict</em><em>, </em><em>optional</em>) – Metadata of the packets of the file, defaults to None</p></li>
+<li><p><strong>options</strong> (<em>dict</em><em>, </em><em>optional</em>) – Option to access, open and probe the file, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.add_files">
+<span class="sig-name descname"><span class="pre">add_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.add_files" title="Link to this definition"></a></dt>
+<dd><p>append files to the list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>files</strong> (<em>Sequence</em><em>[</em><em>str</em><em>]</em>) – list of files</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.add_glob">
+<span class="sig-name descname"><span class="pre">add_glob</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">expr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_dir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.add_glob" title="Link to this definition"></a></dt>
+<dd><p>append files with glob expression</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>expr</strong> (<em>str</em>) – glob expression</p></li>
+<li><p><strong>root_dir</strong> (<em>str</em><em>, </em><em>optional</em>) – the root directory for searching, defaults to None (uses the current directory)</p></li>
+<li><p><strong>recursive</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to use the pattern “**” to match any files and zero or more directories, defaults to False</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.add_stream">
+<span class="sig-name descname"><span class="pre">add_stream</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">codec</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extradata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.add_stream" title="Link to this definition"></a></dt>
+<dd><p>append a stream specification to the list</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> (<em>str</em><em>, </em><em>optional</em>) – ID of the stream, defaults to None</p></li>
+<li><p><strong>codec</strong> (<em>str</em><em>, </em><em>optional</em>) – Codec for the stream, defaults to None</p></li>
+<li><p><strong>metadata</strong> (<em>dict</em><em>, </em><em>optional</em>) – Metadata for the stream, defaults to None</p></li>
+<li><p><strong>extradata</strong> (<em>str</em><em> or </em><em>bytes-like</em><em>, </em><em>optional</em>) – Extradata for the stream in hexadecimal, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.as_filter">
+<span class="sig-name descname"><span class="pre">as_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_offset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.as_filter" title="Link to this definition"></a></dt>
+<dd><p>convert to concat filter commands</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>v</strong> (<em>int</em><em>, </em><em>optional</em>) – number of video streams in each file, default to 1</p></li>
+<li><p><strong>a</strong> (<em>int</em><em>, </em><em>optional</em>) – number of audio streams in each file, default to 0</p></li>
+<li><p><strong>file_offset</strong> (<em>int</em><em>, </em><em>optional</em>) – id of the first file used in the filtergraph input labels</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>inputs list and concat filtergraph string</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple[list[tuple[str,dict]], str]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.chapters">
+<span class="sig-name descname"><span class="pre">chapters</span></span><a class="headerlink" href="#ffmpegio.FFConcat.chapters" title="Link to this definition"></a></dt>
+<dd><p>chapter id-(start,end) pairs to be included</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str,tuple]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.compose">
+<span class="sig-name descname"><span class="pre">compose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.compose" title="Link to this definition"></a></dt>
+<dd><p>compose ffconcat file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>f</strong> (<em>File-like object</em><em>, </em><em>optional</em>) – writable file-like object, defaults to None, outputting to a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">StringIO</span></code> object.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>passes through <cite>f</cite> or the created <code class="xref py py-class docutils literal notranslate"><span class="pre">StringIO</span></code> object</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>File-like object</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.ffconcat_url">
+<span class="sig-name descname"><span class="pre">ffconcat_url</span></span><a class="headerlink" href="#ffmpegio.FFConcat.ffconcat_url" title="Link to this definition"></a></dt>
+<dd><p>specify url to save generated ffconcat file instead of a temp file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str|None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.input">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">input</span></span><a class="headerlink" href="#ffmpegio.FFConcat.input" title="Link to this definition"></a></dt>
+<dd><p>script as bytes</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>bytes</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.last_file">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">last_file</span></span><a class="headerlink" href="#ffmpegio.FFConcat.last_file" title="Link to this definition"></a></dt>
+<dd><p>Last added file item</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#ffmpegio.FFConcat.FileItem" title="ffmpegio.FFConcat.FileItem">FFConcat.FileItem</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.last_stream">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">last_stream</span></span><a class="headerlink" href="#ffmpegio.FFConcat.last_stream" title="Link to this definition"></a></dt>
+<dd><p>Last added stream item</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#ffmpegio.FFConcat.StreamItem" title="ffmpegio.FFConcat.StreamItem">FFConcat.StreamItem</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.parse">
+<span class="sig-name descname"><span class="pre">parse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">script</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">append</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.parse" title="Link to this definition"></a></dt>
+<dd><p>parse ffconcat script</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>script</strong> (<em>str</em>) – ffconcat script</p></li>
+<li><p><strong>append</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to append to the existing listing, False to clear
+existing and start new, defaults to False</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.pipe_url">
+<span class="sig-name descname"><span class="pre">pipe_url</span></span><a class="headerlink" href="#ffmpegio.FFConcat.pipe_url" title="Link to this definition"></a></dt>
+<dd><p>specify pipe url if concat script to be loaded via stdin; None via a temp file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str|None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.script">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">script</span></span><a class="headerlink" href="#ffmpegio.FFConcat.script" title="Link to this definition"></a></dt>
+<dd><p>composed concat listing script</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.streams">
+<span class="sig-name descname"><span class="pre">streams</span></span><a class="headerlink" href="#ffmpegio.FFConcat.streams" title="Link to this definition"></a></dt>
+<dd><p>list of streams to be included in the order of appearance</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>ListConcatDemuxer.StreamItem]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.FFConcat.update" title="Link to this definition"></a></dt>
+<dd><p>Update the prepared script for the context</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ffmpegio.FFConcat.url">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">url</span></span><a class="headerlink" href="#ffmpegio.FFConcat.url" title="Link to this definition"></a></dt>
+<dd><p>url to use as FFmpeg <cite>-i</cite> option</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

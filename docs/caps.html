@@ -1,0 +1,1154 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FFmpeg Capabilities References &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">FFmpeg Capabilities References</a><ul>
+<li><a class="reference internal" href="#list-of-functions">List of Functions</a></li>
+<li><a class="reference internal" href="#list-of-constants">List of Constants</a></li>
+<li><a class="reference internal" href="#function-references">Function References</a><ul>
+<li><a class="reference internal" href="#ffmpegio.caps.options"><code class="docutils literal notranslate"><span class="pre">options()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.pix_fmts"><code class="docutils literal notranslate"><span class="pre">pix_fmts()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.sample_fmts"><code class="docutils literal notranslate"><span class="pre">sample_fmts()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.layouts"><code class="docutils literal notranslate"><span class="pre">layouts()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.colors"><code class="docutils literal notranslate"><span class="pre">colors()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.filters"><code class="docutils literal notranslate"><span class="pre">filters()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.filter_info"><code class="docutils literal notranslate"><span class="pre">filter_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.codecs"><code class="docutils literal notranslate"><span class="pre">codecs()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.encoders"><code class="docutils literal notranslate"><span class="pre">encoders()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.encoder_info"><code class="docutils literal notranslate"><span class="pre">encoder_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.decoders"><code class="docutils literal notranslate"><span class="pre">decoders()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.decoder_info"><code class="docutils literal notranslate"><span class="pre">decoder_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.formats"><code class="docutils literal notranslate"><span class="pre">formats()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.muxers"><code class="docutils literal notranslate"><span class="pre">muxers()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.muxer_info"><code class="docutils literal notranslate"><span class="pre">muxer_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.demuxers"><code class="docutils literal notranslate"><span class="pre">demuxers()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.demuxer_info"><code class="docutils literal notranslate"><span class="pre">demuxer_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.bsfilters"><code class="docutils literal notranslate"><span class="pre">bsfilters()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.bsfilter_info"><code class="docutils literal notranslate"><span class="pre">bsfilter_info()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.devices"><code class="docutils literal notranslate"><span class="pre">devices()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.caps.protocols"><code class="docutils literal notranslate"><span class="pre">protocols()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">FFmpeg Capabilities References</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/caps.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="ffmpeg-capabilities-references">
+<span id="caps"></span><h1>FFmpeg Capabilities References<a class="headerlink" href="#ffmpeg-capabilities-references" title="Link to this heading"></a></h1>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.caps</span></code> module contains a set of functions to wrap ffmpeg’s
+help/show commands to check the capabilities of the ffmpeg executable that
+the <code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio</span></code> is employing.</p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>Parsing the additional command options that are specific to the containers,
+codecs, and filters. The <code class="code docutils literal notranslate"><span class="pre">options</span></code> fields are currently returned as
+unparsed <code class="code docutils literal notranslate"><span class="pre">str</span></code></p>
+</div>
+<section id="list-of-functions">
+<h2>List of Functions<a class="headerlink" href="#list-of-functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.options" title="ffmpegio.caps.options"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.options</span></code></a></p></td>
+<td><p>get FFmpeg command options</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.pix_fmts" title="ffmpegio.caps.pix_fmts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.pix_fmts</span></code></a></p></td>
+<td><p>get supported pixel formats</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.sample_fmts" title="ffmpegio.caps.sample_fmts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.sample_fmts</span></code></a></p></td>
+<td><p>get supported audio sample formats</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.layouts" title="ffmpegio.caps.layouts"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.layouts</span></code></a></p></td>
+<td><p>get supported audio channel layouts</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.colors" title="ffmpegio.caps.colors"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.colors</span></code></a></p></td>
+<td><p>get recognized color names</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.filters" title="ffmpegio.caps.filters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.filters</span></code></a></p></td>
+<td><p>get FFmpeg filters</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.filter_info" title="ffmpegio.caps.filter_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.filter_info</span></code></a></p></td>
+<td><p>get detailed info of a filter</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.codecs" title="ffmpegio.caps.codecs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.codecs</span></code></a></p></td>
+<td><p>get FFmpeg codecs</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.encoders" title="ffmpegio.caps.encoders"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.encoders</span></code></a></p></td>
+<td><p>get summary of FFmpeg encoders</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.encoder_info" title="ffmpegio.caps.encoder_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.encoder_info</span></code></a></p></td>
+<td><p>get detailed info of an encoder</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.decoders" title="ffmpegio.caps.decoders"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.decoders</span></code></a></p></td>
+<td><p>get summary of FFmpeg decoders</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.decoder_info" title="ffmpegio.caps.decoder_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.decoder_info</span></code></a></p></td>
+<td><p>get detailed info of a decoder</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.formats" title="ffmpegio.caps.formats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.formats</span></code></a></p></td>
+<td><p>get FFmpeg formats</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.muxers" title="ffmpegio.caps.muxers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.muxers</span></code></a></p></td>
+<td><p>get FFmpeg muxers</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.muxer_info" title="ffmpegio.caps.muxer_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.muxer_info</span></code></a></p></td>
+<td><p>get detailed info of a media muxer</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.demuxers" title="ffmpegio.caps.demuxers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.demuxers</span></code></a></p></td>
+<td><p>get FFmpeg demuxers</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.demuxer_info" title="ffmpegio.caps.demuxer_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.demuxer_info</span></code></a></p></td>
+<td><p>get detailed info of a media demuxer</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.bsfilters" title="ffmpegio.caps.bsfilters"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.bsfilters</span></code></a></p></td>
+<td><p>get list of FFmpeg bitstream filters</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.bsfilter_info" title="ffmpegio.caps.bsfilter_info"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.bsfilter_info</span></code></a></p></td>
+<td><p>get detailed info of a bitstream filter</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.caps.devices" title="ffmpegio.caps.devices"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.devices</span></code></a></p></td>
+<td><p>get FFmpeg devices</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.caps.protocols" title="ffmpegio.caps.protocols"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.protocols</span></code></a></p></td>
+<td><p>get list of supported protocols</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition-todo admonition" id="id2">
+<p class="admonition-title">Todo</p>
+<p>Remaining commands to be wrapped: sources, sinks, h protocol, dispositions</p>
+</div>
+</section>
+<section id="list-of-constants">
+<h2>List of Constants<a class="headerlink" href="#list-of-constants" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.video_size_presets</span></code></p></td>
+<td><p>list of video size presets with their sizes</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.caps.frame_rate_presets</span></code></p></td>
+<td><p>list of video frame rate presets with their rates</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="function-references">
+<h2>Function References<a class="headerlink" href="#function-references" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.options">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">options</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_desc</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.options" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg command options</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>type</strong> (<em>&quot;per-file&quot;</em><em>|</em><em>&quot;video&quot;</em><em>|</em><em>&quot;audio&quot;</em><em>|</em><em>&quot;subtitle&quot;</em><em>|</em><em>&quot;general&quot;</em><em>|</em><em>&quot;global&quot;</em><em>|</em><em>None</em><em>, </em><em>optional</em>) – specify option type to return, defaults to None</p></li>
+<li><p><strong>name_only</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to only return option names, defaults to False</p></li>
+<li><p><strong>return_desc</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to also return option description, defaults to False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict of types of options</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict(dict or tuple) if type not specified</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.pix_fmts">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">pix_fmts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.pix_fmts" title="Link to this definition"></a></dt>
+<dd><p>get supported pixel formats</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of supported pixel formats</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a pix_fmt and its value is a dict
+with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>nb_components</p></td>
+<td><p>int</p></td>
+<td><p>Number of color components</p></td>
+</tr>
+<tr class="row-odd"><td><p>bits_per_pixel</p></td>
+<td><p>int</p></td>
+<td><p>Number of bits per pixel</p></td>
+</tr>
+<tr class="row-even"><td><p>input</p></td>
+<td><p>bool</p></td>
+<td><p>True if can be used as an input option</p></td>
+</tr>
+<tr class="row-odd"><td><p>output</p></td>
+<td><p>bool</p></td>
+<td><p>True if can be used as an output option</p></td>
+</tr>
+<tr class="row-even"><td><p>hw_accel</p></td>
+<td><p>bool</p></td>
+<td><p>True if supported by hardware accelerators</p></td>
+</tr>
+<tr class="row-odd"><td><p>paletted</p></td>
+<td><p>bool</p></td>
+<td><p>True if uses paletted colors</p></td>
+</tr>
+<tr class="row-even"><td><p>bitstream</p></td>
+<td><p>bool</p></td>
+<td><p>True if can be used with bistreams</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.sample_fmts">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">sample_fmts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.sample_fmts" title="Link to this definition"></a></dt>
+<dd><p>get supported audio sample formats</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of supported audio sample formats</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a sample_fmt and its value
+is the number of bits per sample.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.layouts">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">layouts</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.layouts" title="Link to this definition"></a></dt>
+<dd><p>get supported audio channel layouts</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of supported audio channel layouts</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Returned dict has two keys “channels” and “layouts”. The value of “channels”
+is a dict of possible channel names as keys and their descriptions as values.
+The value of “layouts” is also a dict, which keys specifies the names and
+their value strs indicate the combinations of channels (their names are
+“+”ed).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.colors">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">colors</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.colors" title="Link to this definition"></a></dt>
+<dd><p>get recognized color names</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of color names</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>The keys of the returned dict are the name of the colors and their values
+are the RGB hex strs.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.filters">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">filters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.filters" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg filters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>type</strong> (<em>'audio'</em><em>|</em><em>'video'</em><em>|</em><em>'dynamic'</em><em>, </em><em>optional</em>) – specify input or output stream type, defaults to None</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict of summary of the filters</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict(key,FilterSummary)</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a filter and its value is a
+FilterSummary namedtuple with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the filter</p></td>
+</tr>
+<tr class="row-odd"><td><p>input</p></td>
+<td><p>str</p></td>
+<td><p>Input stream type: ‘audio’|’video’|’dynamic’</p></td>
+</tr>
+<tr class="row-even"><td><p>num_inputs</p></td>
+<td><p>int|None</p></td>
+<td><p>Number of inputs or None if ‘dynamic’</p></td>
+</tr>
+<tr class="row-odd"><td><p>output</p></td>
+<td><p>str</p></td>
+<td><p>Output stream type: ‘audio’|’video’|’dynamic’</p></td>
+</tr>
+<tr class="row-even"><td><p>num_outputs</p></td>
+<td><p>int|None</p></td>
+<td><p>Number of outputs or None if ‘dynamic’</p></td>
+</tr>
+<tr class="row-odd"><td><p>timeline_support</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports timeline editing</p></td>
+</tr>
+<tr class="row-even"><td><p>slice_threading</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports threading</p></td>
+</tr>
+<tr class="row-odd"><td><p>command_support</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports command input from stdin</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.filter_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">filter_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.filter_info" title="Link to this definition"></a></dt>
+<dd><p>get detailed info of a filter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of features</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>FilterInfo (namedtuple)</p>
+</dd>
+</dl>
+<p>The returned FilterInfo named tuple has following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>str</p></td>
+<td><p>Name</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Description</p></td>
+</tr>
+<tr class="row-even"><td><p>threading</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of threading capabilities</p></td>
+</tr>
+<tr class="row-odd"><td><p>inputs</p></td>
+<td><p>list(dict)|str</p></td>
+<td><p>List of input pads or ‘dynamic’ if variable</p></td>
+</tr>
+<tr class="row-even"><td><p>outputs</p></td>
+<td><p>list(dict)|str</p></td>
+<td><p>List of output pads or ‘dynamic’ if variable</p></td>
+</tr>
+<tr class="row-odd"><td><p>options</p></td>
+<td><p>list(FilterOption)</p></td>
+<td><p>List of filter options</p></td>
+</tr>
+<tr class="row-even"><td><p>extra_options</p></td>
+<td><p>dict(str,list(FilterOption))</p></td>
+<td><p>Extra options co-listed</p></td>
+</tr>
+<tr class="row-odd"><td><p>timeline_support</p></td>
+<td><p>bool</p></td>
+<td><p>True if <cite>enable</cite> timeline option is supported</p></td>
+</tr>
+</tbody>
+</table>
+<p>‘inputs’ and ‘outputs’ entries has two keys: ‘name’ and ‘type’
+defining the pad name and pad stream type (‘audio’ or ‘video’)</p>
+<p>FilterOption is a namedtuple with the following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>str</p></td>
+<td><p>Name</p></td>
+</tr>
+<tr class="row-odd"><td><p>alias</p></td>
+<td><p>str</p></td>
+<td><p>Alias name</p></td>
+</tr>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>str</p></td>
+<td><p>Data type</p></td>
+</tr>
+<tr class="row-odd"><td><p>help</p></td>
+<td><p>str</p></td>
+<td><p>Help text</p></td>
+</tr>
+<tr class="row-even"><td><p>ranges</p></td>
+<td><p>list(tuple(any,any))|None</p></td>
+<td><p>List of ranges of values</p></td>
+</tr>
+<tr class="row-odd"><td><p>constants</p></td>
+<td><p>dict(str:any)</p></td>
+<td><p>List of defined constant/enum values</p></td>
+</tr>
+<tr class="row-even"><td><p>default</p></td>
+<td><p>any</p></td>
+<td><p>Default value</p></td>
+</tr>
+<tr class="row-odd"><td><p>video</p></td>
+<td><p>bool</p></td>
+<td><p>True if option for video stream</p></td>
+</tr>
+<tr class="row-even"><td><p>audio</p></td>
+<td><p>bool</p></td>
+<td><p>True if option for audio stream</p></td>
+</tr>
+<tr class="row-odd"><td><p>runtime</p></td>
+<td><p>bool</p></td>
+<td><p>True if modifiable during runtime</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.codecs">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">codecs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stream_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.codecs" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg codecs</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>type</strong> (<em>'decoder'</em><em>|</em><em>'encoder'</em><em>, </em><em>optional</em>) – Specify to list only decoder or encoder, defaults to None</p></li>
+<li><p><strong>stream_type</strong> (<em>'audio'</em><em>|</em><em>'video'</em><em>|</em><em>'subtitle'</em><em>, </em><em>optional</em>) – Specify to stream type, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>summary of FFmpeg codecs</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a codec and its value is a dict
+with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>str</p></td>
+<td><p>Stream type: ‘audio’|’video’|’subtitle’</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the codec</p></td>
+</tr>
+<tr class="row-even"><td><p>can_decode</p></td>
+<td><p>bool</p></td>
+<td><p>True if FFmpeg can decode</p></td>
+</tr>
+<tr class="row-odd"><td><p>decoders</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of compatible decoders</p></td>
+</tr>
+<tr class="row-even"><td><p>can_encode</p></td>
+<td><p>bool</p></td>
+<td><p>True if FFmpeg can encode</p></td>
+</tr>
+<tr class="row-odd"><td><p>encoders</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of compatible encoders</p></td>
+</tr>
+<tr class="row-even"><td><p>intra_frame_only</p></td>
+<td><p>bool</p></td>
+<td><p>True if codec only uses intra-frame coding</p></td>
+</tr>
+<tr class="row-odd"><td><p>is_lossy</p></td>
+<td><p>bool</p></td>
+<td><p>True if codec can do lossy compression</p></td>
+</tr>
+<tr class="row-even"><td><p>is_lossless</p></td>
+<td><p>bool</p></td>
+<td><p>True if codec can do lossless compression</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.encoders">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">encoders</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.encoders" title="Link to this definition"></a></dt>
+<dd><p>get summary of FFmpeg encoders</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>type</strong> (<em>'audio'</em><em>|</em><em>'video'</em><em>|</em><em>'subtitle'</em><em>, </em><em>optional</em>) – specify stream type, defaults to None</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>list of encoders</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a decoder or encoder and its
+value is a dict with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>str</p></td>
+<td><p>Stream type: ‘audio’|’video’|’subtitle’</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the coder</p></td>
+</tr>
+<tr class="row-even"><td><p>frame_mt</p></td>
+<td><p>bool</p></td>
+<td><p>True if employs frame-level multithreading</p></td>
+</tr>
+<tr class="row-odd"><td><p>slice_mt</p></td>
+<td><p>bool</p></td>
+<td><p>True if employs slice-level multithreading</p></td>
+</tr>
+<tr class="row-even"><td><p>experimental</p></td>
+<td><p>bool</p></td>
+<td><p>True if experimental encoder</p></td>
+</tr>
+<tr class="row-odd"><td><p>draw_horiz_band</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports draw_horiz_band</p></td>
+</tr>
+<tr class="row-even"><td><p>directRendering</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports direct encoding method 1</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.encoder_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">encoder_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.encoder_info" title="Link to this definition"></a></dt>
+<dd><p>get detailed info of an encoder</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of features</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>The returned dict has following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>list(str)</p></td>
+<td><p>Short names</p></td>
+</tr>
+<tr class="row-odd"><td><p>long_name</p></td>
+<td><p>str</p></td>
+<td><p>Long name</p></td>
+</tr>
+<tr class="row-even"><td><p>capabilities</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported capabilities</p></td>
+</tr>
+<tr class="row-odd"><td><p>threading</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of threading capabilities</p></td>
+</tr>
+<tr class="row-even"><td><p>supported_hwdevices</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported hardware accelerators</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_framerates</p></td>
+<td><p>list(Fraction)</p></td>
+<td><p>List of supported video frame rates</p></td>
+</tr>
+<tr class="row-even"><td><p>supported_pix_fmts</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported video pixel formats</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_sample_rates</p></td>
+<td><p>list(int)</p></td>
+<td><p>List of supported audio sample rates</p></td>
+</tr>
+<tr class="row-even"><td><p>supported_sample_fmts</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported audio sample formats</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_layouts</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported audio channel layouts</p></td>
+</tr>
+<tr class="row-even"><td><p>options</p></td>
+<td><p>str</p></td>
+<td><p>Unparsed string, listing supported options</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.decoders">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">decoders</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.decoders" title="Link to this definition"></a></dt>
+<dd><p>get summary of FFmpeg decoders</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stream_type</strong> (<em>'audio'</em><em>|</em><em>'video'</em><em>|</em><em>'subtitle'</em><em>, </em><em>optional</em>) – specify stream type, defaults to None</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>list of decoders or encoders</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a decoder and its
+value is a dict with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>type</p></td>
+<td><p>str</p></td>
+<td><p>Stream type: ‘audio’|’video’|’subtitle’</p></td>
+</tr>
+<tr class="row-odd"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the coder</p></td>
+</tr>
+<tr class="row-even"><td><p>frame_mt</p></td>
+<td><p>bool</p></td>
+<td><p>True if employs frame-level multithreading</p></td>
+</tr>
+<tr class="row-odd"><td><p>slice_mt</p></td>
+<td><p>bool</p></td>
+<td><p>True if employs slice-level multithreading</p></td>
+</tr>
+<tr class="row-even"><td><p>experimental</p></td>
+<td><p>bool</p></td>
+<td><p>True if experimental encoder</p></td>
+</tr>
+<tr class="row-odd"><td><p>draw_horiz_band</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports draw_horiz_band</p></td>
+</tr>
+<tr class="row-even"><td><p>directRendering</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports direct encoding method 1</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.decoder_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">decoder_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.decoder_info" title="Link to this definition"></a></dt>
+<dd><p>get detailed info of a decoder</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of features</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>The returned dict has following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>list(str)</p></td>
+<td><p>Short names</p></td>
+</tr>
+<tr class="row-odd"><td><p>long_name</p></td>
+<td><p>str</p></td>
+<td><p>Long name</p></td>
+</tr>
+<tr class="row-even"><td><p>capabilities</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported capabilities</p></td>
+</tr>
+<tr class="row-odd"><td><p>threading</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of threading capabilities</p></td>
+</tr>
+<tr class="row-even"><td><p>supported_hwdevices</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported hardware accelerators</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_framerates</p></td>
+<td><p>list(Fraction)</p></td>
+<td><p>List of supported video frame rates</p></td>
+</tr>
+<tr class="row-even"><td><p>supported_pix_fmts</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported video pixel formats</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_sample_rates</p></td>
+<td><p>list(int)</p></td>
+<td><p>List of supported audio sample rates</p></td>
+</tr>
+<tr class="row-even"><td><p>supported_sample_fmts</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported audio sample formats</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_layouts</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported audio channel layouts</p></td>
+</tr>
+<tr class="row-even"><td><p>options</p></td>
+<td><p>str</p></td>
+<td><p>Unparsed string, listing supported options</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.formats">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">formats</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.formats" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg formats</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of formats</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a format and its value is a dict
+with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the format</p></td>
+</tr>
+<tr class="row-odd"><td><p>can_demux</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports inputs of this format</p></td>
+</tr>
+<tr class="row-even"><td><p>can_mux</p></td>
+<td><p>bool</p></td>
+<td><p>True if support outputs of this format</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.muxers">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">muxers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.muxers" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg muxers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of muxers</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a muxer and its value is a dict
+with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the muxer</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.muxer_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">muxer_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.muxer_info" title="Link to this definition"></a></dt>
+<dd><p>get detailed info of a media muxer</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of features</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>The returned dict has following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>names</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of compatible short names</p></td>
+</tr>
+<tr class="row-odd"><td><p>long_name</p></td>
+<td><p>str</p></td>
+<td><p>Common long name</p></td>
+</tr>
+<tr class="row-even"><td><p>extensions</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of associated common extensions (w/out ‘.’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>mime_types</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of associated MIME types</p></td>
+</tr>
+<tr class="row-even"><td><p>video_codecs</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported video codecs</p></td>
+</tr>
+<tr class="row-odd"><td><p>audio_codecs</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported audio codecs</p></td>
+</tr>
+<tr class="row-even"><td><p>subtitle_codecs</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of supported subtitle codecs</p></td>
+</tr>
+<tr class="row-odd"><td><p>options</p></td>
+<td><p>str</p></td>
+<td><p>Unparsed string, listing supported options</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.demuxers">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">demuxers</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.demuxers" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg demuxers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of demuxers</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a demuxer and its value is a dict
+with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the demuxer</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.demuxer_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">demuxer_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.demuxer_info" title="Link to this definition"></a></dt>
+<dd><p>get detailed info of a media demuxer</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of features</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>The returned dict has following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>names</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of compatible short names</p></td>
+</tr>
+<tr class="row-odd"><td><p>long_name</p></td>
+<td><p>str</p></td>
+<td><p>Common long name</p></td>
+</tr>
+<tr class="row-even"><td><p>extensions</p></td>
+<td><p>list(str)</p></td>
+<td><p>List of associated common extensions (w/out ‘.’)</p></td>
+</tr>
+<tr class="row-odd"><td><p>options</p></td>
+<td><p>str</p></td>
+<td><p>Unparsed string, listing supported options</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.bsfilters">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">bsfilters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.bsfilters" title="Link to this definition"></a></dt>
+<dd><p>get list of FFmpeg bitstream filters</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of bistream filters</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>list(str)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.bsfilter_info">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">bsfilter_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.bsfilter_info" title="Link to this definition"></a></dt>
+<dd><p>get detailed info of a bitstream filter</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of features</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>The returned dict has following entries:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>name</p></td>
+<td><p>str</p></td>
+<td><p>Name</p></td>
+</tr>
+<tr class="row-odd"><td><p>supported_codecs</p></td>
+<td><p>str</p></td>
+<td><p>List of supported codecs</p></td>
+</tr>
+<tr class="row-even"><td><p>options</p></td>
+<td><p>str</p></td>
+<td><p>Unparsed string, listing supported options</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.devices">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">devices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.devices" title="Link to this definition"></a></dt>
+<dd><p>get FFmpeg devices</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>type</strong> (<em>'source'</em><em>|</em><em>'sink'</em><em>, </em><em>optional</em>) – specify source or sink type, defaults to None</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>list of devices</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>Each key of the returned dict is a name of a device and its value is a dict
+with the following items:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Key</p></th>
+<th class="head"><p>type</p></th>
+<th class="head"><p>description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>description</p></td>
+<td><p>str</p></td>
+<td><p>Short description of the device</p></td>
+</tr>
+<tr class="row-odd"><td><p>can_demux</p></td>
+<td><p>bool</p></td>
+<td><p>True if supports inputs of this format</p></td>
+</tr>
+<tr class="row-even"><td><p>can_mux</p></td>
+<td><p>bool</p></td>
+<td><p>True if support outputs of this format</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.caps.protocols">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.caps.</span></span><span class="sig-name descname"><span class="pre">protocols</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.caps.protocols" title="Link to this definition"></a></dt>
+<dd><p>get list of supported protocols</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of protocols</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
+</dd>
+</dl>
+<p>Returned dict has ‘input’ and ‘output’ keys and each contains a list of
+supported protocol names.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,524 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Media Probe Function References &mdash; python-ffmpegio 0.11.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/css/custom.css?v=048f17f8" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f3b36f1a"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            python-ffmpegio
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">Media Probe Function References</a><ul>
+<li><a class="reference internal" href="#list-of-functions">List of Functions</a></li>
+<li><a class="reference internal" href="#argument-type-references">Argument Type References</a><ul>
+<li><a class="reference internal" href="#ffmpegio.probe.IntervalSpec"><code class="docutils literal notranslate"><span class="pre">IntervalSpec</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#function-references">Function References</a><ul>
+<li><a class="reference internal" href="#ffmpegio.probe.format_basic"><code class="docutils literal notranslate"><span class="pre">format_basic()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.probe.streams_basic"><code class="docutils literal notranslate"><span class="pre">streams_basic()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.probe.video_streams_basic"><code class="docutils literal notranslate"><span class="pre">video_streams_basic()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.probe.audio_streams_basic"><code class="docutils literal notranslate"><span class="pre">audio_streams_basic()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.probe.full_details"><code class="docutils literal notranslate"><span class="pre">full_details()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.probe.query"><code class="docutils literal notranslate"><span class="pre">query()</span></code></a></li>
+<li><a class="reference internal" href="#ffmpegio.probe.frames"><code class="docutils literal notranslate"><span class="pre">frames()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">python-ffmpegio</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Media Probe Function References</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/probe.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="media-probe-function-references">
+<span id="probe"></span><h1>Media Probe Function References<a class="headerlink" href="#media-probe-function-references" title="Link to this heading"></a></h1>
+<p><code class="xref py py-mod docutils literal notranslate"><span class="pre">ffmpegio.probe</span></code> module contains a full-featured ffprobe wrapper function
+<a class="reference internal" href="#ffmpegio.probe.full_details" title="ffmpegio.probe.full_details"><code class="xref py py-func docutils literal notranslate"><span class="pre">ffmpegio.probe.full_details()</span></code></a> and its derivative functions, which are
+tailored to retrieve specific type of information from a media file or stream.</p>
+<section id="list-of-functions">
+<h2>List of Functions<a class="headerlink" href="#list-of-functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.probe.format_basic" title="ffmpegio.probe.format_basic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.format_basic</span></code></a></p></td>
+<td><p>Retrieve basic media format info</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.probe.streams_basic" title="ffmpegio.probe.streams_basic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.streams_basic</span></code></a></p></td>
+<td><p>Retrieve basic info of media streams</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.probe.video_streams_basic" title="ffmpegio.probe.video_streams_basic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.video_streams_basic</span></code></a></p></td>
+<td><p>Retrieve basic info of video streams</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.probe.audio_streams_basic" title="ffmpegio.probe.audio_streams_basic"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.audio_streams_basic</span></code></a></p></td>
+<td><p>Retrieve basic info of audio streams</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.probe.full_details" title="ffmpegio.probe.full_details"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.full_details</span></code></a></p></td>
+<td><p>Retrieve full details of a media file or stream</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#ffmpegio.probe.query" title="ffmpegio.probe.query"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.query</span></code></a></p></td>
+<td><p>Query specific fields of media format or stream</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#ffmpegio.probe.frames" title="ffmpegio.probe.frames"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ffmpegio.probe.frames</span></code></a></p></td>
+<td><p>get frame information</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="argument-type-references">
+<h2>Argument Type References<a class="headerlink" href="#argument-type-references" title="Link to this heading"></a></h2>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ffmpegio.probe.IntervalSpec">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">IntervalSpec</span></span><a class="headerlink" href="#ffmpegio.probe.IntervalSpec" title="Link to this definition"></a></dt>
+<dd><p>Union type to specify the FFprobe read_intervals option</p>
+<p>FFprobe will seek to the interval starting point and will continue reading from that.
+An IntervalSpec argument can be specified in multiple ways to form the FFprobe read_intervals option:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">str</span></code> - pass through the argument as-is to ffprobe</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">int</span></code> - read this numbers of packets to read from the beginning of the file</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">float</span></code> - read packets over this duration in seconds from the beginning of the file</p></li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">tuple[str|float,</span> <span class="pre">str|int|float]</span></code> - sets (start, end) points</dt><dd><ul class="simple">
+<li><p>start: <code class="docutils literal notranslate"><span class="pre">str</span></code> = as-is, <code class="docutils literal notranslate"><span class="pre">float</span></code> = starting time in seconds</p></li>
+<li><p>end: <code class="docutils literal notranslate"><span class="pre">str</span></code> = as-is, <code class="docutils literal notranslate"><span class="pre">int</span></code> = offset in # of packets, <code class="docutils literal notranslate"><span class="pre">float</span></code> = offset in seconds</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">dict</span></code> - specifies start and end points with the following keys:</dt><dd><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">'start'</span></code>        - (<code class="docutils literal notranslate"><span class="pre">str|float</span></code>) start time</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'start_offset'</span></code> - (<code class="docutils literal notranslate"><span class="pre">str|float</span></code>) start time offset from the previous read. Ignored if <code class="docutils literal notranslate"><span class="pre">'start'</span></code> is present.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'end'</span></code>          - (<code class="docutils literal notranslate"><span class="pre">str|float</span></code>) end time</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">'end_offset'</span></code>   - (<code class="docutils literal notranslate"><span class="pre">str|float|int</span></code>) end time offset from the start time. Ignored if <code class="docutils literal notranslate"><span class="pre">'end'</span></code> is present.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ol>
+</dd></dl>
+
+</section>
+<section id="function-references">
+<h2>Function References<a class="headerlink" href="#function-references" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.format_basic">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">format_basic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_optional_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_str_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.format_basic" title="Link to this definition"></a></dt>
+<dd><p>Retrieve basic media format info</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>entries</strong> (<em>seq</em><em> of </em><em>str</em>) – specify to narrow which information entries to retrieve. Default to None, to return all entries</p></li>
+<li><p><strong>keep_optional_fields</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return a missing optional field in the
+returned dict with None or “N/A” (if keep_str_values
+is True) as its value</p></li>
+<li><p><strong>keep_str_values</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to keep all field values as str,
+defaults to False to convert numeric values</p></li>
+<li><p><strong>cache_output</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to cache FFprobe output, defaults to False</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>set of media format information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>Media Format Information Entries</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>filename</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>nb_streams</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-even"><td><p>format_name</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-odd"><td><p>start_time</p></td>
+<td><p>float</p></td>
+</tr>
+<tr class="row-even"><td><p>duration</p></td>
+<td><p>float</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.streams_basic">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">streams_basic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_optional_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_str_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.streams_basic" title="Link to this definition"></a></dt>
+<dd><p>Retrieve basic info of media streams</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>entries</strong> (<em>seq</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – specify to narrow which stream entries to retrieve. Default to None, returning all entries</p></li>
+<li><p><strong>keep_optional_fields</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return a missing optional field in the
+returned dict with None or “N/A” (if keep_str_values
+is True) as its value</p></li>
+<li><p><strong>keep_str_values</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to keep all field values as str,
+defaults to False to convert numeric values</p></li>
+<li><p><strong>cache_output</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to cache FFprobe output, defaults to False</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of media stream information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of dict</p>
+</dd>
+</dl>
+<p>Media Stream Information dict Entries</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>index</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>codec_name</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-even"><td><p>codec_type</p></td>
+<td><p>str</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.video_streams_basic">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">video_streams_basic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_optional_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_str_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.video_streams_basic" title="Link to this definition"></a></dt>
+<dd><p>Retrieve basic info of video streams</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) – video stream index. 0=first video stream. Defaults to None, which returns info of all video streams</p></li>
+<li><p><strong>entries</strong> (<em>seq</em><em> of </em><em>str</em>) – specify to narrow which information entries to retrieve. Default to None, to return all entries</p></li>
+<li><p><strong>keep_optional_fields</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return a missing optional field in the
+returned dict with None or “N/A” (if keep_str_values
+is True) as its value</p></li>
+<li><p><strong>keep_str_values</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to keep all field values as str,
+defaults to False to convert numeric values</p></li>
+<li><p><strong>cache_output</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to cache FFprobe output, defaults to False</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of video stream information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of dict</p>
+</dd>
+</dl>
+<p>Video Stream Information Entries</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>index</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>codec_name</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-even"><td><p>width</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>height</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-even"><td><p>sample_aspect_ratio</p></td>
+<td><p>Fractions</p></td>
+</tr>
+<tr class="row-odd"><td><p>display_aspect_ratio</p></td>
+<td><p>Fractions</p></td>
+</tr>
+<tr class="row-even"><td><p>pix_fmt</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-odd"><td><p>start_time</p></td>
+<td><p>float</p></td>
+</tr>
+<tr class="row-even"><td><p>duration</p></td>
+<td><p>float</p></td>
+</tr>
+<tr class="row-odd"><td><p>frame_rate</p></td>
+<td><p>Fractions</p></td>
+</tr>
+<tr class="row-even"><td><p>nb_frames</p></td>
+<td><p>int</p></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.audio_streams_basic">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">audio_streams_basic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_optional_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_str_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.audio_streams_basic" title="Link to this definition"></a></dt>
+<dd><p>Retrieve basic info of audio streams</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>index</strong> (<em>int</em><em>, </em><em>optional</em>) – audio stream index. 0=first audio stream. Defaults to None, which returns info of all audio streams</p></li>
+<li><p><strong>entries</strong> (<em>seq</em><em> of </em><em>str</em>) – specify to narrow which information entries to retrieve. Default to None, to return all entries</p></li>
+<li><p><strong>keep_optional_fields</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return a missing optional field in the
+returned dict with None or “N/A” (if keep_str_values
+is True) as its value</p></li>
+<li><p><strong>keep_str_values</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to keep all field values as str,
+defaults to False to convert numeric values</p></li>
+<li><p><strong>cache_output</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to cache FFprobe output, defaults to False</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of audio stream information.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of dict</p>
+</dd>
+</dl>
+<p>Audio Stream Information Entries</p>
+<blockquote>
+<div><table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>name</p></th>
+<th class="head"><p>type</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>index</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>codec_name</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-even"><td><p>sample_fmt</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-odd"><td><p>sample_rate</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-even"><td><p>channels</p></td>
+<td><p>int</p></td>
+</tr>
+<tr class="row-odd"><td><p>channel_layout</p></td>
+<td><p>str</p></td>
+</tr>
+<tr class="row-even"><td><p>start_time</p></td>
+<td><p>float</p></td>
+</tr>
+<tr class="row-odd"><td><p>duration</p></td>
+<td><p>float</p></td>
+</tr>
+<tr class="row-even"><td><p>nb_samples</p></td>
+<td><p>int</p></td>
+</tr>
+</tbody>
+</table>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.full_details">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">full_details</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_streams</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_programs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_chapters</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">select_streams</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_str_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.full_details" title="Link to this definition"></a></dt>
+<dd><p>Retrieve full details of a media file or stream</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>show_format</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return format info, defaults to True</p></li>
+<li><p><strong>show_streams</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return stream info, defaults to True</p></li>
+<li><p><strong>show_programs</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return program info, defaults to False</p></li>
+<li><p><strong>show_chapters</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return chapter info, defaults to False</p></li>
+<li><p><strong>select_streams</strong> (<em>str</em><em>, </em><em>int</em><em>, </em><em>optional</em>) – Stream specifier of the streams to get info of, defaults to None to retrieve all</p></li>
+<li><p><strong>keep_str_values</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to keep all field values as str,
+defaults to False to convert numeric values</p></li>
+<li><p><strong>cache_output</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to cache FFprobe output, defaults to False</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>media file information</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, str|Number|Fraction]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.query">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">streams</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_optional_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_str_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_output</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.query" title="Link to this definition"></a></dt>
+<dd><p>Query specific fields of media format or stream</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>streams</strong> (<em>str</em><em>, </em><em>int</em><em>, </em><em>bool</em><em>, </em><em>optional</em>) – stream specifier, defaults to None to get format</p></li>
+<li><p><strong>fields</strong> (<em>sequence</em><em> of </em><em>str</em><em>, </em><em>optional</em>) – list of format/stream fields to retrieve, defaults to None (all fields)</p></li>
+<li><p><strong>keep_optional_fields</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to return a missing optional field in the
+returned dict with None or “N/A” (if keep_str_values
+is True) as its value</p></li>
+<li><p><strong>keep_str_values</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to keep all field values as str,
+defaults to False to convert numeric values</p></li>
+<li><p><strong>cache_output</strong> (<em>bool</em><em>, </em><em>optional</em>) – True to cache FFprobe output, defaults to False</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>field name-value dict. If streams argument is given but does not specify
+index, a list of dict is returned instead</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict or list or dict</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Note: Unlike <code class="xref py py-func docutils literal notranslate"><span class="pre">video_stream_basic()</span></code> and <code class="xref py py-func docutils literal notranslate"><span class="pre">audio_stream_basic()</span></code>,</dt><dd><p><a class="reference internal" href="#ffmpegio.probe.query" title="ffmpegio.probe.query"><code class="xref py py-func docutils literal notranslate"><span class="pre">query()</span></code></a> does not process ffprobe output except for the conversion
+from str to float/int.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="ffmpegio.probe.frames">
+<span class="sig-prename descclassname"><span class="pre">ffmpegio.probe.</span></span><span class="sig-name descname"><span class="pre">frames</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">streams</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">intervals</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">accurate_time</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sp_kwargs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ffmpegio.probe.frames" title="Link to this definition"></a></dt>
+<dd><p>get frame information</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>url</strong> (<em>str</em><em> or </em><em>seekable file-like object</em><em> or </em><em>bytes-like object</em>) – URL of the media file/stream</p></li>
+<li><p><strong>entries</strong> (<em>str</em><em> or </em><em>seq</em><em>[</em><em>str</em><em>]</em><em>, </em><em>optional</em>) – names of frame attributes, defaults to None (get all attributes)</p></li>
+<li><p><strong>stream</strong> (<em>str</em><em> or </em><em>int</em><em>, </em><em>optional</em>) – stream specifier of the stream to retrieve the data of, defaults to None to get all streams</p></li>
+<li><p><strong>intervals</strong> (<a class="reference internal" href="#ffmpegio.probe.IntervalSpec" title="ffmpegio.probe.IntervalSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalSpec</span></code></a> or Sequence[<a class="reference internal" href="#ffmpegio.probe.IntervalSpec" title="ffmpegio.probe.IntervalSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">IntervalSpec</span></code></a>], optional) – time intervals to retrieve the data, see below for the details, defaults to None (get all)</p></li>
+<li><p><strong>accurate_time</strong> (<em>bool</em><em> | </em><em>None</em>) – True to return all ‘*_time’ attributes to be computed from associated timestamps and
+stream timebase, defaults to False (= us accuracy)</p></li>
+<li><p><strong>accurate_time</strong> – bool, optional</p></li>
+<li><p><strong>sp_kwargs</strong> (<em>dict</em><em>[</em><em>str</em><em>, </em><em>Any</em><em>]</em><em>, </em><em>optional</em>) – Additional keyword arguments for <code class="xref py py-func docutils literal notranslate"><span class="pre">subprocess.run()</span></code>,
+default to None</p></li>
+<li><p><strong>streams</strong> (<em>str</em><em> | </em><em>int</em><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>frame information. list of dictionary if entries is None or a sequence; list of the selected entry
+if entries is str (i.e., a single entry)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list[dict] or list[str|int|float]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2021-2022, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
