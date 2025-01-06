@@ -19,6 +19,10 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from collections import abc
 from os import path, name as os_name
 from threading import Thread
@@ -30,6 +34,19 @@ import signal
 
 logger = logging.getLogger("ffmpegio")
 
+from .utils.typing import (
+    FFmpeg_Arguments,
+    Any,
+    Sequence,
+    Callable,
+)
+
+if TYPE_CHECKING:
+    from .utils.typing import (
+        SupportsRead,
+        SupportsWrite,
+    )
+
 from .utils.parser import parse, compose, FLAG
 from .threading import ProgressMonitorThread
 from .configure import move_global_options
@@ -39,39 +56,30 @@ __all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
 
 
 def exec(
-    ffmpeg_args,
-    hide_banner=True,
-    progress=None,
-    overwrite=None,
-    capture_log=None,
-    stdin=None,
-    stdout=None,
-    stderr=None,
-    sp_run=sp.run,
+    ffmpeg_args: FFmpeg_Arguments | Sequence[str] | str,
+    hide_banner: bool = True,
+    progress: ProgressMonitorThread | None = None,
+    overwrite: bool | None = None,
+    capture_log: bool | None = None,
+    stdin: SupportsRead | None = None,
+    stdout: SupportsWrite | None = None,
+    stderr: SupportsWrite | None = None,
+    sp_run: Callable = sp.run,
     **sp_kwargs,
-):
+)->Any:
     """run ffmpeg command
 
     :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict, seq(str), or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :type hide_banner: bool, optional
     :param progress: progress monitor object, defaults to None
-    :type progress: ProgressMonitorThread, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :type overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to suppress
                         console log messages, defaults to None (show on console)
-    :type capture_log: bool or None, optional
     :param stdin: source file object, defaults to None
-    :type stdin: readable file-like object, optional
     :param stdout: sink file object, defaults to None
-    :type stdout: writable file-like object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
-    :type stderr: writable file-like object, optional
     :param sp_run: function to run FFmpeg as a subprocess, defaults to subprocess.run
-    :type sp_run: Callable, optional
     :param **sp_kwargs: additional keyword arguments for sp_run, optional
     :type **sp_kwargs: dict
     :return: depends on sp_run
@@ -374,7 +382,7 @@ class Popen(sp.Popen):
         Without any argument, `send_signal()` will perform control-C to initiate
         soft-terminate FFmpeg. FFmpeg may output additional frames before exits.
 
-        Note: Setting `kill_monitor=True` will block the caller thread until the 
+        Note: Setting `kill_monitor=True` will block the caller thread until the
         FFmpeg terminates.
 
         """

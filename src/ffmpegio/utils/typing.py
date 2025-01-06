@@ -3,6 +3,10 @@ from __future__ import annotations
 from typing import *
 from typing_extensions import *
 
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsRead, SupportsWrite
+
 # from typing_extensions import *
 
 MediaType = Literal["v", "a", "s", "d", "t", "V"]
@@ -31,3 +35,9 @@ class StreamSpec_Usable(StreamSpec_Options):
 
 
 StreamSpec = Union[StreamSpec_Index, StreamSpec_Tag, StreamSpec_Usable]
+
+
+class FFmpeg_Arguments(TypedDict):
+    inputs: list[str | tuple[str, dict[str, Any]]]
+    outputs: list[str | tuple[str, dict[str, Any]]]
+    global_options: dict[str, Any]  # py3.11 NotRequired[int]

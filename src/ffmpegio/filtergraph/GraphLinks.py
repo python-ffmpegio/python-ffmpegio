@@ -5,7 +5,7 @@ from collections import UserDict
 from collections.abc import Generator, Mapping, Sequence, Callable
 
 
-from ..utils import is_stream_spec
+from ..utils import is_stream_spec as _is_stream_spec
 from ..errors import FFmpegioError
 from .typing import PAD_INDEX, PAD_PAIR, Literal
 
@@ -26,6 +26,9 @@ GraphLinks class design:
 
 """
 
+def is_stream_spec(label:str)->bool:
+    # also allow loopback stream
+    return _is_stream_spec(label) or re.match(r'dec:\d+',label)
 
 class GraphLinks: ...
 

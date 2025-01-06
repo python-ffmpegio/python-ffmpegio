@@ -1,4 +1,7 @@
+import pytest
+
 from ffmpegio import configure
+from ffmpegio.filtergraph import as_filtergraph_object, as_filtergraph_object_like
 
 vid_url = "tests/assets/testvideo-1m.mp4"
 img_url = "tests/assets/ffmpeg-logo.png"
@@ -120,3 +123,59 @@ def test_video_basic_filter():
             # transpose="clock",
         )
     )
+
+
+@pytest.mark.parametrize(
+    "args,media_type,file_id,stream_spec,ret",
+    [
+        (
+            {"global_options": {"filter_complex": "[0:v][dec:0]hstack[stack]"}},
+            "video",
+            0,
+            None,
+            ["[0:v][dec:0]hstack[stack]"],
+        ),
+        (
+            {"outputs": [('-', {"filter": "boxblur",'vf':'avgblur','filter:v:0':'crop'})]},
+            "video",
+            0,
+            None,
+            {"filter": "boxblur",'vf':'avgblur','filter:v:0':'crop'},
+        ),
+        (
+            {"outputs": [('-', {"filter": "boxblur",'vf':'avgblur','filter:v:0':'crop'})]},
+            "audio",
+            0,
+            None,
+            {"filter": "boxblur"},
+        ),
+        (
+            {"outputs": [('-', {"filter": "boxblur",'vf':'avgblur','filter:v:0':'crop'})]},
+            "video",
+            0,
+            1,
+            {'vf':'avgblur'},
+        ),
+        (
+            {"outputs": [('-', {"filter": "boxblur",'vf':'avgblur','filter:v:0':'crop'})]},
+            "video",
+            0,
+            0,
+            {'filter:v:0':'crop'},
+        ),
+    ],
+)
+def test_has_filtergraph(args, media_type, file_id, stream_spec, ret):
+    val = configure.has_filtergraph(args, media_type, file_id, stream_spec)
+    if ret is None:
+        assert val is None
+    else:
+        assert len(ret)==len(val)
+        if isinstance(ret, list):
+            ret = [as_filtergraph_object(r) for r in ret]
+            for r, v in zip(ret, val):
+                assert as_filtergraph_object_like(v, r) == r
+        elif isinstance(ret, dict):
+            ret = {k: as_filtergraph_object(r) for k,r in ret.items()}
+            for k, v in val.items():
+                assert as_filtergraph_object_like(v, ret[k]) == ret[k]

@@ -8,7 +8,8 @@ import re, logging
 logger = logging.getLogger("ffmpegio")
 
 from . import utils, plugins
-from .filtergraph import Graph, Filter, Chain
+from .utils.typing import FFmpeg_Arguments
+from .filtergraph import Graph, Filter, Chain, as_filtergraph_object
 from .filtergraph.abc import FilterGraphObject
 from .errors import FFmpegioError
 
@@ -184,48 +185,83 @@ def add_url(args, type, url, opts=None, update=False):
     return id, filelist[id]
 
 
-def has_filtergraph(args, type):
+def has_filtergraph(
+    args: FFmpeg_Arguments,
+    media_type: Literal["video", "audio"],
+    file_id: int = 0,
+    stream_spec: str | None = None,
+) -> list[FilterGraphObject] | dict[str, FilterGraphObject] | FilterGraphObject | None:
     """True if FFmpeg arguments specify a filter graph
 
     :param args: FFmpeg argument dict
-    :type args: dict
-    :param type: filter type
-    :type type: 'video' or 'audio'
-    :param file_id: specify output file id (ignored if type=='complex'), defaults to None (or 0)
-    :type file_id: int, optional
-    :param stream_id: stream, defaults to None
-    :type stream_id: int, optional
-    :return: True if filter graph is specified
-    :rtype: bool
+    :param media_type: stream media type
+    :param file_id: specify output file id, defaults to None (or 0)
+    :param stream_id: stream, defaults to None (first mapped)
+    :return: None if no filter is defined for the specified output file for the
+             specified media type, a list of filtergraphs if filter_complex global
+             option is specified, or a dict of filtergraphs keyed by the simple
+             filter options. If stream_spec is not None and finds a matching simple
+             filter option, it returns the best matched filter.
+
     """
     try:
-        if (
-            "filter_complex" in args["global_options"]
-            or "lavfi" in args["global_options"]
-        ):
-            return True
-    except:
-        pass  # no global_options defined
+        graph = args["global_options"]["filter_complex"]
+    except KeyError:
+        try:
+            graph = args["global_options"]["lavfi"]
+        except KeyError:
+            graph = None  # no global filtergraph options defined
+
+    if isinstance(graph, (str, FilterGraphObject)):
+        return [as_filtergraph_object(graph)]
+    elif isinstance(graph, Sequence):
+        return [as_filtergraph_object(fg) for fg in graph]
 
     # input filter
-    if any(
-        (
-            opts is not None and opts.get("f", None) == "lavfi"
-            for _, opts in args["inputs"]
-        )
-    ):
-        return True
+    # if any(
+    #     (
+    #         opts is not None and opts.get("f", None) == "lavfi"
+    #         for _, opts in args["inputs"]
+    #     )
+    # ):
+    #     return True
 
-    # output filter
-    short_opt = {"video": "vf", "audio": "af"}[type]
-    other_st = {"video": "a", "audio": "v"}[type]
-    re_opt = re.compile(rf"{short_opt}$|filter(?::(?=[^{other_st}]).*?)?$")
-    if any(
-        (any((re_opt.match(key) for key in opts.keys())) for _, opts in args["outputs"])
-    ):
-        return True
+    # find output filter options
 
-    return False  # no output options defined
+    out_args = args["outputs"][file_id]
+    if isinstance(out_args, str):
+        # only output url given
+        return None
+
+    out_opts = out_args[1]
+
+    # if int stream_spec given, it's the stream_id within the specified media type
+    if isinstance(stream_spec, int):
+        # specific stream number of the specified media type
+        stream_spec = f"{media_type[0]}:{stream_spec}"
+
+    # output filter options
+    fkey = f"filter:{media_type[0]}"
+    keys = ({"video": "vf", "audio": "af"}[media_type], "filter", fkey)
+    if stream_spec is None:
+        fkey += ":"
+        fcn = lambda k: k.startswith(fkey)
+    else:
+        keys = (*keys, f"filter:{stream_spec}")
+        fcn = lambda k: False
+
+    found = [k for k in out_opts if k in keys or fcn(k)]
+
+    if not len(found):
+        return None
+    if stream_spec is None:
+        return {k: as_filtergraph_object(out_opts[k]) for k in found}
+
+    # return only the filtergraph to be applied to the specified stream
+    key = max(found, key=len)
+    if keys[0] in found and key == "filter":
+        key = keys[0]
+    return as_filtergraph_object(out_opts[key])
 
 
 def finalize_video_read_opts(
@@ -266,7 +302,7 @@ def finalize_video_read_opts(
 
     # if no filter and video shape and rate are known, all known
     r = s = None
-    if not has_filtergraph(args, "video") and ncomp is not None:
+    if has_filtergraph(args, "video") is None and ncomp is not None:
         r = outopts.get("r", inopts.get("r", r_in))
 
         s = outopts.get("s", inopts.get("s", s_in))
@@ -423,11 +459,16 @@ def build_basic_vf(args, remove_alpha=None, ofile=0):
 
 
 def finalize_audio_read_opts(
-    args, sample_fmt_in=None, ac_in=None, ar_in=None, ofile=0, ifile=0
-):
+    args: FFmpeg_Arguments,
+    sample_fmt_in: str | None = None,
+    ac_in: int | None = None,
+    ar_in: int | None = None,
+    ofile: int = 0,
+    ifile: int = 0,
+    ostream: int = 0,
+) -> tuple[str, int, int]:
     inopts = args["inputs"][ifile][1] or {}
     outopts = args["outputs"][ofile][1]
-    has_filter = has_filtergraph(args, "audio")
 
     if outopts is None:
         outopts = {}
@@ -447,10 +488,29 @@ def finalize_audio_read_opts(
     # set output format and codec
     outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
 
-    ac = ar = None
-    if not has_filter:
-        ac = outopts.get("ac", inopts.get("ac", ac_in))
-        ar = outopts.get("ar", inopts.get("ar", ar_in))
+    ac = outopts.get("ac", None)
+    ar = outopts.get("ar", None)
+
+    if ac is not None or ar is not None:
+        has_filter = has_filtergraph(args, "audio", ofile, 0, ostream)
+        if isinstance(has_filter, Sequence):
+            # complex filter
+            ...
+        elif has_filter is not None:
+            # simple filter
+            # find last ar changing filter (aresample, asetrate, aformat, aselect)
+            # loudnorm -> 192000 if dynamic mode
+            # measured_I, measured_LRA, measured_TP, and measured_thresh must all be specified
+            # Target LRA shouldn’t be lower than source LRA and the change in integrated loudness shouldn’t result in a true peak which exceeds the target TP. 
+            # If any of these conditions aren’t met, normalization mode will revert to dynamic. 
+            # Options are true or false. Default is true. 
+
+    if ac is not None or ar is not None:
+        # no filter
+        if ac is None:
+            ac = inopts.get("ac", ac_in)
+        if ar is None:
+            ar = inopts.get("ar", ar_in)
 
     # sample_fmt must be given
     dtype, shape = utils.get_audio_format(sample_fmt, ac)
