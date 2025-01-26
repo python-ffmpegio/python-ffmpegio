@@ -2,6 +2,7 @@ import re, os, shlex
 from collections import abc
 
 from ..filtergraph import Graph, Chain, Filter
+from ..filtergraph.abc import FilterGraphObject
 from .. import devices
 
 __all__ = ["parse", "compose", "FLAG"]
@@ -84,7 +85,11 @@ def parse(cmdline):
         elif all_gopts[k] is FLAG:
             gopts[k] = FLAG
         else:
-            gopts[k] = args[i + 1]
+            if k == "filter_complex" and isinstance(gopts.get(k, None), str):
+                # if more than 1 filter_complex, return a list instead
+                gopts[k] = [gopts[k], args[i + 1]]
+            else:
+                gopts[k] = args[i + 1]
             is_lopt[i + 1] = False
 
     args = [s for s, tf in zip(args, is_lopt) if tf]
@@ -137,20 +142,20 @@ def compose(args, command="", shell_command=False):
 
     If global_options is None and only 1 output file given, FFmpeg global options
     may be specified as additional output options.
+
     """
 
     def finalize_global(key, val):
+        if key == "filter_complex" and not isinstance(val, (str, FilterGraphObject, list)):
+            val = list(val)
         return key, val
 
     def finalize_output(key, val):
         if re.match(r"s(?:\:|$)", key) and not isinstance(val, str):
             val = "x".join((str(v) for v in val))
-        elif key == "map" and not isinstance(val, str):
-            # if an entry is a seq, join with ':'
-            val = [
-                v if isinstance(v, str) else ":".join((str(vi) for vi in v))
-                for v in val
-            ]
+        elif key == "map" and not isinstance(val, str, int, list):
+            # multiple stream mapping, must be a list
+            val = list(val)
         return key, val
 
     def finalize_input(key, val):
@@ -166,6 +171,8 @@ def compose(args, command="", shell_command=False):
         opts_parsed = {}
         for itm in opts.items():
             k, v = finalize(*itm)
+            # if isinstance(v,list):
+            #     # multiple option values
             oname, *sspec = k.split(":", 1)
             o = opts_parsed.get(oname, None)
             if o is None:
@@ -194,7 +201,7 @@ def compose(args, command="", shell_command=False):
 
         return args
 
-    def inputs2args(inputs):
+    def inputs2args(inputs)->list[str]:
         args = []
         for url, opts in inputs:
             # resolve url enumeration if it's a device
@@ -210,7 +217,7 @@ def compose(args, command="", shell_command=False):
             )
         return args
 
-    def outputs2args(outputs):
+    def outputs2args(outputs)->list[str]:
         args = []
         for url, opts in outputs:
             # resolve url enumeration if it's a device

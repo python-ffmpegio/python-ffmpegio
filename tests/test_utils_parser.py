@@ -100,3 +100,9 @@ def test_compose():
         )
         == "ffmpeg -i /tmp/a.wav -map 0:a -b:a 64k '/tmp/a test.mp2' -map 0:a -b:a 128k /tmp/b.mp2"
     )
+
+def test_ffmpeg7():
+    ffmpeg7_example = "ffmpeg -i input.mkv -filter_complex '[0:v]scale=size=hd1080,split=outputs=2[for_enc][orig_scaled]' -filter_complex '[dec:0][orig_scaled]hstack[stacked]' -c:v libx264 -map '[for_enc]' output.mkv -dec 0:0 -map '[stacked]' -c:v ffv1 comparison.mkv"
+
+    ffargs = parser.parse(ffmpeg7_example)
+    assert len(ffargs['global_options']['filter_complex'])==2
