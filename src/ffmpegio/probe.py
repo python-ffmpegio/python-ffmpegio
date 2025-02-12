@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import BinaryIO, Any, Literal, Union, Tuple, Dict
 from numbers import Number
 from collections.abc import Sequence
+from typing_extensions import Buffer, IO
+from io import IOBase
+
 import json, re
 from fractions import Fraction
 from functools import lru_cache
-from os import PathLike
 
 from .path import ffprobe, PIPE
 from .utils import parse_stream_spec
@@ -160,7 +162,7 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
 
 
 def _exec(
-    url: str | BinaryIO | memoryview,
+    url: str | IO | Buffer,
     entries: str,
     sp_kwargs: tuple[tuple[str, Any]] | None = None,
     streams: str | int | None = None,
@@ -197,20 +199,16 @@ def _exec(
             ["-show_optional_fields", "always" if keep_optional_fields else "never"]
         )
 
-    pipe = not isinstance(url, (str, PathLike))
-    args.append("-" if pipe else url)
+    if isinstance(url, Buffer):
+        sp_opts["input"] = url
+        url = 'pipe:0'
+    elif isinstance(url, IOBase):
+        sp_opts["stdin"] = url
+        url = 'pipe:0'
+    else:
+        url = str(url)
 
-    if pipe:
-        try:
-            assert url.seekable
-            sp_opts["stdin"] = url
-        except:
-            try:
-                sp_opts["input"] = url
-            except:
-                raise ValueError(
-                    "url must be str, bytes-like object, or seekable file-like object"
-                )
+    args.append(url)
 
     # run ffprobe
     ret = ffprobe(args, **sp_opts)
