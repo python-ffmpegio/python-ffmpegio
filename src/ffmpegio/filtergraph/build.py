@@ -403,7 +403,11 @@ def stack(
     TO-CHECK/TO-DO: what happens if common link labels are already linked
     """
 
-    fgs = [fg for fg in fgs if fg.get_num_chains()]
+    fgs = [
+        fg
+        for fg in (fgb.as_filtergraph_object(fg1) for fg1 in fgs)
+        if fg.get_num_filters()
+    ]
     n = len(fgs)
     if not n:
         return fgb.Graph()
