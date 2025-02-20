@@ -480,11 +480,12 @@ def finalize_audio_read_opts(
     """
 
     options = ["ar", "sample_fmt", "ac"]
-    fields = ["sample_rate", "sample_fmt", "channels"]
 
     outopts = args["outputs"][ofile][1]
     outmap = outopts["map"]
-    outmap_fields = parse_map_option(outmap)
+    outmap_fields = parse_map_option(
+        outmap, input_file_id=0 if len(args["inputs"]) == 1 else None
+    )
 
     # use the output options by default
     opt_vals = [outopts.get(o, None) for o in options]
@@ -501,20 +502,11 @@ def finalize_audio_read_opts(
             ifile = outmap_fields["input_file_id"]
 
             # get input option values
-            inurl, inopts = args["inputs"][ifile]
-            inopt_vals = [inopts.get(o, None) for o in options]
-
-            # fill the still missing values directly from the input url
-            if not all(inopt_vals):
-                st_vals = utils.analyze_input_stream(
-                    fields,
-                    outmap_fields["stream_specifier"],
-                    "audio",
-                    inurl,
-                    inopts,
-                    input_info[ifile],
-                )
-                inopt_vals = [v or s for v, s in zip(inopt_vals, st_vals)]
+            inopt_vals = utils.analyze_audio_stream(
+                outmap_fields["stream_specifier"],
+                *args["inputs"][ifile],
+                input_info[ifile],
+            )
 
             # if a simple filter is present, use the stream specs of its output
             if "af" in outopts or "filter:a" in outopts:
