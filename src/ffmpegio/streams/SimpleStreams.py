@@ -720,6 +720,10 @@ class SimpleFilterBase:
         inopts = utils.pop_extra_options(options, "_in")
         glopts = utils.pop_global_options(options)
 
+        if "filter_complex" in glopts:
+            # prepare complex filter output
+            FFmpegioError("To use complex filtergraph (i.e., the `filter_complex` global option), use the PipedFilter class instead.")
+
         try:
             not_ready, self.shape_in, self.dtype_in = self._set_options(
                 inopts, shape_in, dtype_in, rate_in
