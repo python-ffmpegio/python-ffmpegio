@@ -12,6 +12,7 @@ from ._typing import (
     IO,
     Buffer,
     InputSourceDict,
+    RawStreamDef,
 )
 from collections.abc import Sequence
 
@@ -1260,16 +1261,65 @@ def process_raw_outputs(
 
 def process_raw_inputs(
     args: FFmpegArgs,
-    input_opts: list[dict],
+    stream_types: Sequence[Literal["a", "v"]],
+    stream_args: Sequence[RawStreamDef],
     inopts_default: dict[str, Any],
 ) -> list[InputSourceDict]:
-    # add input streams
-    input_info = []
-    for opts in input_opts:
-        add_url(args, "input", None, {**inopts_default, **opts})
-        input_info.append(
-            {"src_type": "pipe", "media_type": "audio" if "ar" in opts else "video"}
-        )
+
+    input_info: list[InputSourceDict] = []
+    for mtype, arg in zip(stream_types, stream_args):
+
+        try:
+            a1, a2 = arg
+            if isinstance(a1, (int, float, Fraction)):
+                data = a2
+                if mtype == "a":
+                    opts = {"ar": round(a1)}
+                elif mtype == "v":
+                    opts = {"r": a1}
+                else:
+                    raise FFmpegioError(
+                        "stream_type not specified, cannot resolve the `rate` input."
+                    )
+            else:
+                assert isinstance(a2, dict)
+                if mtype not in "av":  # unknown
+                    if "ar" in opts:
+                        mtype = "a"
+                    elif "r" in opts:
+                        mtype = "v"
+                    else:
+                        raise FFmpegioError(f"unknown input stream media type")
+                data, opts = a1, a2
+        except FFmpegioError:
+            raise
+        except:
+            raise ValueError(
+                f"""Invalid raw stream definition: {arg}.\nEach item of `stream_args` must be a two-element tuple: 
+                    - a rate (numeric) and a data_blob
+                    - a data_blob and a dict of options
+                """
+            )
+
+        opts = {**inopts_default, **opts}
+
+        if mtype == "a":  # audio
+            media_type = "audio"
+            if data is not None:
+                opts.update(utils.array_to_audio_options(data))
+                data = plugins.get_hook().audio_bytes(obj=data)
+
+        else:  # video
+            media_type = "video"
+            if data is not None:
+                opts.update(utils.array_to_video_options(data))
+                data = plugins.get_hook().video_bytes(obj=data)
+
+        info = {"src_type": "buffer", "media_type": media_type}
+        if data is not None:
+            info["buffer"] = data
+        add_url(args, "input", None, opts)
+        input_info.append(info)
 
     return input_info
 
