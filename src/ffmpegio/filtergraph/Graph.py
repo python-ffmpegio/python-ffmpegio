@@ -15,7 +15,7 @@ from . import utils as filter_utils
 from ..stream_spec import is_map_option
 from .. import filtergraph as fgb
 
-from .typing import PAD_INDEX
+from .typing import PAD_INDEX, Literal
 from .exceptions import *
 from .GraphLinks import GraphLinks
 
@@ -710,6 +710,34 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                 raise Graph.InvalidFilterPadId("output", outpad)
 
         return self._links.link(inpad, outpad, label, preserve_label, force)
+
+    def has_label(
+        self, label: str, only_if: Literal["input", "output", "internal"] | None = None
+    ) -> bool:
+        """True if a linklabel is defined
+
+        :param label: name of the link label
+        :param only_if: also check for the type of the label
+        :return: True if exists
+        """
+        try:
+            link = self._links[label]
+        except KeyError:
+            return False
+
+        return (
+            True
+            if only_if is None
+            else (
+                (only_if == "input" and link[1] is None)
+                or (only_if == "output" and link[0] is None)
+                or (
+                    only_if == "internal"
+                    and link[0] is not None
+                    and link[1] is not None
+                )
+            )
+        )
 
     def add_label(
         self,
