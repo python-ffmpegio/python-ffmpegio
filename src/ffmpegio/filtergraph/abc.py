@@ -226,7 +226,7 @@ class FilterGraphObject(ABC):
         :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
 
-        raise StopIteration()
+        yield from ()
 
     def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled output pads of the filtergraph object
@@ -234,7 +234,7 @@ class FilterGraphObject(ABC):
         :yield: a tuple of 3-tuple pad index and the pad index of the connected input pad if connected
         """
 
-        raise StopIteration()
+        yield from ()
 
     def get_label(
         self,
