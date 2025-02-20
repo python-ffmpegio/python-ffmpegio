@@ -1318,6 +1318,77 @@ def process_raw_inputs(
     return input_info
 
 
+def process_url_outputs(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    fg_info: dict[str, dict] | None,
+    urls: list[
+        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
+    ],
+    options: dict[str, Any],
+) -> list[RawOutputInfoDict]:
+    """analyze and process url outputs
+
+    :param args: FFmpeg argument dict, A new item in`args['outputs']` is
+                 appended for each piped output. Output URLs are left `None`.
+    :param input_info: list of input information (same length as `args['inputs'])
+    :param fg_info: list of filtergraph outputs or None if complex fitlergraph is
+                    not specified
+    :param urls: output file names and optionally with file-specific options
+    :param options: default output options. If `"map"` option is given, it is appended
+                    to the per-file `"map"` option in `streams` argument
+    :return: list of output information
+    """
+
+    missing_map = False
+    output_info_list = [None] * len(urls)
+    for i, url in enumerate(urls):  # add inputs
+        # get the option dict
+        if utils.is_non_str_sequence(url, (str, FilterGraphObject, Buffer)):
+            if len(url) != 2:
+                raise ValueError(
+                    "url-options pair input must be a tuple of the length 2."
+                )
+            url, opts = url
+            opts = {**options} if opts is None else {**options, **opts}
+        else:
+            # only URL given
+            opts = {**options}
+
+        # check url (must be url and not fileobj)
+        if utils.is_fileobj(url, readable=True):
+            output_info = {"dst_type": "fileobj", "fileobj": url}
+            url = None
+        elif url == "pipe":
+            # convert to buffer
+            output_info = {"dst_type": "pipe"}
+            url = None
+        elif utils.is_url(url, pipe_ok=False):
+            output_info = {"dst_type": "url"}
+        else:
+            raise TypeError("Unknown output {url}.")
+
+        url_opts, output_info_list[i] = (url, opts), output_info
+
+        # leave the URL None if data needs to be piped in
+        add_url(args, "output", *url_opts)
+
+        if "map" not in opts:
+            missing_map = True
+
+    if missing_map:
+        # some output file is missing `map` option
+        # add all input streams or all complex filter outputs
+        map_opts = [*auto_map(args, input_info, fg_info)]
+
+        # add outputs to FFmpeg arguments
+        for _, opts in args["outputs"]:
+            if "map" not in opts:
+                opts["map"] = map_opts
+
+        return output_info_list
+
+
 def assign_input_url(args: FFmpegArgs, ifile: int, url: str):
     """assign a new url to an FFmpeg input
 
