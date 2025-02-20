@@ -15,6 +15,7 @@ from ._typing import (
     FFmpegUrlType,
 )
 from .stream_spec import StreamSpecDict
+from .configure import FFmpegOutputUrlComposite, FFmpegInputUrlComposite
 
 import contextlib
 from io import BytesIO
@@ -34,7 +35,9 @@ __all__ = ["read", "write"]
 
 
 def read(
-    *urls: * tuple[FFmpegUrlType | tuple[FFmpegUrlType, dict[str, Any] | None]],
+    *urls: * tuple[
+        FFmpegInputUrlComposite | tuple[FFmpegUrlType, dict[str, Any] | None]
+    ],
     map: Sequence[str] | dict[str, dict[str, Any] | None] | None = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
@@ -89,7 +92,7 @@ def read(
                 if src_type == "fileobj":
                     writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
                 elif src_type == "buffer":
-                    writer = WriterThread()
+                    writer = WriterThread(pipe)
                     writer.write(info["buffer"])
                     writer.write(None)  # close the
                 else:
@@ -118,14 +121,16 @@ def read(
 
         # wind-down the readers
         for info in output_info:
-            info['reader'].cool_down()
+            info["reader"].cool_down()
 
         # gather output
         rates = {}
         data = {}
         for i, info in enumerate(output_info):
             spec = (
-                info["user_map"] or f"{info['input_file_id']}:{info['input_stream_id']}"
+                info["user_map"]
+                or info.get("linklabel", None)
+                or f"{info['input_file_id']}:{info['input_stream_id']}"
             )
             b = info["reader"].read_all()
 
