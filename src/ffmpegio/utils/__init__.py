@@ -21,6 +21,7 @@ from ..errors import FFmpegError, FFmpegioError
 from .._typing import Any, MediaType, InputSourceDict
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
+from ..filtergraph.presets import temp_video_src, temp_audio_src
 
 # TODO: auto-detect endianness
 # import sys
@@ -686,49 +687,139 @@ def analyze_audio_stream(
 
 
 def analyze_complex_filtergraphs(
-    filtergraphs: list[FilterGraphObject],
+    filtergraphs: list[FilterGraphObject | str],
     inputs: list[tuple[str | None, dict]],
     inputs_info: list[InputSourceDict],
-    fields: list[str] | None = None,
-) -> list:
+) -> tuple[list[FilterGraphObject], dict[str, dict]]:
     """analyze filtergraphs and return requested field values
 
     :param fields: a list of stream properties
     :param stream: stream specifier, first one is returned if it yields more than one stream,
-    :param input_url: url or None if piped or fileobj
-    :param input_opts: input options
-    :param input_info: input infomration
-    :raises NotImplementedError: _description_
-    :return values of the requested fields of the stream
+    :param inputs: input url/options pairs
+    :param input_info: input information
+    :return filters_complex: list of filtergraphs with all the unnamed outputs auto-named
+    :return fg_info: all the output pads and their properties
     """
 
-    fg = fgb.stack(filtergraphs)
+    filtergraphs = [
+        fgb.as_filtergraph_object(fg, copy=True)
+        for fg in as_multi_option(filtergraphs, (str, FilterGraphObject))
+    ]
 
-    fields = [*fields, "codec_type"]
-    input_url, sp_kwargs, exit_fcn = set_sp_kwargs_stdin(input_url, input_info)
-    try:
-        q = probe.query(
-            input_url,
-            stream,
-            fields,
-            keep_optional_fields=True,
-            keep_str_values=False,
-            cache_output=True,
-            sp_kwargs=sp_kwargs,
-            f=input_opts.get("f", None),
-        )
-    except FFmpegError:
-        # no change
-        return [None] * (len(fields) - 1)
-    else:
-        q = [i for i in q if i["codec_type"] == media_type]
-        if len(q) != 1:
-            raise FFmpegioError(
-                f"Specified {stream=} must resolve to one and only one {media_type} stream."
+    # name the output
+    i = 0
+    for j, fg in enumerate(filtergraphs):
+        new_labels = []
+        for padidx, filt, _ in fg.iter_output_pads(
+            full_pad_index=True, unlabeled_only=True
+        ):
+            label = f"out{i}"
+            while fg.has_label(label):
+                i += 1
+                label = f"out{i}"
+            i += 1
+            new_labels.append((padidx, label))
+        for padidx, label in new_labels:
+            fg = fg.add_label(label, outpad=padidx)
+        filtergraphs[j] = fg
+
+    # combine all filtergraphs
+    fg = fgb.stack(*filtergraphs, auto_link=True)
+
+    # get list of connected input streams
+    sources = []
+    labels = set()
+
+    # for a filter or a filterchain, no labels. Connect all its inputs
+    for i, (padidx, filt, _) in enumerate(
+        fg.iter_input_pads(full_pad_index=True, exclude_stream_specs=False)
+    ):
+
+        label = fg.get_label(inpad=padidx)
+        media_type = filt.get_pad_media_type("input", padidx[-1])
+
+        if label is None:
+            file_id = 0
+            sspec = None
+            if i > 0:
+                raise FFmpegioError(
+                    f"All the input pads of a filtergraph with more than one inputs must have them labeled."
+                )
+        else:
+            map_option = parse_map_option(label)
+            file_id = map_option["input_file_id"]
+            sspec = map_option.get("stream_specifier", None)
+            labels.add(label)
+
+        if media_type == "audio":
+            src = temp_audio_src(
+                *analyze_audio_stream(
+                    sspec or "a:0", *inputs[file_id], inputs_info[file_id]
+                )
             )
-    finally:
-        # rewind fileobj if possible
-        exit_fcn()
+        elif media_type == "video":
+            src = temp_video_src(
+                *analyze_video_stream(
+                    sspec or "v:0", *inputs[file_id], inputs_info[file_id]
+                )
+            )
+        else:
+            raise FFmpegioError(f"unknown media type of a filter")
 
-    q = q[0]
-    return [q.get(f, None) for f in fields[:-1]]
+        sources.append((src, (0, len(src) - 1, 0), padidx))
+
+    # remove all the input labels
+    for label in labels:
+        fg.remove_label(label)
+
+    # add sources to the filtergraph
+    fg = sources >> fg
+
+    # rename the output
+    fg_outputs = []
+    for i, (padidx, filt, _) in enumerate(fg.iter_output_pads(full_pad_index=True)):
+        label = fg.get_label(outpad=padidx)
+        fg_outputs.append((label, f"out{i}", padidx))
+
+    for label, new_label, padidx in fg_outputs:
+        fg = fg.add_label(new_label, outpad=padidx, force=True)
+
+    # query the filtergraph
+    fields = [
+        "codec_type",
+        "pix_fmt",
+        "width",
+        "height",
+        "r_frame_rate",
+        "avg_frame_rate",
+        "sample_rate",
+        "sample_fmt",
+        "channels",
+    ]
+    streams = analyze_input_file(
+        fields, fg, {"f": "lavfi"}, {"src_type": "filtergraph"}
+    )
+
+    fg_info = {}
+    for (label, *_), q in zip(fg_outputs, streams):
+        label = f"[{label}]"
+        if q["codec_type"] == "audio":
+            fg_info[label] = {
+                "media_type": "audio",
+                "sample_fmt": q["sample_fmt"],
+                "ac": q["channels"],
+                "r": q["sample_rate"],
+            }
+        elif q["codec_type"] == "video":
+            fg_info[label] = {
+                "media_type": "video",
+                **{
+                    k: v
+                    for k, v in zip(
+                        ("r", "pix_fmt", "s"),
+                        video_fields_to_options(*(q[f] for f in fields[1:6])),
+                    )
+                },
+            }
+
+    return filtergraphs, fg_info
