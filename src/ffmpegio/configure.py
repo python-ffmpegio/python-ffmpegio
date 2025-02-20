@@ -286,6 +286,7 @@ def finalize_video_read_opts(
     args: FFmpegArgs,
     ofile: int = 0,
     input_info: list[InputSourceDict] = [],
+    fg_info: dict[str, dict] | None = None,
 ) -> tuple[str, tuple[int, int, int] | None, Fraction | None]:
     """finalize raw video read output options
 
@@ -313,11 +314,12 @@ def finalize_video_read_opts(
     opt_vals = [outopts.get(o, None) for o in options]
 
     # get the options of the input/filtergraph output
-    if "linklabel" in outmap_fields:  # mapping filtergraph output
-        # must be mapped a linklabel of a filter_complex global option
-        logger.warning(
-            "Pre-analysis of complex filtergraphs is not currently available."
-        )
+    if linklabel := outmap_fields.get("linklabel", None):
+        if fg_info is None or (info := fg_info.get(linklabel, None)):
+            raise FFmpegioError(
+                f"Complex filtergraph or the specified {linklabel=} do not exist."
+            )
+
         inopt_vals = [None, None, None]
         # combine all the filtergraphs only for the analysis purpose
         # fg = fgb.stack(args["global_options"]["filter_complex"])
