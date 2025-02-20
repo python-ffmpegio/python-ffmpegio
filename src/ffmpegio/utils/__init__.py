@@ -11,7 +11,8 @@ logger = logging.getLogger("ffmpegio")
 
 
 from math import cos, radians, sin
-import re, fractions
+import re
+from fractions import Fraction
 
 from .. import caps, plugins, probe
 from .._utils import *
@@ -299,9 +300,9 @@ def parse_video_size(expr: str | tuple[int, int]) -> tuple[int, int]:
         return expr
 
 
-def parse_frame_rate(expr) -> fractions.Fraction:
+def parse_frame_rate(expr) -> Fraction:
     try:
-        return fractions.Fraction(expr)
+        return Fraction(expr)
     except ValueError:
         return caps.frame_rate_presets[expr]
 
