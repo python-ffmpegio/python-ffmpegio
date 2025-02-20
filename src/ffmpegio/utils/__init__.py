@@ -808,7 +808,7 @@ def analyze_complex_filtergraphs(
                 "media_type": "audio",
                 "sample_fmt": q["sample_fmt"],
                 "ac": q["channels"],
-                "r": q["sample_rate"],
+                "ar": q["sample_rate"],
             }
         elif q["codec_type"] == "video":
             fg_info[label] = {
