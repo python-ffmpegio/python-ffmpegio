@@ -72,6 +72,7 @@ class ProgressMonitorThread(Thread):
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.join()
+        return False
 
     def run(self):
         callback, tempdir, timeout = self._args
@@ -157,7 +158,7 @@ class LoggerThread(Thread):
     def __exit__(self, *_):
         self.stderr.close()
         self.join()  # will wait until stderr is closed
-        return self
+        return False
 
     def run(self):
         logger.debug("[logger] starting")
@@ -330,7 +331,7 @@ class ReaderThread(Thread):
     def __exit__(self, *_):
         self.stdout.close()
         self.join()  # will wait until stdout is closed
-        return self
+        return False
 
     def run(self):
         is_npipe = isinstance(self.stdout, NPopen)
@@ -532,7 +533,7 @@ class WriterThread(Thread):
 
     def __exit__(self, *_):
         self.join()  # will wait until stdout is closed
-        return self
+        return False
 
     def run(self):
 
@@ -895,7 +896,7 @@ class CopyFileObjThread(Thread):
 
     def __exit__(self, *_):
         self.join()
-        return self
+        return False
 
     def run(self):
         src_is_namedpipe = isinstance(self._fsrc, NPopen)
