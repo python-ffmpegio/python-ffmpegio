@@ -2,6 +2,8 @@ import pytest
 from pprint import pprint
 
 from ffmpegio import configure
+from ffmpegio import filtergraph as fgb
+from ffmpegio.utils import analyze_complex_filtergraphs
 
 vid_url = "tests/assets/testvideo-1m.mp4"
 img_url = "tests/assets/ffmpeg-logo.png"
@@ -180,16 +182,16 @@ def test_process_url_inputs(url, opts, defopts, ret):
     ("inputs", "input_info", "filters_complex", "ret"),
     [
         (
-            [(mul_url, None)],
+            [(mul_url, {})],
             [{"src_type": "url"}],
             None,
             {
-                f"0:{i}": {
+                f"0:{mtype[0]}:{j}": {
                     "media_type": mtype,
                     "input_file_id": 0,
                     "input_stream_id": i,
                 }
-                for i, mtype in mul_streams
+                for (i, mtype), j in zip(mul_streams, [0, 0, 1, 1])
             },
         ),
         (
@@ -197,12 +199,12 @@ def test_process_url_inputs(url, opts, defopts, ret):
             [{"src_type": "url"}, {"src_type": "url"}],
             None,
             {
-                "0:0": {
+                "0:v:0": {
                     "media_type": "video",
                     "input_file_id": 0,
                     "input_stream_id": 0,
                 },
-                "1:0": {
+                "1:a:0": {
                     "media_type": "audio",
                     "input_file_id": 1,
                     "input_stream_id": 0,
@@ -210,9 +212,9 @@ def test_process_url_inputs(url, opts, defopts, ret):
             },
         ),
         (
-            [(mul_url, None)],
+            [(mul_url, {})],
             [{"src_type": "url"}],
-            ["split=n=2"],
+            ["split=outputs=2"],
             {"[out0]": {"media_type": "video"}, "[out1]": {"media_type": "video"}},
         ),
     ],
@@ -221,8 +223,11 @@ def test_auto_map(inputs, input_info, filters_complex, ret):
     args = configure.empty()
     args["inputs"].extend(inputs)
     if filters_complex is not None:
+        filters_complex, fg_info = analyze_complex_filtergraphs(
+            fgb.as_filtergraph(filters_complex), args["inputs"], input_info
+        )
         args["global_options"] = {"filter_complex": filters_complex}
-    out = configure.auto_map(args, input_info)
+    out = configure.auto_map(args, input_info, filters_complex and fg_info)
     assert out == {
         spec: {"dst_type": "pipe", "user_map": None, **info}
         for spec, info in ret.items()
@@ -259,7 +264,7 @@ def ffmpeg_url_inputs_vid_aud():
     [
         ("ffmpeg_url_inputs_mul", None, ["v"]),
         ("ffmpeg_url_inputs_vid_aud", None, ["0:v:0", "1:a:0"]),
-        ("ffmpeg_url_inputs_mul", ["split=n=2"], ["[out0]", "[out1]", "a:0"]),
+        ("ffmpeg_url_inputs_mul", ["split=2"], ["[out0]", "[out1]", "a:0"]),
     ],
 )
 def test_resolve_raw_output_streams(
@@ -268,7 +273,12 @@ def test_resolve_raw_output_streams(
 
     args, input_info = request.getfixturevalue(ffmpeg_url_inputs)
 
-    if filters_complex is not None:
+    if filters_complex is None:
+        fg_info = None
+    else:
+        filters_complex, fg_info = analyze_complex_filtergraphs(
+            fgb.as_filtergraph(filters_complex), args["inputs"], input_info
+        )
         args["global_options"] = {"filter_complex": filters_complex}
-    out = configure.resolve_raw_output_streams(args, input_info, streams)
+    out = configure.resolve_raw_output_streams(args, input_info, fg_info, streams)
     pprint(out)
