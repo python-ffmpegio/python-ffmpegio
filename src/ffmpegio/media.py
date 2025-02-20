@@ -262,7 +262,10 @@ def read_by_avi(
 
 
 def write(
-    url: str,
+    urls: (
+        FFmpegOutputUrlComposite
+        | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict]]
+    ),
     stream_types: Sequence[Literal["a", "v"]],
     *stream_args: * tuple[RawStreamDef, ...],
     merge_audio_streams: bool | Sequence[int] = False,
@@ -307,52 +310,13 @@ def write(
 
     """
 
-    url, stdout, _ = configure.check_url(url, True)
+    if not isinstance(urls, list):
+        urls = [urls]
 
-    if not all(t in "av" for t in stream_types):
-        raise ValueError("Elements of stream_types input must either 'a' or 'v'.")
-
-    # analyze input stream_data
-    n_in = len(stream_types)
-
-    if len(stream_args) != n_in:
-        raise ValueError(f"Lengths of `stream_args` and `stream_types` not matching.")
-
-    input_opts = []
-    input_byte_data = []
-
-    for mtype, arg in zip(stream_types, stream_args):
-
-        try:
-            a1, a2 = arg
-            if isinstance(a1, (int, float, Fraction)):
-                opts, data = a1, a2
-            else:
-                assert isinstance(a2, dict)
-                data, opts = a1, a2
-        except:
-            raise ValueError(
-                f"""Invalid raw stream definition: {arg}.\nEach item of `stream_args` must be a two-element tuple: 
-                    - a rate (numeric) and a data_blob
-                    - a data_blob and a dict of options
-                """
-            )
-
-        if mtype == "a":  # audio
-            if not isinstance(opts, dict):
-                opts = {"ar": round(opts)}
-            input_opts.append({**opts, **utils.array_to_audio_options(data)})
-            input_byte_data.append(plugins.get_hook().audio_bytes(obj=data))
-
-        else:  # video
-            if not isinstance(opts, dict):
-                opts = {"r": opts}
-            input_opts.append({**opts, **utils.array_to_video_options(data)})
-            input_byte_data.append(plugins.get_hook().video_bytes(obj=data))
-
-    ffmpeg_args, pipes = configure.init_media_write(
-        url,
-        input_opts,
+    args, input_info, output_info = configure.init_media_write(
+        urls,
+        stream_types,
+        stream_args,
         merge_audio_streams,
         merge_audio_ar,
         merge_audio_sample_fmt,
@@ -364,27 +328,79 @@ def write(
     kwargs = {**sp_kwargs} if sp_kwargs else {}
     kwargs.update(
         {
-            "stdout": stdout,
             "progress": progress,
             "overwrite": overwrite,
+            "capture_log": None if show_log else False,
         }
     )
-    kwargs["capture_log"] = None if show_log else False
 
     with contextlib.ExitStack() as stack:
-        # run the FFmpeg
-        proc = ffmpegprocess.Popen(ffmpeg_args, **kwargs)
+        # configure input pipes (if needed)
+        for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
+            if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
+                pipe = NPopen("w", bufsize=0)
+                stack.enter_context(pipe)
+                configure.assign_input_url(args, i, pipe.path)
+                src_type = info["src_type"]
+                if src_type == "fileobj":
+                    writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
+                    stack.enter_context(
+                        writer
+                    )  # starts thread & wait for pipe connection
+                elif src_type == "buffer":
+                    writer = WriterThread(pipe)
+                    stack.enter_context(
+                        writer
+                    )  # starts thread & wait for pipe connection
+                    writer.write(info["buffer"])
+                    writer.write(None)  # close the
+                else:
+                    raise FFmpegioError(f"{src_type=} is an unknown input data type.")
 
-        # connect the pipes and queue the stream data
-        for p, data in zip(pipes, input_byte_data):
-            stack.enter_context(p)
-            writer = WriterThread(p)
-            stack.enter_context(writer)
-            writer.write(data)  # send bytes in out_bytes to the client
-            writer.write(None)  # sentinel message
+        # configure output pipes
+        pipes_out = False
+        for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
+            if output[0] is None:
+                # if fileobj or buffer output, use pipe
+                pipe = NPopen("r", bufsize=0)
+                stack.enter_context(pipe)
+                configure.assign_output_url(args, i, pipe.path)
+                src_type = info["src_type"]
+                if src_type == "fileobj":
+                    reader = CopyFileObjThread(info["fileobj"], pipe)
+                elif src_type == "buffer":
+                    pipes_out = True
+                    info["reader"] = reader = ReaderThread(pipe)
+                else:
+                    raise FFmpegioError(f"{src_type=} is an unknown output data type.")
+                stack.enter_context(reader)  # starts thread & wait for pipe connection
+
+        # run the FFmpeg
+        proc = ffmpegprocess.Popen(
+            args,
+            progress=progress,
+            capture_log=None if show_log else True,
+            sp_kwargs=sp_kwargs,
+        )
 
         # wait for the FFmpeg to finish processing
         proc.wait()
 
-    if proc.returncode:
-        raise FFmpegError(proc.stderr, show_log)
+        # throw error if failed
+        if proc.returncode:
+            raise FFmpegError(proc.stderr, show_log)
+
+        # wind-down the readers
+        for info in output_info:
+            if "reader" in info:
+                info["reader"].cool_down()
+
+        if not pipes_out:
+            # no buffered output
+            return
+
+        # gather output
+        data = {}
+        for i, info in enumerate(output_info):
+            if info["src_type"] == "buffer":
+                data[i] = info["reader"].read_all()
