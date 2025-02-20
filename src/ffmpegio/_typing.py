@@ -18,7 +18,8 @@ from namedpipe import NPopen
 RawDataBlob = Any  # depends on raw data reader plugin
 
 RawStreamDef = (
-    tuple[int | float | Fraction, RawDataBlob] | tuple[RawDataBlob, dict[str, Any]]
+    tuple[int | float | Fraction, RawDataBlob]
+    | tuple[RawDataBlob | None, dict[str, Any]]
 )
 
 
