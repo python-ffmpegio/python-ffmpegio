@@ -298,14 +298,12 @@ def finalize_video_read_opts(
     """
 
     options = ["r", "pix_fmt", "s"]
-    fields = ["pix_fmt", "width", "height", "r_frame_rate", "avg_frame_rate"]
-
-    def flds2opts(pix_fmt, width, height, r1, r2):
-        return r1 or r2, pix_fmt, (width, height) if width and height else None
 
     outopts = args["outputs"][ofile][1]
     outmap = outopts["map"]
-    outmap_fields = parse_map_option(outmap)
+    outmap_fields = parse_map_option(
+        outmap, input_file_id=0 if len(args["inputs"]) == 1 else None
+    )
     has_simple_filter = "vf" in outopts or "filter:v" in outopts
     fill_color = outopts.get("fill_color", None)
     if fill_color is not None and "remove_alpha" not in outopts:
@@ -329,25 +327,12 @@ def finalize_video_read_opts(
 
         ifile = outmap_fields["input_file_id"]
 
-        # check the input option data
-        inurl, inopts = args["inputs"][ifile]
-
-        # get input options
-        inopt_vals = [inopts.get(o, None) for o in options]
-
-        # directly from the input url (if not forced via input options)
-        if not all(inopt_vals):
-            st_vals = flds2opts(
-                *utils.analyze_input_stream(
-                    fields,
-                    outmap_fields["stream_specifier"],
-                    "video",
-                    inurl,
-                    inopts,
-                    input_info[ifile],
-                )
-            )
-            inopt_vals = [v or s for v, s in zip(inopt_vals, st_vals)]
+        # get input option values
+        inopt_vals = utils.analyze_video_stream(
+            outmap_fields["stream_specifier"],
+            *args["inputs"][ifile],
+            input_info[ifile],
+        )
 
         if has_simple_filter:
 
@@ -359,15 +344,8 @@ def finalize_video_read_opts(
             outpad = next(vf.iter_output_pads(unlabeled_only=True), None)
             if outpad is not None:
                 vf = vf >> "[out0]"
-            inopt_vals = flds2opts(
-                *utils.analyze_input_stream(
-                    fields,
-                    "0",
-                    "video",
-                    vf,
-                    {"f": "lavfi"},
-                    {"src_type": "filtergraph"},
-                )
+            inopt_vals = utils.analyze_video_stream(
+                "0", vf, {"f": "lavfi"}, {"src_type": "filtergraph"}
             )
 
     # assign the values to individual variables
