@@ -13,6 +13,7 @@ from ._typing import (
     Union,
     Tuple,
     FFmpegMediaType,
+    MediaType,
     NotRequired,
 )
 
@@ -303,6 +304,24 @@ def stream_spec(
         spec.append("u")
 
     return spec if no_join else ":".join(spec)
+
+
+def is_unique_stream(
+    spec: StreamSpecDict, *, return_media_type: bool = False
+) -> bool | MediaType:
+    """True if a stream is uniquely specified by the stream specifier dictionary
+
+    :param spec: _description_
+    :param return_media_type: True to return the media type (e.g., 'video' and 'audio'),
+                              defaults to False
+    :return: True or a media type string if the stream specifier yields a unique stream.
+    """
+    if "index" in spec:
+        if return_media_type and "stream_type" in spec:
+            return stream_type_to_media_type(spec["stream_type"])
+        else:
+            return True
+    return False
 
 
 #################################
