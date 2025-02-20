@@ -775,6 +775,7 @@ class SimpleFilterBase:
         self.dtype, self.shape, self.rate = configure.process_raw_outputs(
             ffmpeg_args,
             self._input_info,
+            None,
             [f"0:{self.stream_type}:0"],
             self._output_opts,
         )[0]["media_info"]
