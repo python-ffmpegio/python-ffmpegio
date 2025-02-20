@@ -411,10 +411,12 @@ def stack(
     n = len(fgs)
     if not n:
         return fgb.Graph()
-    if n == 1:
-        return fgs[0]
 
     fg = fgb.as_filtergraph(fgs[0], copy=not inplace)
+    
+    if n == 1:
+        return fg
+
     replace_sws_flags = None
     for other in fgs[1:]:
         if use_last_sws_flags is not None:
