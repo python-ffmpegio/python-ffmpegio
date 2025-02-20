@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from itertools import islice
+from copy import copy
 
 from .typing import PAD_INDEX, JOIN_HOW, Literal, get_args
 
@@ -159,6 +160,18 @@ def join(
                     False (default) to make a new filtergraph object
     :return: Graph with the appended filter chains or None if inplace=True.
     """
+
+    # if one of the filtergraphs is empty, return the other (or a copy thereof)
+    if not fgb.as_filtergraph_object(right).get_num_filters():
+        if inplace:
+            return left
+        else:
+            return fgb.as_filtergraph_object(left).copy()
+    if not fgb.as_filtergraph_object(left).get_num_filters():
+        if inplace:
+            return right
+        else:
+            return copy(fgb.as_filtergraph_object(right))
 
     if how is None:
         how = "auto"
