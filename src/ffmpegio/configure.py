@@ -514,15 +514,9 @@ def finalize_audio_read_opts(
 
                 # create a source chain with matching specs and attach it to the af graph
                 af = temp_audio_src(*inopt_vals)
-
                 af = af + outopts.get("filter:a", outopts.get("af", None))
-                inopt_vals = utils.analyze_input_stream(
-                    fields,
-                    "0",
-                    "audio",
-                    af,
-                    {"f": "lavfi"},
-                    {"src_type": "filtergraph"},
+                inopt_vals = utils.analyze_audio_stream(
+                    "0", af, {"f": "lavfi"}, {"src_type": "filtergraph"}
                 )
 
             opt_vals = [v or s for v, s in zip(opt_vals, inopt_vals)]
