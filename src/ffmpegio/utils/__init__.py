@@ -540,6 +540,42 @@ def set_sp_kwargs_stdin(
     return url, sp_kwargs, exit_fcn
 
 
+def analyze_input_file(
+    fields: list[str],
+    input_url: str | None,
+    input_opts: dict,
+    input_info: InputSourceDict,
+    stream: str | StreamSpecDict | None = None,
+) -> list[list]:
+    """analyze a file and return requested field values of all returned streams
+
+    :param fields: a list of stream properties
+    :param input_url: url or None if piped or fileobj
+    :param input_opts: input options
+    :param input_info: input infomration
+    :param stream: stream specifier, defaults to None to return all streams
+    :return values of the requested fields of the stream
+    """
+
+    input_url, sp_kwargs, exit_fcn = set_sp_kwargs_stdin(input_url, input_info)
+    try:
+        return probe.query(
+            input_url,
+            stream or True,
+            fields,
+            keep_optional_fields=True,
+            keep_str_values=False,
+            cache_output=True,
+            sp_kwargs=sp_kwargs,
+            f=input_opts.get("f", None),
+        )
+    except:
+        raise
+    finally:
+        # rewind fileobj if possible
+        exit_fcn()
+
+
 def analyze_input_stream(
     fields: list[str],
     stream: str,
@@ -559,34 +595,22 @@ def analyze_input_stream(
     :return values of the requested fields of the stream
     """
 
-    fields = [*fields, "codec_type"]
-    input_url, sp_kwargs, exit_fcn = set_sp_kwargs_stdin(input_url, input_info)
     try:
-        q = probe.query(
-            input_url,
-            stream,
-            fields,
-            keep_optional_fields=True,
-            keep_str_values=False,
-            cache_output=True,
-            sp_kwargs=sp_kwargs,
-            f=input_opts.get("f", None),
+        q = analyze_input_file(
+            [*fields, "codec_type"], input_url, input_opts, input_info, stream
         )
     except FFmpegError:
         # no change
-        return [None] * (len(fields) - 1)
-    else:
-        q = [i for i in q if i["codec_type"] == media_type]
-        if len(q) != 1:
-            raise FFmpegioError(
-                f"Specified {stream=} must resolve to one and only one {media_type} stream."
-            )
-    finally:
-        # rewind fileobj if possible
-        exit_fcn()
+        return [None] * len(fields)
+
+    q = [i for i in q if media_type is None or i["codec_type"] == media_type]
+    if len(q) != 1:
+        raise FFmpegioError(
+            f"Specified {stream=} must resolve to one and only one {media_type} stream."
+        )
 
     q = q[0]
-    return [q.get(f, None) for f in fields[:-1]]
+    return [q.get(f, None) for f in fields]
 
 
 def analyze_complex_filtergraphs(
