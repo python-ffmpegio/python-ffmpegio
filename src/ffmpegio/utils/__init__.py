@@ -613,6 +613,41 @@ def analyze_input_stream(
     return [q.get(f, None) for f in fields]
 
 
+def video_fields_to_options(pix_fmt, width, height, r1, r2):
+    return r1 or r2, pix_fmt, (width, height) if width and height else None
+
+
+def analyze_video_stream(
+    stream_specifier: str, inurl: str, inopts: dict, input_info: InputSourceDict
+) -> tuple[int | Fraction | None, str | None, tuple[int, int] | None]:
+    """analyze video stream core attributes
+
+    :param args: FFmpeg arguments (will be modified)
+    :param ofile: output index, defaults to 0
+    :param input_info: source information of the inputs, defaults to []
+    :return r: video framerate
+    :return pix_fmt: pixel format
+    :return s: video shape tuple (width, height)
+    """
+
+    options = ["r", "pix_fmt", "s"]
+    fields = ["pix_fmt", "width", "height", "r_frame_rate", "avg_frame_rate"]
+
+    # get input options
+    inopt_vals = [inopts.get(o, None) for o in options]
+
+    # directly from the input url (if not forced via input options)
+    if not all(inopt_vals):
+        st_vals = video_fields_to_options(
+            *analyze_input_stream(
+                fields, stream_specifier, "video", inurl, inopts, input_info
+            )
+        )
+        inopt_vals = [v or s for v, s in zip(inopt_vals, st_vals)]
+
+    return inopt_vals
+
+
 def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject],
     inputs: list[tuple[str | None, dict]],
