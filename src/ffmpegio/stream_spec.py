@@ -361,7 +361,7 @@ def parse_map_option(
 
     if input_file_id is not None:
         s1 = map.split(":", 1)
-        if len(s1) == 1 or not s1[0].isdigit():
+        if not s1[0].isdigit():
             map = f"{input_file_id}:{map}"
 
     m = re.match(r"(-)?(\d+)(\:[^?]+?)?(\?)?$", map)
