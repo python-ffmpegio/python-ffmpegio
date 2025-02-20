@@ -1434,20 +1434,29 @@ def retrieve_input_stream_ids(
         # something failed (warning logged)
         return []
 
+    def get_spec(info, opts):
+        # check raw formats first
+        from_buffer = info["src_type"] == "buffer"
+        if from_buffer and opts.get("f", None) in raw_formats:
+            return [{"index": 0, "codec_type": info["media_type"]}]
+
+        # run ffprobe
+        return probe.streams_basic(
+            url,
+            f=opts.get("f", None),
+            sp_kwargs=sp_kwargs,
+            stream_spec=(
+                compose_stream_spec(**stream_spec)
+                if isinstance(stream_spec, dict)
+                else stream_spec
+            ),
+        )
+
     # get the stream list if ffprobe can
     try:
         stream_ids = [
             (info["index"], info["codec_type"])
-            for info in probe.streams_basic(
-                url,
-                f=opts.get("f", None),
-                sp_kwargs=sp_kwargs,
-                stream_spec=(
-                    compose_stream_spec(**stream_spec)
-                    if isinstance(stream_spec, dict)
-                    else stream_spec
-                ),
-            )
+            for info in get_spec(info, opts)
             if info["codec_type"] in get_args(MediaType)
         ]
     except:
