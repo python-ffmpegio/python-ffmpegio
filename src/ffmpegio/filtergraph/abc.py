@@ -732,6 +732,10 @@ class FilterGraphObject(ABC):
 
         # if output is a list
         if isinstance(other, list):
+
+            if len(other) == 0:
+                raise ValueError("At least one `other` filtergraph must be specified.")
+
             # match the pad indices first
             right, left_on, right_on = [
                 [*t] for t in zip(*(parse_other(o) for o in other))
@@ -782,6 +786,10 @@ class FilterGraphObject(ABC):
 
         # if output is a list
         if isinstance(other, list):
+
+            if len(other) == 0:
+                raise ValueError("At least one `other` filtergraph must be specified.")
+
             # match the pad indices first
             left, right_on, left_on = [
                 [*t] for t in zip(*(parse_other(o) for o in other))
