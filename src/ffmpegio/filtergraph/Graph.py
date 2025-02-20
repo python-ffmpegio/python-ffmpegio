@@ -797,13 +797,15 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         return self
 
-    def remove_label(self, label: str):
+    def remove_label(self, label: str, inpad: PAD_INDEX | None = None):
         """remove an input/output label
 
         :param label: linkn label
+        :param inpad: specify input pad if multiple pads receives the same input 
+                      stream, defaults to `None` to delete all input pads.
         """
 
-        self._links.remove_label(label)
+        self._links.remove_label(label, inpad)
 
     def rename_label(self, old_label: str, new_label: str) -> str | None:
         """rename an existing link label

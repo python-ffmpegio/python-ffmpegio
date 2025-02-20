@@ -347,6 +347,14 @@ class FilterGraphObject(ABC):
         """
         return False  # reimplemented by Graph
 
+    def remove_label(self, label: str, inpad: PAD_INDEX | None = None):
+        """remove an input/output label
+
+        :param label: linkn label
+        :param inpad: specify input pad if multiple pads receives the same input 
+                      stream, defaults to `None` to delete all input pads.
+        """
+
     @abstractmethod
     def _connect(
         self,
