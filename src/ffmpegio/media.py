@@ -95,11 +95,7 @@ def read(
         rates = {}
         data = {}
         for i, info in enumerate(output_info):
-            spec = (
-                info["user_map"]
-                or info.get("linklabel", None)
-                or f"{info['input_file_id']}:{info['input_stream_id']}"
-            )
+            spec = info["user_map"]
             b = info["reader"].read_all()
 
             # get datablob info from stderr if needed
