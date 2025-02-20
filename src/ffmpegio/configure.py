@@ -1231,6 +1231,9 @@ def process_raw_outputs(
     # add outputs to FFmpeg arguments
     get_opts = isinstance(streams, dict)
     for spec, info in stream_info.items():
+        if isinstance(spec, tuple):
+            spec = ":".join((str(s) for s in spec))
+
         opts = (
             {**options, **streams[info["user_map"]], "map": spec}
             if get_opts
