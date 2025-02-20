@@ -14,22 +14,13 @@ from ._typing import (
     Unpack,
     FFmpegUrlType,
 )
-from .stream_spec import StreamSpecDict
 from .configure import FFmpegOutputUrlComposite, FFmpegInputUrlComposite
 
 import contextlib
-from io import BytesIO
 from fractions import Fraction
 
-from namedpipe import NPopen
-
-from .threading import WriterThread
-
-from . import ffmpegprocess, utils, configure, FFmpegError, plugins, filtergraph as fgb
-from .utils import avi, pop_global_options
+from . import ffmpegprocess, utils, configure, FFmpegError, plugins
 from .utils.log import extract_output_stream
-from .threading import WriterThread, ReaderThread, CopyFileObjThread
-from .errors import FFmpegioError
 
 __all__ = ["read", "write"]
 
@@ -81,31 +72,8 @@ def read(
     capture_log = True if need_stderr else None if show_log else True
 
     with contextlib.ExitStack() as stack:
-
-        # configure input pipes (if needed)
-        for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
-            if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
-                pipe = NPopen("w", bufsize=0)
-                stack.enter_context(pipe)
-                configure.assign_input_url(args, i, pipe.path)
-                src_type = info["src_type"]
-                if src_type == "fileobj":
-                    writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
-                elif src_type == "buffer":
-                    writer = WriterThread(pipe)
-                    writer.write(info["buffer"])
-                    writer.write(None)  # close the
-                else:
-                    raise FFmpegioError(f"{src_type=} is an unknown input data type.")
-                stack.enter_context(writer)  # starts thread & wait for pipe connection
-
-        # configure output pipes
-        for i, info in enumerate(output_info):
-            pipe = NPopen("r", bufsize=0)
-            stack.enter_context(pipe)
-            configure.assign_output_url(args, i, pipe.path)
-            info["reader"] = reader = ReaderThread(pipe)
-            stack.enter_context(reader)  # starts thread & wait for pipe connection
+        # configure named pipes
+        configure.init_named_pipes(args, input_info, output_info, stack)
 
         # run the FFmpeg
         proc = ffmpegprocess.Popen(
@@ -251,45 +219,9 @@ def write(
     )
 
     with contextlib.ExitStack() as stack:
-        # configure input pipes (if needed)
-        for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
-            if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
-                pipe = NPopen("w", bufsize=0)
-                stack.enter_context(pipe)
-                configure.assign_input_url(args, i, pipe.path)
-                src_type = info["src_type"]
-                if src_type == "fileobj":
-                    writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
-                    stack.enter_context(
-                        writer
-                    )  # starts thread & wait for pipe connection
-                elif src_type == "buffer":
-                    writer = WriterThread(pipe)
-                    stack.enter_context(
-                        writer
-                    )  # starts thread & wait for pipe connection
-                    writer.write(info["buffer"])
-                    writer.write(None)  # close the
-                else:
-                    raise FFmpegioError(f"{src_type=} is an unknown input data type.")
 
-        # configure output pipes
-        pipes_out = False
-        for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
-            if output[0] is None:
-                # if fileobj or buffer output, use pipe
-                pipe = NPopen("r", bufsize=0)
-                stack.enter_context(pipe)
-                configure.assign_output_url(args, i, pipe.path)
-                src_type = info["src_type"]
-                if src_type == "fileobj":
-                    reader = CopyFileObjThread(info["fileobj"], pipe)
-                elif src_type == "buffer":
-                    pipes_out = True
-                    info["reader"] = reader = ReaderThread(pipe)
-                else:
-                    raise FFmpegioError(f"{src_type=} is an unknown output data type.")
-                stack.enter_context(reader)  # starts thread & wait for pipe connection
+        # configure named pipes
+        pipes_out = configure.init_named_pipes(args, input_info, output_info, stack)
 
         # run the FFmpeg
         proc = ffmpegprocess.Popen(
@@ -311,7 +243,7 @@ def write(
             if "reader" in info:
                 info["reader"].cool_down()
 
-        if not pipes_out:
+        if not len(pipes_out):
             # no buffered output
             return
 
