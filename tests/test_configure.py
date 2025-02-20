@@ -229,7 +229,7 @@ def test_auto_map(inputs, input_info, filters_complex, ret):
         args["global_options"] = {"filter_complex": filters_complex}
     out = configure.auto_map(args, input_info, filters_complex and fg_info)
     assert out == {
-        spec: {"dst_type": "pipe", "user_map": None, **info}
+        spec: {"dst_type": "buffer", "user_map": None, **info}
         for spec, info in ret.items()
     }
 

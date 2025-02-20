@@ -24,6 +24,7 @@ logger = logging.getLogger("ffmpegio")
 from io import IOBase
 
 from namedpipe import NPopen
+from contextlib import ExitStack
 
 from . import utils, probe, plugins
 from . import filtergraph as fgb
@@ -46,14 +47,14 @@ from .stream_spec import (
     map_option as compose_map_option,
 )
 from .errors import FFmpegioError
-from .threading import ReaderThread
+from .threading import ReaderThread, WriterThread, CopyFileObjThread
 
 #################################
 ## module types
 
 UrlType = Literal["input", "output"]
 
-FFmpegOutputType = Literal["url", "fileobj", "pipe"]
+FFmpegOutputType = Literal["url", "fileobj", "buffer"]
 
 FFmpegInputUrlComposite = Union[FFmpegUrlType, FFConcat, FilterGraphObject, IO, Buffer]
 FFmpegOutputUrlComposite = Union[FFmpegUrlType, IO]
@@ -927,7 +928,7 @@ def resolve_raw_output_streams(
     :return: output information keyed by a unique map option string
     """
 
-    dst_type = "pipe"
+    dst_type = "buffer"
 
     # parse all mapping option values
     input_file_id = 0 if len(input_info) == 1 else None
@@ -1020,7 +1021,7 @@ def auto_map(
     if fg_info is not None:
         return {
             linklabel: {
-                "dst_type": "pipe",
+                "dst_type": "buffer",
                 "user_map": None,
                 "media_type": info["media_type"],
                 "linklabel": linklabel[1:-1],
@@ -1041,7 +1042,7 @@ def auto_map(
     # if no filtergraph, get all video & audio streams from all the input urls
     return {
         next_map_option(i, media_type): {
-            "dst_type": "pipe",
+            "dst_type": "buffer",
             "user_map": None,
             "media_type": media_type,
             "input_file_id": i,
@@ -1361,7 +1362,7 @@ def process_url_outputs(
             url = None
         elif url == "pipe":
             # convert to buffer
-            output_info = {"dst_type": "pipe"}
+            output_info = {"dst_type": "buffer"}
             url = None
         elif utils.is_url(url, pipe_ok=False):
             output_info = {"dst_type": "url"}
@@ -1637,3 +1638,67 @@ def init_media_write(
     output_info = process_url_outputs(args, input_info, fg_info, urls, options)
 
     return args, input_info, output_info
+
+
+def init_named_pipes(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    output_info: list[RawOutputInfoDict],
+    stack: ExitStack,
+) -> list[int]:
+    """initialize named pipes for read & write operations with FFmpeg
+
+    :param args: FFmpeg option arguments (modified)
+    :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
+    :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
+    :param stack: a context manager to combine the context managers used to manage pipes and threads
+    :returns: a list of indices of the FFmpeg outputs that are raw data streams
+
+    In addition to the retured list, this function modifies the dicts in its arguements.
+
+    - The named pipe paths are assigned to the URLs of FFmpeg outputs (`args['outputs'][][0]`)
+    - The reader threads for FFmpeg outputs that are written to buffers (i.e.,
+      `output_info[]['dst_type']=='buffer'`) are saved as `output_info[]['reader']`
+      so the reader object can be used to retrieve the data.
+    """
+
+    # configure input pipes (if needed)
+    for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
+        if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
+            pipe = NPopen("w", bufsize=0)
+            stack.enter_context(pipe)
+            assign_input_url(args, i, pipe.path)
+            src_type = info["src_type"]
+            if src_type == "fileobj":
+                writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
+                stack.enter_context(writer)
+                # starts thread & wait for pipe connection
+            elif src_type == "buffer":
+                writer = WriterThread(pipe)
+                # starts thread & wait for pipe connection
+                stack.enter_context(writer)
+                writer.write(info["buffer"])
+                writer.write(None)  # close the
+            else:
+                raise FFmpegioError(f"{src_type=} is an unknown input data type.")
+
+    # configure output pipes
+    pipes_out = []
+    for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
+        if output[0] is None:
+            # if fileobj or buffer output, use pipe
+            pipe = NPopen("r", bufsize=0)
+            stack.enter_context(pipe)
+            assign_output_url(args, i, pipe.path)
+            dst_type = info["dst_type"]
+            if dst_type == "fileobj":
+                reader = CopyFileObjThread(info["fileobj"], pipe)
+            elif dst_type == "buffer":
+                if "media_info" in info:
+                    pipes_out.append(i)
+                info["reader"] = reader = ReaderThread(pipe)
+            else:
+                raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
+            stack.enter_context(reader)  # starts thread & wait for pipe connection
+
+    return pipes_out
