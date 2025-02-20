@@ -16,6 +16,7 @@ logger = logging.getLogger("ffmpegio")
 
 from .path import ffprobe, PIPE
 from .errors import FFmpegError
+from .stream_spec import StreamSpecDict, stream_spec as compose_stream_spec
 
 # fmt:off
 __all__ = ['full_details', 'format_basic', 'streams_basic',
@@ -54,6 +55,8 @@ def _items_to_numeric(d):
 
 def _add_select_streams(args, stream_specifier):
     if stream_specifier:
+        if isinstance(stream_specifier, dict):
+            stream_specifier = compose_stream_spec(**stream_specifier)
         args.extend(["-select_streams", str(stream_specifier)])
     return args
 
@@ -169,7 +172,7 @@ def _exec(
     url: str | IO | Buffer,
     entries: str,
     sp_kwargs: tuple[tuple[str, Any]] | None = None,
-    streams: str | int | None = None,
+    streams: str | int | StreamSpecDict | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
     count_frames: bool | None = False,
     count_packets: bool | None = False,
@@ -414,7 +417,7 @@ def streams_basic(
     keep_str_values: bool | None = False,
     cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
-    stream_spec: str | None = None,
+    stream_spec: str | int | StreamSpecDict | None = None,
     *,
     f: str | None = None,
 ) -> list[dict[str, str | Number | Fraction]]:
@@ -678,7 +681,7 @@ def audio_streams_basic(
 
 def query(
     url: str | BinaryIO | memoryview,
-    streams: str | int | bool | None = None,
+    streams: str | int | StreamSpecDict | bool | None = None,
     fields: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
@@ -755,7 +758,7 @@ def query(
 def frames(
     url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
-    streams: str | int | None = None,
+    streams: str | int | StreamSpecDict | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
     accurate_time: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
