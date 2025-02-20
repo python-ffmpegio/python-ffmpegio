@@ -173,6 +173,7 @@ def is_fileobj(
 
     return True
 
+
 def escape(txt: str) -> str:
     """apply FFmpeg single quote escaping
 
