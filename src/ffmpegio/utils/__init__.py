@@ -210,6 +210,16 @@ def get_rotated_shape(w: int, h: int, deg: float) -> tuple[int, int]:
     # return int(round(abs(X[0, 0] - X[0, 2]))), int(round(abs(X[1, 1]))), theta
 
 
+audio_codecs = dict(
+    u8=("pcm_u8", "u8"),
+    s16=("pcm_s16le", "s16le"),
+    s32=("pcm_s32le", "s32le"),
+    s64=("pcm_s64le", "s64le"),
+    flt=("pcm_f32le", "f32le"),
+    dbl=("pcm_f64le", "f64le"),
+)
+
+
 def get_audio_codec(fmt: str) -> tuple[str, str]:
     """get pcm audio codec & format
 
@@ -217,14 +227,7 @@ def get_audio_codec(fmt: str) -> tuple[str, str]:
     :return: tuple of pcm codec name and container format
     """
     try:
-        return dict(
-            u8=("pcm_u8", "u8"),
-            s16=("pcm_s16le", "s16le"),
-            s32=("pcm_s32le", "s32le"),
-            s64=("pcm_s64le", "s64le"),
-            flt=("pcm_f32le", "f32le"),
-            dbl=("pcm_f64le", "f64le"),
-        )[fmt]
+        return audio_codecs[fmt]
     except:
         raise ValueError(f"{fmt} is not a valid raw audio sample_fmt")
 
