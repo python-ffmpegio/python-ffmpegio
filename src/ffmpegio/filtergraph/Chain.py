@@ -99,7 +99,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
     def get_num_chains(self) -> int:
         """get the number of chains"""
-        return len(self)
+        return 1
 
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
