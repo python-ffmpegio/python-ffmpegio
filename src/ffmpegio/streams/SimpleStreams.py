@@ -737,7 +737,9 @@ class SimpleFilterBase:
         self._output_opts = options
 
         ffmpeg_args = configure.empty(glopts)
-        self._input_info = configure.process_raw_inputs(ffmpeg_args, [inopts], {})
+        self._input_info = configure.process_raw_inputs(
+            ffmpeg_args, self.stream_type, [(None, inopts)], {}
+        )
         configure.assign_input_url(ffmpeg_args, 0, "pipe:0")
 
         # create the stdin writer without assigning the sink stream
