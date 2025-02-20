@@ -59,6 +59,8 @@ FFmpegOutputUrlComposite = Union[FFmpegUrlType, IO]
 FFmpegInputOptionTuple = tuple[FFmpegUrlType | FilterGraphObject, dict]
 FFmpegOutputOptionTuple = tuple[FFmpegUrlType, dict]
 
+raw_formats = ("rawvideo", *(formats for _, formats in utils.audio_codecs.values()))
+
 
 class FFmpegArgs(TypedDict):
     """FFmpeg arguments"""
