@@ -336,6 +336,17 @@ class FilterGraphObject(ABC):
 
         """
 
+    def has_label(
+        self, label: str, only_if: Literal["input", "output", "internal"] | None = None
+    ) -> bool:
+        """True if a linklabel is defined
+
+        :param label: name of the link label
+        :param only_if: also check for the type of the label
+        :return: True if exists
+        """
+        return False  # reimplemented by Graph
+
     @abstractmethod
     def _connect(
         self,
