@@ -421,6 +421,6 @@ def stack(
     for other in fgs[1:]:
         if use_last_sws_flags is not None:
             replace_sws_flags = True if fg.sws_flags is None else use_last_sws_flags
-        fg = fg._stack(fgb.as_filtergraph_object(other), auto_link, replace_sws_flags)
+        fg = fg._stack(other, auto_link, replace_sws_flags)
 
     return fg
