@@ -499,6 +499,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         filter: int | None = None,
         chain: int | None = None,
         *,
+        exclude_stream_specs: bool = True,
+        only_stream_specs: bool = False,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
         include_connected: bool = False,
@@ -511,6 +513,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         :param pad: pad id, defaults to None
         :param filter: filter index, defaults to None
         :param chain: chain index, defaults to None
+        :param exclude_stream_specs: True to not include input streams
+        :param only_stream_specs: True to only include input streams
         :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last input first then the rest, defaults to False
         :param include_connected: True to include pads connected to input streams, defaults to False
@@ -533,10 +537,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             chainable_only,
         ):
             # exclude a pad connected to an input stream
-            if (
-                not include_connected
-                and isinstance(other_pidx, str)
-                and is_map_option(other_pidx, allow_missing_file_id=True)
+            is_stream_spec = is_map_option(other_pidx, allow_missing_file_id=True)
+            if (is_stream_spec and exclude_stream_specs) or (
+                not is_stream_spec and only_stream_specs
             ):
                 continue
 
@@ -584,13 +587,13 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             yield v
 
     def get_num_inputs(self, chainable_only=False):
-        return len(list(self.iter_input_pads(chainable_only=chainable_only)))
+        return len(list(self.iter_input_pads(exclude_stream_specs=True, chainable_only=chainable_only)))
 
     def get_num_outputs(self, chainable_only=False):
         return len(list(self.iter_output_pads(chainable_only=chainable_only)))
 
     def iter_input_labels(
-        self, exclude_stream_specs: bool = False
+        self, exclude_stream_specs: bool = False, only_stream_specs: bool = False
     ) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled input pads of the filtergraph object
 

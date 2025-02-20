@@ -11,7 +11,7 @@ import pytest
     [
         # fmt: off
         ("[0:v][1:v]vstack", None, None, None, False, False, False, False, []),
-        ("[0:v][1:v]vstack", None, None, None, False, False, True, False, [(0,0,0),(0,0,1)]),
+        ("[0:v][1:v]vstack", None, None, None, False, False, True, False, []),
         ("[0:v][in]vstack,split[out];[out]vstack", None, None, None, False, False, False, False, [(0,0,1),(1,0,1)]),
         ("[0:v][in]vstack,split[out];[out]vstack", None, None, 0, False, False, False, False, [(0,0,1)]),
         ("[0:v][in]vstack,split[out];[out]vstack", None, None, 1, False, False, False, False, [(1,0,1)]),
