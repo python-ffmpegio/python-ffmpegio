@@ -1,19 +1,35 @@
 from tempfile import TemporaryDirectory
 from os import path
 from pprint import pprint
+import pytest
 
 import ffmpegio as ff
 
+url = "tests/assets/testmulti-1m.mp4"
+url1 = "tests/assets/testvideo-1m.mp4"
+url2 = "tests/assets/testaudio-1m.mp3"
 
-def test_media_read():
-    url = "tests/assets/testmulti-1m.mp4"
-    url1 = "tests/assets/testvideo-1m.mp4"
-    url2 = "tests/assets/testaudio-1m.mp3"
-    rates, data = ff.media.read(url, t=1, show_log=True)
-    rates, data = ff.media.read(url, map=("v:0", "v:1", "a:1", "a:0"), t=1, show_log=True)
-    rates, data = ff.media.read(url1, url2, t=1, show_log=True)
-    rates, data = ff.media.read(url2, url, map=("1:v:0", (0, "a:0")), t=1, show_log=True)
 
+@pytest.mark.parametrize(
+    "urls,kwargs",
+    [
+        ((url,), dict(t=1, show_log=True)),
+        ((url,), dict(map=("v:0", "v:1", "a:1", "a:0"), t=1, show_log=True)),
+        ((url1, url2), dict(t=1, show_log=True)),
+        ((url2, url), dict(map=("1:v:0", (0, "a:0")), t=1, show_log=True)),
+    ],
+)
+def test_media_read(urls, kwargs):
+    rates, data = ff.media.read(*urls, **kwargs)
+    print(rates)
+    print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
+
+
+def test_media_read_filter_complex():
+    urls = (url2, url) # aud + mul
+    kwargs = dict(t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono;[1:v:1]setpts=0.5*PTS')
+    # kwargs = dict(map=(['[vout]','[aout]']), t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono[aout];[1:v:1]setpts=0.5*PTS[vout]')
+    rates, data = ff.media.read(*urls, **kwargs)
     print(rates)
     print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
 
