@@ -185,17 +185,17 @@ def filters(type=None):
             data[match[4]] = FilterSummary(
                 description=match[7],
                 input=intype,
-                num_inputs=0
-                if intype == "none"
-                else len(match[5])
-                if intype != "dynamic"
-                else None,
+                num_inputs=(
+                    0
+                    if intype == "none"
+                    else len(match[5]) if intype != "dynamic" else None
+                ),
                 output=outtype,
-                num_outputs=0
-                if outtype == "none"
-                else len(match[6])
-                if outtype != "dynamic"
-                else None,
+                num_outputs=(
+                    0
+                    if outtype == "none"
+                    else len(match[6]) if outtype != "dynamic" else None
+                ),
                 timeline_support=match[1] == "T",
                 slice_threading=match[2] == "S",
                 command_support=match[3] == "C",
@@ -920,11 +920,11 @@ def _get_filter_option(str, name):
     conv = (
         partial(_conv_func, int)
         if type in ("int", "int64", "uint64")
-        else partial(_conv_func, float)
-        if type in ("float", "double")
-        else partial(_conv_func, Fraction)
-        if type == "rational"
-        else (lambda s: s)
+        else (
+            partial(_conv_func, float)
+            if type in ("float", "double")
+            else partial(_conv_func, Fraction) if type == "rational" else (lambda s: s)
+        )
     )
 
     ranges = (
@@ -1092,9 +1092,7 @@ def filter_info(name):
             options = extra_options.pop(opt_name)
         elif len(extra_options) == 1:
             o_name, options = extra_options.popitem()
-            logger.info(
-                f"filter_info({name}): assigned mismatched AVOptions {o_name}."
-            )
+            logger.info(f"filter_info({name}): assigned mismatched AVOptions {o_name}.")
         else:
             logger.warning(
                 f"filter_info({name}): none of the AVOption sets appears to be the main option set:\n   {[k for k in extra_options]}"

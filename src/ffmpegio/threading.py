@@ -268,8 +268,8 @@ class LoggerThread(Thread):
         :raises e: FFmpegError only if log is present
 
         Note: This method throws the exception regardless of the thread's status if log is available.
-        """        
-        
+        """
+
         self.join(timeout)
         e = self.Exception
         if e is not None:
@@ -488,7 +488,9 @@ class ReaderThread(Thread):
         while True:
             # if not self.is_alive() or timeout and timeout > time():
             try:
-                data = self._queue.get(self.is_alive() and self._collect, timeout and timeout - time())
+                data = self._queue.get(
+                    self.is_alive() and self._collect, timeout and timeout - time()
+                )
                 self._queue.task_done()
                 assert data is not None
                 arrays.append(data)
