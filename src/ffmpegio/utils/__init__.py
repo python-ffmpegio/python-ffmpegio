@@ -648,6 +648,43 @@ def analyze_video_stream(
     return inopt_vals
 
 
+def analyze_audio_stream(
+    stream_specifier: str, inurl: str, inopts: dict, input_info: InputSourceDict
+) -> tuple[int | None, str | None, int | None]:
+    """analyze input audio stream
+
+    :param args: FFmpeg arguments. The option dict in args['outputs'][ofile][1] may be modified.
+    :param ofile: output file index, defaults to 0
+    :param input_info: list of input information, defaults to None
+    :return ar: sampling rate
+    :return sample_fmt: input data type (Numpy style)
+    :return ac: number of channels
+
+    * Possible Output Options Modification
+      - "f" and "c:a" - raw audio format and codec will always be set
+      - "sample_fmt" - planar format to non-planar equivalent format or 'dbl' if format is unknown
+      -
+
+    * args['outputs'][ofile]['map'] is a valid mapping str (not a list of str)
+    * If complex filtergraph(s) is used, args['global_options']['filter_complex'] must be a list of fgb.Graph objects
+
+    """
+
+    options = ["ar", "sample_fmt", "ac"]
+    fields = ["sample_rate", "sample_fmt", "channels"]
+
+    inopt_vals = [inopts.get(o, None) for o in options]
+
+    # fill the still missing values directly from the input url
+    if not all(inopt_vals):
+        st_vals = analyze_input_stream(
+            fields, stream_specifier, "audio", inurl, inopts, input_info
+        )
+        inopt_vals = [v or s for v, s in zip(inopt_vals, st_vals)]
+
+    return inopt_vals
+
+
 def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject],
     inputs: list[tuple[str | None, dict]],
