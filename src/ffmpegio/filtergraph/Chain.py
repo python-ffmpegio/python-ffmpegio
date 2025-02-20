@@ -101,10 +101,11 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         """get the number of chains"""
         return len(self)
 
-    def get_num_filters(self, chain: int) -> int:
+    def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain
+        :param chain: id of the chain, defaults to None to get the total number 
+                      of filters across all chains
         """
 
         if chain:
