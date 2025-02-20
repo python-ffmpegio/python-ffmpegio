@@ -952,6 +952,7 @@ def resolve_raw_output_streams(
                 "media_type": info["media_type"],
                 "input_file_id": None,
                 "input_stream_id": None,
+                "linklabel": spec,
             }
         elif (
             "index" in opt["stream_specifier"]
@@ -1022,9 +1023,9 @@ def auto_map(
         return {
             linklabel: {
                 "dst_type": "buffer",
-                "user_map": None,
+                "user_map": linklabel[1:-1],
                 "media_type": info["media_type"],
-                "linklabel": linklabel[1:-1],
+                "linklabel": linklabel,
             }
             for linklabel, info in fg_info.items()
         }
@@ -1041,9 +1042,9 @@ def auto_map(
 
     # if no filtergraph, get all video & audio streams from all the input urls
     return {
-        next_map_option(i, media_type): {
+        (spec := next_map_option(i, media_type)): {
             "dst_type": "buffer",
-            "user_map": None,
+            "user_map": spec,
             "media_type": media_type,
             "input_file_id": i,
             "input_stream_id": j,
