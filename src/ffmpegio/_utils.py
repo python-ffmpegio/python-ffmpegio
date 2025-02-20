@@ -83,7 +83,7 @@ def as_multi_option(
         else (
             SeqCls(value)
             if isinstance(value, Sequence) and not isinstance(value, exclude_classes)
-            else SeqCls(value)
+            else SeqCls([value])
         )
     )
 
