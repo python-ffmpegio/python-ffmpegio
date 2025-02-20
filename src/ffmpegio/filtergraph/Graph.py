@@ -598,9 +598,12 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """iterate over the dangling labeled input pads of the filtergraph object
 
         :param exclude_stream_specs: True to not include input streams
+        :param only_stream_specs: True to only include input streams
         :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
-        for label_index in self._links.iter_inputs(exclude_stream_specs):
+        for label_index in self._links.iter_inputs(
+            exclude_stream_specs, only_stream_specs
+        ):
             yield label_index
 
     def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
