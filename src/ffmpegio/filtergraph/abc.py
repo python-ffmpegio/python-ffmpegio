@@ -217,11 +217,12 @@ class FilterGraphObject(ABC):
     # Label management methods (default operation for non-Graph objects)
 
     def iter_input_labels(
-        self, exclude_stream_specs: bool = False
+        self, exclude_stream_specs: bool = False, only_stream_specs: bool = False
     ) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled input pads of the filtergraph object
 
         :param exclude_stream_specs: True to not include input streams
+        :param only_stream_specs: True to only include input streams
         :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
 

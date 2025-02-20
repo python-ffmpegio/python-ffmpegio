@@ -456,18 +456,20 @@ class GraphLinks(UserDict):
                 yield v
 
     def iter_inputs(
-        self, exclude_stream_specs: bool = True
+        self, exclude_stream_specs: bool = True, only_stream_specs: bool = False
     ) -> Generator[tuple[str, PAD_INDEX]]:
         """Iterate over only input labels, possibly repeating the same label if shared among
            multiple input pad ids
 
         :param exclude_stream_specs: True to not include input streams
+        :param only_stream_specs: True to only include input streams
         :yield: label and pad index
         """
         for label, (inpad, outpad) in self.data.items():
-            if outpad is None and not (
-                exclude_stream_specs
-                and is_map_option(label, allow_missing_file_id=True)
+            is_stream = is_map_option(label, allow_missing_file_id=True)
+            if outpad is None and (
+                (is_stream and not exclude_stream_specs)
+                or not (is_stream or only_stream_specs)
             ):
                 for d in self.iter_inpad_ids(inpad):
                     yield (label, d)
