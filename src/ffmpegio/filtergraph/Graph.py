@@ -127,11 +127,15 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """get the number of hains"""
         return len(self)
 
-    def get_num_filters(self, chain: int) -> int:
+    def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain
+        :param chain: id of the chain, defaults to None to get the total number
+                      of filters across all chains
         """
+
+        if chain is None:
+            return sum(len(fc) for fc in self)
 
         if chain < 0 or chain >= len(self):
             raise ValueError(f"{chain=} is invalid.")
