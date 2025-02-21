@@ -6,37 +6,17 @@ from os import path
 import pytest
 
 import ffmpegio as ff
+from ffmpegio import streams
 
+mult_url = "tests/assets/testmulti-1m.mp4"
 video_url = "tests/assets/testvideo-1m.mp4"
 audio_url = "tests/assets/testaudio-1m.mp3"
 outext = ".mp4"
 
-@pytest.mark.skip(reason="to be implemented")
-def test_transcoder():
-    from ffmpegio.streams.PipedStreams import Transcoder
 
-    vsz = path.getsize(video_url) // 100
-    asz = path.getsize(audio_url) // 100
-    logging.info(f"{vsz=}")
-    logging.info(f"{asz=}")
-
-    with (
-        open(video_url, "rb") as vf,
-        open(audio_url, "rb") as af,
-        Transcoder(nb_inputs=2, show_log=True) as merger,
-    ):
-        while True:
-            vdata = vf.read(vsz)
-            if vdata:
-                merger.write(0, vdata)
-
-            adata = af.read(asz)
-            if adata:
-                merger.write(1, adata)
-
-            F = merger.read_nowait()
-            logging.info(f"read {len(F)} bytes")
-
-
-if __name__ == "__main__":
-    test_merger()
+def test_PipedMediaReader():
+    with streams.PipedMediaReader(mult_url, t=1) as reader:
+        # data = reader.read(2)
+        for data in reader:
+            for k, v in data.items():
+                print(f"{k}: {len(v['buffer'])}")

@@ -1,125 +1,154 @@
 from __future__ import annotations
 
-from time import time
 import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from .. import utils, configure, ffmpegprocess, plugins
-from ..threading import LoggerThread, ReaderThread, WriterThread
-
 from typing_extensions import Unpack
 from collections.abc import Sequence
-from ..typing import (
-    Literal,
-    Any,
-    RawStreamDef,
-    ProgressCallable,
-    RawDataBlob,
-    StreamSpecDict,
-    FFmpegArgs
-)
+from .._typing import Any, ProgressCallable, RawDataBlob
+from ..configure import FFmpegInputUrlComposite, FFmpegArgs, FFmpegUrlType, MediaType
 
-import contextlib
-from io import BytesIO
+import sys
+from time import time
 from fractions import Fraction
+from contextlib import ExitStack
 
 from namedpipe import NPopen
 
-from ..threading import WriterThread
-from ..filtergraph.presets import merge_audio
-
-from .. import ffmpegprocess, utils, configure, FFmpegError, plugins, filtergraph as fgb
-from ..utils import avi, pop_global_options
-from ..utils.log import extract_output_stream
-from ..threading import WriterThread, ReaderThread
-from ..probe import streams_basic
-from ..configure import init_media_read, init_media_write
+from .. import configure, ffmpegprocess, plugins
+from ..threading import LoggerThread, ReaderThread, WriterThread
+from ..errors import FFmpegError, FFmpegioError
 
 # fmt:off
-__all__ = ["Trancoder"]
+__all__ = ["PipedMediaReader"]
 # fmt:on
 
-class PipedRunner:
-    def __init__(
-        self,
-        args: FFmpegArgs,
-        input_info: list,
-        output_info: dict,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        blocksize:int=None,
-        sp_kwargs: dict | None = None,
-        **options: Unpack[dict[str, Any]],
-    ):
-        ...
 
-class PipedReader(PipedRunner):
+class PipedMediaReader(ExitStack):
     def __init__(
         self,
-        *urls: * tuple[str | tuple[str, dict[str, Any] | None]],
+        *urls: * tuple[
+            FFmpegInputUrlComposite | tuple[FFmpegUrlType, dict[str, Any] | None]
+        ],
         map: Sequence[str] | dict[str, dict[str, Any] | None] | None = None,
+        ref_stream: int = 0,
+        blocksize: int | None = None,
+        default_timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
-        blocksize:int=None,
+        queuesize: int | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[dict[str, Any]],
     ):
-        ffmpeg_args, self._output_info, self._resolve_outputs = configure.init_media_read(urls, map, options)
+        """Read video and audio data from multiple media files
 
-        # run FFmpeg
+        :param *urls: URLs of the media files to read or a tuple of the URL and its input option dict.
+        :param map: FFmpeg map options
+        :param ref_stream: index of the reference stream to pace read operation, defaults to 0. The
+                           reference stream is guaranteed to have a frame data on every read operation.
+        :param progress: progress callback function, defaults to None
+        :param show_log: True to show FFmpeg log messages on the console,
+                        defaults to None (no show/capture)
+                        Ignored if stream format must be retrieved automatically.
+        :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
+                            input url or '_in' to be applied to all inputs. The url-specific option gets the
+                            preference (see :doc:`options` for custom options)
 
-        self.dtype = None  # :str: output data type
-        self.shape = (
-            None  # :tuple of ints: dimension of each video frame or audio sample
+        Note: Only pass in multiple urls to implement complex filtergraph. It's significantly faster to run
+            `ffmpegio.video.read()` for each url.
+
+        Specify the streams to return by `map` output option:
+
+            map = ['0:v:0','1:a:3'] # pick 1st file's 1st video stream and 2nd file's 4th audio stream
+
+        Unlike :py:mod:`video` and :py:mod:`image`, video pixel formats are not autodetected. If output
+        'pix_fmt' option is not explicitly set, 'rgb24' is used.
+
+        For audio streams, if 'sample_fmt' output option is not specified, 's16'.
+        """
+
+        super().__init__()
+
+        # initialize FFmpeg argument dict and get input & output information
+        args, self._input_info, self._output_info = configure.init_media_read(
+            urls, map, options
         )
-        self.samplesize = (
-            None  #:int: number of bytes of each video frame or audio sample
-        )
-        self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
-        self.sp_kwargs = sp_kwargs  #:dict[str,Any]: additional keyword arguments for subprocess.Popen
-
-        # abstract method to finalize the options => sets self.dtype and self.shape if known
-        self._finalize(ffmpeg_args)
 
         # create logger without assigning the source stream
         self._logger = LoggerThread(None, show_log)
 
-        kwargs = {**sp_kwargs} if sp_kwargs else {}
-        kwargs.update({"stdin": stdin, "progress": progress, "capture_log": True})
+        # prepare FFmpeg keyword arguments
+        self._args = {
+            "ffmpeg_args": args,
+            "progress": progress,
+            "capture_log": True,
+            "sp_kwargs": sp_kwargs,
+            "on_exit": self._stop_readers,
+        }
 
-        # start FFmpeg
-        self._proc = ffmpegprocess.Popen(ffmpeg_args, **kwargs)
+        # set the default read block size for the referenc stream
+        info = self._output_info[ref_stream]
+        if blocksize is None:
+            blocksize = 1 if info["media_type"] == "video" else 1024
+        self.blocksize = blocksize
+        self.default_timeout = default_timeout
+        self._ref = ref_stream
+        self._rates = [v["media_info"][2] for v in self._output_info]
+        self._n0 = [0] * len(self._output_info)  # timestamps of the last read sample
+        self._pipe_kws = {
+            "queue_size": queuesize,
+            "update_rate": self._rates[self._ref] / Fraction(blocksize),
+        }
+
+        hook = plugins.get_hook()
+        self._converters = {"video": hook.bytes_to_video, "audio": hook.bytes_to_audio}
+        self._get_bytes = {"video": hook.video_bytes, "audio": hook.audio_bytes}
+
+    def __enter__(self):
+        super().__enter__()
+
+        # set up and activate pipes and read/write threads
+        self._piped_outputs = configure.init_named_pipes(
+            self._args["ffmpeg_args"],
+            self._input_info,
+            self._output_info,
+            self,
+            **self._pipe_kws,
+        )
+
+        self._n0 = [0] * len(self._output_info)  # timestamps of the last read sample
+
+        # run the FFmpeg
+        self._proc = ffmpegprocess.Popen(**self._args)
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
         self._logger.start()
 
-        # if byte data is given, feed it
-        if input is not None:
-            self._proc.stdin.write(input)
+        # wait until all the reader threads are running
+        for info in self._output_info:
+            info["reader"].wait_till_running()
 
-        # wait until output stream log is captured if output format is unknown
+        return self
+
+    def open(self):
+        self.__enter__()
+
+    def __exit__(self, *exc_details):
         try:
-            if self.dtype is None or self.shape is None:
-                logger.debug(
-                    "[reader main] waiting for logger to provide output stream info"
-                )
-                info = self._logger.output_stream()
-                logger.debug(f"[reader main] received {info}")
-                self._finalize_array(info)
-            else:
-                self._logger.index("Output")
+            if self._proc is not None and self._proc.poll() is None:
+                # kill the ffmpeg runtime
+                self._proc.terminate()
+                if self._proc.poll() is None:
+                    self._proc.kill()
+                self._proc = None
         except:
-            if self._proc.poll() is None:
-                raise self._logger.Exception
-            else:
-                raise ValueError("failed retrieve output data format")
-
-        self.samplesize = utils.get_samplesize(self.shape, self.dtype)
-
-        self.blocksize = blocksize or max(1024**2 // self.samplesize, 1)
-        logger.debug("[reader main] completed init")
+            if not exc_details[0]:
+                exc_details = sys.exc_info()
+        finally:
+            self._logger.join()
+            super().__exit__(*exc_details)
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -131,68 +160,70 @@ class PipedReader(PipedRunner):
 
         """
 
-        if self._proc is None:
-            return
+        self.__exit__(None, None, None)
 
-        self._proc.stdout.close()
-        self._proc.stderr.close()
+    def specs(self) -> list[str]:
+        """list of specifiers of the streams"""
 
-        if self._proc.poll() is None:
-            try:
-                self._proc.terminate()
-                if self._proc.poll() is None:
-                    self._proc.kill()
-            except:
-                print("failed to terminate")
-                pass
+        return [v["user_map"] for v in self._output_info]
 
-        logger.debug(f"[reader main] FFmpeg closed? {self._proc.poll()}")
+    def types(self) -> dict[str, MediaType]:
+        """media type associated with the streams (key)"""
+        return {v["user_map"]: v["media_type"] for v in self._output_info}
 
-        try:
-            self._proc.stdin.close()
-        except:
-            pass
-        self._logger.join()
+    def rates(self) -> dict[str, int | Fraction]:
+        """sample or frame rates associated with the streams (key)"""
+        return {v["user_map"]: v["media_info"][2] for v in self._output_info}
+
+    def dtypes(self) -> dict[str, str]:
+        """frame/sample data type associated with the streams (key)"""
+        return {v["user_map"]: v["media_info"][0] for v in self._output_info}
+
+    def shapes(self) -> dict[str, tuple[int]]:
+        """frame/sample shape associated with the streams (key)"""
+        return {v["user_map"]: v["media_info"][1] for v in self._output_info}
 
     @property
-    def closed(self):
-        """:bool: True if the stream is closed."""
+    def closed(self) -> bool:
+        """True if the stream is closed."""
         return self._proc.poll() is not None
 
     @property
-    def lasterror(self):
-        """:FFmpegError: Last error FFmpeg posted"""
+    def lasterror(self) -> FFmpegError:
+        """Last error FFmpeg posted"""
         if self._proc.poll():
             return self._logger.Exception()
         else:
             return None
 
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
+    def _stop_readers(self, returncode):
+        # ffmpegprocess on_exit callback function
+        for info in self._output_info:
+            info["reader"].cool_down()
 
     def __iter__(self):
         return self
 
     def __next__(self):
-        F = self.read(self.blocksize)
-        if F is None:
+        F = self.read(self.blocksize, self.default_timeout)
+        if not any(
+            len(self._get_bytes[info["media_type"]](obj=f))
+            for f, info in zip(F.values(), self._output_info)
+        ):
             raise StopIteration
         return F
 
-    def readlog(self, n=None):
+    def readlog(self, n: int = None) -> str:
         if n is not None:
             self._logger.index(n)
         with self._logger._newline_mutex:
             return "\n".join(self._logger.logs or self._logger.logs[:n])
 
-    def read(self, n=-1):
+    def read(self, n: int = -1, timeout: float | None = None) -> dict[str, RawDataBlob]:
         """Read and return numpy.ndarray with up to n frames/samples. If
-        the argument is omitted, None, or negative, data is read and
-        returned until EOF is reached. An empty bytes object is returned
-        if the stream is already at EOF.
+        the argument is omitted or negative, data is read and returned until
+        EOF is reached. An empty bytes object is returned if the stream is
+        already at EOF.
 
         If the argument is positive, and the underlying raw stream is not
         interactive, multiple raw reads may be issued to satisfy the byte
@@ -202,27 +233,32 @@ class PipedReader(PipedRunner):
 
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
-        logger.debug(f"[reader main] reading {n} samples")
-        b = self._proc.stdout.read(n * self.samplesize if n > 0 else n)
-        logger.debug(f"[reader main] read {len(b)} bytes")
-        if not len(b):
-            self._proc.stdout.close()
-            return None
-        return self._converter(b=b, shape=self.shape, dtype=self.dtype, squeeze=False)
 
-    def readinto(self, array):
-        """Read bytes into a pre-allocated, writable bytes-like object array and
-        return the number of bytes read. For example, b might be a bytearray.
+        # compute the number of frames to read per stream
+        if self._n0 and n > 0:
+            T = n / self._rates[self._ref]  # duration
 
-        Like read(), multiple reads may be issued to the underlying raw stream,
-        unless the latter is interactive.
+            n1 = [(T * r) + n0 for r, n0 in zip(self._rates, self._n0)]
+            nread = [int(n1 - n0) for n0, n1 in zip(self._n0, n1)]
+            self._n0 = n1
+        else:
+            nread = [n] * len(self._output_info)
+            self._n0 = None
 
-        A BlockingIOError is raised if the underlying raw stream is in non
-        blocking-mode, and has no data available at the moment."""
+        data = {}
+        for info, nr in zip(self._output_info, nread):
 
-        return (
-            self._proc.stdout.readinto(self._memoryviewer(obj=array)) // self.samplesize
-        )
+            converter = self._converters[info["media_type"]]
+            dtype, shape, _ = info["media_info"]
+            data[info["user_map"]] = converter(
+                b=info["reader"].read(nr, timeout) if nr else b"",
+                dtype=dtype,
+                shape=shape,
+                squeeze=False,
+            )
+
+        return data
+
 
 class PipedWriter: ...
 
