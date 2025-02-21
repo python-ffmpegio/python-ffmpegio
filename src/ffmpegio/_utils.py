@@ -88,11 +88,22 @@ def as_multi_option(
     )
 
 
-def dtype_itemsize(dtype):
+def dtype_itemsize(dtype: str) -> int:
+    """get the byte size of each dtype sample
+
+    :param dtype: numpy-style data type string
+    :return: number of bytes per audio sample/video pixel
+    """    
     return int(dtype[-1])
 
 
-def get_samplesize(shape, dtype):
+def get_samplesize(shape: int, dtype: str) -> int:
+    """get the byte size of each video frame or audio sample
+
+    :param shape: sample shape
+    :param dtype: numpy-style data type string
+    :return: number of bytes per audio sample (all channels) or video frame
+    """
     return prod(shape) * dtype_itemsize(dtype)
 
 
