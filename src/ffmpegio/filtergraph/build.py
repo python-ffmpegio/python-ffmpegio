@@ -411,6 +411,8 @@ def stack(
     n = len(fgs)
     if not n:
         return fgb.Graph()
+    if len(fgs) == 1:
+        return fgb.as_filtergraph_object(fgs[0], copy=True)
 
     fg = fgb.as_filtergraph(fgs[0], copy=not inplace)
     
