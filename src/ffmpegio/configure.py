@@ -337,6 +337,7 @@ def finalize_video_read_opts(
             input_info[ifile],
         )
 
+        # directly from the input url (if not forced via input options)
         if has_simple_filter:
 
             # create a source chain with matching spec and attach it to the af graph
@@ -1472,7 +1473,9 @@ def retrieve_input_stream_ids(
 
 
 def init_media_read(
-    urls: FFmpegInputUrlComposite,
+    urls: list[
+        FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict[str, Any] | None]
+    ],
     map: Sequence[str] | dict[str, dict[str, Any] | None] | None,
     options: dict[str, Any],
 ) -> tuple[FFmpegArgs, list[InputSourceDict], list[RawOutputInfoDict]]:

@@ -989,7 +989,7 @@ class SimpleFilterBase:
         self._writer.join()  # wait until all written data reaches FFmpeg
         self._proc.stdin.close()  # close stdin -> triggers ffmpeg to shutdown
         self._proc.wait()
-        y = self._reader.read_all(timeout) # read whatever is left in the read queue
+        y = self._reader.read_all(timeout)  # read whatever is left in the read queue
         nframes = len(y) // self._bps_out
         self.nout += nframes
         return self._converter(
