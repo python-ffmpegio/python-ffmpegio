@@ -296,7 +296,8 @@ class ReaderThread(Thread):
         self.itemsize = itemsize or 2**20  #:int: number of bytes per time sample
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
         self._carryover = None  # extra data that was not previously read by user
-        self._collect = True
+        self._halt = Event()
+        self._running = Event()
         self._retry_delay = 0.001 if retry_delay is None else retry_delay
 
     def start(self):
@@ -309,9 +310,10 @@ class ReaderThread(Thread):
 
     def cool_down(self):
         # stop enqueue read samples
-        self._collect = False
+        self._halt.set()
 
     def join(self, timeout=None):
+        self._halt.set()
         if self._queue.full():
             if timeout:
                 self._queue.not_full.wait(timeout)
@@ -323,6 +325,12 @@ class ReaderThread(Thread):
 
         # if queue is full,
         super().join(timeout)
+
+    def is_running(self):
+        return self._running.is_set()
+
+    def wait_till_running(self, timeout: float | None = None) -> bool:
+        return self._running.wait(timeout)
 
     def __enter__(self):
         self.start()
@@ -341,7 +349,8 @@ class ReaderThread(Thread):
         logger.debug("waiting for pipe to open")
         stream = self.stdout.wait() if is_npipe else self.stdout
         logger.debug("starting to read")
-        while self._collect:
+        self._running.set()
+        while not self._halt.is_set():
             try:
                 data = stream.read(blocksize)
                 logger.debug("read %d bytes", len(data))
@@ -353,23 +362,24 @@ class ReaderThread(Thread):
             if not data:
                 if stream.closed:  # just in case
                     logger.info("ReaderThread no data, stream is closed, exiting")
+                    self._halt.set()
                     break
                 else:
                     # pause a bit then try again
                     sleep(self._retry_delay)
                     continue
 
-            if self._collect:  # True until self.cooloff
+            if not self._halt.is_set():  # True until self.cooloff
                 self._queue.put(data)
                 # print(f"reader thread: queued samples")
 
         logger.debug("stopping to read")
 
-        if self._collect:  # True until self.cooloff
-            logger.info("ReaderThread sending the sentinel")
-            self._queue.put(None)  # sentinel for eos
+        logger.info("ReaderThread sending the sentinel")
+        self._queue.put(None)  # sentinel for eos
 
         logger.info("ReaderThread exiting")
+        self._running.clear()
 
     def read(self, n: int = -1, timeout: float | None = None) -> bytes:
         """read n samples
@@ -380,7 +390,7 @@ class ReaderThread(Thread):
         """
 
         # wait till matching line is read by the thread
-        block = (self.is_alive() and self._collect) and n != 0
+        block = (self.is_alive() and not self._halt.is_set()) and n != 0
         if timeout is not None:
             timeout = time() + timeout
 
@@ -399,7 +409,7 @@ class ReaderThread(Thread):
         nr = 0
         while True:
             tout = timeout and timeout - time()
-            if tout <= 0:
+            if timeout and tout <= 0:
                 break
             try:
                 b = self._queue.get(block, tout)
@@ -442,7 +452,7 @@ class ReaderThread(Thread):
             # if not self.is_alive() or timeout and timeout > time():
             try:
                 data = self._queue.get(
-                    self.is_alive() and self._collect, timeout and timeout - time()
+                    self.is_alive() and not self._halt, timeout and timeout - time()
                 )
                 self._queue.task_done()
                 assert data is not None
