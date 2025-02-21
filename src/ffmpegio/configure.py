@@ -1212,10 +1212,9 @@ def process_url_inputs(
 def process_raw_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    fg_info: dict[str, dict] | None,
     streams: Sequence[str] | dict[str, dict[str, Any] | None] | None,
     options: dict[str, Any],
-) -> list[RawOutputInfoDict]:
+) -> tuple[list[RawOutputInfoDict], dict[str, dict] | None]:
     """analyze and process piped raw outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1223,8 +1222,21 @@ def process_raw_outputs(
     :param input_info: list of input information (same length as `args['inputs'])
     :param streams: user's list of map options to be included
     :param options: default output options
-    :return: list of output information
+    :return output_info: list of output information
+    :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
+
+    gopts = args["global_options"]
+    if "filter_complex" in gopts:
+        gopts["filter_complex"], fg_info = (
+            utils.analyze_complex_filtergraphs(
+                gopts["filter_complex"], args["inputs"], input_info
+            )
+            if "filter_complex" in gopts
+            else None
+        )
+    else:
+        fg_info = None
 
     # resolve requested output streams
     stream_info: dict[str, RawOutputInfoDict] = (
@@ -1255,7 +1267,7 @@ def process_raw_outputs(
             else finalize_video_read_opts
         )(args, i, input_info, fg_info)
 
-    return list(stream_info.values())
+    return list(stream_info.values()), fg_info
 
 
 def process_raw_inputs(
@@ -1326,12 +1338,11 @@ def process_raw_inputs(
 def process_url_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    fg_info: dict[str, dict] | None,
     urls: list[
         FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
     ],
     options: dict[str, Any],
-) -> list[RawOutputInfoDict]:
+) -> tuple[list[RawOutputInfoDict], dict[str, Any] | None]:
     """analyze and process url outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1342,8 +1353,21 @@ def process_url_outputs(
     :param urls: output file names and optionally with file-specific options
     :param options: default output options. If `"map"` option is given, it is appended
                     to the per-file `"map"` option in `streams` argument
-    :return: list of output information
+    :return output_info: list of output information
+    :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
+
+    gopts = args["global_options"]
+    if "filter_complex" in gopts:
+        gopts["filter_complex"], fg_info = (
+            utils.analyze_complex_filtergraphs(
+                gopts["filter_complex"], args["inputs"], input_info
+            )
+            if "filter_complex" in gopts
+            else None
+        )
+    else:
+        fg_info = None
 
     missing_map = False
     output_info_list = [None] * len(urls)
@@ -1391,7 +1415,7 @@ def process_url_outputs(
             if "map" not in opts:
                 opts["map"] = map_opts
 
-        return output_info_list
+    return output_info_list, fg_info
 
 
 def assign_input_url(args: FFmpegArgs, ifile: int, url: str):
@@ -1524,15 +1548,8 @@ def init_media_read(
     # analyze and assign inputs
     input_info = process_url_inputs(args, urls, inopts_default)
 
-    fg_info = None
-    if "filter_complex" in gopts:
-        # prepare complex filter output
-        gopts["filter_complex"], fg_info = utils.analyze_complex_filtergraphs(
-            gopts["filter_complex"], args["inputs"], input_info
-        )
-
     # analyze and assign outputs
-    output_info = process_raw_outputs(args, input_info, fg_info, map, options)
+    output_info, fg_info = process_raw_outputs(args, input_info, map, options)
 
     return args, input_info, output_info
 
@@ -1629,19 +1646,21 @@ def init_media_write(
     if extra_inputs is not None:
         input_info.extend(process_url_inputs(args, extra_inputs, {}))
 
-    if "filter_complex" in gopts:
-        gopts["filter_complex"], fg_info = (
-            utils.analyze_complex_filtergraphs(
-                gopts["filter_complex"], args["inputs"], input_info
-            )
-            if "filter_complex" in gopts
-            else None
-        )
-    else:
-        fg_info = None
+    # make sure all inputs are complete
+    ready = True
+    for (url, opts), info in zip(args["inputs"], input_info):
+        if url is None and info["src_type"] == "buffer":
+            opt_names = {
+                "audio": ("ar", "sample_fmt", "ac"),
+                "video": ("r", "pix_fmt", "s"),
+            }
+            if not all(o in opts for o in opt_names[info["media_type"]]):
+                ready = False
+                break
 
-    # analyze and assign outputs
-    output_info = process_url_outputs(args, input_info, fg_info, urls, options)
+    if ready:
+        # analyze and assign outputs
+        output_info, fg_info = process_url_outputs(args, input_info, urls, options)
 
     return args, input_info, output_info
 
