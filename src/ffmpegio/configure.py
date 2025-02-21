@@ -79,12 +79,14 @@ class RawOutputInfoDict(TypedDict):
     dst_type: FFmpegOutputType  # True if file path/url
     user_map: str | None  # user specified map option
     media_type: MediaType | None  #
-    input_file_id: NotRequired[int | None]
-    input_stream_id: NotRequired[int | None]
-    linklabel: NotRequired[str | None]
+    input_file_id: NotRequired[int]
+    input_stream_id: NotRequired[int]
+    linklabel: NotRequired[str]
     media_info: NotRequired[dict[str, Any]]
     pipe: NotRequired[NPopen]
     reader: NotRequired[ReaderThread]
+    itemsize: NotRequired[int]
+    nmin: NotRequired[int]
 
 
 #################################
@@ -1649,6 +1651,8 @@ def init_named_pipes(
     input_info: list[InputSourceDict],
     output_info: list[RawOutputInfoDict],
     stack: ExitStack,
+    update_rate: float | None = None,
+    queue_size: int | None = None,
 ) -> list[int]:
     """initialize named pipes for read & write operations with FFmpeg
 
@@ -1656,6 +1660,7 @@ def init_named_pipes(
     :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
     :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
     :param stack: a context manager to combine the context managers used to manage pipes and threads
+    :param update_rate: target rate at which queue transactions will occur
     :returns: a list of indices of the FFmpeg outputs that are raw data streams
 
     In addition to the retured list, this function modifies the dicts in its arguements.
@@ -1667,6 +1672,7 @@ def init_named_pipes(
     """
 
     # configure input pipes (if needed)
+    wr_kws = {"queuesize": queue_size} if queue_size else {}
     for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
         if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
             pipe = NPopen("w", bufsize=0)
@@ -1678,7 +1684,7 @@ def init_named_pipes(
                 stack.enter_context(writer)
                 # starts thread & wait for pipe connection
             elif src_type == "buffer":
-                writer = WriterThread(pipe)
+                writer = WriterThread(pipe, **wr_kws)
                 # starts thread & wait for pipe connection
                 stack.enter_context(writer)
                 writer.write(info["buffer"])
@@ -1698,9 +1704,14 @@ def init_named_pipes(
             if dst_type == "fileobj":
                 reader = CopyFileObjThread(info["fileobj"], pipe)
             elif dst_type == "buffer":
+                kws = {**wr_kws}
                 if "media_info" in info:
                     pipes_out.append(i)
-                info["reader"] = reader = ReaderThread(pipe)
+                    dtype, shape, rate = info["media_info"]
+                    kws["itemsize"] = utils.get_samplesize(shape, dtype)
+                    if update_rate is not None:
+                        kws["nmin"] = int(rate / update_rate) or 1
+                info["reader"] = reader = ReaderThread(pipe, **kws)
             else:
                 raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
             stack.enter_context(reader)  # starts thread & wait for pipe connection
