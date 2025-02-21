@@ -215,7 +215,10 @@ def test_process_url_inputs(url, opts, defopts, ret):
             [(mul_url, {})],
             [{"src_type": "url"}],
             ["split=outputs=2"],
-            {"[out0]": {"media_type": "video"}, "[out1]": {"media_type": "video"}},
+            {
+                "[out0]": {"media_type": "video", "linklabel": "[out0]"},
+                "[out1]": {"media_type": "video", "linklabel": "[out1]"},
+            },
         ),
     ],
 )
@@ -229,7 +232,11 @@ def test_auto_map(inputs, input_info, filters_complex, ret):
         args["global_options"] = {"filter_complex": filters_complex}
     out = configure.auto_map(args, input_info, filters_complex and fg_info)
     assert out == {
-        spec: {"dst_type": "buffer", "user_map": None, **info}
+        spec: {
+            "dst_type": "buffer",
+            "user_map": spec[1:-1] if "linklabel" in info else spec,
+            **info,
+        }
         for spec, info in ret.items()
     }
 
