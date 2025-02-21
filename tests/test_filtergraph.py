@@ -479,7 +479,7 @@ def test_filter_empty_handling():
     assert (fg4 * 2).compose() == ""
 
     assert (fg1 + fg3).compose() == "trim,crop"
-    assert (fg1 | fg3).compose() == "trim,crop"
+    assert (fg1 | fg3).compose() == "[UNC0]trim,crop[UNC1]"
 
     assert (fg2 + fg3).compose() == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
     assert (fg2 | fg3).compose() == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
