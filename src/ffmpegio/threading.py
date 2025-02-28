@@ -351,6 +351,8 @@ class ReaderThread(Thread):
         blocksize = (
             self.nmin if self.nmin is not None else 1 if self.itemsize > 1024 else 1024
         ) * self.itemsize
+        if self._halt.is_set():
+            return
         logger.debug("waiting for pipe to open")
         stream = self.stdout.wait() if is_npipe else self.stdout
         logger.debug("starting to read")
