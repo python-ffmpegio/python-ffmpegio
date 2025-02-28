@@ -1593,14 +1593,15 @@ def init_media_write(
     """write multiple streams to a url/file
 
     :param url: output url
-    :param input_opts: list of input option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param stream_types: list/string of 'a' or 'v', specifying the input raw streams' media types
+    :param stream_args: list of input option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
     :param merge_audio_streams: True to combine all input audio streams as a single multi-channel stream. Specify a list of the input stream id's
                                 (indices of `stream_types`) to combine only specified streams.
     :param merge_audio_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first merging stream
     :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
-    :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
                       will be applied to all input streams unless the option has been already defined in `stream_data`
     :param dtypes: list of numpy-style data type strings of input samples or frames
                    of input media streams, defaults to `None` (auto-detect).
@@ -1685,6 +1686,7 @@ def init_media_write(
             if not all(o in opts for o in opt_names[info["media_type"]]):
                 not_ready[i] = True
 
+    # analyze and assign outputs
     output_info = process_url_outputs(
         args, input_info, urls, options, skip_automapping=any(not_ready)
     )
@@ -1722,6 +1724,9 @@ def init_named_pipes(
     - The reader threads for FFmpeg outputs that are written to buffers (i.e.,
       `output_info[]['dst_type']=='buffer'`) are saved as `output_info[]['reader']`
       so the reader object can be used to retrieve the data.
+
+
+    if any output is a piped, overwrite flag (-y) is automatically inserted
     """
 
     # configure input pipes (if needed)

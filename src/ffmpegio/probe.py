@@ -420,7 +420,7 @@ def streams_basic(
     stream_spec: str | int | StreamSpecDict | None = None,
     *,
     f: str | None = None,
-) -> list[dict[str, str | Number | Fraction]]:
+) -> list:
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
@@ -436,7 +436,7 @@ def streams_basic(
     :param stream_spec: Specify stream specification, defaults to None
     :type stream_spec: str | None, optional
     :param f: Use the specified media container format, defaults to None (auto-detect)
-    :return: List of media stream information.
+    :return: List of the requested information of the matching media streams.
 
     Media Stream Information dict Entries
 
