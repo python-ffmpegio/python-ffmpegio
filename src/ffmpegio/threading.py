@@ -30,6 +30,11 @@ __all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread
 # fmt:on
 
 
+class NotEmpty(Exception):
+    "Exception raised by WriterThread.flush(timeout) if timedout."
+    pass
+
+
 class ThreadNotActive(RuntimeError):
     pass
 
