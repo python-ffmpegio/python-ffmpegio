@@ -489,8 +489,9 @@ def array_to_audio_options(data: Any) -> dict:
     :returns: dict of audio options
     """
 
-    shape = dtype = None
     shape, dtype = plugins.get_hook().audio_info(obj=data)
+    if shape is None:
+        return {}
     sample_fmt, ac = guess_audio_format(dtype, shape)
     codec, f = get_audio_codec(sample_fmt)
     return {"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}
@@ -504,7 +505,11 @@ def array_to_video_options(data: Any | None = None) -> dict:
     """
 
     s, pix_fmt = guess_video_format(*plugins.get_hook().video_info(obj=data))
-    return {"f": "rawvideo", f"c:v": "rawvideo", f"s": s, f"pix_fmt": pix_fmt}
+    return (
+        {"f": "rawvideo", f"c:v": "rawvideo"}
+        if s is None
+        else {"f": "rawvideo", f"c:v": "rawvideo", f"s": s, f"pix_fmt": pix_fmt}
+    )
 
 
 def set_sp_kwargs_stdin(
