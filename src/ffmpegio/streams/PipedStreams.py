@@ -6,8 +6,13 @@ logger = logging.getLogger("ffmpegio")
 
 from typing_extensions import Unpack
 from collections.abc import Sequence
-from .._typing import Any, ProgressCallable, RawDataBlob
-from ..configure import FFmpegInputUrlComposite, FFmpegArgs, FFmpegUrlType, MediaType
+from .._typing import Any, ProgressCallable, RawDataBlob, Literal
+from ..configure import (
+    FFmpegInputUrlComposite,
+    FFmpegUrlType,
+    MediaType,
+    FFmpegOutputUrlComposite,
+)
 
 import sys
 from time import time
@@ -16,12 +21,12 @@ from contextlib import ExitStack
 
 from namedpipe import NPopen
 
-from .. import configure, ffmpegprocess, plugins
-from ..threading import LoggerThread, ReaderThread, WriterThread
+from .. import configure, ffmpegprocess, plugins, utils
+from ..threading import LoggerThread, ReaderThread, WriterThread, NotEmpty
 from ..errors import FFmpegError, FFmpegioError
 
 # fmt:off
-__all__ = ["PipedMediaReader"]
+__all__ = ["PipedMediaReader", "PipedMediaWriter"]
 # fmt:on
 
 
@@ -260,7 +265,393 @@ class PipedMediaReader:
         return data
 
 
-class PipedWriter: ...
+class PipedMediaWriter:
+
+    _array_to_opts = {
+        "video": utils.array_to_video_options,
+        "audio": utils.array_to_audio_options,
+    }
+    _media_bytes = {"video": "video_bytes", "audio": "audio_bytes"}
+
+    def __init__(
+        self,
+        urls: (
+            FFmpegOutputUrlComposite
+            | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict]]
+        ),
+        stream_types: Sequence[Literal["a", "v"]],
+        *stream_rates_or_opts: * tuple[int | Fraction | dict, ...],
+        dtypes_in: list[str] | None = None,
+        shapes_in: list[tuple[int]] | None = None,
+        merge_audio_streams: bool | Sequence[int] = False,
+        merge_audio_ar: int | None = None,
+        merge_audio_sample_fmt: str | None = None,
+        merge_audio_outpad: str | None = None,
+        extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
+        default_timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        queuesize: int | None = None,
+        sp_kwargs: dict | None = None,
+        **options: Unpack[dict[str, Any]],
+    ):
+        """Write video and audio data from multiple media streams to one or more files
+
+        :param url: output url
+        :param stream_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
+        :param stream_rates_or_opts: either sample rate (audio) or frame rate (video)
+                                     or a dict of input options. The option dict must
+                                     include `'ar'` (audio) or `'r'` (video) to specify
+                                     the rate.
+        :param dtypes_in: list of numpy-style data type strings of input samples
+                          or frames of input media streams, defaults to `None`
+                          (auto-detect).
+        :param shapes_in: list of shapes of input samples or frames of input media
+                          streams, defaults to `None` (auto-detect).
+        :param merge_audio_streams: True to combine all input audio streams as a single multi-channel stream. Specify a list of the input stream id's
+                                    (indices of `stream_types`) to combine only specified streams.
+        :param merge_audio_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first merging stream
+        :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                            string or a pair of a url string and an option dict.
+        :param progress: progress callback function, defaults to None
+        :param show_log: True to show FFmpeg log messages on the console,
+                        defaults to None (no show/capture)
+                        Ignored if stream format must be retrieved automatically.
+        :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
+                            input url or '_in' to be applied to all inputs. The url-specific option gets the
+                            preference (see :doc:`options` for custom options)
+        """
+
+        self._stack = ExitStack()
+
+        if not isinstance(urls, list):
+            urls = [urls]
+
+        stream_args = [
+            (None, v) if isinstance(v, dict) else (v, None)
+            for v in stream_rates_or_opts
+        ]
+        args, self._input_info, self._output_info, self._deferred_open = (
+            configure.init_media_write(
+                urls,
+                stream_types,
+                stream_args,
+                merge_audio_streams,
+                merge_audio_ar,
+                merge_audio_sample_fmt,
+                merge_audio_outpad,
+                extra_inputs,
+                options,
+                dtypes_in,
+                shapes_in,
+            )
+        )
+
+        if any(self._deferred_open):
+            # temporary storage
+            self._deferred_data = [[] for _ in range(len(self._deferred_open))]
+        else:
+            # no need for deferral
+            self._deferred_open = False
+            self._deferred_data = None
+
+        # create logger without assigning the source stream
+        self._logger = LoggerThread(None, show_log)
+
+        # prepare FFmpeg keyword arguments
+        self._args = {
+            "ffmpeg_args": args,
+            "progress": progress,
+            "capture_log": True,
+            "sp_kwargs": sp_kwargs,
+            "on_exit": self._stop_readers,
+        }
+
+        # set the default read block size for the referenc stream
+        self.default_timeout = default_timeout
+        self._pipe_kws = {"queue_size": queuesize}
+
+        hook = plugins.get_hook()
+        self._converters = {"video": hook.bytes_to_video, "audio": hook.bytes_to_audio}
+        self._get_bytes = {"video": hook.video_bytes, "audio": hook.audio_bytes}
+
+        self._proc = None
+        self._piped_outputs = []
+
+    def _open(self, deferred: bool):
+
+        if deferred:
+            ffmpeg_args = self._args["ffmpeg_args"]
+            outputs = ffmpeg_args["outputs"]
+            if not any("map" in url_opts[1] for url_opts in outputs):
+                # some output file is missing `map` option
+                # add all input streams or all complex filter outputs
+                input_info = self._input_info
+                map_opts = [*configure.auto_map(ffmpeg_args, input_info, None)]
+
+                # add outputs to FFmpeg arguments
+                for _, opts in outputs:
+                    if "map" not in opts:
+                        opts["map"] = map_opts
+
+        # set up and activate pipes and read/write threads
+        self._piped_outputs = configure.init_named_pipes(
+            self._args["ffmpeg_args"],
+            self._input_info,
+            self._output_info,
+            self._stack,
+            **self._pipe_kws,
+        )
+
+        # run the FFmpeg
+        self._proc = ffmpegprocess.Popen(**self._args)
+
+        # set the log source and start the logger
+        self._logger.stderr = self._proc.stderr
+        self._logger.start()
+
+        # if any pending data, queue them
+        for src, info in zip(self._deferred_data, self._input_info):
+            if "writer" in info and len(src):
+                writer = info["writer"]
+                for data in src:
+                    writer.write(data)
+        self._deferred_data = []
+
+        # wait until all the reader threads are running
+        # for info in self._output_info:
+        #     if "reader" in info:
+        #         info["reader"].wait_till_running()
+
+        self._deferred_open = False
+
+        return self
+
+    def __enter__(self):
+        self._stack.__enter__()
+
+        if self._deferred_open is False:
+            self._open(False)
+
+        return self
+
+    def open(self):
+        self.__enter__()
+
+    def __exit__(self, *exc_details):
+
+        self.wait(self.default_timeout)
+
+        try:
+            if self._proc is not None and self._proc.poll() is None:
+                # kill the ffmpeg runtime
+                self._proc.terminate()
+                if self._proc.poll() is None:
+                    self._proc.kill()
+                self._proc = None
+        except:
+            if not exc_details[0]:
+                exc_details = sys.exc_info()
+        finally:
+            self._logger.join()
+            self._stack.__exit__(*exc_details)
+
+    def close(self):
+        """Flush and close this stream. This method has no effect if the stream is already
+            closed. Once the stream is closed, any read operation on the stream will raise
+            a ValueError.
+
+        As a convenience, it is allowed to call this method more than once; only the first call,
+        however, will have an effect.
+
+        """
+
+        self.__exit__(None, None, None)
+
+    def types(self) -> dict[str, MediaType]:
+        """media type associated with the streams (key)"""
+        return {v["user_map"]: v["media_type"] for v in self._output_info}
+
+    def rates(self) -> dict[str, int | Fraction]:
+        """sample or frame rates associated with the streams (key)"""
+        return {v["user_map"]: v["media_info"][2] for v in self._output_info}
+
+    def dtypes(self) -> dict[str, str]:
+        """frame/sample data type associated with the streams (key)"""
+        return {v["user_map"]: v["media_info"][0] for v in self._output_info}
+
+    def shapes(self) -> dict[str, tuple[int]]:
+        """frame/sample shape associated with the streams (key)"""
+        return {v["user_map"]: v["media_info"][1] for v in self._output_info}
+
+    @property
+    def closed(self) -> bool:
+        """True if the stream is closed."""
+        return self._proc.poll() is not None
+
+    @property
+    def lasterror(self) -> FFmpegError:
+        """Last error FFmpeg posted"""
+        if self._proc.poll():
+            return self._logger.Exception()
+        else:
+            return None
+
+    def _stop_readers(self, returncode):
+        # ffmpegprocess on_exit callback function
+        for info in self._output_info:
+            if "reader" in info:
+                info["reader"].cool_down()
+        if returncode:
+            raise self._logger.Exception or FFmpegError(
+                "FFmpeg failed for an unknown reason. Please check the log."
+            )
+
+    def readlog(self, n: int = None) -> str:
+        if n is not None:
+            self._logger.index(n)
+        with self._logger._newline_mutex:
+            return "\n".join(self._logger.logs or self._logger.logs[:n])
+
+    def write(self, stream_id: int, data: RawDataBlob) -> bytes | None:
+        """write a raw media data to a specified stream
+
+        :param stream_id: input stream index
+        :param data: media data blob (depends on the active data conversion plugin)
+        :return: currently available encoded data (bytes) if returning the encoded
+                 data back to Python
+
+        Write the given numpy.ndarray object, data, and return the number
+        of bytes written (always equal to the number of data frames/samples,
+        since if the write fails an OSError will be raised).
+
+        When in non-blocking mode, a BlockingIOError is raised if the data
+        needed to be written to the raw stream but it couldn’t accept all
+        the data without blocking.
+
+        The caller may release or mutate data after this method returns,
+        so the implementation should only access data during the method call.
+
+        """
+
+        # get input stream information
+        info = self._input_info[stream_id]
+        media_type = info["media_type"]
+        b = getattr(plugins.get_hook(), self._media_bytes[media_type])(obj=data)
+
+        if self._deferred_open is not False:
+            # need to collect input data type and shape from the actual data
+            # before starting the FFmpeg
+            if self._deferred_open[stream_id]:
+                # first frame of the input stream with missing information
+                # update the
+                input_args = self._args["ffmpeg_args"]["inputs"][stream_id]
+                self._args["ffmpeg_args"]["inputs"][stream_id] = (
+                    input_args[0],
+                    {**input_args[1], **self._array_to_opts[media_type](data)},
+                )
+                self._deferred_open[stream_id] = False
+
+            self._deferred_data[stream_id].append(b)
+
+            if not any(self._deferred_open):
+                # once data is written for all the necessary inputs,
+                # analyze them and start the FFmpeg
+                self._open(True)
+
+        else:
+
+            logger.debug("[writer main] writing...")
+
+            try:
+                self._input_info[stream_id]["writer"].write(b)
+            except (BrokenPipeError, OSError):
+                self._logger.join_and_raise()
+
+    def flush(self, timeout: float | None = None):
+        """block until the write buffers are emptied.
+
+        :param timeout: a timeout for blocking in seconds, or fractions
+                        thereof, defaults to None, to wait until empty
+        :raise `NotEmpty`: if a timeout is set, and the buffer is not emptied in time
+
+        ----
+        Note
+        ----
+
+        This function may hang or throw `NotEmpty` when input streams are written
+        in an unbalanced fashion. The behavior is dictated by how FFmpeg reads
+        its input data. Use the `timeout` argument to avoid hanging if in doubt.
+
+        """
+        for info in self._input_info:
+            if "writer" in info and info["writer"].is_alive():
+                info["writer"].flush(timeout)
+
+    def wait(self, timeout: float | None = None) -> int | None:
+        """close the input pipes and wait for FFmpeg to finish
+
+        :param timeout: a timeout for blocking in seconds, or fractions
+                        thereof, defaults to None, to wait until empty
+        :raise `TimeoutExpired`: if a timeout is set, and the process does not 
+                                 terminate after timeout seconds. It is safe to 
+                                 catch this exception and retry the wait.
+        :return returncode: return returncode attribute
+
+        Note that the piped output will remain accessible until `pop_encoded()` is called.
+        """
+
+        if self._proc:
+            # write the sentinel to each input queue
+            try:
+                self.flush(timeout)
+            except NotEmpty as e:
+                raise TimeoutError() from e
+
+            # wait until the FFmpeg finishes the job
+            try:
+                rc = self._proc.wait(timeout)
+            except TimeoutError:
+                raise
+            else:
+                self._proc = None
+        else:
+            rc = None
+        return rc
+
+    def pop_encoded(self, pipe_id: int | None = 0) -> bytes | tuple[bytes]:
+        """retrieve piped encoded bytes
+
+        :param pipe_id: index of the output piped, defaults to `None` to return
+                        all piped outputs. Indexing is specific to only piped
+                        outputs, e.g., `pipe_id=0` means the first piped output
+                        regardless of where the first `"pipe"` url was specified
+                        in the `urls` argument of the constructor.
+        :return: `bytes` object if index specified or a tuple of bytes if all
+                 piped outputs requested.
+        """
+
+        if pipe_id is None:
+            if not len(self._piped_outputs):
+                raise FFmpegioError("None of the outputs is piped.")
+            readers = [self._output_info[i]["reader"] for i in self._piped_outputs]
+        else:
+            try:
+                info = self._output_info[self._piped_outputs[pipe_id]]
+            except IndexError:
+                if pipe_id != 0:
+                    raise FFmpegioError(
+                        f"{pipe_id=} is not a valid piped output index."
+                    )
+                else:
+                    raise FFmpegioError(f"This writer has no piped output defined.")
+            else:
+                readers = [info["reader"]]
+
+        data_it = (reader.read_all(timeout=0) for reader in readers)
+
+        return tuple(data_it) if pipe_id is None else next(data_it)
 
 
 class PipedFilter: ...
