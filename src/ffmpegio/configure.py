@@ -1587,7 +1587,9 @@ def init_media_write(
         Sequence[FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict]] | None
     ),
     options: dict[str, Any],
-) -> tuple[FFmpegArgs, list[InputSourceDict], list[RawOutputInfoDict]]:
+    dtypes: list[str] | None = None,
+    shapes: list[tuple[int]] | None = None,
+) -> tuple[FFmpegArgs, list[InputSourceDict], list[RawOutputInfoDict], list[bool]]:
     """write multiple streams to a url/file
 
     :param url: output url
@@ -1600,6 +1602,10 @@ def init_media_write(
                          string or a pair of a url string and an option dict.
     :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
                       will be applied to all input streams unless the option has been already defined in `stream_data`
+    :param dtypes: list of numpy-style data type strings of input samples or frames
+                   of input media streams, defaults to `None` (auto-detect).
+    :param shapes: list of shapes of input samples or frames of input media streams,
+                   defaults to `None` (auto-detect).
 
     TIPS
     ----
@@ -1624,7 +1630,9 @@ def init_media_write(
     gopts = args["global_options"]  # global options dict
 
     # analyze and assign inputs
-    input_info = process_raw_inputs(args, stream_types, stream_args, inopts_default)
+    input_info = process_raw_inputs(
+        args, stream_types, stream_args, inopts_default, dtypes, shapes
+    )
 
     # map all input streams to output unless user specifies the mapping
     a_ids = [i for i, info in enumerate(input_info) if info["media_type"] == "audio"]
