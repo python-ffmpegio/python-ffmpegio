@@ -1475,6 +1475,11 @@ def retrieve_input_stream_ids(
              or in an ffprobe incompatible format, e.g., ffconcat)
     """
 
+    # check raw formats first
+    if info["src_type"] == "buffer" and "buffer" not in info:
+        # raw input real-time stream
+        return [[0, info["media_type"]]]
+
     # file/network input - process only if seekable
     # get ffprobe subprocess keywords
     url, sp_kwargs, exit_fcn = utils.set_sp_kwargs_stdin(url, info)
@@ -1483,11 +1488,6 @@ def retrieve_input_stream_ids(
         return []
 
     def get_spec(info, opts):
-        # check raw formats first
-        from_buffer = info["src_type"] == "buffer"
-        if from_buffer and opts.get("f", None) in raw_formats:
-            return [{"index": 0, "codec_type": info["media_type"]}]
-
         # run ffprobe
         return probe.streams_basic(
             url,
