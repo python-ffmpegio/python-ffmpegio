@@ -1774,4 +1774,9 @@ def init_named_pipes(
                 raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
             stack.enter_context(reader)  # starts thread & wait for pipe connection
 
+    if len(pipes_out):
+        # if any output is piped, must run in the overwrite mode
+        args["global_options"].pop("n", None)
+        args["global_options"]["y"] = None
+
     return pipes_out
