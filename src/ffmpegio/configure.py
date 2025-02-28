@@ -1606,6 +1606,10 @@ def init_media_write(
                    of input media streams, defaults to `None` (auto-detect).
     :param shapes: list of shapes of input samples or frames of input media streams,
                    defaults to `None` (auto-detect).
+    :return ffmpeg_args: FFmpeg argument dict
+    :return input_info: input stream information
+    :return output_info: output file information
+    :return not_ready: An elemtn is true if corresponding input is missing data format information
 
     TIPS
     ----
@@ -1674,20 +1678,19 @@ def init_media_write(
         input_info.extend(process_url_inputs(args, extra_inputs, {}))
 
     # make sure all inputs are complete
-    ready = True
-    for (url, opts), info in zip(args["inputs"], input_info):
+    opt_names = {"audio": ("sample_fmt", "ac"), "video": ("pix_fmt", "s")}
+    not_ready = [False] * len(input_info)
+    for i, ((url, opts), info) in enumerate(zip(args["inputs"], input_info)):
         if url is None and info["src_type"] == "buffer":
-            opt_names = {
-                "audio": ("ar", "sample_fmt", "ac"),
-                "video": ("r", "pix_fmt", "s"),
-            }
             if not all(o in opts for o in opt_names[info["media_type"]]):
-                ready = False
-                break
+                not_ready[i] = True
 
     output_info = process_url_outputs(
         args, input_info, urls, options, skip_automapping=any(not_ready)
     )
+
+
+    return args, input_info, output_info, not_ready
 
 
 def init_named_pipes(
