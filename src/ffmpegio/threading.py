@@ -487,6 +487,8 @@ class WriterThread(Thread):
         super().__init__()
         self.stdin = stdin  #:writable stream: data sink
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
+        self._empty_cond = Condition()
+        self._empty = True
 
     def join(self, timeout: float | None = None):
         # close the stream if not already closed
@@ -514,7 +516,15 @@ class WriterThread(Thread):
 
         while True:
             # get next data block
-            data = self._queue.get()
+            try:
+                data = self._queue.get_nowait()
+            except Empty:
+                # if empty, set the flag and block
+                with self._empty_cond:
+                    self._empty = True
+                    self._empty_cond.notify_all()
+                data = self._queue.get()
+
             self._queue.task_done()
             if data is None:
                 logger.info(f"writer thread: received a sentinel to stop the writer")
@@ -543,7 +553,21 @@ class WriterThread(Thread):
         if not self.is_alive():
             raise ThreadNotActive("WriterThread is not running")
 
-        data = self._queue.put(data, timeout)
+        with self._empty_cond:
+            self._queue.put(data, timeout)
+            self._empty = False
+
+    def flush(self, timeout: float | None = None):
+        """block until the write buffer is emptied
+
+        :param timeout: a timeout for blocking in seconds, or fractions
+                        thereof, defaults to None, to wait until empty
+        :raise NotEmpty: if a timeout is set, and the buffer is not emptied in time
+        """
+
+        with self._empty_cond:
+            if not (self._empty or self._empty_cond.wait(timeout)):
+                raise NotEmpty()
 
 
 class AviReaderThread(Thread):
