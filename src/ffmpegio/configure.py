@@ -1689,6 +1689,12 @@ def init_media_write(
         args, input_info, urls, options, skip_automapping=any(not_ready)
     )
 
+    # if output is piped, it must have the -f option specified
+    for url, opts in args["outputs"]:
+        if url is None and "f" not in opts:
+            raise FFmpegioError(
+                'all piped encoded output stream must have its format (`"f"`) defined in its option dict'
+            )
 
     return args, input_info, output_info, not_ready
 
