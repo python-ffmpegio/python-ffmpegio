@@ -21,6 +21,7 @@ from fractions import Fraction
 
 from . import ffmpegprocess, utils, configure, FFmpegError, plugins
 from .utils.log import extract_output_stream
+from .errors import FFmpegioError
 
 __all__ = ["read", "write"]
 
@@ -204,6 +205,9 @@ def write(
         extra_inputs,
         options,
     )
+
+    if output_info is None:
+        raise FFmpegioError("failed to format output...")
 
     kwargs = {**sp_kwargs} if sp_kwargs else {}
     kwargs.update(
