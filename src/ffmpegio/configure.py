@@ -1740,8 +1740,13 @@ def init_named_pipes(
                 writer = WriterThread(pipe, **wr_kws)
                 # starts thread & wait for pipe connection
                 stack.enter_context(writer)
-                writer.write(info["buffer"])
-                writer.write(None)  # close the
+                if "buffer" in info:
+                    # data buffer given, feed the data and terminate
+                    writer.write(info["buffer"])
+                    writer.write(None)  # close the
+                else:
+                    # if no data given, provide the access to the writer
+                    info["writer"] = writer
             else:
                 raise FFmpegioError(f"{src_type=} is an unknown input data type.")
 
