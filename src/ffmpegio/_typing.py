@@ -9,8 +9,8 @@ from fractions import Fraction
 from pathlib import Path
 from urllib.parse import ParseResult
 
-from namedpipe import NPopen
-
+if TYPE_CHECKING:
+    from .threading import WriterThread
 
 # from typing_extensions import *
 
@@ -50,4 +50,4 @@ class InputSourceDict(TypedDict):
     buffer: NotRequired[bytes]  # index of the source index
     fileobj: NotRequired[IO]  # file object
     media_type: NotRequired[MediaType]  # media type if input pipe
-    pipe: NotRequired[NPopen]  # pipe
+    writer: NotRequired[WriterThread]  # pipe
