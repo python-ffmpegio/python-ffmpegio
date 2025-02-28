@@ -1762,9 +1762,9 @@ def init_named_pipes(
             if dst_type == "fileobj":
                 reader = CopyFileObjThread(info["fileobj"], pipe)
             elif dst_type == "buffer":
+                pipes_out.append(i)
                 kws = {**wr_kws}
                 if "media_info" in info:
-                    pipes_out.append(i)
                     dtype, shape, rate = info["media_info"]
                     kws["itemsize"] = utils.get_samplesize(shape, dtype)
                     if update_rate is not None:
