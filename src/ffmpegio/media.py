@@ -193,7 +193,7 @@ def write(
     if not isinstance(urls, list):
         urls = [urls]
 
-    args, input_info, output_info = configure.init_media_write(
+    args, input_info, output_info, _ = configure.init_media_write(
         urls,
         stream_types,
         stream_args,
