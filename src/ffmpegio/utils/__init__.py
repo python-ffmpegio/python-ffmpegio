@@ -18,7 +18,7 @@ from .. import caps, plugins, probe
 from .._utils import *
 from ..stream_spec import *
 from ..errors import FFmpegError, FFmpegioError
-from .._typing import Any, MediaType, InputSourceDict
+from .._typing import Any, MediaType, InputSourceDict, RawDataBlob
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
 from ..filtergraph.presets import temp_video_src, temp_audio_src
@@ -225,7 +225,8 @@ def get_audio_codec(fmt: str) -> tuple[str, str]:
     """get pcm audio codec & format
 
     :param fmt: ffmpeg sample_fmt
-    :return: tuple of pcm codec name and container format
+    :return acodec: pcm codec name
+    :return f: container format
     """
     try:
         return audio_codecs[fmt]
@@ -483,7 +484,7 @@ def pop_global_options(options: dict[str, Any]) -> dict[str, Any]:
     return {k: options.pop(k) for k in [k for k in options.keys() if k in all_gopts]}
 
 
-def array_to_audio_options(data: Any) -> dict:
+def array_to_audio_options(data: RawDataBlob | None) -> dict:
     """create an input option dict for the given raw audio data blob
     :param data: input audio data, accessed by `audio_info` plugin hook, defaults to None (manual config)
     :returns: dict of audio options
@@ -497,7 +498,7 @@ def array_to_audio_options(data: Any) -> dict:
     return {"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}
 
 
-def array_to_video_options(data: Any | None = None) -> dict:
+def array_to_video_options(data: RawDataBlob | None = None) -> dict:
     """create an input option dict for the given raw video data blob
 
     :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)
