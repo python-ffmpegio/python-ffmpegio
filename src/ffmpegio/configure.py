@@ -1290,10 +1290,12 @@ def process_raw_inputs(
     stream_types: Sequence[Literal["a", "v"]],
     stream_args: Sequence[RawStreamDef],
     inopts_default: dict[str, Any],
+    dtypes: list[str] | None = None,
+    shapes: list[tuple[int]] | None = None,
 ) -> list[InputSourceDict]:
 
     input_info: list[InputSourceDict] = []
-    for mtype, arg in zip(stream_types, stream_args):
+    for i, (mtype, arg) in enumerate(zip(stream_types, stream_args)):
 
         try:
             a1, a2 = arg
@@ -1335,11 +1337,21 @@ def process_raw_inputs(
                 opts.update(utils.array_to_audio_options(data))
                 data = plugins.get_hook().audio_bytes(obj=data)
 
+            elif dtypes and shapes:
+                sample_fmt, ac = utils.guess_audio_format(dtypes[i], shapes[i])
+                acodec, f = utils.get_audio_codec(sample_fmt)
+                opts.update({"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f})
+
         else:  # video
             media_type = "video"
             if data is not None:
                 opts.update(utils.array_to_video_options(data))
                 data = plugins.get_hook().video_bytes(obj=data)
+            elif dtypes and shapes:
+                pix_fmt, s = utils.guess_video_format(shapes[i], dtypes[i])
+                opts.update(
+                    {"f": "rawvideo", f"c:v": "rawvideo", "pix_fmt": pix_fmt, "s": s}
+                )
 
         info = {"src_type": "buffer", "media_type": media_type}
         if data is not None:
