@@ -1369,6 +1369,7 @@ def process_url_outputs(
         FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
     ],
     options: dict[str, Any],
+    skip_automapping: bool = False,
 ) -> tuple[list[RawOutputInfoDict], dict[str, Any] | None]:
     """analyze and process url outputs
 
@@ -1380,6 +1381,8 @@ def process_url_outputs(
     :param urls: output file names and optionally with file-specific options
     :param options: default output options. If `"map"` option is given, it is appended
                     to the per-file `"map"` option in `streams` argument
+    :param skip_automapping: True to skip automapping, uses the default mapping,
+                             defaults to False
     :return output_info: list of output information
     :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
@@ -1420,7 +1423,8 @@ def process_url_outputs(
         if "map" not in opts:
             missing_map = True
 
-    if missing_map:
+    if missing_map and not skip_automapping:
+
         # some output file is missing `map` option
         # add all input streams or all complex filter outputs
         map_opts = [*auto_map(args, input_info, None)]
@@ -1673,11 +1677,9 @@ def init_media_write(
                 ready = False
                 break
 
-    if ready:
-        # analyze and assign outputs
-        output_info, fg_info = process_url_outputs(args, input_info, urls, options)
-
-    return args, input_info, output_info
+    output_info = process_url_outputs(
+        args, input_info, urls, options, skip_automapping=any(not_ready)
+    )
 
 
 def init_named_pipes(
