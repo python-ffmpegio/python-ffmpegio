@@ -25,7 +25,7 @@ __all__ = ["PipedMediaReader"]
 # fmt:on
 
 
-class PipedMediaReader(ExitStack):
+class PipedMediaReader:
     def __init__(
         self,
         *urls: * tuple[
@@ -68,7 +68,7 @@ class PipedMediaReader(ExitStack):
         For audio streams, if 'sample_fmt' output option is not specified, 's16'.
         """
 
-        super().__init__()
+        self._stack = ExitStack()
 
         # initialize FFmpeg argument dict and get input & output information
         args, self._input_info, self._output_info = configure.init_media_read(
@@ -106,14 +106,14 @@ class PipedMediaReader(ExitStack):
         self._get_bytes = {"video": hook.video_bytes, "audio": hook.audio_bytes}
 
     def __enter__(self):
-        super().__enter__()
+        self._stack.__enter__()
 
         # set up and activate pipes and read/write threads
         self._piped_outputs = configure.init_named_pipes(
             self._args["ffmpeg_args"],
             self._input_info,
             self._output_info,
-            self,
+            self._stack,
             **self._pipe_kws,
         )
 
@@ -148,7 +148,7 @@ class PipedMediaReader(ExitStack):
                 exc_details = sys.exc_info()
         finally:
             self._logger.join()
-            super().__exit__(*exc_details)
+            self._stack.__exit__(*exc_details)
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
