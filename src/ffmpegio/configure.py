@@ -1022,6 +1022,21 @@ def auto_map(
 
     """
 
+    if fg_info is None and "filter_complex" in args["global_options"]:
+        # if filter_complex is specified but no fg_info
+        # run the analysis
+        gopts = args["global_options"]
+        if "filter_complex" in gopts:
+            gopts["filter_complex"], fg_info = (
+                utils.analyze_complex_filtergraphs(
+                    gopts["filter_complex"], args["inputs"], input_info
+                )
+                if "filter_complex" in gopts
+                else None
+            )
+        else:
+            fg_info = None
+
     if fg_info is not None:
         return {
             linklabel: {
@@ -1357,18 +1372,6 @@ def process_url_outputs(
     :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
 
-    gopts = args["global_options"]
-    if "filter_complex" in gopts:
-        gopts["filter_complex"], fg_info = (
-            utils.analyze_complex_filtergraphs(
-                gopts["filter_complex"], args["inputs"], input_info
-            )
-            if "filter_complex" in gopts
-            else None
-        )
-    else:
-        fg_info = None
-
     missing_map = False
     output_info_list = [None] * len(urls)
     for i, url in enumerate(urls):  # add inputs
@@ -1408,14 +1411,14 @@ def process_url_outputs(
     if missing_map:
         # some output file is missing `map` option
         # add all input streams or all complex filter outputs
-        map_opts = [*auto_map(args, input_info, fg_info)]
+        map_opts = [*auto_map(args, input_info, None)]
 
         # add outputs to FFmpeg arguments
         for _, opts in args["outputs"]:
             if "map" not in opts:
                 opts["map"] = map_opts
 
-    return output_info_list, fg_info
+    return output_info_list
 
 
 def assign_input_url(args: FFmpegArgs, ifile: int, url: str):
