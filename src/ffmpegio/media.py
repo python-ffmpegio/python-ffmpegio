@@ -220,15 +220,6 @@ def write(
     if output_info is None:
         raise FFmpegioError("failed to format output...")
 
-    kwargs = {**sp_kwargs} if sp_kwargs else {}
-    kwargs.update(
-        {
-            "progress": progress,
-            "overwrite": overwrite,
-            "capture_log": None if show_log else False,
-        }
-    )
-
     # configure named pipes
     stack = configure.init_named_pipes(args, input_info, output_info)
 
@@ -240,6 +231,7 @@ def write(
             capture_log=None if show_log else True,
             sp_kwargs=sp_kwargs,
             on_exit=lambda _: stack.close(),
+            overwrite=overwrite
         )
     except:
         stack.close()
