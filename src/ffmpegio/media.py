@@ -22,6 +22,7 @@ from fractions import Fraction
 from . import ffmpegprocess, utils, configure, FFmpegError, plugins
 from .utils.log import extract_output_stream
 from .errors import FFmpegioError
+from .filtergraph.abc import FilterGraphObject
 
 __all__ = ["read", "write"]
 
@@ -256,3 +257,84 @@ def write(
             data[i] = info["reader"].read_all()
 
     return data if len(data) else None
+
+
+def filter(
+    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+    input_types: Sequence[Literal["a", "v"]],
+    *input_args: * tuple[RawStreamDef, ...],
+    extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
+    output_options: dict[str, dict[str, Any]] | None = None,
+    show_log: bool | None = None,
+    progress: ProgressCallable | None = None,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[dict[str, Any]],
+) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
+    """write multiple streams to a url/file
+
+    :param expr: complex filtergraph expression or a list of expressions
+    :param input_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
+    :param input_args: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
+                         or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                         string or a pair of a url string and an option dict.
+    :param output_options: specific options for keyed filtergraph output pads.
+    :param progress: progress callback function, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
+    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
+                      used to run the FFmpeg, defaults to None
+    :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+                      will be applied to all input streams unless the option has been already defined in `stream_data`
+
+    TIPS
+    ----
+
+    * Unlike `media.read()` all filtergraph outputs are always captured. The output
+      options specified as keyword arguments for all outputs, and `output_options`
+      argument can be used to specify additional (overriding) FFmpeg output options
+      for some outputs as needed.
+
+    """
+
+    args, input_info, output_info, _ = configure.init_media_filter(
+        expr,
+        input_types,
+        input_args,
+        extra_inputs,
+        None,
+        None,
+        options,
+        output_options or {},
+    )
+
+    # if any input buffer is empty, invalid
+    for info in input_info:
+        if info["src_type"] == "buffer" and "buffer" not in info:
+            raise ValueError("All inputs must be raw media data.")
+
+    # configure named pipes
+    stack = configure.init_named_pipes(args, input_info, output_info)
+
+    # run the FFmpeg
+    try:
+        proc = ffmpegprocess.Popen(
+            args,
+            progress=progress,
+            capture_log=None if show_log else True,
+            sp_kwargs=sp_kwargs,
+            on_exit=lambda _: stack.close(),
+        )
+    except:
+        stack.close()
+        raise
+
+    # wait for the FFmpeg to finish processing
+    proc.wait()
+
+    # throw error if failed
+    if proc.returncode:
+        raise FFmpegError(proc.stderr, show_log)
+
+    # gather and return output
+    return _gather_outputs(output_info, proc)

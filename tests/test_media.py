@@ -74,3 +74,28 @@ def test_media_write_audio_merge():
         )
         pprint(ff.probe.format_basic(outfile))
         pprint(ff.probe.audio_streams_basic(outfile))
+
+
+def test_media_filter():
+    fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3")
+
+    fps, F = ff.video.read("tests/assets/testvideo-1m.mp4", vframes=120)
+
+    print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
+
+    with TemporaryDirectory() as tmpdirname:
+        outrates, outdata = ff.media.filter(
+            ["[0:V:0][1:V:0]vstack,split", "[2:a:0][3:a:0]amerge"],
+            "vvaa",
+            (fps, F),
+            (fps, F),
+            (fs, x),
+            (fs, x),
+            output_options={"[out0]": {}, "audio": {"map": "[out2]"}},
+            show_log=True,
+            shortest=ff.FLAG,
+        )
+
+        assert all(k in ("[out0]", "out1", "audio") for k in outrates)
+
+        print(outrates)
