@@ -1773,7 +1773,7 @@ def init_named_pipes(
                     dtype, shape, rate = info["media_info"]
                     kws["itemsize"] = utils.get_samplesize(shape, dtype)
                     if update_rate is not None:
-                        kws["nmin"] = int(rate / update_rate) or 1
+                        kws["nmin"] = round(rate / update_rate) or 1
                 info["reader"] = reader = ReaderThread(pipe, **kws)
             else:
                 raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
