@@ -1735,6 +1735,133 @@ def init_media_write(
     return args, input_info, output_info, not_ready
 
 
+def init_media_filter(
+    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+    input_types: Sequence[Literal["a", "v"]],
+    input_args: Sequence[RawStreamDef],
+    extra_inputs: (
+        Sequence[FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict]] | None
+    ),
+    input_dtypes: list[str] | None,
+    input_shapes: list[tuple[int]] | None,
+    options: dict[str, Any],
+    output_options: dict[str, dict[str, Any]],
+) -> tuple[FFmpegArgs, list[InputSourceDict], dict[str | None, dict[str, Any]] | None]:
+    """Prepare FFmpeg arguments for media read
+
+    :param expr: complex filtergraph definition(s).
+    :param input_types: list/string of 'a' or 'v', specifying the input raw streams' media types
+    :param input_args: list of input option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                         string or a pair of a url string and an option dict.
+    :param input_dtypes: list of numpy-style data type strings of input samples or frames
+                   of input media streams, use `None` to auto-detect.
+    :param input_shapes: list of shapes of input samples or frames of input media streams,
+                   use `None` to auto-detect.
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+                      will be applied to all input streams unless the option has been already defined in `stream_data`
+    :param output_options: FFmpeg output options for specific filtergraph outputs,
+                           overriding the output options in the `options` argument
+    :return ffmpeg_args: FFmpeg argument dict (partial)
+    :return input_info: input stream information
+    :return output_info: output stream information, None if outputs not initialized
+    :return output_options: output options, None if outputs already initialized
+
+    """
+
+    if "n" in options:
+        raise ValueError("Cannot have an `n` option set to output to named pipes.")
+    if "filter_complex" in options or "lavfi" in options:
+        raise ValueError("Cannot have a `filter_complex` or `lavfi` option set.")
+
+    # separate the options
+    inopts_default = utils.pop_extra_options(options, "_in")
+
+    # create a new FFmpeg dict
+    args = empty(utils.pop_global_options(options))
+    gopts = args["global_options"]  # global options dict
+    gopts["y"] = None
+    gopts["filter_complex"] = expr
+
+    # analyze and assign inputs
+    input_info = process_raw_inputs(
+        args, input_types, input_args, inopts_default, input_dtypes, input_shapes
+    )
+
+    if extra_inputs is not None:
+        input_info.extend(process_url_inputs(args, extra_inputs, {}))
+
+    # make sure all inputs are complete
+    ready = utils.are_inputs_ready(args["inputs"], input_info)
+
+    # add the default output options to output_options dict with None as the key
+    output_options[None] = options
+
+    if all(ready):
+        output_info = init_media_filter_outputs(args, input_info, output_options)
+        output_options = None
+    else:
+        output_info = None
+
+    return args, input_info, output_info, output_options
+
+
+def init_media_filter_outputs(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    output_options: dict[str | None, dict[str, Any]],
+) -> list[RawOutputInfoDict]:
+    """Initialize FFmpeg arguments for media read
+
+    :param args: partial FFmpeg arguments (to be modified)
+    :param input_info: list of input information
+    :param output_options: default and specific output options
+    :return output_info: output file information
+
+    """
+
+    # analyze filtergraph and create an output stream for each filtergraph output
+    gopts = args["global_options"]
+    gopts["filter_complex"], fg_info = utils.analyze_complex_filtergraphs(
+        gopts["filter_complex"], args["inputs"], input_info
+    )
+
+    # get default output options
+    default_opts = output_options.pop(None, {})
+
+    # adjust output_options
+    out_maps = {}
+    for k, v in output_options.items():
+        if "map" in v:
+            try:
+                out_maps[v["map"]] = k
+            except TypeError:
+                raise FFmpegioError(
+                    "The `map` option of a raw output can specify only one stream."
+                )
+        elif (st_map := f"[{k}]") in fg_info:
+            out_maps[st_map] = k
+        else:
+            out_maps[k] = k
+
+    # create output map (stream name excludes the brackets)
+    streams = {}
+    for spec in fg_info:
+        if spec in out_maps:
+            name = out_maps[spec]
+            streams[name] = output_options[name]
+        else:
+            label = spec[1:-1]
+            streams[label] = {}
+
+    # analyze and assign outputs
+    output_info, fg_info = process_raw_outputs(
+        args, input_info, streams, default_opts, fg_info
+    )
+
+    return output_info
+
+
 def init_named_pipes(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
