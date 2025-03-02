@@ -506,6 +506,7 @@ class WriterThread(Thread):
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
         self._empty_cond = Condition()
         self._empty = True
+        self._no_more = False  # true if sentinel has been written to the queue
 
     def join(self, timeout: float | None = None):
 
@@ -567,16 +568,48 @@ class WriterThread(Thread):
                 logger.info(f"writer thread: somethin' else happened")
                 break
 
-        if is_namedpipe:
+        # set flag to prevent any more writes
+        with self._empty_cond:
+            self._no_more = True
+
+        # close the pipe/stream
+        if self.pipe:
+            self.pipe.close()
+        else:
             self.stdin.close()
+
+        # completely flush the queue
+        # check if queue has any remaining items
+        not_empty = True
+        while True:
+            try:
+                queue.get_nowait()
+            except Empty:
+                break
+            else:
+                # queue was empty
+                not_empty = False
+
+        # if queue was not empty, notify its empty state now
+        if not_empty:
+            with self._empty_cond:
+                self._empty = True
+                self._empty_cond.notify_all()
 
         logger.info(f"writer thread exiting")
 
     def write(self, data, timeout=None):
-        if not self.is_alive():
-            raise ThreadNotActive("WriterThread is not running")
-
         with self._empty_cond:
+
+            if self._no_more:
+                if data is None:
+                    return
+                else:
+                    raise ThreadNotActive("WriterThread is no longer running")
+
+            if data is None:
+                self._no_more = True
+
             self._queue.put(data, timeout)
             self._empty = False
 
@@ -589,7 +622,7 @@ class WriterThread(Thread):
         """
 
         with self._empty_cond:
-            if not (self._empty or self._empty_cond.wait(timeout)):
+            if not (self._no_more or self._empty or self._empty_cond.wait(timeout)):
                 raise NotEmpty()
 
 
