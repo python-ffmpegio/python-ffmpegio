@@ -26,6 +26,56 @@ from .errors import FFmpegioError
 __all__ = ["read", "write"]
 
 
+def _gather_outputs(
+    output_info, proc
+) -> tuple[dict[str, int | Fraction], dict[str, RawDataBlob]]:
+    rates = {}
+    data = {}
+    for i, info in enumerate(output_info):
+        spec = info["user_map"]
+        b = info["reader"].read_all()
+
+        # get datablob info from stderr if needed
+        missing = any(v is None for v in info["media_info"])
+
+        if missing:
+            logger.warning('Retrieving stream "%s" information from FFmpeg log.', spec)
+            new_info = extract_output_stream(proc.stderr, i)
+
+        if info["media_type"] == "video":
+            dtype, shape, rate = info["media_info"]
+
+            if missing:
+                if dtype is None:
+                    pix_fmt = new_info["pix_fmt"]
+                    dtype = utils.get_pixel_format(pix_fmt)[0]
+                if shape is None:
+                    shape = new_info["s"]
+                if rate is None:
+                    rate = new_info["r"]
+
+            data[spec] = plugins.get_hook().bytes_to_video(
+                b=b, dtype=dtype, shape=shape, squeeze=False
+            )
+        else:  # 'audio'
+            dtype, shape, rate = info["media_info"]
+            if missing:
+                if dtype is None:
+                    sample_fmt = new_info["sample_fmt"]
+                    dtype = utils.get_audio_format(sample_fmt)
+                if shape is None:
+                    shape = (new_info["ac"],)
+                if rate is None:
+                    rate = new_info["ar"]
+
+            data[spec] = plugins.get_hook().bytes_to_audio(
+                b=b, dtype=dtype, shape=shape, squeeze=False
+            )
+        rates[spec] = rate
+
+        return rates, data
+
+
 def read(
     *urls: * tuple[
         FFmpegInputUrlComposite | tuple[FFmpegUrlType, dict[str, Any] | None]
@@ -99,52 +149,8 @@ def read(
     if proc.returncode:
         raise FFmpegError(proc.stderr, capture_log)
 
-    # gather output
-    rates = {}
-    data = {}
-    for i, info in enumerate(output_info):
-        spec = info["user_map"]
-        b = info["reader"].read_all()
-
-        # get datablob info from stderr if needed
-        missing = any(v is None for v in info["media_info"])
-
-        if missing:
-            logger.warning('Retrieving stream "%s" information from FFmpeg log.', spec)
-            new_info = extract_output_stream(proc.stderr, i)
-
-        if info["media_type"] == "video":
-            dtype, shape, rate = info["media_info"]
-
-            if missing:
-                if dtype is None:
-                    pix_fmt = new_info["pix_fmt"]
-                    dtype = utils.get_pixel_format(pix_fmt)[0]
-                if shape is None:
-                    shape = new_info["s"]
-                if rate is None:
-                    rate = new_info["r"]
-
-            data[spec] = plugins.get_hook().bytes_to_video(
-                b=b, dtype=dtype, shape=shape, squeeze=False
-            )
-        else:  # 'audio'
-            dtype, shape, rate = info["media_info"]
-            if missing:
-                if dtype is None:
-                    sample_fmt = new_info["sample_fmt"]
-                    dtype = utils.get_audio_format(sample_fmt)
-                if shape is None:
-                    shape = (new_info["ac"],)
-                if rate is None:
-                    rate = new_info["ar"]
-
-            data[spec] = plugins.get_hook().bytes_to_audio(
-                b=b, dtype=dtype, shape=shape, squeeze=False
-            )
-        rates[spec] = rate
-
-    return rates, data
+    # gather and return output
+    return _gather_outputs(output_info, proc)
 
 
 def write(
