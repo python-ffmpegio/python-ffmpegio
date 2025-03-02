@@ -920,14 +920,16 @@ def add_filtergraph(
 def resolve_raw_output_streams(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    fg_info: dict[str, dict],
-    streams: Sequence[str],
-) -> dict[str:RawOutputInfoDict]:
+    fg_info: dict[str, dict] | None,
+    streams: dict[str, str | None],
+) -> dict[str, RawOutputInfoDict]:
     """resolve the raw output streams from given sequence of map options
 
     :param args: FFmpeg argument dict
     :param input_info: FFmpeg inputs' additional information, its length must match that of `args['inputs']`
-    :param streams: a sequence of map options defining the streams
+    :param streams: FFmpeg -map option values of output streams as their keys and
+                    their custom names as the values. To use the map value as
+                    the stream names, specify None as a value.
     :return: output information keyed by a unique map option string
     """
 
@@ -935,23 +937,30 @@ def resolve_raw_output_streams(
 
     # parse all mapping option values
     input_file_id = 0 if len(input_info) == 1 else None
+
+    def parse_map(spec):
+        try:
+            return parse_map_option(
+                spec, parse_stream=True, input_file_id=input_file_id
+            )
+        except:
+            if fg_info is not None and (linklabel := f"[{spec}]") in fg_info:
+                return {"linklabel": linklabel, "user_label": spec}
+            raise
+
     map_options = [
-        {"stream_specifier": {}, **opt}
-        for opt in (
-            parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
-            for spec in streams
-        )
+        {"stream_specifier": {}, **opt} for opt in (parse_map(spec) for spec in streams)
     ]
 
     inputs = args["inputs"]
     stream_info = {}  # one stream per item, value: map spec & media_type
-    for spec, opt in zip(streams, map_options):
+    for (spec, user_map), opt in zip(streams.items(), map_options):
         # get output stream information
-        if (info := fg_info and fg_info.get(spec, None)) is not None:
+        if (fg_info and (info := fg_info.get(spec, None))) is not None:
             # filtergraph output
             stream_info[spec] = {
                 "dst_type": dst_type,
-                "user_map": spec[1:-1],
+                "user_map": user_map or spec,
                 "media_type": info["media_type"],
                 "input_file_id": None,
                 "input_stream_id": None,
@@ -980,7 +989,7 @@ def resolve_raw_output_streams(
                     (spec if unique_stream else f"{file_index}:{stream_index}")
                 ] = {
                     "dst_type": dst_type,
-                    "user_map": spec,
+                    "user_map": user_map or spec,
                     "media_type": media_type,
                     "input_file_id": file_index,
                     "input_stream_id": stream_index,
@@ -1257,11 +1266,33 @@ def process_raw_outputs(
         )
 
     # resolve requested output streams
-    stream_info: dict[str, RawOutputInfoDict] = (
-        auto_map(args, input_info, fg_info)  # automatically map all the streams
-        if streams is None or len(streams) == 0
-        else resolve_raw_output_streams(args, input_info, fg_info, streams)
-    )
+    stream_info: dict[str, RawOutputInfoDict]
+    if streams is None or len(streams) == 0:
+        stream_info = auto_map(args, input_info, fg_info)
+    else:
+        # analyze for custom labels
+        user_maps = {}
+        stream_maps = {}
+        for k, v in (
+            streams.items() if isinstance(streams, dict) else ((s, {}) for s in streams)
+        ):
+            if "map" in v:
+                st_map = v["map"]
+                if not isinstance(st_map, str):
+                    raise FFmpegioError(
+                        "Only one FFmpeg map is allowable for filtering operation."
+                    )
+                user_maps[st_map] = k
+            elif fg_info is not None and (st_map := f"[{k}]") in fg_info:
+                # filtergraph linklabel without bracket given
+                user_maps[st_map] = k
+            else:
+                # an input stream specifier or a filtergraph output linklabel
+                user_maps[k], st_map = k, k
+            stream_maps[st_map] = v
+
+        # automatically map all the streams
+        stream_info = resolve_raw_output_streams(args, input_info, fg_info, user_maps)
 
     # add outputs to FFmpeg arguments
     get_opts = isinstance(streams, dict)

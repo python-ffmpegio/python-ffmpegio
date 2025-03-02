@@ -269,9 +269,13 @@ def ffmpeg_url_inputs_vid_aud():
 @pytest.mark.parametrize(
     ("ffmpeg_url_inputs", "filters_complex", "streams"),
     [
-        ("ffmpeg_url_inputs_mul", None, ["v"]),
-        ("ffmpeg_url_inputs_vid_aud", None, ["0:v:0", "1:a:0"]),
-        ("ffmpeg_url_inputs_mul", ["split=2"], ["[out0]", "[out1]", "a:0"]),
+        ("ffmpeg_url_inputs_mul", None, {"v": None}),
+        ("ffmpeg_url_inputs_vid_aud", None, {"0:v:0": None, "1:a:0": None}),
+        (
+            "ffmpeg_url_inputs_mul",
+            ["split=2"],
+            {"[out0]": None, "[out1]": "out1", "a:0": None},
+        ),
     ],
 )
 def test_resolve_raw_output_streams(
