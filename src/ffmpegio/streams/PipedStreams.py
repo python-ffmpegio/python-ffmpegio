@@ -586,7 +586,12 @@ class PipedMediaWriter:
         """
 
         if self._proc:
+
             # write the sentinel to each input queue
+            for info in self._input_info:
+                if "writer" in info:
+                    info["writer"].write(None)
+
             try:
                 self.flush(timeout)
             except NotEmpty as e:
