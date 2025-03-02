@@ -205,7 +205,12 @@ def monitor_process(proc, on_exit=None):
     if on_exit is not None:
         returncode = proc.returncode
         for fcn in on_exit:
-            fcn(returncode)
+            try:
+                fcn(returncode)
+            except Exception as e:
+                pass
+                #TODO - need to re-raise these exceptions?
+
         logger.debug("[monitor] executed all on_exit callbacks")
 
 
