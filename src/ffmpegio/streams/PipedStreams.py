@@ -73,8 +73,6 @@ class PipedMediaReader:
         For audio streams, if 'sample_fmt' output option is not specified, 's16'.
         """
 
-        self._stack = ExitStack()
-
         # initialize FFmpeg argument dict and get input & output information
         args, self._input_info, self._output_info = configure.init_media_read(
             urls, map, options
@@ -89,7 +87,6 @@ class PipedMediaReader:
             "progress": progress,
             "capture_log": True,
             "sp_kwargs": sp_kwargs,
-            "on_exit": self._stop_readers,
         }
 
         # set the default read block size for the referenc stream
@@ -111,21 +108,25 @@ class PipedMediaReader:
         self._get_bytes = {"video": hook.video_bytes, "audio": hook.audio_bytes}
 
     def __enter__(self):
-        self._stack.__enter__()
 
         # set up and activate pipes and read/write threads
-        self._piped_outputs = configure.init_named_pipes(
+        stack = configure.init_named_pipes(
             self._args["ffmpeg_args"],
             self._input_info,
             self._output_info,
-            self._stack,
             **self._pipe_kws,
         )
 
         self._n0 = [0] * len(self._output_info)  # timestamps of the last read sample
 
         # run the FFmpeg
-        self._proc = ffmpegprocess.Popen(**self._args)
+        try:
+            self._proc = ffmpegprocess.Popen(
+                **self._args, on_exit=lambda _: stack.close()
+            )
+        except:
+            stack.close()
+            raise
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
@@ -153,7 +154,6 @@ class PipedMediaReader:
                 exc_details = sys.exc_info()
         finally:
             self._logger.join()
-            self._stack.__exit__(*exc_details)
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -200,11 +200,6 @@ class PipedMediaReader:
             return self._logger.Exception()
         else:
             return None
-
-    def _stop_readers(self, returncode):
-        # ffmpegprocess on_exit callback function
-        for info in self._output_info:
-            info["reader"].cool_down()
 
     def __iter__(self):
         return self
@@ -323,8 +318,6 @@ class PipedMediaWriter:
                             preference (see :doc:`options` for custom options)
         """
 
-        self._stack = ExitStack()
-
         if not isinstance(urls, list):
             urls = [urls]
 
@@ -365,7 +358,6 @@ class PipedMediaWriter:
             "progress": progress,
             "capture_log": True,
             "sp_kwargs": sp_kwargs,
-            "on_exit": self._stop_readers,
         }
 
         # set the default read block size for the referenc stream
@@ -396,16 +388,21 @@ class PipedMediaWriter:
                         opts["map"] = map_opts
 
         # set up and activate pipes and read/write threads
-        self._piped_outputs = configure.init_named_pipes(
+        stack = configure.init_named_pipes(
             self._args["ffmpeg_args"],
             self._input_info,
             self._output_info,
-            self._stack,
             **self._pipe_kws,
         )
 
         # run the FFmpeg
-        self._proc = ffmpegprocess.Popen(**self._args)
+        try:
+            self._proc = ffmpegprocess.Popen(
+                **self._args, on_exit=lambda _: stack.close()
+            )
+        except:
+            stack.close()
+            raise
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
@@ -429,7 +426,6 @@ class PipedMediaWriter:
         return self
 
     def __enter__(self):
-        self._stack.__enter__()
 
         if self._deferred_open is False:
             self._open(False)
@@ -440,8 +436,6 @@ class PipedMediaWriter:
         self.__enter__()
 
     def __exit__(self, *exc_details):
-
-        self.wait(self.default_timeout)
 
         try:
             if self._proc is not None and self._proc.poll() is None:
@@ -455,7 +449,6 @@ class PipedMediaWriter:
                 exc_details = sys.exc_info()
         finally:
             self._logger.join()
-            self._stack.__exit__(*exc_details)
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -497,16 +490,6 @@ class PipedMediaWriter:
             return self._logger.Exception()
         else:
             return None
-
-    def _stop_readers(self, returncode):
-        # ffmpegprocess on_exit callback function
-        for info in self._output_info:
-            if "reader" in info:
-                info["reader"].cool_down()
-        if returncode:
-            raise self._logger.Exception or FFmpegError(
-                "FFmpeg failed for an unknown reason. Please check the log."
-            )
 
     def readlog(self, n: int = None) -> str:
         if n is not None:

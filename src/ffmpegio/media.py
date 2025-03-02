@@ -72,72 +72,77 @@ def read(
     # run FFmpeg
     capture_log = True if need_stderr else None if show_log else True
 
-    with contextlib.ExitStack() as stack:
-        # configure named pipes
-        configure.init_named_pipes(args, input_info, output_info, stack)
+    # configure named pipes
+    stack = configure.init_named_pipes(args, input_info, output_info)
 
-        # run the FFmpeg
+    def on_exit(rc):
+        stack.close()
+
+    # run the FFmpeg
+    try:
         proc = ffmpegprocess.Popen(
-            args, progress=progress, capture_log=capture_log, sp_kwargs=sp_kwargs
+            args,
+            progress=progress,
+            capture_log=capture_log,
+            sp_kwargs=sp_kwargs,
+            on_exit=on_exit,
         )
+    except:
+        # if Popen failed to start FFmpeg process, need to call the callback
+        stack.close()
+        raise
 
-        # wait for the FFmpeg to finish processing
-        proc.wait()
+    # wait for the FFmpeg to finish processing
+    proc.wait()
 
-        # throw error if failed
-        if proc.returncode:
-            raise FFmpegError(proc.stderr, capture_log)
+    # throw error if failed
+    if proc.returncode:
+        raise FFmpegError(proc.stderr, capture_log)
 
-        # wind-down the readers
-        for info in output_info:
-            info["reader"].cool_down()
+    # gather output
+    rates = {}
+    data = {}
+    for i, info in enumerate(output_info):
+        spec = info["user_map"]
+        b = info["reader"].read_all()
 
-        # gather output
-        rates = {}
-        data = {}
-        for i, info in enumerate(output_info):
-            spec = info["user_map"]
-            b = info["reader"].read_all()
+        # get datablob info from stderr if needed
+        missing = any(v is None for v in info["media_info"])
 
-            # get datablob info from stderr if needed
-            missing = any(v is None for v in info["media_info"])
+        if missing:
+            logger.warning('Retrieving stream "%s" information from FFmpeg log.', spec)
+            new_info = extract_output_stream(proc.stderr, i)
+
+        if info["media_type"] == "video":
+            dtype, shape, rate = info["media_info"]
 
             if missing:
-                logger.warning(
-                    'Retrieving stream "%s" information from FFmpeg log.', spec
-                )
-                new_info = extract_output_stream(proc.stderr, i)
+                if dtype is None:
+                    pix_fmt = new_info["pix_fmt"]
+                    dtype = utils.get_pixel_format(pix_fmt)[0]
+                if shape is None:
+                    shape = new_info["s"]
+                if rate is None:
+                    rate = new_info["r"]
 
-            if info["media_type"] == "video":
-                dtype, shape, rate = info["media_info"]
+            data[spec] = plugins.get_hook().bytes_to_video(
+                b=b, dtype=dtype, shape=shape, squeeze=False
+            )
+        else:  # 'audio'
+            dtype, shape, rate = info["media_info"]
+            if missing:
+                if dtype is None:
+                    sample_fmt = new_info["sample_fmt"]
+                    dtype = utils.get_audio_format(sample_fmt)
+                if shape is None:
+                    shape = (new_info["ac"],)
+                if rate is None:
+                    rate = new_info["ar"]
 
-                if missing:
-                    if dtype is None:
-                        pix_fmt = new_info["pix_fmt"]
-                        dtype = utils.get_pixel_format(pix_fmt)[0]
-                    if shape is None:
-                        shape = new_info["s"]
-                    if rate is None:
-                        rate = new_info["r"]
-
-                data[spec] = plugins.get_hook().bytes_to_video(
-                    b=b, dtype=dtype, shape=shape, squeeze=False
-                )
-            else:  # 'audio'
-                dtype, shape, rate = info["media_info"]
-                if missing:
-                    if dtype is None:
-                        sample_fmt = new_info["sample_fmt"]
-                        dtype = utils.get_audio_format(sample_fmt)
-                    if shape is None:
-                        shape = (new_info["ac"],)
-                    if rate is None:
-                        rate = new_info["ar"]
-
-                data[spec] = plugins.get_hook().bytes_to_audio(
-                    b=b, dtype=dtype, shape=shape, squeeze=False
-                )
-            rates[spec] = rate
+            data[spec] = plugins.get_hook().bytes_to_audio(
+                b=b, dtype=dtype, shape=shape, squeeze=False
+            )
+        rates[spec] = rate
 
     return rates, data
 
@@ -218,37 +223,37 @@ def write(
         }
     )
 
-    with contextlib.ExitStack() as stack:
+    # configure named pipes
+    stack = configure.init_named_pipes(args, input_info, output_info)
 
-        # configure named pipes
-        pipes_out = configure.init_named_pipes(args, input_info, output_info, stack)
-
-        # run the FFmpeg
+    # run the FFmpeg
+    try:
         proc = ffmpegprocess.Popen(
             args,
             progress=progress,
             capture_log=None if show_log else True,
             sp_kwargs=sp_kwargs,
+            on_exit=lambda _: stack.close(),
         )
+    except:
+        stack.close()
+        raise
 
-        # wait for the FFmpeg to finish processing
-        proc.wait()
+    # wait for the FFmpeg to finish processing
+    proc.wait()
 
-        # throw error if failed
-        if proc.returncode:
-            raise FFmpegError(proc.stderr, show_log)
+    # throw error if failed
+    if proc.returncode:
+        raise FFmpegError(proc.stderr, show_log)
 
-        # wind-down the readers
-        for info in output_info:
-            if "reader" in info:
-                info["reader"].cool_down()
+    # wind-down the readers
+    for info in output_info:
+        if "reader" in info:
+            info["reader"].cool_down()
 
-        if not len(pipes_out):
-            # no buffered output
-            return
+    # gather output
+    data = {}
+    for i, info in enumerate(output_info):
+        if info["dst_type"] == "buffer":
+            data[i] = info["reader"].read_all()
 
-        # gather output
-        data = {}
-        for i, info in enumerate(output_info):
-            if info["src_type"] == "buffer":
-                data[i] = info["reader"].read_all()
