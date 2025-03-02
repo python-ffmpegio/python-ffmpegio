@@ -289,14 +289,16 @@ class LoggerThread(Thread):
 class ReaderThread(Thread):
     def __init__(
         self,
-        stdout: BinaryIO | NPopen,
+        stdout_or_pipe: BinaryIO | NPopen,
         nmin: int | None = None,
         queuesize: int | None = None,
         itemsize: int | None = None,
         retry_delay: float | None = None,
     ):
         super().__init__()
-        self.stdout = stdout  #:readable stream: data source
+        is_pipe = isinstance(stdout_or_pipe, NPopen)
+        self.pipe = stdout_or_pipe if is_pipe else None  # readable named pipe
+        self.stdout = None if is_pipe else stdout_or_pipe  #:readable stream
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
         self.itemsize = itemsize or 2**20  #:int: number of bytes per time sample
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
@@ -318,6 +320,16 @@ class ReaderThread(Thread):
         self._halt.set()
 
     def join(self, timeout=None):
+
+        if self.pipe:
+            if self.stdout is None:
+                # FFmpeg never opened the pipe, open it to release the runner from waiting
+                with open(self.pipe.path, "w"):
+                    ...
+            self.pipe.close()
+        else:
+            self.stdout.close()
+
         self._halt.set()
         if self._queue.full():
             if timeout:
@@ -342,19 +354,20 @@ class ReaderThread(Thread):
         return self
 
     def __exit__(self, *_):
-        self.stdout.close()
         self.join()  # will wait until stdout is closed
         return False
 
     def run(self):
-        is_npipe = isinstance(self.stdout, NPopen)
+        is_npipe = self.stdout is None
         blocksize = (
             self.nmin if self.nmin is not None else 1 if self.itemsize > 1024 else 1024
         ) * self.itemsize
         if self._halt.is_set():
             return
         logger.debug("waiting for pipe to open")
-        stream = self.stdout.wait() if is_npipe else self.stdout
+        if is_npipe:
+            self.stdout = self.pipe.wait()
+        stream = self.stdout
         logger.debug("starting to read")
         self._running.set()
         while not self._halt.is_set():
@@ -483,16 +496,21 @@ class WriterThread(Thread):
     :param bufsize: maximum number of bytes to write at once, defaults to None (1048576 bytes)
     """
 
-    def __init__(self, stdin: BinaryIO | NPopen, queuesize: int | None = None):
+    def __init__(self, stdin_or_pipe: BinaryIO | NPopen, queuesize: int | None = None):
         super().__init__()
-        self.stdin = stdin  #:writable stream: data sink
+        is_pipe = isinstance(stdin_or_pipe, NPopen)
+        self.pipe = stdin_or_pipe if is_pipe else None
+        self.stdin = None if is_pipe else stdin_or_pipe  #:writable stream: data sink
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
         self._empty_cond = Condition()
         self._empty = True
 
     def join(self, timeout: float | None = None):
-        # close the stream if not already closed
-        self.stdin.close()
+
+        if self.stdin is None:
+            # pipe not yet connected, open it to release the runner
+            with open(self.pipe.path, "rb"):
+                ...
 
         # if empty, queue a dummy item to wake up the thread
         if self._queue.empty():
@@ -511,8 +529,10 @@ class WriterThread(Thread):
 
     def run(self):
 
-        is_namedpipe = isinstance(self.stdin, NPopen)
-        stream = self.stdin.wait() if is_namedpipe else self.stdin
+        if self.stdin is None:
+            self.stdin = self.pipe.wait()
+
+        stream = self.stdin
 
         while True:
             # get next data block
