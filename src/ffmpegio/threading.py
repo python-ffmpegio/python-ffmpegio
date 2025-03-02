@@ -368,6 +368,8 @@ class ReaderThread(Thread):
         if is_npipe:
             self.stdout = self.pipe.wait()
         stream = self.stdout
+        queue = self._queue
+
         logger.debug("starting to read")
         self._running.set()
         while not self._halt.is_set():
@@ -390,13 +392,13 @@ class ReaderThread(Thread):
                     continue
 
             if not self._halt.is_set():  # True until self.cooloff
-                self._queue.put(data)
+                queue.put(data)
                 # print(f"reader thread: queued samples")
 
         logger.debug("stopping to read")
 
         logger.info("ReaderThread sending the sentinel")
-        self._queue.put(None)  # sentinel for eos
+        queue.put(None)  # sentinel for eos
 
         logger.info("ReaderThread exiting")
         self._running.clear()
@@ -533,19 +535,20 @@ class WriterThread(Thread):
             self.stdin = self.pipe.wait()
 
         stream = self.stdin
+        queue = self._queue
 
         while True:
             # get next data block
             try:
-                data = self._queue.get_nowait()
+                data = queue.get_nowait()
             except Empty:
                 # if empty, set the flag and block
                 with self._empty_cond:
                     self._empty = True
                     self._empty_cond.notify_all()
-                data = self._queue.get()
+                data = queue.get()
 
-            self._queue.task_done()
+            queue.task_done()
             if data is None:
                 logger.info(f"writer thread: received a sentinel to stop the writer")
                 break
