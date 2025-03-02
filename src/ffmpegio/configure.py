@@ -1229,6 +1229,7 @@ def process_raw_outputs(
     input_info: list[InputSourceDict],
     streams: Sequence[str] | dict[str, dict[str, Any] | None] | None,
     options: dict[str, Any],
+    fg_info: dict[str, dict] | None = None,
 ) -> tuple[list[RawOutputInfoDict], dict[str, dict] | None]:
     """analyze and process piped raw outputs
 
@@ -1237,12 +1238,16 @@ def process_raw_outputs(
     :param input_info: list of input information (same length as `args['inputs'])
     :param streams: user's list of map options to be included
     :param options: default output options
+    :param fg_info: filtergraph outputs if filtergraph has been pre-analyzed,
+                    defaults to None to perform the filtergraph analysis internally
     :return output_info: list of output information
     :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
 
     gopts = args["global_options"]
-    if "filter_complex" in gopts:
+
+    # only analyze the filtergraph again if it has not been pre-analyzed
+    if fg_info is None and "filter_complex" in gopts:
         gopts["filter_complex"], fg_info = (
             utils.analyze_complex_filtergraphs(
                 gopts["filter_complex"], args["inputs"], input_info
@@ -1250,8 +1255,6 @@ def process_raw_outputs(
             if "filter_complex" in gopts
             else None
         )
-    else:
-        fg_info = None
 
     # resolve requested output streams
     stream_info: dict[str, RawOutputInfoDict] = (
