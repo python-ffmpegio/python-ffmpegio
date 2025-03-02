@@ -955,7 +955,11 @@ class CopyFileObjThread(Thread):
         src = self._fsrc.wait() if src_is_namedpipe else self._fsrc
         dst_is_namedpipe = isinstance(self._fdst, NPopen)
         dst = self._fdst.wait() if dst_is_namedpipe else self._fdst
-        copyfileobj(src, dst, self.length)
+        try:
+            copyfileobj(src, dst, self.length)
+        except:
+            #TODO - test the behavior when FFmpeg is prematurely terminated
+            logger.warning("CopyFileObjThread runner failed to complete the job.")
         if self.auto_close:
             src.close()
             dst.close()
