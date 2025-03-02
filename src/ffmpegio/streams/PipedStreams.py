@@ -369,7 +369,7 @@ class PipedMediaWriter:
         self._get_bytes = {"video": hook.video_bytes, "audio": hook.audio_bytes}
 
         self._proc = None
-        self._piped_outputs = []
+        self._piped_outputs = None
 
     def _open(self, deferred: bool):
 
@@ -415,6 +415,12 @@ class PipedMediaWriter:
                 for data in src:
                     writer.write(data)
         self._deferred_data = []
+
+        self._piped_outputs = [
+            info["reader"]
+            for info in self._output_info
+            if "reader" in info and info["dst_type"] == "buffer"
+        ]
 
         # wait until all the reader threads are running
         # for info in self._output_info:
@@ -623,10 +629,10 @@ class PipedMediaWriter:
         if pipe_id is None:
             if not len(self._piped_outputs):
                 raise FFmpegioError("None of the outputs is piped.")
-            readers = [self._output_info[i]["reader"] for i in self._piped_outputs]
+            readers = self._piped_outputs
         else:
             try:
-                info = self._output_info[self._piped_outputs[pipe_id]]
+                reader = self._piped_outputs[pipe_id]
             except IndexError:
                 if pipe_id != 0:
                     raise FFmpegioError(
@@ -635,7 +641,7 @@ class PipedMediaWriter:
                 else:
                     raise FFmpegioError(f"This writer has no piped output defined.")
             else:
-                readers = [info["reader"]]
+                readers = [reader]
 
         data_it = (reader.read_all(timeout=0) for reader in readers)
 
