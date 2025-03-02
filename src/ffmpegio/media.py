@@ -257,3 +257,4 @@ def write(
         if info["dst_type"] == "buffer":
             data[i] = info["reader"].read_all()
 
+    return data if len(data) else None
