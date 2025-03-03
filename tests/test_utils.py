@@ -1,5 +1,5 @@
 import math
-from ffmpegio import utils
+from ffmpegio import utils, FFmpegioError
 import pytest
 
 
@@ -77,5 +77,13 @@ def test_get_audio_format():
     assert cfg[0] == "<i2" and cfg[1] == (2,)
 
 
-if __name__ == "__main__":
-    import re
+def test_get_output_stream_id():
+    info = [{"user_map": "out0"}]
+    assert utils.get_output_stream_id(info, 0) == 0
+    assert utils.get_output_stream_id(info, "out0") == 0
+    with pytest.raises(FFmpegioError):
+        utils.get_output_stream_id(info, -1)
+    with pytest.raises(FFmpegioError):
+        utils.get_output_stream_id(info, 1)
+    with pytest.raises(FFmpegioError):
+        utils.get_output_stream_id(info, "in0")
