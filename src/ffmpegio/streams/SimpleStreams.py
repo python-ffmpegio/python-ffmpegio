@@ -49,6 +49,7 @@ class SimpleReaderBase:
         self.sp_kwargs = sp_kwargs  #:dict[str,Any]: additional keyword arguments for subprocess.Popen
 
         # get url/file stream
+        options = {"probesize_in": 32, **options}
         input_options = utils.pop_extra_options(options, "_in")
         url, stdin, input = configure.check_url(
             url, False, format=input_options.get("f", None)
@@ -352,6 +353,7 @@ class SimpleWriterBase:
         # get url/file stream
         url, stdout, _ = configure.check_url(url, True)
 
+        options = {"probesize_in": 32, **options}
         input_options = utils.pop_extra_options(options, "_in")
 
         ffmpeg_args = configure.empty()
@@ -717,6 +719,7 @@ class SimpleFilterBase:
 
         self._proc = None
 
+        options = {"probesize_in": 32, **options}
         inopts = utils.pop_extra_options(options, "_in")
         glopts = utils.pop_global_options(options)
 
