@@ -411,6 +411,9 @@ class ReaderThread(Thread):
         :return: n*itemsize bytes
         """
 
+        if n == 0:
+            return b""
+
         # wait till matching line is read by the thread
         block = (self.is_alive() and not self._halt.is_set()) and n != 0
         if timeout is not None:
