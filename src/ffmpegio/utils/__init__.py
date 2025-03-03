@@ -18,10 +18,13 @@ from .. import caps, plugins, probe
 from .._utils import *
 from ..stream_spec import *
 from ..errors import FFmpegError, FFmpegioError
-from .._typing import Any, MediaType, InputSourceDict, RawDataBlob
+from .._typing import Any, MediaType, InputSourceDict, RawDataBlob, TYPE_CHECKING
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
 from ..filtergraph.presets import temp_video_src, temp_audio_src
+
+if TYPE_CHECKING:
+    from ..configure import RawOutputInfoDict
 
 # TODO: auto-detect endianness
 # import sys
@@ -865,3 +868,29 @@ def are_inputs_ready(
         )
         for (_, opts), info in zip(inputs, input_info)
     ]
+
+
+def get_output_stream_id(
+    output_info: list[RawOutputInfoDict], stream: str | int
+) -> int:
+    """get output stream id
+
+    :param output_info: list of output stream information
+    :param stream: name or index of an output stream
+    :return: index of the output stream
+    """
+    if isinstance(stream, str):
+        try:
+            stream = next(
+                i for i, info in enumerate(output_info) if stream == info["user_map"]
+            )
+        except StopIteration:
+            raise FFmpegioError(
+                f'"{stream=}") does not match any of the output stream names {tuple(output_info)}'
+            )
+    elif stream < 0 or stream >= len(output_info):
+        raise FFmpegioError(
+            f'"{stream=}") is not a valid output index (0-{len(output_info)-1})'
+        )
+
+    return stream
