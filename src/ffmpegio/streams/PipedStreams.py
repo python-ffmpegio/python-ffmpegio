@@ -75,7 +75,7 @@ class PipedMediaReader:
 
         # initialize FFmpeg argument dict and get input & output information
         args, self._input_info, self._output_info = configure.init_media_read(
-            urls, map, options
+            urls, map, {"probesize_in": 32, **options}
         )
 
         # create logger without assigning the source stream
@@ -335,7 +335,7 @@ class PipedMediaWriter:
                 merge_audio_sample_fmt,
                 merge_audio_outpad,
                 extra_inputs,
-                options,
+                {"probesize_in": 32, **options},
                 dtypes_in,
                 shapes_in,
             )
