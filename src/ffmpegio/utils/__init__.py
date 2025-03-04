@@ -865,7 +865,7 @@ def are_inputs_ready(
         (
             info["src_type"] != "buffer"
             or "buffer" in info
-            or not all(o in opts for o in required_options[info["media_type"]])
+            or all(o in opts for o in required_options[info["media_type"]])
         )
         for (_, opts), info in zip(inputs, input_info)
     ]
