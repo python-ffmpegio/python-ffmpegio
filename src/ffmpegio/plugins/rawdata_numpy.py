@@ -12,6 +12,8 @@ hookimpl = HookimplMarker("ffmpegio")
 __all__ = [
     "video_info",
     "audio_info",
+    "video_frames",
+    "audio_samples",
     "video_bytes",
     "audio_bytes",
     "bytes_to_video",
@@ -43,6 +45,34 @@ def audio_info(obj: ArrayLike) -> Tuple[int, str]:
     """
     try:
         return obj.shape[-1:] if obj.ndim > 1 else [1], obj.dtype.str
+    except:
+        return None
+
+
+@hookimpl
+def video_frames(obj: ArrayLike) -> int:
+    """get number of video frames in obj
+
+    :param obj: object containing video frame data with arbitrary number of frames
+    :return: number of video frames in obj
+    """
+
+    try:
+        return obj.shape[0]
+    except:
+        return None
+
+
+@hookimpl
+def audio_samples(obj: ArrayLike) -> int:
+    """get audio sample info
+
+    :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
+    :return: number of samples in obj
+    """
+
+    try:
+        return obj.shape[0]
     except:
         return None
 
