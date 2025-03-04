@@ -1,18 +1,42 @@
+from __future__ import annotations
+
 from .._utils import get_samplesize
 from pluggy import HookimplMarker
-from typing import Tuple
+from typing import Tuple, TypedDict
+
+__all__ = [
+    "BytesRawDataBlob",
+    "video_info",
+    "audio_info",
+    "video_bytes",
+    "audio_bytes",
+    "bytes_to_video",
+    "bytes_to_audio",
+]
 
 hookimpl = HookimplMarker("ffmpegio")
 
 
+class BytesRawDataBlob(TypedDict):
+    """raw data blob in bytes"""
+
+    buffer: bytes
+    """data buffer"""
+
+    dtype: str
+    """numpy-style data type string"""
+
+    shape: Tuple[int, int, int]
+    """data shape"""
+
+
 @hookimpl
-def video_info(obj: dict) -> Tuple[Tuple[int, int, int], str]:
+def video_info(obj: BytesRawDataBlob) -> Tuple[Tuple[int, int, int], str]:
     """get video frame info
 
     :param obj: dict containing video frame data with arbitrary number of frames
-    :type obj: object
-    :return: shape (height,width,components) and data type in numpy dtype str expression
-    :rtype: Tuple[Tuple[int, int, int], str]
+    :return shape: shape (height,width,components)
+    :return dtype: data type in numpy dtype str expression
     """
 
     try:
@@ -22,13 +46,12 @@ def video_info(obj: dict) -> Tuple[Tuple[int, int, int], str]:
 
 
 @hookimpl
-def audio_info(obj: object) -> Tuple[int, str]:
+def audio_info(obj: BytesRawDataBlob) -> Tuple[int, str]:
     """get audio sample info
 
     :param obj: dict containing audio data (with interleaving channels) with arbitrary number of samples
-    :type obj: dict
-    :return: number of channels and sample data type in numpy dtype str expression
-    :rtype: Tuple[Tuple[int], str]
+    :return ac: number of channels
+    :return dtype: sample data type in numpy dtype str expression
     """
     try:
         return obj["shape"][-1:], obj["dtype"]
@@ -37,13 +60,11 @@ def audio_info(obj: object) -> Tuple[int, str]:
 
 
 @hookimpl
-def video_bytes(obj: object) -> memoryview:
+def video_bytes(obj: BytesRawDataBlob) -> memoryview:
     """return bytes-like object of packed video pixels, associated with `video_info()`
 
     :param obj: dict containing video frame data with arbitrary number of frames
-    :type obj: dict
     :return: packed bytes of video frames
-    :rtype: bytes-like object
     """
 
     try:
@@ -53,13 +74,11 @@ def video_bytes(obj: object) -> memoryview:
 
 
 @hookimpl
-def audio_bytes(obj: object) -> memoryview:
+def audio_bytes(obj: BytesRawDataBlob) -> memoryview:
     """return bytes-like object of packed audio samples
 
     :param obj: dict containing audio data (with interleaving channels) with arbitrary number of samples
-    :type obj: dict
     :return: packed bytes of audio samples
-    :rtype: bytes-like object
     """
 
     try:
@@ -71,19 +90,14 @@ def audio_bytes(obj: object) -> memoryview:
 @hookimpl
 def bytes_to_video(
     b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool
-) -> object:
+) -> BytesRawDataBlob:
     """convert bytes to rawvideo object
 
     :param b: byte data of arbitrary number of video frames
-    :type b: bytes
     :param dtype: data type numpy dtype string (e.g., '|u1', '<f4')
-    :type dtype: str
     :param size: frame dimension in pixels and number of color components (height, width, components)
-    :type size: Tuple[int, int, int]
     :param squeeze: True to remove all the singular dimensions
-    :type squeeze: bool
     :return: dict holding the rawvideo frame data
-    :rtype: dict['buffer':bytes, 'dtype':str, 'shape': Tuple[int,int,int]]
     """
 
     sh = (len(b) // get_samplesize(shape, dtype), *shape)
@@ -99,19 +113,16 @@ def bytes_to_video(
 
 
 @hookimpl
-def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> object:
+def bytes_to_audio(
+    b: bytes, dtype: str, shape: Tuple[int], squeeze: bool
+) -> BytesRawDataBlob:
     """convert bytes to rawaudio object
 
     :param b: byte data of arbitrary number of video frames
-    :type b: bytes
     :param dtype: numpy dtype string of the bytes (e.g., '<s2', '<f4')
-    :type dtype: str
     :param shape: number of interleaved audio channels (1-element tuple)
-    :type shape: Tuple[int]
     :param squeeze: True to remove all the singular dimensions
-    :type squeeze: bool
     :return: dict to hold the raw audio samples
-    :rtype: dict['buffer':bytes, 'dtype':str, 'shape': Tuple[int]]
     """
 
     try:
