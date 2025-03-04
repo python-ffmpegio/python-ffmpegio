@@ -49,6 +49,23 @@ def audio_bytes(obj: object) -> memoryview:
     """
 
 @hookspec(firstresult=True)
+def video_frames(obj: object) -> int:
+    """get number of video frames in obj
+
+    :param obj: object containing video frame data with arbitrary number of frames
+    :return: number of video frames in obj
+    """
+
+
+@hookspec(firstresult=True)
+def audio_samples(obj: object) -> int:
+    """get audio sample info
+
+    :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
+    :return: number of samples in obj
+    """
+
+@hookspec(firstresult=True)
 def bytes_to_video(
     b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool
 ) -> object:

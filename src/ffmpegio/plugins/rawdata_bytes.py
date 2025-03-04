@@ -8,6 +8,8 @@ __all__ = [
     "BytesRawDataBlob",
     "video_info",
     "audio_info",
+    "video_frames",
+    "audio_samples",
     "video_bytes",
     "audio_bytes",
     "bytes_to_video",
@@ -83,6 +85,34 @@ def audio_bytes(obj: BytesRawDataBlob) -> memoryview:
 
     try:
         return obj["buffer"]
+    except:
+        return None
+
+
+@hookimpl
+def video_frames(obj: BytesRawDataBlob) -> int:
+    """get number of video frames in obj
+
+    :param obj: object containing video frame data with arbitrary number of frames
+    :return: number of video frames in obj
+    """
+
+    try:
+        return len(obj["buffer"]) // get_samplesize(obj["shape"], obj["dtype"])
+    except:
+        return None
+
+
+@hookimpl
+def audio_samples(obj: BytesRawDataBlob) -> int:
+    """get audio sample info
+
+    :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
+    :return: number of samples in obj
+    """
+
+    try:
+        return len(obj["buffer"]) // get_samplesize(obj["shape"], obj["dtype"])
     except:
         return None
 
