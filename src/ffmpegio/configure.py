@@ -1746,7 +1746,7 @@ def init_media_filter(
     input_shapes: list[tuple[int]] | None,
     options: dict[str, Any],
     output_options: dict[str, dict[str, Any]],
-) -> tuple[FFmpegArgs, list[InputSourceDict], dict[str | None, dict[str, Any]] | None]:
+) -> tuple[FFmpegArgs, list[InputSourceDict], list[bool], dict[str | None, dict[str, Any]] | None]:
     """Prepare FFmpeg arguments for media read
 
     :param expr: complex filtergraph definition(s).
@@ -1764,6 +1764,7 @@ def init_media_filter(
                            overriding the output options in the `options` argument
     :return ffmpeg_args: FFmpeg argument dict (partial)
     :return input_info: input stream information
+    :return input_ready: Element is True if corresponding input is ready (known dtype and shape)
     :return output_info: output stream information, None if outputs not initialized
     :return output_options: output options, None if outputs already initialized
 
@@ -1803,7 +1804,7 @@ def init_media_filter(
     else:
         output_info = None
 
-    return args, input_info, output_info, output_options
+    return args, input_info, ready, output_info, output_options
 
 
 def init_media_filter_outputs(
