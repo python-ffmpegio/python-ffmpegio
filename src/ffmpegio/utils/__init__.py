@@ -534,7 +534,8 @@ def set_sp_kwargs_stdin(
     if src_type not in ("url", "filtergraph"):
         url = "pipe:0"
         if src_type == "buffer":
-            sp_kwargs = {**sp_kwargs, "input": info["buffer"]}
+            if "buffer" in info:
+                sp_kwargs = {**sp_kwargs, "input": info["buffer"]}
         elif src_type == "fileobj":
             f = info["fileobj"]
             sp_kwargs = {**sp_kwargs, "stdin": f}
