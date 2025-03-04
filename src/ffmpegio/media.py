@@ -297,7 +297,7 @@ def filter(
 
     """
 
-    args, input_info, output_info, _ = configure.init_media_filter(
+    args, input_info, input_ready, output_info, _ = configure.init_media_filter(
         expr,
         input_types,
         input_args,
@@ -309,9 +309,10 @@ def filter(
     )
 
     # if any input buffer is empty, invalid
-    for info in input_info:
-        if info["src_type"] == "buffer" and "buffer" not in info:
-            raise ValueError("All inputs must be raw media data.")
+    if not all(input_ready):
+        raise FFmpegioError(
+            "Data type and shape of some inputs could not be determined."
+        )
 
     # configure named pipes
     stack = configure.init_named_pipes(args, input_info, output_info)
