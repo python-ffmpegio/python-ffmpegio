@@ -1,5 +1,6 @@
 """ffmpegio plugin to use `numpy.ndarray` objects for media data I/O"""
 
+from __future__ import annotations
 import numpy as np
 from pluggy import HookimplMarker
 from typing import Tuple
@@ -23,9 +24,8 @@ def video_info(obj: ArrayLike) -> Tuple[Tuple[int, int, int], str]:
     """get video frame info
 
     :param obj: video frame data with arbitrary number of frames
-    :type obj: ArrayLike
-    :return: shape (height,width,components) and data type str
-    :rtype: Tuple[Tuple[int, int, int], str]
+    :return shape: shape (height,width,components)
+    :return dtype: data type in numpy dtype str expression
     """
     try:
         return obj.shape[-3:] if obj.ndim != 2 else [*obj.shape, 1], obj.dtype.str
@@ -38,9 +38,8 @@ def audio_info(obj: ArrayLike) -> Tuple[int, str]:
     """get audio sample info
 
     :param obj: column-wise audio data with arbitrary number of samples
-    :type obj: ArrayLike
-    :return: number of channels and sample data type in data type str
-    :rtype: Tuple[Tuple[int], str]
+    :return ac: number of channels
+    :return dtype: sample data type in numpy dtype str expression
     """
     try:
         return obj.shape[-1:] if obj.ndim > 1 else [1], obj.dtype.str
@@ -53,9 +52,7 @@ def video_bytes(obj: ArrayLike) -> memoryview:
     """return bytes-like object of rawvideo NumPy array
 
     :param obj: video frame data with arbitrary number of frames
-    :type obj: ArrayLike
     :return: memoryview of video frames
-    :rtype: memoryview
     """
 
     try:
@@ -69,9 +66,7 @@ def audio_bytes(obj: ArrayLike) -> memoryview:
     """return bytes-like object of rawaudio NumPy array
 
     :param obj: column-wise audio data with arbitrary number of samples
-    :type obj: ArrayLike
     :return: memoryview of audio samples
-    :rtype: memoryview
     """
 
     try:
@@ -87,15 +82,10 @@ def bytes_to_video(
     """convert bytes to rawvideo NumPy array
 
     :param b: byte data of arbitrary number of video frames
-    :type b: bytes
     :param dtype: data type string (e.g., '|u1', '<f4')
-    :type dtype: str
     :param size: frame dimension in pixels and number of color components (height, width, components)
-    :type size: Tuple[int, int, int]
     :param squeeze: True to remove all the singular dimensions
-    :type squeeze: bool
     :return: rawvideo frames
-    :rtype: ArrayLike
     """
 
     try:
@@ -110,15 +100,10 @@ def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> Ar
     """convert bytes to rawaudio NumPy array
 
     :param b: byte data of arbitrary number of video frames
-    :type b: bytes
     :param dtype: data type string (e.g., '<s2', '<f4')
-    :type dtype: str
     :param shape: number of audio channels
-    :type shape: Tuple[int]
     :param squeeze: True to remove all the singular dimensions
-    :type squeeze: bool
     :return: raw audio samples
-    :rtype: ArrayLike
     """
 
     try:
