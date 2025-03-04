@@ -98,7 +98,7 @@ def video_frames(obj: BytesRawDataBlob) -> int:
     """
 
     try:
-        return len(obj["buffer"]) // get_samplesize(obj["shape"], obj["dtype"])
+        return obj["shape"][0]
     except:
         return None
 
@@ -112,7 +112,7 @@ def audio_samples(obj: BytesRawDataBlob) -> int:
     """
 
     try:
-        return len(obj["buffer"]) // get_samplesize(obj["shape"], obj["dtype"])
+        return obj["shape"][0]
     except:
         return None
 
