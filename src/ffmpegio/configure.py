@@ -46,7 +46,7 @@ from .stream_spec import (
     parse_map_option,
     map_option as compose_map_option,
 )
-from .errors import FFmpegioError
+from .errors import FFmpegioError, FFmpegioNoPipeAllowed
 from .threading import ReaderThread, WriterThread, CopyFileObjThread
 
 #################################
@@ -1168,6 +1168,7 @@ def process_url_inputs(
     args: FFmpegArgs,
     urls: list[FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict]],
     inopts_default: dict[str, Any],
+    no_pipe: bool = False,
 ) -> list[InputSourceDict]:
     """analyze and process heterogeneous input url argument
 
@@ -1177,6 +1178,7 @@ def process_url_inputs(
                  a pipe expression.
     :param urls: list of input urls/data or a pair of input url and its options
     :param inopts_default: default input options
+    :param no_pipe: True to raise exception if output is piped without data buffer, defaults to False
     :return: list of input information
     """
 
@@ -1216,6 +1218,12 @@ def process_url_inputs(
             # convert to buffer
             input_info = {"src_type": "buffer", "buffer": FFConcat.input}
             url = None
+        elif url == "pipe":
+            if no_pipe:
+                raise FFmpegioNoPipeAllowed("No input pipe allowed.")
+            input_info = {"src_type": "buffer"}
+            url = None
+
         else:
             try:
                 buffer = memoryview(url)
@@ -1404,7 +1412,7 @@ def process_url_outputs(
     ],
     options: dict[str, Any],
     skip_automapping: bool = False,
-) -> tuple[list[RawOutputInfoDict], dict[str, Any] | None]:
+    no_pipe: bool = False,
     """analyze and process url outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1417,6 +1425,8 @@ def process_url_outputs(
                     to the per-file `"map"` option in `streams` argument
     :param skip_automapping: True to skip automapping, uses the default mapping,
                              defaults to False
+    :param no_pipe: True to raise exception if output is piped without data buffer,
+                    defaults to False
     :return output_info: list of output information
     :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
@@ -1441,6 +1451,8 @@ def process_url_outputs(
             output_info = {"dst_type": "fileobj", "fileobj": url}
             url = None
         elif url == "pipe":
+            if no_pipe:
+                raise FFmpegioNoPipeAllowed("No output pipe allowed.")
             # convert to buffer
             output_info = {"dst_type": "buffer"}
             url = None
@@ -1710,7 +1722,10 @@ def init_media_write(
             gopts["filter_complex"] = [afilt]
 
     if extra_inputs is not None:
-        input_info.extend(process_url_inputs(args, extra_inputs, {}))
+        try:
+            input_info.extend(process_url_inputs(args, extra_inputs, {}, no_pipe=True))
+        except FFmpegioNoPipeAllowed as e:
+            raise FFmpegioError("extra_inputs cannot be piped in.")
 
     # make sure all inputs are complete
     opt_names = {"audio": ("sample_fmt", "ac"), "video": ("pix_fmt", "s")}
@@ -1790,7 +1805,10 @@ def init_media_filter(
     )
 
     if extra_inputs is not None:
-        input_info.extend(process_url_inputs(args, extra_inputs, {}))
+        try:
+            input_info.extend(process_url_inputs(args, extra_inputs, {}, no_pipe=True))
+        except FFmpegioNoPipeAllowed as e:
+            raise FFmpegioError("extra_inputs cannot be piped in.")
 
     # make sure all inputs are complete
     ready = utils.are_inputs_ready(args["inputs"], input_info)
