@@ -9,8 +9,10 @@ from fractions import Fraction
 from pathlib import Path
 from urllib.parse import ParseResult
 
+
 if TYPE_CHECKING:
-    from .threading import WriterThread
+    from namedpipe import NPopen
+    from .threading import WriterThread, ReaderThread
 
 # from typing_extensions import *
 
@@ -41,6 +43,7 @@ FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
 FFmpegUrlType = Union[str, Path, ParseResult]
 
 FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
+FFmpegOutputType = Literal["url", "fileobj", "buffer"]
 
 
 class InputSourceDict(TypedDict):
@@ -51,3 +54,19 @@ class InputSourceDict(TypedDict):
     fileobj: NotRequired[IO]  # file object
     media_type: NotRequired[MediaType]  # media type if input pipe
     writer: NotRequired[WriterThread]  # pipe
+
+
+class OutputDestinationDict(TypedDict):
+    """output source info"""
+
+    dst_type: FFmpegOutputType  # True if file path/url
+    user_map: str | None  # user specified map option
+    media_type: MediaType | None  #
+    input_file_id: NotRequired[int]
+    input_stream_id: NotRequired[int]
+    linklabel: NotRequired[str]
+    media_info: NotRequired[dict[str, Any]]
+    pipe: NotRequired[NPopen]
+    reader: NotRequired[ReaderThread]
+    itemsize: NotRequired[int]
+    nmin: NotRequired[int]

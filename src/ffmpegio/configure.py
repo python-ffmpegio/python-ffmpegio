@@ -7,11 +7,11 @@ from ._typing import (
     MediaType,
     FFmpegUrlType,
     Union,
-    NotRequired,
     TypedDict,
     IO,
     Buffer,
     InputSourceDict,
+    OutputDestinationDict,
     RawStreamDef,
 )
 from collections.abc import Sequence
@@ -54,8 +54,6 @@ from .threading import ReaderThread, WriterThread, CopyFileObjThread
 
 UrlType = Literal["input", "output"]
 
-FFmpegOutputType = Literal["url", "fileobj", "buffer"]
-
 FFmpegInputUrlComposite = Union[FFmpegUrlType, FFConcat, FilterGraphObject, IO, Buffer]
 FFmpegOutputUrlComposite = Union[FFmpegUrlType, IO]
 
@@ -73,20 +71,6 @@ class FFmpegArgs(TypedDict):
     outputs: list[FFmpegOutputOptionTuple]
     # list of output definitions (pairs of url and options)
     global_options: dict  # FFmpeg global options
-
-
-class RawOutputInfoDict(TypedDict):
-    dst_type: FFmpegOutputType  # True if file path/url
-    user_map: str | None  # user specified map option
-    media_type: MediaType | None  #
-    input_file_id: NotRequired[int]
-    input_stream_id: NotRequired[int]
-    linklabel: NotRequired[str]
-    media_info: NotRequired[dict[str, Any]]
-    pipe: NotRequired[NPopen]
-    reader: NotRequired[ReaderThread]
-    itemsize: NotRequired[int]
-    nmin: NotRequired[int]
 
 
 #################################
@@ -922,7 +906,7 @@ def resolve_raw_output_streams(
     input_info: list[InputSourceDict],
     fg_info: dict[str, dict] | None,
     streams: dict[str, str | None],
-) -> dict[str, RawOutputInfoDict]:
+) -> dict[str, OutputDestinationDict]:
     """resolve the raw output streams from given sequence of map options
 
     :param args: FFmpeg argument dict
@@ -1013,7 +997,7 @@ def resolve_raw_output_streams(
 
 def auto_map(
     args: FFmpegArgs, input_info: list[InputSourceDict], fg_info: dict[str, dict] | None
-) -> dict[str, RawOutputInfoDict]:
+) -> dict[str, OutputDestinationDict]:
     """list all available streams from all FFmpeg input sources
 
     :param args: FFmpeg argument dict. `filter_complex` argument may be modified.
@@ -1247,7 +1231,7 @@ def process_raw_outputs(
     streams: Sequence[str] | dict[str, dict[str, Any] | None] | None,
     options: dict[str, Any],
     fg_info: dict[str, dict] | None = None,
-) -> tuple[list[RawOutputInfoDict], dict[str, dict] | None]:
+) -> tuple[list[OutputDestinationDict], dict[str, dict] | None]:
     """analyze and process piped raw outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1274,7 +1258,7 @@ def process_raw_outputs(
         )
 
     # resolve requested output streams
-    stream_info: dict[str, RawOutputInfoDict]
+    stream_info: dict[str, OutputDestinationDict]
     if streams is None or len(streams) == 0:
         stream_info = auto_map(args, input_info, fg_info)
     else:
@@ -1413,6 +1397,7 @@ def process_url_outputs(
     options: dict[str, Any],
     skip_automapping: bool = False,
     no_pipe: bool = False,
+) -> tuple[list[OutputDestinationDict], dict[str, Any] | None]:
     """analyze and process url outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1569,7 +1554,7 @@ def init_media_read(
     ],
     map: Sequence[str] | dict[str, dict[str, Any] | None] | None,
     options: dict[str, Any],
-) -> tuple[FFmpegArgs, list[InputSourceDict], list[RawOutputInfoDict]]:
+) -> tuple[FFmpegArgs, list[InputSourceDict], list[OutputDestinationDict]]:
     """Initialize FFmpeg arguments for media read
 
     :param *urls: URLs of the media files to read.
@@ -1635,7 +1620,7 @@ def init_media_write(
     options: dict[str, Any],
     dtypes: list[str] | None = None,
     shapes: list[tuple[int]] | None = None,
-) -> tuple[FFmpegArgs, list[InputSourceDict], list[RawOutputInfoDict], list[bool]]:
+) -> tuple[FFmpegArgs, list[InputSourceDict], list[OutputDestinationDict], list[bool]]:
     """write multiple streams to a url/file
 
     :param url: output url
@@ -1829,7 +1814,7 @@ def init_media_filter_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
     output_options: dict[str | None, dict[str, Any]],
-) -> list[RawOutputInfoDict]:
+) -> list[OutputDestinationDict]:
     """Initialize FFmpeg arguments for media read
 
     :param args: partial FFmpeg arguments (to be modified)
@@ -1884,7 +1869,7 @@ def init_media_filter_outputs(
 def init_named_pipes(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    output_info: list[RawOutputInfoDict],
+    output_info: list[OutputDestinationDict],
     update_rate: float | None = None,
     queue_size: int | None = None,
 ) -> ExitStack | None:

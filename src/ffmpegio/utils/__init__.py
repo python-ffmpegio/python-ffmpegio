@@ -18,13 +18,10 @@ from .. import caps, plugins, probe
 from .._utils import *
 from ..stream_spec import *
 from ..errors import FFmpegError, FFmpegioError
-from .._typing import Any, MediaType, InputSourceDict, RawDataBlob, TYPE_CHECKING
+from .._typing import Any, MediaType, InputSourceDict, RawDataBlob, OutputDestinationDict
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
 from ..filtergraph.presets import temp_video_src, temp_audio_src
-
-if TYPE_CHECKING:
-    from ..configure import RawOutputInfoDict
 
 # TODO: auto-detect endianness
 # import sys
@@ -872,7 +869,7 @@ def are_inputs_ready(
 
 
 def get_output_stream_id(
-    output_info: list[RawOutputInfoDict], stream: str | int
+    output_info: list[OutputDestinationDict], stream: str | int
 ) -> int:
     """get output stream id
 
