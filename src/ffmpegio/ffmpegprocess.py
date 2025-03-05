@@ -355,10 +355,12 @@ class Popen(sp.Popen):
     def terminate(self):
         """Terminate the FFmpeg process"""
         super().terminate()
-        try:
-            self._monitor.join()
-        except:
-            pass
+
+        if self.poll() is not None:
+            try:
+                self._monitor.join()
+            except:
+                pass
 
     def kill(self):
         """Kill the FFmpeg process"""
