@@ -406,91 +406,67 @@ class ReaderThread(Thread):
     def read(self, n: int = -1, timeout: float | None = None) -> bytes:
         """read n samples
 
-        :param n: number of samples/frames to read, if non-positive, read all, defaults to -1
+        :param n: number of samples/frames to read, if non-positive, read all
+                  (until the pipe is broken), defaults to -1
         :param timeout: timeout in seconds, defaults to None
         :return: n*itemsize bytes
         """
 
+        # no sample requested, return empty bytes object
         if n == 0:
             return b""
 
+        read_all = n < 0
+
         # wait till matching line is read by the thread
-        block = (self.is_alive() and not self._halt.is_set()) and n != 0
         if timeout is not None:
             timeout = time() + timeout
 
         arrays = []
-        n_new = max(n, -n)
+        m = n * self.itemsize  # bytes needed
+        mread = 0  # bytes read
 
         # grab any leftover data from previous read
         if self._carryover:
+            mread = len(self._carryover)
             arrays = [self._carryover]
-            if n_new != 0:
-                n_new -= len(self._carryover) // self.itemsize
+            m -= mread
             self._carryover = None
 
         # loop till enough data are collected
-        nreads = 1 if n <= 0 else max(n_new, 0)
-        nr = 0
-        while True:
+        while read_all or m > 0:
             tout = timeout and max(timeout - time(), 0)
-            if timeout and tout <= 0:
-                break
+            block = not self._running.is_set() and tout
+
             try:
                 b = self._queue.get(block, tout)
-                assert b is not None
+                assert b is not None  # encountered sentinel
                 self._queue.task_done()
                 arrays.append(b)
+                mr = len(b)
+                m -= mr
+                mread += mr
+                assert mr and tout > 0  # no more read time left
             except (Empty, AssertionError):
                 break
 
-            nr += len(b) // self.itemsize
-            if nr >= nreads:  # enough read
-                if n < 0:
-                    block = False  # keep reading until queue is empty
-                else:
-                    break
-
         # combine all the data and return requested amount
-        if not len(arrays):
-            return b""
-
         all_data = b"".join(arrays)
-        if n <= 0:
-            return all_data
-        nbytes = self.itemsize * n
-        if len(all_data) > nbytes:
-            self._carryover = all_data[nbytes:]
-        return all_data[:nbytes]
+
+        nread = mread // self.itemsize  # number of frames read
+        if n >= 0:
+            nread = min(nread, n)  # adjust to number of frames needed
+
+        mbytes = nread * self.itemsize  # number of bytes needed
+
+        # update carryover buffer
+        self._carryover = all_data[mbytes:] if mbytes < mread else None
+
+        # return retrieved bytes array
+        return all_data[:mbytes]
 
     def read_all(self, timeout: float | None = None) -> bytes:
-        # wait till matching line is read by the thread
-        if timeout is not None:
-            timeout = time() + timeout
-
-        arrays = arrays = [self._carryover] if self._carryover else []
-        self._carryover = None
-
-        # loop till enough data are collected
-        logger.info("ReaderThread:read_all - start reading")
-        while True:
-            # if not self.is_alive() or timeout and timeout > time():
-            try:
-                data = self._queue.get(
-                    self.is_alive() and not self._halt, timeout and timeout - time()
-                )
-                self._queue.task_done()
-                assert data is not None
-                arrays.append(data)
-            except (AssertionError, Empty):
-                logger.info("ReaderThread:read_all - the sentinel received")
-                break
-            except Exception as e:
-                logger.info(f"ReaderThread:read_all - exception: {type(e)}")
-                raise
-
-        # combine all the data and return requested amount
-        return b"".join(arrays)
+        return self.read(-1, timeout)
 
 
 class WriterThread(Thread):
