@@ -52,6 +52,7 @@ class PipedMediaReader:
         :param map: FFmpeg map options
         :param ref_stream: index of the reference stream to pace read operation, defaults to 0. The
                            reference stream is guaranteed to have a frame data on every read operation.
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console,
                         defaults to None (no show/capture)
@@ -205,7 +206,7 @@ class PipedMediaReader:
         return self
 
     def __next__(self):
-        F = self.read(self._blocksize, self.default_timeout)
+        F = self.read(self._blocksize, None)
         if not any(
             len(self._get_bytes[info["media_type"]](obj=f))
             for f, info in zip(F.values(), self._output_info)
@@ -233,6 +234,9 @@ class PipedMediaReader:
 
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
+
+        if timeout is None:
+            timeout = self.default_timeout
 
         # compute the number of frames to read per stream
         if self._n0 and n > 0:
@@ -309,6 +313,7 @@ class PipedMediaWriter:
         :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
         :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                             string or a pair of a url string and an option dict.
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console,
                         defaults to None (no show/capture)
@@ -503,11 +508,17 @@ class PipedMediaWriter:
         with self._logger._newline_mutex:
             return "\n".join(self._logger.logs or self._logger.logs[:n])
 
-    def write(self, stream_id: int, data: RawDataBlob) -> bytes | None:
+    def write(
+        self, stream_id: int, data: RawDataBlob, timeout: float | None = None
+    ) -> bytes | None:
         """write a raw media data to a specified stream
 
         :param stream_id: input stream index
         :param data: media data blob (depends on the active data conversion plugin)
+        :param timeout: timeout in seconds or defaults to `None` to use the
+                        `default_timeout` property. If `default_timeout` is `None`
+                        then the operation will block until all the data is written
+                        to the buffer queue
         :return: currently available encoded data (bytes) if returning the encoded
                  data back to Python
 
@@ -553,8 +564,11 @@ class PipedMediaWriter:
 
             logger.debug("[writer main] writing...")
 
+            if timeout is None:
+                timeout = self.default_timeout
+
             try:
-                self._input_info[stream_id]["writer"].write(b)
+                self._input_info[stream_id]["writer"].write(b, timeout)
             except (BrokenPipeError, OSError):
                 self._logger.join_and_raise()
 
@@ -583,8 +597,8 @@ class PipedMediaWriter:
 
         :param timeout: a timeout for blocking in seconds, or fractions
                         thereof, defaults to None, to wait until empty
-        :raise `TimeoutExpired`: if a timeout is set, and the process does not 
-                                 terminate after timeout seconds. It is safe to 
+        :raise `TimeoutExpired`: if a timeout is set, and the process does not
+                                 terminate after timeout seconds. It is safe to
                                  catch this exception and retry the wait.
         :return returncode: return returncode attribute
 
@@ -670,8 +684,6 @@ class Transcoder:
     :type dtype: str, optional
     :param blocksize: read buffer block size in samples, defaults to None
     :type blocksize: int, optional
-    :param default_timeout: default filter timeout in seconds, defaults to None (10 ms)
-    :type default_timeout: float, optional
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -697,8 +709,8 @@ class Transcoder:
         **output_options: dict[str, Any],
     ) -> None:
 
-        #:float: default filter operation timeout in seconds
-        self.default_timeout = default_timeout or 10e-3
+        #:float|None: default filter operation timeout in seconds
+        self.default_timeout = default_timeout
 
         # set this to false in _finalize() if guaranteed for the logger to have output stream info
         self._loggertimeout = True
