@@ -6,7 +6,7 @@ from .SimpleStreams import (
     SimpleVideoFilter,
     SimpleAudioFilter,
 )
-from .PipedStreams import PipedMediaReader, PipedMediaWriter
+from .PipedStreams import PipedMediaReader, PipedMediaWriter, PipedMediaFilter
 from .AviStreams import AviMediaReader
 
 # TODO multi-stream write
@@ -15,6 +15,6 @@ from .AviStreams import AviMediaReader
 # fmt: off
 __all__ = ["SimpleVideoReader", "SimpleVideoWriter", "SimpleAudioReader",
     "SimpleAudioWriter", "SimpleVideoFilter", "SimpleAudioFilter",
-    "PipedMediaReader","PipedMediaWriter",
+    "PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter",
     "AviMediaReader"]
 # fmt: on

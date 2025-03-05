@@ -68,3 +68,36 @@ def test_PipedMediaWriter():
         writer.wait(10)
         b = writer.pop_encoded(0)
         assert isinstance(b, bytes)
+
+
+def test_PipedMediaFilter():
+
+    ff.use("read_bytes")
+
+    fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3", to=1)
+
+    fps, F = ff.video.read("tests/assets/testvideo-1m.mp4", to=1)
+
+    print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
+
+    with streams.PipedMediaFilter(
+        ["[0:V:0][1:V:0]vstack,split", "[2:a:0][3:a:0]amerge"],
+        "vvaa",
+        fps,
+        fps,
+        fs,
+        fs,
+        output_options={"[out0]": {}, "audio": {"map": "[out2]"}},
+        show_log=True,
+        loglevel="debug",
+        # queuesize=4,
+    ) as f:
+        # f.write([F, F])
+        f.write([F, F, x, x])
+        # sleep(1)
+        f.wait(10)
+        data = f.read(F["shape"][0], 10)
+
+        assert all(k in ("[out0]", "out1", "audio") for k in data)
+        n = f.output_counts
+        assert all(v["shape"][0] == n[k] for k, v in data.items())
