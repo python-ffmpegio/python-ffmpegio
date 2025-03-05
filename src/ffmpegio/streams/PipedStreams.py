@@ -27,7 +27,7 @@ from ..threading import LoggerThread, ReaderThread, WriterThread, NotEmpty
 from ..errors import FFmpegError, FFmpegioError
 
 # fmt:off
-__all__ = ["PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter"]
+__all__ = ["PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter", "PipedMediaTranscoder"]
 # fmt:on
 
 
@@ -1188,260 +1188,346 @@ class PipedMediaFilter:
             rc = None
         return rc
 
-class Transcoder:
-    """Class to merge multiple media streams in memory
 
-    :param expr: SISO filter graph or None if implicit filtering via output options.
-    :type expr: str, None
-    :param rate_in: input sample rate
-    :type rate_in: int, float, Fraction, str
-    :param shape_in: input single-sample array shape, defaults to None
-    :type shape_in: seq of ints, optional
-    :param dtype_in: input data type string, defaults to None
-    :type dtype_in: str, optional
-    :param rate: output sample rate, defaults to None (auto-detect)
-    :type rate: int, float, Fraction, str, optional
-    :param shape: output single-sample array shape, defaults to None
-    :type shape: seq of ints, optional
-    :param dtype: output data type string, defaults to None
-    :type dtype: str, optional
-    :param blocksize: read buffer block size in samples, defaults to None
-    :type blocksize: int, optional
-    :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
-    :param show_log: True to show FFmpeg log messages on the console,
-                    defaults to None (no show/capture)
-
-    :type show_log: bool, optional
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
-
-    """
+class PipedMediaTranscoder:
+    """Class to transcode encoded media streams"""
 
     def __init__(
         self,
-        *input_formats_or_opts: Sequence[str | dict | None],
-        nb_inputs: int | None = None,
-        output_url: str | None = None,
-        blocksize: int | None = None,
+        input_options: Sequence[dict[str, Any]],
+        output_options: Sequence[dict[str, Any]],
+        extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
+        extra_outputs: Sequence[str | tuple[str, dict]] | None = None,
+        *,
         default_timeout: float | None = None,
-        progress: Callable | None = None,
+        progress: ProgressCallable | None = None,
         show_log: bool | None = None,
-        sp_kwargs: dict | None = None,
-        np_kwargs: dict | None = None,
-        **output_options: dict[str, Any],
-    ) -> None:
+        blocksize: int | None = None,
+        queuesize: int | None = None,
+        sp_kwargs: dict = None,
+        **options: Unpack[dict],
+    ):
+        """Encoded media stream transcoder
 
-        #:float|None: default filter operation timeout in seconds
-        self.default_timeout = default_timeout
+        :param input_options: FFmpeg input option dicts of all the input pipes. Each dict
+                              must contain the `"f"` option to specify the media format.
+        :param output_options: FFmpeg output option dicts of all the output pipes. Each dict
+                               must contain the `"f"` option to specify the media format.
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                             string or a pair of a url string and an option dict.
+        :param extra_outputs: list of additional output destinations, defaults to None. Each destination
+                              may be url string or a pair of a url string and an option dict.
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param progress: progress callback function, defaults to None
+        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
+                          defaults to `None` to use 1 video frame or 1024 audio frames
+        :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                        `subprocess.Popen()` call used to run the FFmpeg, defaults
+                        to None
+        :param options: global/default FFmpeg options. For output and global options,
+                        use FFmpeg option names as is. For input options, append "_in" to the
+                        option name. For example, r_in=2000 to force the input frame rate
+                        to 2000 frames/s (see :doc:`options`). These input and output options
+                        specified here are treated as default, common options, and the
+                        url-specific duplicate options in the ``inputs`` or ``outputs``
+                        sequence will overwrite those specified here.
+        """
 
-        # set this to false in _finalize() if guaranteed for the logger to have output stream info
-        self._loggertimeout = True
-
-        nin = len(input_formats_or_opts)
-        if nb_inputs is None and not nin:
-            raise ValueError(
-                "At least one input format/options must be given OR specify nb_inputs."
-            )
-        if nb_inputs is not None and nin > 0 and nb_inputs != nin:
-            raise ValueError(
-                "Both nb_inputs and input format/options are given but nb_inputs does not agree with the number of inputs specified."
-            )
-
-        inopts = (
-            [
-                v if isinstance(v, dict) else {} if v is None else {"f": v}
-                for v in input_formats_or_opts
-            ]
-            if len(input_formats_or_opts)
-            else [{}] * nb_inputs
+        args, self._input_info, self._output_info = configure.init_media_transcode(
+            [("-", opts) for opts in input_options],
+            [("-", opts) for opts in output_options],
+            extra_inputs,
+            extra_outputs,
+            options,
         )
-
-        nb_inputs = len(inopts)
-        self._input_pipes = inpipes = [
-            NPopen("w", **(np_kwargs or {})) for _ in range(nb_inputs)
-        ]
-
-        self._output_pipe = None
-        if output_url is None:
-            self._output_pipe = outpipe = NPopen("r", **(np_kwargs or {}))
-            output_url = outpipe.path
-
-        # create input format list
-        self._args = ffmpeg_args = configure.empty()
-        ffmpeg_args["inputs"].extend([(p.path, o) for p, o in zip(inpipes, inopts)])
-        configure.add_url(ffmpeg_args, "output", output_url, output_options)[1][1]
-
-        self._proc = None
-
-        # create the stdin writer without assigning the sink stream
-        self._writers = [WriterThread(p, 0) for p in inpipes]
-
-        # create the stdout reader without assigning the source stream
-        self._reader = None
-        if self._output_pipe is not None:
-            self._reader = ReaderThread(self._output_pipe, blocksize, 0)
 
         # create logger without assigning the source stream
         self._logger = LoggerThread(None, show_log)
 
-        # FFmpeg Popen arguments
-        self._cfg = {**sp_kwargs} if sp_kwargs else {}
-        self._cfg.update(
-            {
-                "ffmpeg_args": ffmpeg_args,
-                "progress": progress,
-                "capture_log": True,
-            }
+        # prepare FFmpeg keyword arguments
+        self._args = {
+            "ffmpeg_args": args,
+            "progress": progress,
+            "capture_log": True,
+            "sp_kwargs": sp_kwargs,
+        }
+
+        # set the default read block size for the referenc stream
+        self.default_timeout = default_timeout
+        self._blocksize = blocksize
+        self._pipe_kws = {"queue_size": queuesize}
+        self._proc = None
+
+    def __enter__(self):
+
+        ffmpeg_args = self._args["ffmpeg_args"]
+
+        # set up and activate pipes and read/write threads
+        stack = configure.init_named_pipes(
+            ffmpeg_args, self._input_info, self._output_info, **self._pipe_kws
         )
 
-        # start FFmpeg
-        self._proc = ffmpegprocess.Popen(**self._cfg)
+        # run the FFmpeg
+        try:
+            self._proc = ffmpegprocess.Popen(
+                **self._args, on_exit=lambda _: stack.close()
+            )
+        except:
+            stack.close()
+            raise
 
+        # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
         self._logger.start()
 
-        # start the writers
-        for writer in self._writers:
-            writer.start()
+        return self
 
-        self._reader.start()
-        self._cfg = False
+    def open(self):
+        """start FFmpeg processing
+
+        Note
+        ----
+
+        It may flag to defer starting the FFmpeg process if the input streams
+        are not fully specified and must wait to deduce them from the written
+        data.
+
+        """
+        self.__enter__()
+
+    def __exit__(self, *exc_details):
+
+        try:
+            if self._proc is not None and self._proc.poll() is None:
+                # kill the ffmpeg runtime
+                self._proc.terminate()
+                if self._proc.poll() is None:
+                    self._proc.kill()
+                self._proc = None
+        except:
+            if not exc_details[0]:
+                exc_details = sys.exc_info()
+        finally:
+            try:
+                self._logger.join()
+            except RuntimeError:
+                pass
 
     def close(self):
-        """Close the stream.
+        """Kill FFmpeg process and close the streams."""
 
-        This method has no effect if the stream is already closed. Once the
-        stream is closed, any read operation on the stream will raise a ThreadNotActive.
-
-        As a convenience, it is allowed to call this method more than once; only the first call,
-        however, will have an effect.
-        """
-
-        if self._proc is None:
-            return
-
-        self._proc.stdout.close()
-        self._proc.stderr.close()
-
-        # kill the process
-        try:
-            self._proc.terminate()
-        except:
-            pass
-
-        for p in self._input_pipes:
-            p.close()
-
-        try:
-            self._logger.join()
-        except:
-            # possibly close before opening the logger thread
-            pass
-        try:
-            self._reader.join()
-        except:
-            # possibly close before opening the reader thread
-            pass
-        try:
-            for writer in self._writers:
-                writer.join()
-        except:
-            # possibly close before opening the writer thread
-            pass
+        self.__exit__(None, None, None)
 
     @property
     def closed(self) -> bool:
-        """:bool: True if the stream is closed."""
+        """True if the stream is closed."""
         return self._proc.poll() is not None
 
     @property
-    def lasterror(self) -> Exception:
-        """:FFmpegError: Last error FFmpeg posted"""
+    def lasterror(self) -> FFmpegError:
+        """Last error FFmpeg posted"""
         if self._proc.poll():
             return self._logger.Exception()
         else:
             return None
 
-    def __enter__(self):
-        return self
+    def readlog(self, n: int) -> str:
+        """read FFmpeg log lines
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def readlog(self, n: int | None = None) -> str:
-        """get FFmpeg log lines
-
-        :param n: number of lines to return, defaults to None (every line logged)
-        :type n: int, optional
-        :return: string containing the requested logs
-        :rtype: str
-
+        :param n: number of lines to read
+        :return: logged messages
         """
         if n is not None:
             self._logger.index(n)
         with self._logger._newline_mutex:
             return "\n".join(self._logger.logs or self._logger.logs[:n])
 
-    def write(self, stream_id: int, stream_data: bytes, timeout: float | None = None):
-        """Run filter operation
+    def _write_encoded_stream(
+        self,
+        info: OutputDestinationDict,
+        data: bytes,
+        timeout: float | None,
+    ):
+        """write a raw media data to a specified stream (backend)"""
 
-        :param data: input data block
-        :param timeout: timeout for the operation in seconds, defaults to None
+        try:
+            info["writer"].write(data, timeout)
+        except:
+            raise FFmpegioError("Cannot write to a non-piped input.")
 
-        The input `data` array is expected to have the datatype specified by
-        Filter class' `dtype_in` property and the array shape to match Filter
-        class' `shape_in` property or with an additional dimension prepended.
+    def write_encoded_stream(
+        self, stream_id: int, data: bytes, timeout: float | None = None
+    ):
+        """write a raw media data to a specified stream
+
+        :param stream_id: input stream index or label
+        :param data: media data bytes
+        :param timeout: timeout in seconds or defaults to `None` to use the
+                        `default_timeout` property. If `default_timeout` is `None`
+                        then the operation will block until all the data is written
+                        to the buffer queue
+        :return: currently available encoded data (bytes) if returning the encoded
+                 data back to Python
+
+        Write the given NDArray object, data, and return the number
+        of bytes written (always equal to the number of data frames/samples,
+        since if the write fails an OSError will be raised).
+
+        When in non-blocking mode, a BlockingIOError is raised if the data
+        needed to be written to the raw stream but it couldn’t accept all
+        the data without blocking.
+
+        The caller may release or mutate data after this method returns,
+        so the implementation should only access data during the method call.
 
         """
 
-        timeout = timeout or self.default_timeout
-
-        timeout += time()
-
-        writer = self._writers[stream_id]
+        # get input stream information
         try:
-            writer.write(stream_data, timeout - time())
-        except BrokenPipeError as e:
-            # TODO check log for error in FFmpeg
-            raise e
+            info = self._input_info[stream_id]
+        except IndexError:
+            raise FFmpegioError(f"{stream_id=} is an invalid input stream index.")
 
-    def read(self, n: int = -1, timeout: float | None = None) -> bytes:
+        if timeout is None:
+            timeout = self.default_timeout
 
-        try:
-            return self._reader.read(n, timeout)
-        except AttributeError as e:
-            if self._reader is None:
-                raise RuntimeError(
-                    "read() not supported. FFmpeg is outputting directly to a file"
-                )
-            raise
+        self._write_encoded_stream(info, data, timeout)
 
-    def read_nowait(self, n: int = -1) -> bytes:
+    def _read_encoded_stream(
+        self,
+        info: OutputDestinationDict,
+        n: int,
+        timeout: float | None = None,
+    ) -> bytes:
+        """read selected output stream (shared backend)"""
 
-        try:
-            return self._reader.read_nowait(n)
-        except AttributeError as e:
-            if self._reader is None:
-                raise RuntimeError(
-                    "read_nowait() not supported. FFmpeg is outputting directly to a file"
-                )
-            raise
+        return info["reader"].read(n, timeout)
 
-    def flush(self, timeout: float | None = None):
-        """Flush the write buffers of the stream if applicable.
+    def read_encoded_stream(
+        self, stream_id: int, n: int, timeout: float | None = None
+    ) -> bytes:
+        """read selected output stream
 
-        :param timeout: timeout duration in seconds, defaults to None
-        :type timeout: float, optional
-        :return: remaining output samples
-        :rtype: numpy.ndarray
+        :param stream_id: stream index or label
+        :param n: number of bytes to read
+        :param timeout: timeout in seconds or defaults to `None` to use the
+                        `default_timeout` property. If `default_timeout` is `None`
+                        then the operation will block until all the data is read
+                        from the buffer queue
+        :return: retrieved data
+
+        Effect of mixing `n` and `timeout`
+        ----------------------------------
+
+        ===  =========  =========================================================================
+        `n`  `timeout`  Behavior
+        ===  =========  =========================================================================
+        0    ---        Immediately returns
+        >0   `None`     Wait indefinitely until `n` bytes are retrieved
+        >0   `float`    Retrieve as many bytes up to `n` before `timeout` seconds passes
+        <0   `None`     Wait indefinitely until FFmpeg terminates
+        <0   `float`    Retrieve as many bytes until `timeout` seconds passes
+        ===  =========  =========================================================================
+
         """
 
-        timeout = timeout or self.default_timeout
+        if timeout is None:
+            timeout = self.default_timeout
 
-        # If no input, close stdin and read all remaining frames
-        y = self._reader.read_all(timeout)
-        for p in self._input_pipes:
-            p.close()
-        self._proc.wait()
-        y += self._reader.read_all(None)
+        info = self._output_info
+        stream_id = utils.get_output_stream_id(info, stream_id)
+        return self._read_encoded_stream(info[stream_id], n, timeout)
+
+    def write_encoded(
+        self,
+        data: Sequence[RawDataBlob] | dict[int, RawDataBlob],
+        timeout: float | None = None,
+    ) -> bytes | None:
+        """write data to all input streams
+
+        :param data: media byte data keyed by stream index
+        :param timeout: timeout in seconds or defaults to `None` to use the
+                        `default_timeout` property. If `default_timeout` is `None`
+                        then the operation will block until all the data is written
+                        to the buffer queue
+
+        """
+
+        it_data = data.items() if isinstance(data, dict) else enumerate(data)
+
+        if timeout is None:
+            timeout = self.default_timeout
+
+        if timeout is not None:
+            timeout += time()
+
+        info = self._input_info
+        for stream_id, stream_data in it_data:
+            self._write_encoded_stream(
+                info[stream_id],
+                stream_id,
+                stream_data,
+                None if timeout is None else timeout - time(),
+            )
+
+    def readall_encoded(self, timeout: float | None = None) -> dict[str, bytes]:
+        """Read available data from all output streams
+
+        :param timeout: timeout in seconds or defaults to `None` to use the
+                        `default_timeout` property. If `default_timeout` is `None`
+                        then the operation will block until FFmpeg stops
+        :return: retrieved data keyed by output streams
+
+        """
+
+        data = {}  # output
+
+        if timeout is None:
+            timeout = self.default_timeout
+
+        if timeout is not None:
+            timeout += time()
+
+        get_timeout = lambda: None if timeout is None else max(timeout - time(), 0)
+
+        # retrieve all the other streams up to T seconds mark
+        for i, info in enumerate(self._output_info):
+            data[i] = self._read_encoded_stream(info, -1, get_timeout())
+
+        return data
+
+    def wait(self, timeout: float | None = None) -> int | None:
+        """close the input pipes and wait for FFmpeg to exit
+
+        :param timeout: a timeout for blocking in seconds, or fractions
+                        thereof, defaults to None, to wait indefinitely
+        :raise `TimeoutExpired`: if a timeout is set, and the process does not
+                                 terminate after timeout seconds. It is safe to
+                                 catch this exception and retry the wait.
+        :return returncode: return returncode attribute
+        """
+
+        if self._proc:
+
+            if timeout is not None:
+                timeout += time()
+
+            # write the sentinel to each input queue
+            for info in self._input_info:
+                if "writer" in info:
+                    info["writer"].write(
+                        None, None if timeout is None else timeout - time()
+                    )
+
+            # wait until the FFmpeg finishes the job
+            try:
+                rc = self._proc.wait(None if timeout is None else timeout - time())
+            except TimeoutError:
+                raise
+            else:
+                self._proc = None
+        else:
+            rc = None
+        return rc
