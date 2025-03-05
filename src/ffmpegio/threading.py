@@ -446,7 +446,7 @@ class ReaderThread(Thread):
                 mr = len(b)
                 m -= mr
                 mread += mr
-                assert mr and tout > 0  # no more read time left
+                assert mr and (read_all or tout > 0)  # no more read time left
             except (Empty, AssertionError):
                 break
 
