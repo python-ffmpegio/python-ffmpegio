@@ -1866,6 +1866,74 @@ def init_media_filter_outputs(
     return output_info
 
 
+def init_media_transcode(
+    inputs: Sequence[
+        FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict[str, Any] | None]
+    ],
+    outputs: Sequence[
+        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
+    ],
+    extra_inputs: Sequence[str | tuple[str, dict]] | None,
+    extra_outputs: Sequence[str | tuple[str, dict]] | None,
+    options: dict[str, Any],
+) -> tuple[FFmpegArgs, InputSourceDict, OutputDestinationDict]:
+    """initialize media transcoder
+
+    :param input_options: FFmpeg input options of piped inputs
+    :param output_options: FFmpeg output options of piped outputs
+    :param extra_inputs: a list of extra inputs: their URLs and optional options
+    :param extra_outputs: a list of extra outputs: their URLs and optional options
+    :return ffmpeg_args: FFmpeg argument dict
+    :return input_info: input stream information
+    :return output_info: output stream information
+    """
+
+    if "n" in options:
+        raise ValueError("Cannot have an `n` option set to output to named pipes.")
+
+    # separate the options
+    inopts_default = utils.pop_extra_options(options, "_in")
+
+    # create a new FFmpeg dict
+    args = empty(utils.pop_global_options(options))
+    gopts = args["global_options"]  # global options dict
+    gopts["y"] = None
+
+    input_info = process_url_inputs(args, inputs, inopts_default)
+    output_info = process_url_outputs(
+        args, input_info, outputs, options, skip_automapping=True
+    )
+
+    if extra_inputs is not None:
+        try:
+            input_info.extend(process_url_inputs(args, extra_inputs, {}, no_pipe=True))
+        except FFmpegioNoPipeAllowed as e:
+            raise FFmpegioError("extra_inputs cannot be piped in.")
+
+    if not len(input_info):
+        raise ValueError("At least one input must be given.")
+
+    if extra_outputs is not None:
+        try:
+            output_info.extend(
+                process_url_outputs(
+                    args,
+                    input_info,
+                    extra_outputs,
+                    {},
+                    skip_automapping=True,
+                    no_pipe=True,
+                )
+            )
+        except FFmpegioNoPipeAllowed:
+            raise FFmpegioError("extra_outputs cannot be piped out.")
+
+    if not len(output_info):
+        raise ValueError("At least one output must be given.")
+
+    return args, input_info, output_info
+
+
 def init_named_pipes(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
