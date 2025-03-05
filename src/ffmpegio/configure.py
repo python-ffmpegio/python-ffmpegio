@@ -1890,32 +1890,7 @@ def init_named_pipes(
     """
 
     stack = ExitStack()
-
-    # configure input pipes (if needed)
     wr_kws = {"queuesize": queue_size} if queue_size else {}
-    for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
-        if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
-            pipe = NPopen("w", bufsize=0)
-            stack.enter_context(pipe)
-            assign_input_url(args, i, pipe.path)
-            src_type = info["src_type"]
-            if src_type == "fileobj":
-                writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
-                stack.enter_context(writer)
-                # starts thread & wait for pipe connection
-            elif src_type == "buffer":
-                writer = WriterThread(pipe, **wr_kws)
-                # starts thread & wait for pipe connection
-                stack.enter_context(writer)
-                if "buffer" in info:
-                    # data buffer given, feed the data and terminate
-                    writer.write(info["buffer"])
-                    writer.write(None) # close the writer immediately
-                else:
-                    # if no data given, provide the access to the writer
-                    info["writer"] = writer
-            else:
-                raise FFmpegioError(f"{src_type=} is an unknown input data type.")
 
     # configure output pipes
     has_pipeout = False
@@ -1943,6 +1918,31 @@ def init_named_pipes(
                 raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
             stack.enter_context(reader)  # starts thread & wait for pipe connection
             info["reader"] = reader
+
+    # configure input pipes (if needed)
+    for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
+        if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
+            pipe = NPopen("w", bufsize=0)
+            stack.enter_context(pipe)
+            assign_input_url(args, i, pipe.path)
+            src_type = info["src_type"]
+            if src_type == "fileobj":
+                writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
+                stack.enter_context(writer)
+                # starts thread & wait for pipe connection
+            elif src_type == "buffer":
+                writer = WriterThread(pipe, **wr_kws)
+                # starts thread & wait for pipe connection
+                stack.enter_context(writer)
+                if "buffer" in info:
+                    # data buffer given, feed the data and terminate
+                    writer.write(info["buffer"])
+                    writer.write(None) # close the writer immediately
+                else:
+                    # if no data given, provide the access to the writer
+                    info["writer"] = writer
+            else:
+                raise FFmpegioError(f"{src_type=} is an unknown input data type.")
 
     if has_pipeout:
         # if any output is piped, must run in the overwrite mode
