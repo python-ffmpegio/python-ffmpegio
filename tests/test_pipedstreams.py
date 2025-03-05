@@ -101,3 +101,28 @@ def test_PipedMediaFilter():
         assert all(k in ("[out0]", "out1", "audio") for k in data)
         n = f.output_counts
         assert all(v["shape"][0] == n[k] for k, v in data.items())
+
+
+def test_PipedMediaTranscoder():
+    url = "tests/assets/testmulti-1m.mp4"
+
+    with streams.PipedMediaTranscoder(
+        [],
+        [{"f": "matroska", "codec": "copy", "to": 1}],
+        extra_inputs=[url],
+        show_log=False,
+    ) as f:
+        if f.wait(timeout=10):
+            raise f.lasterror
+        data = f.read_encoded_stream(0, -1, timeout=10)
+
+    with streams.PipedMediaTranscoder(
+        [{"f": "matroska"}],
+        [{"f": "flac"}, {"f": "matroska", "codec": "copy"}],
+        show_log=False,
+    ) as f:
+        f.write_encoded_stream(0, data, timeout=10)
+        if f.wait(timeout=10):
+            raise f.lasterror
+        enc_data = f.readall_encoded(timeout=10)
+        assert len(enc_data) == 2
