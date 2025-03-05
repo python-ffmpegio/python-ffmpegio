@@ -20,10 +20,8 @@ import sys
 from time import time
 from fractions import Fraction
 
-from namedpipe import NPopen
-
 from .. import configure, ffmpegprocess, plugins, utils
-from ..threading import LoggerThread, ReaderThread, WriterThread, NotEmpty
+from ..threading import LoggerThread, NotEmpty
 from ..errors import FFmpegError, FFmpegioError
 
 # fmt:off
