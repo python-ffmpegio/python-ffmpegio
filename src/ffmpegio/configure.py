@@ -1916,6 +1916,10 @@ def init_named_pipes(
                     kws["itemsize"] = utils.get_samplesize(shape, dtype)
                     if update_rate is not None:
                         kws["nmin"] = round(rate / update_rate) or 1
+                else:
+                    # assume encoded output
+                    kws["itemsize"] = 1
+                    kws["nmin"] = 2**20
                 reader = ReaderThread(pipe, **kws)
             else:
                 raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
