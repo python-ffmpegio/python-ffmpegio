@@ -93,7 +93,7 @@ class PipedMediaReader:
         info = self._output_info[ref_stream]
         if blocksize is None:
             blocksize = 1 if info["media_type"] == "video" else 1024
-        self.blocksize = blocksize
+        self._blocksize = blocksize
         self.default_timeout = default_timeout
         self._ref = ref_stream
         self._rates = [v["media_info"][2] for v in self._output_info]
@@ -205,7 +205,7 @@ class PipedMediaReader:
         return self
 
     def __next__(self):
-        F = self.read(self.blocksize, self.default_timeout)
+        F = self.read(self._blocksize, self.default_timeout)
         if not any(
             len(self._get_bytes[info["media_type"]](obj=f))
             for f, info in zip(F.values(), self._output_info)
