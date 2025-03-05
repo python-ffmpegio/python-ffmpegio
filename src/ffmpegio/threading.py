@@ -321,14 +321,14 @@ class ReaderThread(Thread):
 
     def join(self, timeout=None):
 
-        if self.pipe:
+        if self.pipe is None:
+            self.stdout.close()
+        else:
             if self.stdout is None:
                 # FFmpeg never opened the pipe, open it to release the runner from waiting
                 with open(self.pipe.path, "w"):
                     ...
             self.pipe.close()
-        else:
-            self.stdout.close()
 
         self._halt.set()
         if self._queue.full():
@@ -576,10 +576,10 @@ class WriterThread(Thread):
             self._no_more = True
 
         # close the pipe/stream
-        if self.pipe:
-            self.pipe.close()
-        else:
+        if self.pipe is None:
             self.stdin.close()
+        else:
+            self.pipe.close()
 
         # completely flush the queue
         # check if queue has any remaining items
