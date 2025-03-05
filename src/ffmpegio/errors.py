@@ -5,6 +5,8 @@ from typing import Sequence, Union
 class FFmpegioError(Exception):
     pass
 
+class FFmpegioNoPipeAllowed(FFmpegioError):
+    pass
 
 ERROR_MESSAGES = (
     # cmdutils.c::parse_optgroup()
