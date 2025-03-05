@@ -226,7 +226,7 @@ class LoggerThread(Thread):
                     timeout = time() + timeout
                 start = len(self.logs)
                 while True:
-                    tout = timeout and timeout - time()
+                    tout = timeout and max(timeout - time(), 0)
                     # wait till the next log update
                     if (tout is not None and tout < 0) or not self.newline.wait(tout):
                         raise TimeoutError("Specified line not found")
@@ -433,7 +433,7 @@ class ReaderThread(Thread):
         nreads = 1 if n <= 0 else max(n_new, 0)
         nr = 0
         while True:
-            tout = timeout and timeout - time()
+            tout = timeout and max(timeout - time(), 0)
             if timeout and tout <= 0:
                 break
             try:
