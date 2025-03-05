@@ -14,7 +14,7 @@ from ..configure import (
     FFmpegOutputUrlComposite,
 )
 from ..filtergraph.abc import FilterGraphObject
-from ..configure import RawOutputInfoDict
+from ..configure import OutputDestinationDict
 
 import sys
 from time import time
@@ -924,7 +924,7 @@ class PipedMediaFilter:
 
     def _write_stream(
         self,
-        info: RawOutputInfoDict,
+        info: OutputDestinationDict,
         stream_id: int,
         data: RawDataBlob,
         timeout: float | None,
@@ -1003,7 +1003,7 @@ class PipedMediaFilter:
 
     def _read_stream(
         self,
-        info: RawOutputInfoDict,
+        info: OutputDestinationDict,
         stream_id: int | str,
         n: int,
         timeout: float | None = None,
