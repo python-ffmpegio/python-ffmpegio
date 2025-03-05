@@ -133,7 +133,7 @@ def is_url(value: Any, *, pipe_ok: bool = False) -> bool:
 
 def is_pipe(value: Any) -> bool:
     """True if FFmpeg pipe protocol string"""
-    return value == "-" or bool(re.match(r"pipe\:\d*", value))
+    return value == "-" or bool(re.match(r"pipe(\:\d*)?", value))
 
 
 def is_namedpipe(
