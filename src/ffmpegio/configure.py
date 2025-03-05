@@ -1196,16 +1196,16 @@ def process_url_inputs(
         elif utils.is_fileobj(url, readable=True):
             input_info = {"src_type": "fileobj", "fileobj": url}
             url = None
-        elif utils.is_url(url, pipe_ok=False):
+        elif utils.is_pipe(url):
+            if no_pipe:
+                raise FFmpegioNoPipeAllowed("No input pipe allowed.")
+            input_info = {"src_type": "buffer"}
+            url = None
+        elif utils.is_url(url):
             input_info = {"src_type": "url"}
         elif isinstance(url, FFConcat):
             # convert to buffer
             input_info = {"src_type": "buffer", "buffer": FFConcat.input}
-            url = None
-        elif url == "pipe":
-            if no_pipe:
-                raise FFmpegioNoPipeAllowed("No input pipe allowed.")
-            input_info = {"src_type": "buffer"}
             url = None
 
         else:
@@ -1435,13 +1435,13 @@ def process_url_outputs(
         if utils.is_fileobj(url, readable=True):
             output_info = {"dst_type": "fileobj", "fileobj": url}
             url = None
-        elif url == "pipe":
+        elif utils.is_pipe(url):
             if no_pipe:
                 raise FFmpegioNoPipeAllowed("No output pipe allowed.")
             # convert to buffer
             output_info = {"dst_type": "buffer"}
             url = None
-        elif utils.is_url(url, pipe_ok=False):
+        elif utils.is_url(url):
             output_info = {"dst_type": "url"}
         else:
             raise TypeError("Unknown output {url}.")
