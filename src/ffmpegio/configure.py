@@ -57,8 +57,13 @@ UrlType = Literal["input", "output"]
 FFmpegInputUrlComposite = Union[FFmpegUrlType, FFConcat, FilterGraphObject, IO, Buffer]
 FFmpegOutputUrlComposite = Union[FFmpegUrlType, IO]
 
-FFmpegInputOptionTuple = tuple[FFmpegUrlType | FilterGraphObject, dict]
-FFmpegOutputOptionTuple = tuple[FFmpegUrlType, dict]
+FFmpegOptionDict = dict[str, Any]
+"""FFmpeg options with their values keyed by the option names without preceding dash. 
+For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
+
+
+FFmpegInputOptionTuple = tuple[FFmpegUrlType | FilterGraphObject, FFmpegOptionDict]
+FFmpegOutputOptionTuple = tuple[FFmpegUrlType, FFmpegOptionDict]
 
 raw_formats = ("rawvideo", *(formats for _, formats in utils.audio_codecs.values()))
 
@@ -81,8 +86,8 @@ def array_to_video_input(
     rate: int | float | Fraction | None = None,
     data: Any | None = None,
     pipe_id: str | None = None,
-    **opts,
-) -> tuple[str, dict]:
+    **opts: Unpack[FFmpegOptionDict],
+) -> tuple[str, FFmpegOptionDict]:
     """create an stdin input with video stream
 
     :param rate: input frame rate in frames/second
@@ -105,7 +110,7 @@ def array_to_audio_input(
     rate: int | None = None,
     data: Any | None = None,
     pipe_id: str | None = None,
-    **opts: dict[str, Any],
+    **opts: Unpack[FFmpegOptionDict],
 ):
     """create an stdin input with audio stream
 
@@ -124,7 +129,7 @@ def array_to_audio_input(
     )
 
 
-def empty(global_options: dict = None) -> FFmpegArgs:
+def empty(global_options: FFmpegOptionDict | None = None) -> FFmpegArgs:
     """create empty ffmpeg arg dict
 
     :param global_options: global options, defaults to None
@@ -193,7 +198,7 @@ def add_url(
     args: FFmpegArgs,
     type: Literal["input", "output"],
     url: FFmpegUrlType | None,
-    opts: dict[str, Any] | None = None,
+    opts: FFmpegOptionDict | None = None,
     update: bool = False,
 ) -> tuple[int, FFmpegInputOptionTuple | FFmpegOutputOptionTuple]:
     """add new or modify existing url to input or output list
@@ -794,9 +799,13 @@ def config_input_fg(expr, args, kwargs):
 
 
 def add_urls(
-    ffmpeg_args: dict,
+    ffmpeg_args: FFmpegArgs,
     url_type: UrlType,
-    urls: str | tuple[str, dict | None] | Sequence[str | tuple[str, dict | None]],
+    urls: (
+        str
+        | tuple[str, FFmpegOptionDict]
+        | Sequence[str | tuple[str, FFmpegOptionDict]]
+    ),
     *,
     update: bool = False,
 ) -> list[tuple[int, FFmpegInputOptionTuple | FFmpegOutputOptionTuple]]:
@@ -1150,8 +1159,10 @@ def analyze_fg_outputs(args: FFmpegArgs) -> dict[str, MediaType | None]:
 
 def process_url_inputs(
     args: FFmpegArgs,
-    urls: list[FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict]],
-    inopts_default: dict[str, Any],
+    urls: list[
+        FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, FFmpegOptionDict]
+    ],
+    inopts_default: FFmpegOptionDict,
     no_pipe: bool = False,
 ) -> list[InputSourceDict]:
     """analyze and process heterogeneous input url argument
@@ -1228,8 +1239,8 @@ def process_url_inputs(
 def process_raw_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    streams: Sequence[str] | dict[str, dict[str, Any] | None] | None,
-    options: dict[str, Any],
+    streams: Sequence[str] | dict[str, FFmpegOptionDict | None] | None,
+    options: FFmpegOptionDict,
     fg_info: dict[str, dict] | None = None,
 ) -> tuple[list[OutputDestinationDict], dict[str, dict] | None]:
     """analyze and process piped raw outputs
@@ -1315,7 +1326,7 @@ def process_raw_inputs(
     args: FFmpegArgs,
     stream_types: Sequence[Literal["a", "v"]],
     stream_args: Sequence[RawStreamDef],
-    inopts_default: dict[str, Any],
+    inopts_default: FFmpegOptionDict,
     dtypes: list[str] | None = None,
     shapes: list[tuple[int]] | None = None,
 ) -> list[InputSourceDict]:
@@ -1392,12 +1403,12 @@ def process_url_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
     urls: list[
-        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
+        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
     ],
-    options: dict[str, Any],
+    options: FFmpegOptionDict,
     skip_automapping: bool = False,
     no_pipe: bool = False,
-) -> tuple[list[OutputDestinationDict], dict[str, Any] | None]:
+) -> tuple[list[OutputDestinationDict], FFmpegOptionDict | None]:
     """analyze and process url outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1491,7 +1502,7 @@ def assign_output_url(args: FFmpegArgs, ofile: int, url: str):
 def retrieve_input_stream_ids(
     info: InputSourceDict,
     url: FFmpegUrlType | FilterGraphObject | None,
-    opts: dict,
+    opts: FFmpegOptionDict,
     stream_spec: str | StreamSpecDict | None = None,
 ) -> list[tuple[int, MediaType]]:
     """Retrieve ids and media types of streams in an input source
@@ -1550,10 +1561,11 @@ def retrieve_input_stream_ids(
 
 def init_media_read(
     urls: list[
-        FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict[str, Any] | None]
+        FFmpegInputUrlComposite
+        | tuple[FFmpegInputUrlComposite, FFmpegOptionDict | None]
     ],
-    map: Sequence[str] | dict[str, dict[str, Any] | None] | None,
-    options: dict[str, Any],
+    map: Sequence[str] | dict[str, FFmpegOptionDict | None] | None,
+    options: FFmpegOptionDict,
 ) -> tuple[FFmpegArgs, list[InputSourceDict], list[OutputDestinationDict]]:
     """Initialize FFmpeg arguments for media read
 
@@ -1606,7 +1618,7 @@ def init_media_read(
 
 def init_media_write(
     urls: list[
-        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
+        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
     ],
     stream_types: Sequence[Literal["a", "v"]],
     stream_args: Sequence[RawStreamDef],
@@ -1615,7 +1627,10 @@ def init_media_write(
     merge_audio_sample_fmt: str | None,
     merge_audio_outpad: str | None,
     extra_inputs: (
-        Sequence[FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict]] | None
+        Sequence[
+            FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, FFmpegOptionDict]
+        ]
+        | None
     ),
     options: dict[str, Any],
     dtypes: list[str] | None = None,
@@ -1740,13 +1755,21 @@ def init_media_filter(
     input_types: Sequence[Literal["a", "v"]],
     input_args: Sequence[RawStreamDef],
     extra_inputs: (
-        Sequence[FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict]] | None
+        Sequence[
+            FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, FFmpegOptionDict]
+        ]
+        | None
     ),
     input_dtypes: list[str] | None,
     input_shapes: list[tuple[int]] | None,
-    options: dict[str, Any],
-    output_options: dict[str, dict[str, Any]],
-) -> tuple[FFmpegArgs, list[InputSourceDict], list[bool], dict[str | None, dict[str, Any]] | None]:
+    options: FFmpegOptionDict,
+    output_options: dict[str, FFmpegOptionDict],
+) -> tuple[
+    FFmpegArgs,
+    list[InputSourceDict],
+    list[bool],
+    dict[str | None, FFmpegOptionDict] | None,
+]:
     """Prepare FFmpeg arguments for media read
 
     :param expr: complex filtergraph definition(s).
@@ -1813,7 +1836,7 @@ def init_media_filter(
 def init_media_filter_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    output_options: dict[str | None, dict[str, Any]],
+    output_options: dict[str | None, FFmpegOptionDict],
 ) -> list[OutputDestinationDict]:
     """Initialize FFmpeg arguments for media read
 
@@ -1866,16 +1889,12 @@ def init_media_filter_outputs(
     return output_info
 
 
-def init_media_transcode(
-    inputs: Sequence[
-        FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, dict[str, Any] | None]
-    ],
-    outputs: Sequence[
-        FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict[str, Any]]
-    ],
-    extra_inputs: Sequence[str | tuple[str, dict]] | None,
-    extra_outputs: Sequence[str | tuple[str, dict]] | None,
-    options: dict[str, Any],
+def init_media_transcoder(
+    input_options: Sequence[FFmpegOptionDict],
+    output_options: Sequence[FFmpegOptionDict],
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None,
+    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None,
+    options: FFmpegOptionDict,
 ) -> tuple[FFmpegArgs, InputSourceDict, OutputDestinationDict]:
     """initialize media transcoder
 

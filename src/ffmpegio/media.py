@@ -14,7 +14,7 @@ from ._typing import (
     Unpack,
     FFmpegUrlType,
 )
-from .configure import FFmpegOutputUrlComposite, FFmpegInputUrlComposite
+from .configure import FFmpegOutputUrlComposite, FFmpegInputUrlComposite, FFmpegOptionDict
 
 import contextlib
 from fractions import Fraction
@@ -79,13 +79,13 @@ def _gather_outputs(
 
 def read(
     *urls: * tuple[
-        FFmpegInputUrlComposite | tuple[FFmpegUrlType, dict[str, Any] | None]
+        FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]
     ],
-    map: Sequence[str] | dict[str, dict[str, Any] | None] | None = None,
+    map: Sequence[str] | dict[str, FFmpegOptionDict | None] | None = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
     sp_kwargs: dict | None = None,
-    **options: Unpack[dict[str, Any]],
+    **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
     """Read video and audio data from multiple media files
 
@@ -157,7 +157,7 @@ def read(
 def write(
     urls: (
         FFmpegOutputUrlComposite
-        | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict]]
+        | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]]
     ),
     stream_types: Sequence[Literal["a", "v"]],
     *stream_args: * tuple[RawStreamDef, ...],
@@ -168,9 +168,9 @@ def write(
     progress: ProgressCallable | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
-    extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     sp_kwargs: dict | None = None,
-    **options: Unpack[dict[str, Any]],
+    **options: Unpack[FFmpegOptionDict],
 ):
     """write multiple streams to a url/file
 
@@ -263,12 +263,12 @@ def filter(
     expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
     input_types: Sequence[Literal["a", "v"]],
     *input_args: * tuple[RawStreamDef, ...],
-    extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
-    output_options: dict[str, dict[str, Any]] | None = None,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    output_options: dict[str, FFmpegOptionDict] | None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
-    **options: Unpack[dict[str, Any]],
+    **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
     """write multiple streams to a url/file
 
