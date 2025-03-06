@@ -8,6 +8,7 @@ from typing_extensions import Unpack
 from collections.abc import Sequence
 from .._typing import Any, ProgressCallable, RawDataBlob, Literal
 from ..configure import (
+    FFmpegOptionDict,
     FFmpegInputUrlComposite,
     FFmpegUrlType,
     MediaType,
@@ -32,10 +33,8 @@ __all__ = ["PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter", "PipedMed
 class PipedMediaReader:
     def __init__(
         self,
-        *urls: * tuple[
-            FFmpegInputUrlComposite | tuple[FFmpegUrlType, dict[str, Any] | None]
-        ],
-        map: Sequence[str] | dict[str, dict[str, Any] | None] | None = None,
+        *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
+        map: Sequence[str] | dict[str, FFmpegOptionDict] | None = None,
         ref_stream: int = 0,
         blocksize: int | None = None,
         default_timeout: float | None = None,
@@ -43,7 +42,7 @@ class PipedMediaReader:
         show_log: bool | None = None,
         queuesize: int | None = None,
         sp_kwargs: dict | None = None,
-        **options: Unpack[dict[str, Any]],
+        **options: Unpack[FFmpegOptionDict],
     ):
         """Read video and audio data from multiple media files
 
@@ -275,23 +274,26 @@ class PipedMediaWriter:
         self,
         urls: (
             FFmpegOutputUrlComposite
-            | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, dict]]
+            | list[
+                FFmpegOutputUrlComposite
+                | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
+            ]
         ),
         stream_types: Sequence[Literal["a", "v"]],
-        *stream_rates_or_opts: * tuple[int | Fraction | dict, ...],
+        *stream_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
         dtypes_in: list[str] | None = None,
         shapes_in: list[tuple[int]] | None = None,
         merge_audio_streams: bool | Sequence[int] = False,
         merge_audio_ar: int | None = None,
         merge_audio_sample_fmt: str | None = None,
         merge_audio_outpad: str | None = None,
-        extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         default_timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         queuesize: int | None = None,
         sp_kwargs: dict | None = None,
-        **options: Unpack[dict[str, Any]],
+        **options: Unpack[FFmpegOptionDict],
     ):
         """Write video and audio data from multiple media streams to one or more files
 
@@ -673,19 +675,19 @@ class PipedMediaFilter:
         self,
         expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
         input_types: Sequence[Literal["a", "v"]],
-        *input_rates_or_opts: * tuple[int | Fraction | dict, ...],
+        *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
         input_dtypes: list[str] | None = None,
         input_shapes: list[tuple[int]] | None = None,
-        extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         ref_output: int = 0,
-        output_options: dict[str, dict[str, Any]] | None = None,
+        output_options: dict[str, FFmpegOptionDict] | None = None,
         default_timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
         sp_kwargs: dict | None = None,
-        **options: Unpack[dict[str, Any]],
+        **options: Unpack[FFmpegOptionDict],
     ):
         """Filter audio/video data streams with FFmpeg filtergraphs
 
@@ -1192,10 +1194,10 @@ class PipedMediaTranscoder:
 
     def __init__(
         self,
-        input_options: Sequence[dict[str, Any]],
-        output_options: Sequence[dict[str, Any]],
-        extra_inputs: Sequence[str | tuple[str, dict]] | None = None,
-        extra_outputs: Sequence[str | tuple[str, dict]] | None = None,
+        input_options: Sequence[FFmpegOptionDict],
+        output_options: Sequence[FFmpegOptionDict],
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         *,
         default_timeout: float | None = None,
         progress: ProgressCallable | None = None,
@@ -1203,7 +1205,7 @@ class PipedMediaTranscoder:
         blocksize: int | None = None,
         queuesize: int | None = None,
         sp_kwargs: dict = None,
-        **options: Unpack[dict],
+        **options: Unpack[FFmpegOptionDict],
     ):
         """Encoded media stream transcoder
 
@@ -1233,12 +1235,8 @@ class PipedMediaTranscoder:
                         sequence will overwrite those specified here.
         """
 
-        args, self._input_info, self._output_info = configure.init_media_transcode(
-            [("-", opts) for opts in input_options],
-            [("-", opts) for opts in output_options],
-            extra_inputs,
-            extra_outputs,
-            options,
+        args, self._input_info, self._output_info = configure.init_media_transcoder(
+            input_options, output_options, extra_inputs, extra_outputs, options
         )
 
         # create logger without assigning the source stream
