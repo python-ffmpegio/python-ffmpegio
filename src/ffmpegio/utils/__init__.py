@@ -832,13 +832,17 @@ def analyze_complex_filtergraphs(
     return filtergraphs, fg_info
 
 
-def are_inputs_ready(
-    inputs: list[tuple[str, dict]], input_info: list[InputSourceDict]
+def are_input_pipes_ready(
+    inputs: list[tuple[str, dict]],
+    input_info: list[InputSourceDict],
+    must_probe: bool = False,
 ) -> list[bool]:
     """Test if all the input information is provided for raw output initialization
 
     :param inputs: url-option pairs of input sources
-    :param input_info: input source information 
+    :param input_info: input source information
+    :param must_probe: True to skip required option check and fail if piped in,
+                       defaults to False
     :return: If i-th element is True, it indicates that the i-th input is ready
 
     What it checks
@@ -862,7 +866,10 @@ def are_inputs_ready(
         (
             info["src_type"] != "buffer"
             or "buffer" in info
-            or all(o in opts for o in required_options[info["media_type"]])
+            or (
+                not must_probe
+                and all(o in opts for o in required_options[info["media_type"]])
+            )
         )
         for (_, opts), info in zip(inputs, input_info)
     ]
