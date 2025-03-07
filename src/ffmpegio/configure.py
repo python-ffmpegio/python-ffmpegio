@@ -1819,7 +1819,7 @@ def init_media_filter(
             raise FFmpegioError("extra_inputs cannot be piped in.")
 
     # make sure all inputs are complete
-    ready = utils.are_inputs_ready(args["inputs"], input_info)
+    ready = utils.are_input_pipes_ready(args["inputs"], input_info)
 
     # add the default output options to output_options dict with None as the key
     output_options[None] = options

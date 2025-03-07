@@ -87,3 +87,42 @@ def test_get_output_stream_id():
         utils.get_output_stream_id(info, 1)
     with pytest.raises(FFmpegioError):
         utils.get_output_stream_id(info, "in0")
+
+
+@pytest.mark.parametrize(
+    "inputs,input_info,must_probe,ret",
+    [
+        ([], [], False, []),
+        ([(None, {})], [{"src_type": "fileobj"}], False, [True]),
+        ([(None, {})], [{"src_type": "buffer", "buffer": b""}], False, [True]),
+        ([(None, {})], [{"src_type": "buffer", "buffer": b""}], True, [True]),
+        ([(None, {})], [{"src_type": "buffer"}], True, [False]),
+        (
+            [(None, {"ac": 1, "sample_fmt": "flt"})],
+            [{"src_type": "buffer", "media_type": "audio"}],
+            False,
+            [True],
+        ),
+        (
+            [(None, {"ac": 1, "sample_fmt": "flt"})],
+            [{"src_type": "buffer", "media_type": "audio"}],
+            True,
+            [False],
+        ),
+        (
+            [(None, {})],
+            [{"src_type": "buffer", "media_type": "audio"}],
+            False,
+            [False],
+        ),
+        (
+            [(None, {"s": (10,10), "pix_fmt": "gray"})],
+            [{"src_type": "buffer", "media_type": "video"}],
+            False,
+            [True],
+        ),
+    ],
+)
+def test_are_input_pipes_ready(inputs, input_info, must_probe, ret):
+
+    assert utils.are_input_pipes_ready(inputs, input_info, must_probe) == ret
