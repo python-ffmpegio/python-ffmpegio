@@ -1202,21 +1202,25 @@ def process_url_inputs(
                         "input filtergraph must use the `'lavfi'` input format."
                     )
 
-            input_info = {"src_type": "filtergraph"}
+            input_info = {"src_type": "filtergraph", "encoded": True}
 
         elif utils.is_fileobj(url, readable=True):
-            input_info = {"src_type": "fileobj", "fileobj": url}
+            input_info = {"src_type": "fileobj", "encoded": True, "fileobj": url}
             url = None
         elif utils.is_pipe(url):
             if no_pipe:
                 raise FFmpegioNoPipeAllowed("No input pipe allowed.")
-            input_info = {"src_type": "buffer"}
+            input_info = {"src_type": "buffer", "encoded": True}
             url = None
         elif utils.is_url(url):
-            input_info = {"src_type": "url"}
+            input_info = {"src_type": "url", "encoded": True}
         elif isinstance(url, FFConcat):
             # convert to buffer
-            input_info = {"src_type": "buffer", "buffer": FFConcat.input}
+            input_info = {
+                "src_type": "buffer",
+                "encoded": True,
+                "buffer": FFConcat.input,
+            }
             url = None
 
         else:
@@ -1225,7 +1229,7 @@ def process_url_inputs(
             except TypeError as e:
                 raise TypeError("Given input URL argument is not supported.") from e
             else:
-                input_info = {"src_type": "buffer", "buffer": buffer}
+                input_info = {"src_type": "buffer", "encoded": True, "buffer": buffer}
                 url = None
 
         url_opts, input_info_list[i] = (url, opts), input_info
@@ -1390,7 +1394,7 @@ def process_raw_inputs(
                     {"f": "rawvideo", f"c:v": "rawvideo", "pix_fmt": pix_fmt, "s": s}
                 )
 
-        info = {"src_type": "buffer", "media_type": media_type}
+        info = {"src_type": "buffer", "encoded": False, "media_type": media_type}
         if data is not None:
             info["buffer"] = data
         add_url(args, "input", None, opts)
