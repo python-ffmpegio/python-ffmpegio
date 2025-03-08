@@ -1205,6 +1205,8 @@ def process_url_inputs(
             input_info = {"src_type": "filtergraph"}
 
         elif utils.is_fileobj(url, readable=True):
+            if not url.seekable():
+                raise FFmpegioNoPipeAllowed("Fileobj input must be seekable.")
             input_info = {"src_type": "fileobj", "fileobj": url}
             url = None
         elif utils.is_pipe(url):
