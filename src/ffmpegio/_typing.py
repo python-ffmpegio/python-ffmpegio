@@ -50,7 +50,6 @@ class InputSourceDict(TypedDict):
     """input source info"""
 
     src_type: FFmpegInputType  # True if file path/url
-    encoded: bool # True if encoded stream, False if raw media stream
     buffer: NotRequired[bytes]  # index of the source index
     fileobj: NotRequired[IO]  # file object
     media_type: NotRequired[MediaType]  # media type if input pipe
