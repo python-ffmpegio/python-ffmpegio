@@ -1960,6 +1960,7 @@ def init_named_pipes(
     input_info: list[InputSourceDict],
     output_info: list[OutputDestinationDict],
     update_rate: float | None = None,
+    blocksize: int | None = None,
     queue_size: int | None = None,
 ) -> ExitStack | None:
     """initialize named pipes for read & write operations with FFmpeg
@@ -1967,7 +1968,9 @@ def init_named_pipes(
     :param args: FFmpeg option arguments (modified)
     :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
     :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
-    :param update_rate: target rate at which queue transactions will occur
+    :param update_rate: target rate at which queue transactions will occur for raw data output,
+                        defaults to None (1 video frame or 1024 audio sample at a time)
+    :param blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
     :returns: a list of indices of the FFmpeg outputs that are raw data streams
 
     In addition to the retured list, this function modifies the dicts in its arguements.
@@ -2008,7 +2011,7 @@ def init_named_pipes(
                 else:
                     # assume encoded output
                     kws["itemsize"] = 1
-                    kws["nmin"] = 2**20
+                    kws["nmin"] = blocksize or 2**16
                 reader = ReaderThread(pipe, **kws)
             else:
                 raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
