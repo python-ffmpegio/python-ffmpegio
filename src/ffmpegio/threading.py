@@ -468,6 +468,31 @@ class ReaderThread(Thread):
     def read_all(self, timeout: float | None = None) -> bytes:
         return self.read(-1, timeout)
 
+    def qsize(self) -> int:
+        """Return the approximate size of the queue.
+
+        Note, qsize() > 0 doesn't guarantee that a subsequent write() will not block,
+        nor will qsize() < maxsize guarantee that put() will not block.
+        """
+        return self._queue.qsize()
+
+    def empty(self) -> bool:
+        """Return True if the queue is empty, False otherwise.
+
+        If empty() returns False it doesn't guarantee that a subsequent call to
+        read() will not block.
+        """
+        return self._queue.empty()
+
+    def full(self) -> bool:
+        """Return True if the queue is full, False otherwise.
+
+        If full() returns True it doesn't guarantee that a subsequent call to
+        read() will not block.
+
+        """
+        return self._queue.full()
+
 
 class WriterThread(Thread):
     """a thread to write byte data to a writable stream
@@ -603,6 +628,29 @@ class WriterThread(Thread):
         with self._empty_cond:
             if not (self._no_more or self._empty or self._empty_cond.wait(timeout)):
                 raise NotEmpty()
+
+    def qsize(self) -> int:
+        """Return the approximate size of the queue.
+
+        Note, qsize() > 0 doesn't guarantee that a subsequent write() will not block
+        """
+        return self._queue.qsize()
+
+    def empty(self) -> bool:
+        """Return True if the write queue is empty, False otherwise.
+
+        If empty() returns True it doesn't guarantee that a subsequent call to
+        write() will not block.
+        """
+        return self._queue.empty()
+
+    def full(self) -> bool:
+        """Return True if the queue is full, False otherwise.
+
+        If full() returns False it doesn't guarantee that a subsequent call to
+        write() will not block.
+        """
+        return self._queue.full()
 
 
 class AviReaderThread(Thread):
