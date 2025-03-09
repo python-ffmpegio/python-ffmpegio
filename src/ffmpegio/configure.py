@@ -1840,10 +1840,10 @@ def init_media_write_outputs(
                 assert all(
                     i in a_ids and "ar" in inputs[i][1] for i in merge_audio_streams
                 )
-            except AssertionError:
+            except AssertionError as e:
                 raise ValueError(
                     "To merge audio streams their sampling rate must be the same."
-                )
+                ) from e
 
         # get FFmpeg input list
         ffinputs = args["inputs"]
