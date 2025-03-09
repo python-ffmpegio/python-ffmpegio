@@ -1110,7 +1110,7 @@ class PipedMediaTranscoder(_EncodedOutputMixin, _EncodedInputMixin, _PipedFFmpeg
             [("pipe", opts) for opts in output_options],
             extra_inputs,
             extra_outputs,
-            options,
+            {"y": None, **options},
         )
 
         super().__init__(
