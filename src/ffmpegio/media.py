@@ -115,7 +115,13 @@ def read(
     """
 
     # initialize FFmpeg argument dict and get input & output information
-    args, input_info, output_info = configure.init_media_read(urls, map, options)
+    args, input_info, input_ready, output_info, _ = configure.init_media_read(
+        urls, map, options
+    )
+
+    # if any input buffer is empty, invalid
+    if not all(input_ready):
+        raise FFmpegioError("Not all inputs are resolved.")
 
     # True if there is unknown datablob info
     need_stderr = any(info["media_info"] is None for info in output_info)
@@ -206,7 +212,7 @@ def write(
     if not isinstance(urls, list):
         urls = [urls]
 
-    args, input_info, output_info, _ = configure.init_media_write(
+    args, input_info, input_ready, output_info, _ = configure.init_media_write(
         urls,
         stream_types,
         stream_args,
@@ -218,8 +224,9 @@ def write(
         options,
     )
 
-    if output_info is None:
-        raise FFmpegioError("failed to format output...")
+    # if any input buffer is empty, invalid
+    if not all(input_ready):
+        raise FFmpegioError("Invalid input data.")
 
     # configure named pipes
     stack = configure.init_named_pipes(args, input_info, output_info)
