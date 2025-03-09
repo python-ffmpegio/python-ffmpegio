@@ -1,4 +1,4 @@
-""" utility functions for the main modules"""
+"""utility functions for the main modules"""
 
 from __future__ import annotations
 
@@ -18,7 +18,13 @@ from .. import caps, plugins, probe
 from .._utils import *
 from ..stream_spec import *
 from ..errors import FFmpegError, FFmpegioError
-from .._typing import Any, MediaType, InputSourceDict, RawDataBlob, OutputDestinationDict
+from .._typing import (
+    Any,
+    MediaType,
+    InputSourceDict,
+    RawDataBlob,
+    OutputDestinationDict,
+)
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
 from ..filtergraph.presets import temp_video_src, temp_audio_src

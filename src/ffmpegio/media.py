@@ -14,7 +14,11 @@ from ._typing import (
     Unpack,
     FFmpegUrlType,
 )
-from .configure import FFmpegOutputUrlComposite, FFmpegInputUrlComposite, FFmpegOptionDict
+from .configure import (
+    FFmpegOutputUrlComposite,
+    FFmpegInputUrlComposite,
+    FFmpegOptionDict,
+)
 
 import contextlib
 from fractions import Fraction
@@ -78,9 +82,7 @@ def _gather_outputs(
 
 
 def read(
-    *urls: * tuple[
-        FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]
-    ],
+    *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
     map: Sequence[str] | dict[str, FFmpegOptionDict | None] | None = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
@@ -163,10 +165,12 @@ def read(
 def write(
     urls: (
         FFmpegOutputUrlComposite
-        | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]]
+        | list[
+            FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
+        ]
     ),
     stream_types: Sequence[Literal["a", "v"]],
-    *stream_args: * tuple[RawStreamDef, ...],
+    *stream_args: *tuple[RawStreamDef, ...],
     merge_audio_streams: bool | Sequence[int] = False,
     merge_audio_ar: int | None = None,
     merge_audio_sample_fmt: str | None = None,
@@ -239,7 +243,7 @@ def write(
             capture_log=None if show_log else True,
             sp_kwargs=sp_kwargs,
             on_exit=lambda _: stack.close(),
-            overwrite=overwrite
+            overwrite=overwrite,
         )
     except:
         stack.close()
@@ -269,7 +273,7 @@ def write(
 def filter(
     expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
     input_types: Sequence[Literal["a", "v"]],
-    *input_args: * tuple[RawStreamDef, ...],
+    *input_args: *tuple[RawStreamDef, ...],
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     output_options: dict[str, FFmpegOptionDict] | None = None,
     show_log: bool | None = None,
@@ -303,7 +307,6 @@ def filter(
       for some outputs as needed.
 
     """
-
     args, input_info, input_ready, output_info, _ = configure.init_media_filter(
         expr,
         input_types,
