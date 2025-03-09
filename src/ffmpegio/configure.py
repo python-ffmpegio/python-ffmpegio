@@ -6,9 +6,7 @@ from ._typing import (
     Any,
     MediaType,
     FFmpegUrlType,
-    Union,
     TypedDict,
-    IO,
     Buffer,
     InputSourceDict,
     OutputDestinationDict,
@@ -18,6 +16,8 @@ from ._typing import (
     RawDataBlob,
 )
 from collections.abc import Sequence
+from .utils import FFmpegInputUrlComposite, FFmpegOutputUrlComposite
+
 
 from fractions import Fraction
 import re, logging
@@ -56,9 +56,6 @@ from .threading import ReaderThread, WriterThread, CopyFileObjThread
 ## module types
 
 UrlType = Literal["input", "output"]
-
-FFmpegInputUrlComposite = Union[FFmpegUrlType, FFConcat, FilterGraphObject, IO, Buffer]
-FFmpegOutputUrlComposite = Union[FFmpegUrlType, IO]
 
 FFmpegOptionDict = dict[str, Any]
 """FFmpeg options with their values keyed by the option names without preceding dash. 
