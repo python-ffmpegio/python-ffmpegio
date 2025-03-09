@@ -7,20 +7,21 @@ logger = logging.getLogger("ffmpegio")
 from collections.abc import Sequence
 from ._typing import (
     Literal,
-    Any,
     RawStreamDef,
     ProgressCallable,
     RawDataBlob,
     Unpack,
     FFmpegUrlType,
+    InputSourceDict,
+    OutputDestinationDict,
 )
 from .configure import (
+    FFmpegArgs,
     FFmpegOutputUrlComposite,
     FFmpegInputUrlComposite,
     FFmpegOptionDict,
 )
 
-import contextlib
 from fractions import Fraction
 
 from . import ffmpegprocess, utils, configure, FFmpegError, plugins
@@ -31,8 +32,58 @@ from .filtergraph.abc import FilterGraphObject
 __all__ = ["read", "write"]
 
 
+def _runner(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    output_info: list[OutputDestinationDict],
+    show_log: bool | None,
+    progress: ProgressCallable | None,
+    sp_kwargs: dict | None,
+    overwrite: bool | None = None,
+) -> ffmpegprocess.Popen:
+
+    # True if there is unknown datablob info
+    need_stderr = any(
+        info["dst_type"] == "pipe" and info["media_info"] is None
+        for info in output_info
+    )
+
+    # run FFmpeg
+    capture_log = True if need_stderr else None if show_log else True
+
+    # configure named pipes
+    stack = configure.init_named_pipes(args, input_info, output_info)
+
+    def on_exit(rc):
+        stack.close()
+
+    # run the FFmpeg
+    try:
+        proc = ffmpegprocess.Popen(
+            args,
+            overwrite=overwrite,
+            progress=progress,
+            capture_log=capture_log,
+            sp_kwargs=sp_kwargs,
+            on_exit=on_exit,
+        )
+    except:
+        # if Popen failed to start FFmpeg process, need to call the callback
+        stack.close()
+        raise
+
+    # wait for the FFmpeg to finish processing
+    proc.wait()
+
+    # throw error if failed
+    if proc.returncode:
+        raise FFmpegError(proc.stderr, capture_log)
+
+    return proc
+
+
 def _gather_outputs(
-    output_info, proc
+    output_info: list[OutputDestinationDict], proc: ffmpegprocess.Popen
 ) -> tuple[dict[str, int | Fraction], dict[str, RawDataBlob]]:
     rates = {}
     data = {}
@@ -125,38 +176,8 @@ def read(
     if not all(input_ready):
         raise FFmpegioError("Not all inputs are resolved.")
 
-    # True if there is unknown datablob info
-    need_stderr = any(info["media_info"] is None for info in output_info)
-
     # run FFmpeg
-    capture_log = True if need_stderr else None if show_log else True
-
-    # configure named pipes
-    stack = configure.init_named_pipes(args, input_info, output_info)
-
-    def on_exit(rc):
-        stack.close()
-
-    # run the FFmpeg
-    try:
-        proc = ffmpegprocess.Popen(
-            args,
-            progress=progress,
-            capture_log=capture_log,
-            sp_kwargs=sp_kwargs,
-            on_exit=on_exit,
-        )
-    except:
-        # if Popen failed to start FFmpeg process, need to call the callback
-        stack.close()
-        raise
-
-    # wait for the FFmpeg to finish processing
-    proc.wait()
-
-    # throw error if failed
-    if proc.returncode:
-        raise FFmpegError(proc.stderr, capture_log)
+    proc = _runner(args, input_info, output_info, show_log, progress, sp_kwargs)
 
     # gather and return output
     return _gather_outputs(output_info, proc)
@@ -232,34 +253,8 @@ def write(
     if not all(input_ready):
         raise FFmpegioError("Invalid input data.")
 
-    # configure named pipes
-    stack = configure.init_named_pipes(args, input_info, output_info)
-
-    # run the FFmpeg
-    try:
-        proc = ffmpegprocess.Popen(
-            args,
-            progress=progress,
-            capture_log=None if show_log else True,
-            sp_kwargs=sp_kwargs,
-            on_exit=lambda _: stack.close(),
-            overwrite=overwrite,
-        )
-    except:
-        stack.close()
-        raise
-
-    # wait for the FFmpeg to finish processing
-    proc.wait()
-
-    # throw error if failed
-    if proc.returncode:
-        raise FFmpegError(proc.stderr, show_log)
-
-    # wind-down the readers
-    for info in output_info:
-        if "reader" in info:
-            info["reader"].cool_down()
+    # run FFmpeg
+    _runner(args, input_info, output_info, show_log, progress, sp_kwargs, overwrite)
 
     # gather output
     data = {}
@@ -324,28 +319,8 @@ def filter(
             "Data type and shape of some inputs could not be determined."
         )
 
-    # configure named pipes
-    stack = configure.init_named_pipes(args, input_info, output_info)
-
-    # run the FFmpeg
-    try:
-        proc = ffmpegprocess.Popen(
-            args,
-            progress=progress,
-            capture_log=None if show_log else True,
-            sp_kwargs=sp_kwargs,
-            on_exit=lambda _: stack.close(),
-        )
-    except:
-        stack.close()
-        raise
-
-    # wait for the FFmpeg to finish processing
-    proc.wait()
-
-    # throw error if failed
-    if proc.returncode:
-        raise FFmpegError(proc.stderr, show_log)
+    # run FFmpeg
+    proc = _runner(args, input_info, output_info, show_log, progress, sp_kwargs)
 
     # gather and return output
     return _gather_outputs(output_info, proc)
