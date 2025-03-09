@@ -2054,9 +2054,6 @@ def init_media_transcoder(
     gopts["y"] = None
 
     input_info = process_url_inputs(args, inputs, inopts_default)
-    output_info = process_url_outputs(
-        args, input_info, outputs, options, skip_automapping=True
-    )
 
     if extra_inputs is not None:
         try:
@@ -2066,6 +2063,10 @@ def init_media_transcoder(
 
     if not len(input_info):
         raise ValueError("At least one input must be given.")
+
+    output_info = process_url_outputs(
+        args, input_info, outputs, options, skip_automapping=True
+    )
 
     if extra_outputs is not None:
         try:
