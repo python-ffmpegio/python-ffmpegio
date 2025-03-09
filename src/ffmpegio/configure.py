@@ -2047,8 +2047,6 @@ def init_media_transcoder(
 
     # create a new FFmpeg dict
     args = empty(utils.pop_global_options(options))
-    gopts = args["global_options"]  # global options dict
-    gopts["y"] = None
 
     input_info = process_url_inputs(args, inputs, inopts_default)
 
