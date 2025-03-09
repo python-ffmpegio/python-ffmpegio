@@ -1204,7 +1204,7 @@ def process_url_inputs(
                  a pipe expression.
     :param urls: list of input urls/data or a pair of input url and its options
     :param inopts_default: default input options
-    :param no_pipe: True to raise exception if output is piped without data buffer, defaults to False
+    :param no_pipe: True to raise exception if an input is piped without data buffer, defaults to False
     :return: list of input information
     """
 
@@ -2170,7 +2170,7 @@ def init_named_pipes(
                 if "buffer" in info:
                     # data buffer given, feed the data and terminate
                     writer.write(info["buffer"])
-                    writer.write(None) # close the writer immediately
+                    writer.write(None)  # close the writer immediately
                 else:
                     # if no data given, provide the access to the writer
                     info["writer"] = writer
