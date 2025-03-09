@@ -1949,6 +1949,10 @@ def init_media_filter(
 
     # make sure all inputs are complete
     ready = utils.are_input_pipes_ready(args["inputs"], input_info)
+    if extra_inputs is not None and not all(r for r in ready[len(input_types) :]):
+        raise FFmpegioError(
+            "At least one extra input URL is either invalid or their data are not "
+        )
 
     # add the default output options to output_options dict with None as the key
     output_options[None] = options
