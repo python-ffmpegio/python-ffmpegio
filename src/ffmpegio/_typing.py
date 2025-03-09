@@ -40,7 +40,7 @@ MediaType = Literal["audio", "video"]
 
 FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
 
-FFmpegUrlType = Union[str, Path, ParseResult]
+FFmpegUrlType = str | Path | ParseResult
 
 FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
 FFmpegOutputType = Literal["url", "fileobj", "buffer"]
