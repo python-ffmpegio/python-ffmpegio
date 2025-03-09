@@ -800,11 +800,11 @@ class PipedMediaReader(_EncodedInputMixin, _RawOutputMixin, _PipedFFmpegRunner):
         *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
         map: Sequence[str] | dict[str, FFmpegOptionDict] | None = None,
         ref_stream: int = 0,
-        blocksize: int | None = None,
-        default_timeout: float | None = None,
-        progress: ProgressCallable | None = None,
         show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        blocksize: int | None = None,
         queuesize: int | None = None,
+        default_timeout: float | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -814,11 +814,15 @@ class PipedMediaReader(_EncodedInputMixin, _RawOutputMixin, _PipedFFmpegRunner):
         :param map: FFmpeg map options
         :param ref_stream: index of the reference stream to pace read operation, defaults to 0. The
                            reference stream is guaranteed to have a frame data on every read operation.
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-        :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console,
                         defaults to None (no show/capture)
                         Ignored if stream format must be retrieved automatically.
+        :param progress: progress callback function, defaults to None
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
+                        used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                             input url or '_in' to be applied to all inputs. The url-specific option gets the
                             preference (see :doc:`options` for custom options)
@@ -893,11 +897,11 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         merge_audio_sample_fmt: str | None = None,
         merge_audio_outpad: str | None = None,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-        default_timeout: float | None = None,
-        progress: ProgressCallable | None = None,
         show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
+        default_timeout: float | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -920,14 +924,13 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
         :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                             string or a pair of a url string and an option dict.
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-        :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console,
                         defaults to None (no show/capture)
                         Ignored if stream format must be retrieved automatically.
-        :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
-        :                 defaults to `None` to use 1 video frame or 1024 audio frames
+        :param progress: progress callback function, defaults to None
+        :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
@@ -986,11 +989,11 @@ class PipedMediaFilter(_RawOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         ref_output: int = 0,
         output_options: dict[str, FFmpegOptionDict] | None = None,
-        default_timeout: float | None = None,
-        progress: ProgressCallable | None = None,
         show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
+        default_timeout: float | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -1010,12 +1013,12 @@ class PipedMediaFilter(_RawOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         :param ref_output: index or label of the reference stream to pace read operation, defaults to 0.
                            `PipedMediaFilter.read()` operates around the reference stream.
         :param output_options: specific options for keyed filtergraph output pads.
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-        :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param progress: progress callback function, defaults to None
         :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
         :                 defaults to `None` to use 1 video frame or 1024 audio frames
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
@@ -1070,11 +1073,11 @@ class PipedMediaTranscoder(_EncodedOutputMixin, _EncodedInputMixin, _PipedFFmpeg
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         *,
-        default_timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
+        default_timeout: float | None = None,
         sp_kwargs: dict = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -1088,11 +1091,11 @@ class PipedMediaTranscoder(_EncodedOutputMixin, _EncodedInputMixin, _PipedFFmpeg
                              string or a pair of a url string and an option dict.
         :param extra_outputs: list of additional output destinations, defaults to None. Each destination
                               may be url string or a pair of a url string and an option dict.
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-        :param blocksize: Background reader queue's item size in bytes, defaults to `None` (64 kB)
+        :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
