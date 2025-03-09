@@ -1473,7 +1473,7 @@ def process_url_outputs(
             opts = {**options}
 
         # check url (must be url and not fileobj)
-        if utils.is_fileobj(url, readable=True):
+        if utils.is_fileobj(url, writable=True):
             output_info = {"dst_type": "fileobj", "fileobj": url}
             url = None
         elif utils.is_pipe(url):
