@@ -39,14 +39,13 @@ def test_PipedMediaWriter_audio():
         # loglevel="debug",
     ) as writer:
         for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
-            writer.write(i, frame)
-            writer.write(i, None)
+            writer.write_stream(i, frame)
 
         # close the input and wait for FFmpeg to finish encoding and terminate
         writer.wait(10)
 
         # read the encoded bytes
-        b = writer.pop_encoded()
+        b = writer.readall_encoded()
 
 
 def test_PipedMediaWriter():
@@ -61,13 +60,13 @@ def test_PipedMediaWriter():
     ) as writer:
         for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
             if mtype == "v":
-                writer.write(i, frame[0])
+                writer.write_stream(i, frame[0])
             else:
-                writer.write(i, frame)
+                writer.write_stream(i, frame)
 
         writer.wait(10)
-        b = writer.pop_encoded(0)
-        assert isinstance(b, bytes)
+        b = writer.read_encoded_stream(0, -1, 10)
+        assert isinstance(b, bytes) and len(b) > 0
 
 
 def test_PipedMediaFilter():
