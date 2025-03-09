@@ -912,3 +912,32 @@ def get_output_stream_id(
         )
 
     return stream
+
+
+def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option dict
+
+    # check url (must be url and not fileobj)
+    valid = isinstance(url, (str, FilterGraphObject, FFConcat))
+    if not valid:
+        valid = is_fileobj(url, readable=True)
+
+    if not valid:
+        try:
+            memoryview(url)
+        except TypeError as e:
+            pass
+        else:
+            valid = True
+
+    return valid
+
+
+def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
+
+    valid = isinstance(url, str)
+
+    # check url (must be url and not fileobj)
+    if not valid:
+        valid = is_fileobj(url, writable=True)
+
+    return valid
