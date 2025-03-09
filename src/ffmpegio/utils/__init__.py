@@ -24,10 +24,17 @@ from .._typing import (
     InputSourceDict,
     RawDataBlob,
     OutputDestinationDict,
+    FFmpegUrlType,
+    IO,
+    Buffer,
 )
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
 from ..filtergraph.presets import temp_video_src, temp_audio_src
+from .concat import FFConcat
+
+FFmpegInputUrlComposite = FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
+FFmpegOutputUrlComposite = FFmpegUrlType | IO
 
 # TODO: auto-detect endianness
 # import sys
