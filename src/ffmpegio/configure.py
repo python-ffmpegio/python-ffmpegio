@@ -1961,8 +1961,7 @@ def init_media_filter(
         )
 
     # add the default output options to output_options dict with None as the key
-    output_options[None] = options
-
+    output_options = (output_options, options)
     if all(ready):
         output_info = init_media_filter_outputs(args, input_info, output_options)
         output_options = None
@@ -1975,7 +1974,7 @@ def init_media_filter(
 def init_media_filter_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    output_options: dict[str | None, FFmpegOptionDict],
+    output_options: tuple[dict[str, FFmpegOptionDict], FFmpegOptionDict],
     deferred_inputs: list[list[RawDataBlob | None] | bytes] | None = None,
 ) -> list[OutputDestinationDict]:
     """Initialize FFmpeg arguments for media read
@@ -1994,8 +1993,8 @@ def init_media_filter_outputs(
         gopts["filter_complex"], args["inputs"], input_info
     )
 
-    # get default output options
-    default_opts = output_options.pop(None, {})
+    # separate specific and default output options
+    (output_options, default_opts) = output_options
 
     # adjust output_options
     out_maps = {}
