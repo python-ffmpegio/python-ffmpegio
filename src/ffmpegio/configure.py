@@ -1395,30 +1395,41 @@ def process_raw_inputs(
             )
 
         opts = {**inopts_default, **opts}
-
+        more_opts = None
+        data_info = None
         if mtype == "a":  # audio
             media_type = "audio"
             if data is not None:
-                opts.update(utils.array_to_audio_options(data))
+                more_opts, data_info = utils.array_to_audio_options(data)
                 data = plugins.get_hook().audio_bytes(obj=data)
 
             elif dtypes and shapes:
+                data_info = (shapes[i], dtypes[i])
                 sample_fmt, ac = utils.guess_audio_format(dtypes[i], shapes[i])
                 acodec, f = utils.get_audio_codec(sample_fmt)
-                opts.update({"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f})
+                more_opts = {"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f}
 
         else:  # video
             media_type = "video"
             if data is not None:
-                opts.update(utils.array_to_video_options(data))
+                more_opts, data_info = utils.array_to_video_options(data)
                 data = plugins.get_hook().video_bytes(obj=data)
             elif dtypes and shapes:
-                pix_fmt, s = utils.guess_video_format(shapes[i], dtypes[i])
-                opts.update(
-                    {"f": "rawvideo", f"c:v": "rawvideo", "pix_fmt": pix_fmt, "s": s}
-                )
+                data_info = shapes[i], dtypes[i]
+                pix_fmt, s = utils.guess_video_format(*data_info)
+                more_opts = {
+                    "f": "rawvideo",
+                    f"c:v": "rawvideo",
+                    "pix_fmt": pix_fmt,
+                    "s": s,
+                }
+        if more_opts is not None:
+            opts.update(more_opts)
 
         info = {"src_type": "buffer", "media_type": media_type}
+        if data_info is not None:
+            info["data_info"] = data_info
+            
         if data is not None:
             info["buffer"] = data
         add_url(args, "input", None, opts)
