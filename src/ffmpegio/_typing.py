@@ -57,6 +57,7 @@ class InputSourceDict(TypedDict):
     buffer: NotRequired[bytes]  # index of the source index
     fileobj: NotRequired[IO]  # file object
     media_type: NotRequired[MediaType]  # media type if input pipe
+    data_info: NotRequired[RawStreamInfo]
     writer: NotRequired[WriterThread]  # pipe
 
 
