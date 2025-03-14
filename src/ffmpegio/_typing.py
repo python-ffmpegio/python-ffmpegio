@@ -17,7 +17,11 @@ if TYPE_CHECKING:
 # from typing_extensions import *
 
 
-RawDataBlob = Any  # depends on raw data reader plugin
+FFmpegOptionDict = dict[str, Any]
+"""FFmpeg options with their values keyed by the option names without preceding dash. 
+For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
+
+
 
 RawStreamDef = (
     tuple[int | float | Fraction, RawDataBlob]

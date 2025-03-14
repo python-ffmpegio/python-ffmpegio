@@ -14,6 +14,7 @@ from ._typing import (
     Unpack,
     Callable,
     RawDataBlob,
+    FFmpegOptionDict,
 )
 from collections.abc import Sequence
 from .utils import FFmpegInputUrlComposite, FFmpegOutputUrlComposite
@@ -56,10 +57,6 @@ from .threading import ReaderThread, WriterThread, CopyFileObjThread
 ## module types
 
 UrlType = Literal["input", "output"]
-
-FFmpegOptionDict = dict[str, Any]
-"""FFmpeg options with their values keyed by the option names without preceding dash. 
-For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
 
 
 FFmpegInputOptionTuple = tuple[FFmpegUrlType | FilterGraphObject, FFmpegOptionDict]

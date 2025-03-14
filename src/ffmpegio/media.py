@@ -14,12 +14,12 @@ from ._typing import (
     FFmpegUrlType,
     InputSourceDict,
     OutputDestinationDict,
+    FFmpegOptionDict,
 )
 from .configure import (
     FFmpegArgs,
     FFmpegOutputUrlComposite,
     FFmpegInputUrlComposite,
-    FFmpegOptionDict,
 )
 
 from fractions import Fraction
