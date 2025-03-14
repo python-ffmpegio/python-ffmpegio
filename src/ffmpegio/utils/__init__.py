@@ -27,6 +27,7 @@ from .._typing import (
     FFmpegUrlType,
     IO,
     Buffer,
+    FFmpegOptionDict,
 )
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
@@ -497,7 +498,9 @@ def pop_global_options(options: dict[str, Any]) -> dict[str, Any]:
     return {k: options.pop(k) for k in [k for k in options.keys() if k in all_gopts]}
 
 
-def array_to_audio_options(data: RawDataBlob | None) -> dict:
+def array_to_audio_options(
+    data: RawDataBlob | None,
+) -> tuple[FFmpegOptionDict, tuple[tuple[int], str]]:
     """create an input option dict for the given raw audio data blob
     :param data: input audio data, accessed by `audio_info` plugin hook, defaults to None (manual config)
     :returns: dict of audio options
@@ -511,7 +514,9 @@ def array_to_audio_options(data: RawDataBlob | None) -> dict:
     return {"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}
 
 
-def array_to_video_options(data: RawDataBlob | None = None) -> dict:
+def array_to_video_options(
+    data: RawDataBlob | None = None,
+) -> tuple[FFmpegOptionDict, tuple[tuple[int], str]]:
     """create an input option dict for the given raw video data blob
 
     :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)
