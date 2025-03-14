@@ -4,11 +4,10 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from ._typing import Sequence, ProgressCallable, Unpack
+from ._typing import Sequence, ProgressCallable, Unpack, FFmpegOptionDict
 from .configure import (
     FFmpegOutputUrlComposite,
     FFmpegInputUrlComposite,
-    FFmpegOptionDict,
     FFmpegInputOptionTuple,
     FFmpegOutputOptionTuple,
 )

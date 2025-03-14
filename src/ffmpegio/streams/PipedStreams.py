@@ -12,10 +12,10 @@ from .._typing import (
     Literal,
     InputSourceDict,
     OutputDestinationDict,
+    FFmpegOptionDict,    
 )
 from ..configure import (
     FFmpegArgs,
-    FFmpegOptionDict,
     FFmpegInputUrlComposite,
     FFmpegUrlType,
     MediaType,
