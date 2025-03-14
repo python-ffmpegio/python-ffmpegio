@@ -1299,13 +1299,22 @@ def process_raw_outputs(
     stream_info: dict[str, OutputDestinationDict]
     if streams is None or len(streams) == 0:
         stream_info = auto_map(args, input_info, fg_info)
+        stream_maps = {st: options for st in stream_info}
     else:
+        # add outputs to FFmpeg arguments
+        get_opts = isinstance(streams, dict)
+
         # analyze for custom labels
         user_maps = {}
         stream_maps = {}
-        for k, v in (
-            streams.items() if isinstance(streams, dict) else ((s, {}) for s in streams)
-        ):
+        for k, v in streams.items() if get_opts else ((s, None) for s in streams):
+
+            if isinstance(k, tuple):
+                k = ":".join(str(s) for s in k)
+
+            # add default options (if given)
+            v = {**options} if v is None else {**options, **v}
+
             if "map" in v:
                 st_map = v["map"]
                 if not isinstance(st_map, str):
@@ -1325,16 +1334,8 @@ def process_raw_outputs(
         stream_info = resolve_raw_output_streams(args, input_info, fg_info, user_maps)
 
     # add outputs to FFmpeg arguments
-    get_opts = isinstance(streams, dict)
     for spec, info in stream_info.items():
-        if isinstance(spec, tuple):
-            spec = ":".join((str(s) for s in spec))
-
-        opts = (
-            {**options, **streams[info["user_map"]], "map": spec}
-            if get_opts
-            else {**options, "map": spec}
-        )
+        opts = {**stream_maps[spec], "map": spec}
         add_url(args, "output", None, opts)
 
     # finalize each output streams and identify the output formats
