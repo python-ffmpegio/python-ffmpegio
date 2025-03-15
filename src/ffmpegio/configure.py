@@ -1242,10 +1242,18 @@ def process_url_inputs(
         elif utils.is_url(url):
             input_info = {"src_type": "url"}
         elif isinstance(url, FFConcat):
-            # convert to buffer
-            input_info = {"src_type": "buffer", "buffer": FFConcat.input}
-            url = None
-
+            #TODO - generalize this to handle an arbitrary Muxer class
+            opts["f"] = "concat"
+            url0 = url.url
+            if url0 in ("-", "unset"):
+                input_info = {
+                    "src_type": "buffer",
+                    "buffer": url.compose().getvalue().encode(),
+                }
+                url = None
+            else:
+                input_info = {"src_type": "url"}
+                url = url0
         else:
             try:
                 buffer = memoryview(url)
