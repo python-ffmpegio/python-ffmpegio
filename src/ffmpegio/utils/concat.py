@@ -494,7 +494,7 @@ class FFConcat:
     @property
     def script(self):
         """:str: composed concat listing script"""
-        return (self._temp_file or self.compose()).getvalue()
+        return self.compose().getvalue()
 
     @property
     def input(self):
