@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from ._typing import DTypeString, ShapeTuple
+
+from fractions import Fraction
 from . import streams as _streams
 
 from .filtergraph import Graph as FilterGraph
@@ -8,11 +10,11 @@ from .filtergraph import Graph as FilterGraph
 def open(
     url_fg: str,
     mode: str,
-    rate_in: Optional[float] = None,
-    shape_in: Optional[Tuple[int, ...]] = None,
-    dtype_in: Optional[str] = None,
-    rate: Optional[float] = None,
-    shape: Optional[Tuple[int, ...]] = None,
+    rate_in: Optional[int | Fraction] = None,
+    shape_in: Optional[ShapeTuple] = None,
+    dtype_in: Optional[DTypeString] = None,
+    rate: Optional[int | Fraction] = None,
+    shape: Optional[ShapeTuple] = None,
     **kwds,
 ):
     """Open a multimedia file/stream for read/write

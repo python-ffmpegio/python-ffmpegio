@@ -7,6 +7,8 @@ logger = logging.getLogger("ffmpegio")
 from typing_extensions import Unpack
 from collections.abc import Sequence
 from .._typing import (
+    DTypeString,
+    ShapeTuple,
     ProgressCallable,
     RawDataBlob,
     Literal,
@@ -553,12 +555,12 @@ class _RawOutputMixin:
         return {v["user_map"]: v["media_info"][2] for v in self._output_info}
 
     @property
-    def output_dtypes(self) -> dict[str, str]:
+    def output_dtypes(self) -> dict[str, DTypeString]:
         """frame/sample data type associated with the output streams (key)"""
         return {v["user_map"]: v["media_info"][0] for v in self._output_info}
 
     @property
-    def output_shapes(self) -> dict[str, tuple[int]]:
+    def output_shapes(self) -> dict[str, ShapeTuple]:
         """frame/sample shape associated with the output streams (key)"""
         return {v["user_map"]: v["media_info"][1] for v in self._output_info}
 
@@ -890,8 +892,8 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         ),
         stream_types: Sequence[Literal["a", "v"]],
         *stream_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
-        dtypes_in: list[str] | None = None,
-        shapes_in: list[tuple[int]] | None = None,
+        dtypes_in: list[DTypeString] | None = None,
+        shapes_in: list[ShapeTuple] | None = None,
         merge_audio_streams: bool | Sequence[int] = False,
         merge_audio_ar: int | None = None,
         merge_audio_sample_fmt: str | None = None,
@@ -984,8 +986,8 @@ class PipedMediaFilter(_RawOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
         input_types: Sequence[Literal["a", "v"]],
         *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
-        input_dtypes: list[str] | None = None,
-        input_shapes: list[tuple[int]] | None = None,
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         ref_output: int = 0,
         output_options: dict[str, FFmpegOptionDict] | None = None,

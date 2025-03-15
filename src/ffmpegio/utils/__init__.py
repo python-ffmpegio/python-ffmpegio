@@ -28,6 +28,8 @@ from .._typing import (
     IO,
     Buffer,
     FFmpegOptionDict,
+    ShapeTuple,
+    DTypeString,
 )
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
@@ -44,7 +46,7 @@ FFmpegOutputUrlComposite = FFmpegUrlType | IO
 
 def get_pixel_config(
     input_pix_fmt: str, pix_fmt: str | None = None
-) -> tuple[str, int, str, bool]:
+) -> tuple[str, int, DTypeString, bool]:
     """get best pixel configuration to read video data in specified pixel format
 
     :param input_pix_fmt: input pixel format
@@ -154,7 +156,7 @@ def get_pixel_format(fmt: str) -> tuple[str, int]:
 
 def get_video_format(
     fmt: str, s: tuple[int, int] | str
-) -> tuple[str, tuple[int, int, int]]:
+) -> tuple[DTypeString, ShapeTuple]:
     """get pixel data type and frame array (height,width,ncomp)
 
     :param fmt: ffmpeg pix_fmt or data type string
@@ -167,7 +169,7 @@ def get_video_format(
 
 
 def guess_video_format(
-    shape: Sequence[int, int, int], dtype: str
+    shape: ShapeTuple, dtype: DTypeString
 ) -> tuple[tuple[int, int], str]:
     """get video format
 
@@ -248,7 +250,9 @@ def get_audio_codec(fmt: str) -> tuple[str, str]:
         raise ValueError(f"{fmt} is not a valid raw audio sample_fmt")
 
 
-def get_audio_format(fmt: str, ac: int | None = None) -> str | tuple[str, tuple[int]]:
+def get_audio_format(
+    fmt: str, ac: int | None = None
+) -> str | tuple[DTypeString, ShapeTuple]:
     """get audio sample data format
 
     :param fmt: ffmpeg sample_fmt or data type string
@@ -270,7 +274,7 @@ def get_audio_format(fmt: str, ac: int | None = None) -> str | tuple[str, tuple[
         raise ValueError(f"Unsupported or unknown sample_fmt ({fmt}) specified.")
 
 
-def guess_audio_format(shape: Sequence[int], dtype: str) -> tuple[int, str]:
+def guess_audio_format(shape: ShapeTuple, dtype: DTypeString) -> tuple[int, str]:
     """get audio format
 
     :param shape: sample data shape
@@ -498,7 +502,7 @@ def pop_global_options(options: dict[str, Any]) -> dict[str, Any]:
 
 def array_to_audio_options(
     data: RawDataBlob | None,
-) -> tuple[FFmpegOptionDict, tuple[tuple[int], str]]:
+) -> tuple[FFmpegOptionDict, tuple[ShapeTuple, DTypeString]]:
     """create an input option dict for the given raw audio data blob
     :param data: input audio data, accessed by `audio_info` plugin hook, defaults to None (manual config)
     :returns: dict of audio options
@@ -514,7 +518,7 @@ def array_to_audio_options(
 
 def array_to_video_options(
     data: RawDataBlob | None = None,
-) -> tuple[FFmpegOptionDict, tuple[tuple[int], str]]:
+) -> tuple[FFmpegOptionDict, tuple[ShapeTuple, DTypeString]]:
     """create an input option dict for the given raw video data blob
 
     :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)

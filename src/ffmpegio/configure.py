@@ -7,6 +7,9 @@ from ._typing import (
     MediaType,
     FFmpegUrlType,
     TypedDict,
+    DTypeString,
+    ShapeTuple,
+    RawStreamInfoTuple,
     Buffer,
     InputSourceDict,
     OutputDestinationDict,
@@ -108,8 +111,8 @@ InitMediaOutputsCallable = Callable[
 
 
 def array_to_video_input(
-    rate: int | float | Fraction | None = None,
-    data: Any | None = None,
+    rate: int | Fraction | None = None,
+    data: RawDataBlob | None = None,
     pipe_id: str | None = None,
     **opts: Unpack[FFmpegOptionDict],
 ) -> tuple[str, FFmpegOptionDict]:
@@ -133,7 +136,7 @@ def array_to_video_input(
 
 def array_to_audio_input(
     rate: int | None = None,
-    data: Any | None = None,
+    data: RawDataBlob | None = None,
     pipe_id: str | None = None,
     **opts: Unpack[FFmpegOptionDict],
 ):
@@ -307,7 +310,7 @@ def finalize_video_read_opts(
     ofile: int = 0,
     input_info: list[InputSourceDict] = [],
     fg_info: dict[str, dict] | None = None,
-) -> tuple[str, tuple[int, int, int] | None, Fraction | None]:
+) -> RawStreamInfoTuple:
     """finalize raw video read output options
 
     :param args: FFmpeg arguments (will be modified)
@@ -480,7 +483,7 @@ def finalize_audio_read_opts(
     ofile: int = 0,
     input_info: list[InputSourceDict] = [],
     fg_info: dict[str, dict] | None = None,
-) -> tuple[str, tuple[int] | None, int | None]:
+) -> RawStreamInfoTuple:
     """finalize a raw output audio stream
 
     :param args: FFmpeg arguments. The option dict in args['outputs'][ofile][1] may be modified.
@@ -1363,8 +1366,8 @@ def process_raw_inputs(
     stream_types: Sequence[Literal["a", "v"]],
     stream_args: Sequence[RawStreamDef],
     inopts_default: FFmpegOptionDict,
-    dtypes: list[str] | None = None,
-    shapes: list[tuple[int]] | None = None,
+    dtypes: list[DTypeString] | None = None,
+    shapes: list[ShapeTuple] | None = None,
 ) -> list[InputSourceDict]:
 
     input_info: list[InputSourceDict] = []
@@ -1724,8 +1727,8 @@ def init_media_write(
         | None
     ),
     options: dict[str, Any],
-    dtypes: list[str] | None = None,
-    shapes: list[tuple[int]] | None = None,
+    dtypes: list[DTypeString] | None = None,
+    shapes: list[ShapeTuple] | None = None,
 ) -> tuple[
     FFmpegArgs,
     list[InputSourceDict],
@@ -1902,8 +1905,8 @@ def init_media_filter(
         ]
         | None
     ),
-    input_dtypes: list[str] | None,
-    input_shapes: list[tuple[int]] | None,
+    input_dtypes: list[DTypeString] | None,
+    input_shapes: list[ShapeTuple] | None,
     options: FFmpegOptionDict,
     output_options: dict[str, FFmpegOptionDict],
 ) -> tuple[
