@@ -1351,8 +1351,8 @@ def process_raw_outputs(
 
     # finalize each output streams and identify the output formats
     for i, (_, info) in enumerate(stream_info.items()):
-        # append media_info key to the output info dict
-        info["media_info"] = (
+        # append raw_info key to the output info dict
+        info["raw_info"] = (
             finalize_audio_read_opts
             if info["media_type"] == "audio"
             else finalize_video_read_opts
@@ -1407,15 +1407,15 @@ def process_raw_inputs(
 
         opts = {**inopts_default, **opts}
         more_opts = None
-        data_info = None
+        raw_info = None
         if mtype == "a":  # audio
             media_type = "audio"
             if data is not None:
-                more_opts, data_info = utils.array_to_audio_options(data)
+                more_opts, raw_info = utils.array_to_audio_options(data)
                 data = plugins.get_hook().audio_bytes(obj=data)
 
             elif dtypes and shapes:
-                data_info = (shapes[i], dtypes[i])
+                raw_info = (shapes[i], dtypes[i])
                 sample_fmt, ac = utils.guess_audio_format(shapes[i], dtypes[i])
                 acodec, f = utils.get_audio_codec(sample_fmt)
                 more_opts = {"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f}
@@ -1423,11 +1423,11 @@ def process_raw_inputs(
         else:  # video
             media_type = "video"
             if data is not None:
-                more_opts, data_info = utils.array_to_video_options(data)
+                more_opts, raw_info = utils.array_to_video_options(data)
                 data = plugins.get_hook().video_bytes(obj=data)
             elif dtypes and shapes:
-                data_info = shapes[i], dtypes[i]
-                pix_fmt, s = utils.guess_video_format(*data_info)
+                raw_info = shapes[i], dtypes[i]
+                pix_fmt, s = utils.guess_video_format(*raw_info)
                 more_opts = {
                     "f": "rawvideo",
                     f"c:v": "rawvideo",
@@ -1438,9 +1438,9 @@ def process_raw_inputs(
             opts.update(more_opts)
 
         info = {"src_type": "buffer", "media_type": media_type}
-        if data_info is not None:
-            info["data_info"] = data_info
-            
+        if raw_info is not None:
+            info["raw_info"] = raw_info
+
         if data is not None:
             info["buffer"] = data
         add_url(args, "input", None, opts)
@@ -2151,8 +2151,8 @@ def init_named_pipes(
                 reader = CopyFileObjThread(info["fileobj"], pipe)
             elif dst_type == "buffer":
                 kws = {**wr_kws}
-                if "media_info" in info:
-                    dtype, shape, rate = info["media_info"]
+                if "raw_info" in info:
+                    dtype, shape, rate = info["raw_info"]
                     kws["itemsize"] = utils.get_samplesize(shape, dtype)
                     if update_rate is not None:
                         kws["nmin"] = round(rate / update_rate) or 1

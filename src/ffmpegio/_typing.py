@@ -93,7 +93,7 @@ class InputSourceDict(TypedDict):
     buffer: NotRequired[bytes]  # index of the source index
     fileobj: NotRequired[IO]  # file object
     media_type: NotRequired[MediaType]  # media type if input pipe
-    data_info: NotRequired[RawStreamInfoTuple]
+    raw_info: NotRequired[RawStreamInfoTuple]
     writer: NotRequired[WriterThread]  # pipe
 
 
@@ -106,7 +106,7 @@ class OutputDestinationDict(TypedDict):
     input_file_id: NotRequired[int]
     input_stream_id: NotRequired[int]
     linklabel: NotRequired[str]
-    media_info: NotRequired[RawStreamInfoTuple]
+    raw_info: NotRequired[RawStreamInfoTuple]
     pipe: NotRequired[NPopen]
     reader: NotRequired[ReaderThread]
     itemsize: NotRequired[int]
