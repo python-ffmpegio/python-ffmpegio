@@ -270,18 +270,16 @@ def get_audio_format(fmt: str, ac: int | None = None) -> str | tuple[str, tuple[
         raise ValueError(f"Unsupported or unknown sample_fmt ({fmt}) specified.")
 
 
-def guess_audio_format(
-    dtype: str, shape: Sequence[int] | None = None
-) -> tuple[int, str]:
+def guess_audio_format(shape: Sequence[int], dtype: str) -> tuple[int, str]:
     """get audio format
 
-    :param dtype: sample data type
     :param shape: sample data shape
+    :param dtype: sample data type
     :return: tuple of # of channels and sample_fmt
 
     ```
         X = np.ones((1000,2),np.int16)
-        sample_fmt, ac = guess_audio_format(X.dtype, X.shape)
+        sample_fmt, ac = guess_audio_format(X.shape, X.dtype)
         # => sample_fmt='s16', ac=2
     """
 
@@ -509,7 +507,7 @@ def array_to_audio_options(
     shape, dtype = plugins.get_hook().audio_info(obj=data)
     if shape is None:
         return {}
-    sample_fmt, ac = guess_audio_format(dtype, shape)
+    sample_fmt, ac = guess_audio_format(shape, dtype)
     codec, f = get_audio_codec(sample_fmt)
     return {"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}
 
