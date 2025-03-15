@@ -552,17 +552,17 @@ class _RawOutputMixin:
     @property
     def output_rates(self) -> dict[str, int | Fraction]:
         """sample or frame rates associated with the output streams (key)"""
-        return {v["user_map"]: v["media_info"][2] for v in self._output_info}
+        return {v["user_map"]: v["raw_info"][2] for v in self._output_info}
 
     @property
     def output_dtypes(self) -> dict[str, DTypeString]:
         """frame/sample data type associated with the output streams (key)"""
-        return {v["user_map"]: v["media_info"][0] for v in self._output_info}
+        return {v["user_map"]: v["raw_info"][1] for v in self._output_info}
 
     @property
     def output_shapes(self) -> dict[str, ShapeTuple]:
         """frame/sample shape associated with the output streams (key)"""
-        return {v["user_map"]: v["media_info"][1] for v in self._output_info}
+        return {v["user_map"]: v["raw_info"][0] for v in self._output_info}
 
     @property
     def output_counts(self) -> dict[str, int]:
@@ -575,7 +575,7 @@ class _RawOutputMixin:
         info = self._output_info[self._ref]
         if self._blocksize is None:
             self._blocksize = 1 if info["media_type"] == "video" else 1024
-        self._rates = [v["media_info"][2] for v in self._output_info]
+        self._rates = [v["raw_info"][2] for v in self._output_info]
         self._n0 = [0] * len(self._output_info)  # timestamps of the last read sample
         self._pipe_kws = {
             **self._pipe_kws,
@@ -595,7 +595,7 @@ class _RawOutputMixin:
         """read selected output stream (shared backend)"""
 
         converter = self._converters[info["media_type"]]
-        dtype, shape, _ = info["media_info"]
+        dtype, shape, _ = info["raw_info"]
 
         data = converter(
             b=info["reader"].read(n, timeout), dtype=dtype, shape=shape, squeeze=False
