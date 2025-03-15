@@ -4,6 +4,8 @@ from .._utils import get_samplesize
 from pluggy import HookimplMarker
 from typing import Tuple, TypedDict
 
+from .._typing import DTypeString, ShapeTuple
+
 __all__ = [
     "BytesRawDataBlob",
     "video_info",
@@ -25,15 +27,15 @@ class BytesRawDataBlob(TypedDict):
     buffer: bytes
     """data buffer"""
 
-    dtype: str
+    dtype: DTypeString
     """numpy-style data type string"""
 
-    shape: Tuple[int, int, int]
+    shape: ShapeTuple
     """data shape"""
 
 
 @hookimpl
-def video_info(obj: BytesRawDataBlob) -> Tuple[Tuple[int, int, int], str]:
+def video_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: dict containing video frame data with arbitrary number of frames
@@ -48,7 +50,7 @@ def video_info(obj: BytesRawDataBlob) -> Tuple[Tuple[int, int, int], str]:
 
 
 @hookimpl
-def audio_info(obj: BytesRawDataBlob) -> Tuple[int, str]:
+def audio_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
     """get audio sample info
 
     :param obj: dict containing audio data (with interleaving channels) with arbitrary number of samples
@@ -119,7 +121,7 @@ def audio_samples(obj: BytesRawDataBlob) -> int:
 
 @hookimpl
 def bytes_to_video(
-    b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
 ) -> BytesRawDataBlob:
     """convert bytes to rawvideo object
 
@@ -144,7 +146,7 @@ def bytes_to_video(
 
 @hookimpl
 def bytes_to_audio(
-    b: bytes, dtype: str, shape: Tuple[int], squeeze: bool
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
 ) -> BytesRawDataBlob:
     """convert bytes to rawaudio object
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, Sequence
+from ._typing import DTypeString, ShapeTuple
 
 from io import IOBase
 from pathlib import Path
@@ -88,7 +89,7 @@ def as_multi_option(
     )
 
 
-def dtype_itemsize(dtype: str) -> int:
+def dtype_itemsize(dtype: DTypeString) -> int:
     """get the byte size of each dtype sample
 
     :param dtype: numpy-style data type string
@@ -97,7 +98,7 @@ def dtype_itemsize(dtype: str) -> int:
     return int(dtype[-1])
 
 
-def get_samplesize(shape: int, dtype: str) -> int:
+def get_samplesize(shape: ShapeTuple, dtype: DTypeString) -> int:
     """get the byte size of each video frame or audio sample
 
     :param shape: sample shape

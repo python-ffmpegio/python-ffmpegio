@@ -2,7 +2,7 @@
 
 import matplotlib as Figure
 from pluggy import HookimplMarker
-from typing import Tuple
+from .._typing import DTypeString, ShapeTuple
 import io
 
 __all__ = ["video_info", "video_bytes"]
@@ -11,7 +11,7 @@ hookimpl = HookimplMarker("ffmpegio")
 
 
 @hookimpl
-def video_info(obj: Figure) -> Tuple[Tuple[int, int, int], str]:
+def video_info(obj: Figure) -> tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: matplotlib Figure object
