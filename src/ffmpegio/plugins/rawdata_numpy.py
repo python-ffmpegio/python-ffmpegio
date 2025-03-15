@@ -3,7 +3,7 @@
 from __future__ import annotations
 import numpy as np
 from pluggy import HookimplMarker
-from typing import Tuple
+from .._typing import DTypeString, ShapeTuple
 
 from numpy.typing import ArrayLike
 
@@ -22,7 +22,7 @@ __all__ = [
 
 
 @hookimpl
-def video_info(obj: ArrayLike) -> Tuple[Tuple[int, int, int], str]:
+def video_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: video frame data with arbitrary number of frames
@@ -36,7 +36,7 @@ def video_info(obj: ArrayLike) -> Tuple[Tuple[int, int, int], str]:
 
 
 @hookimpl
-def audio_info(obj: ArrayLike) -> Tuple[int, str]:
+def audio_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     """get audio sample info
 
     :param obj: column-wise audio data with arbitrary number of samples
@@ -107,7 +107,7 @@ def audio_bytes(obj: ArrayLike) -> memoryview:
 
 @hookimpl
 def bytes_to_video(
-    b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
 ) -> ArrayLike:
     """convert bytes to rawvideo NumPy array
 
@@ -126,7 +126,7 @@ def bytes_to_video(
 
 
 @hookimpl
-def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> ArrayLike:
+def bytes_to_audio(b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool) -> ArrayLike:
     """convert bytes to rawaudio NumPy array
 
     :param b: byte data of arbitrary number of video frames

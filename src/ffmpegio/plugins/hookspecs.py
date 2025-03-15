@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import pluggy
-from typing import Callable, Tuple
+from typing import Callable
+from .._typing import DTypeString, ShapeTuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
 
@@ -12,7 +13,7 @@ def finder() -> Tuple[str, str]:
 
 
 @hookspec(firstresult=True)
-def video_info(obj: object) -> Tuple[Tuple[int, int, int], str]:
+def video_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: object containing video frame data with arbitrary number of frames
@@ -22,7 +23,7 @@ def video_info(obj: object) -> Tuple[Tuple[int, int, int], str]:
 
 
 @hookspec(firstresult=True)
-def audio_info(obj: object) -> Tuple[int, str]:
+def audio_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     """get audio sample info
 
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
@@ -67,7 +68,7 @@ def audio_samples(obj: object) -> int:
 
 @hookspec(firstresult=True)
 def bytes_to_video(
-    b: bytes, dtype: str, shape: Tuple[int, int, int], squeeze: bool
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
 ) -> object:
     """convert bytes to rawvideo object
 
@@ -80,7 +81,7 @@ def bytes_to_video(
 
 
 @hookspec(firstresult=True)
-def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> object:
+def bytes_to_audio(b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool) -> object:
     """convert bytes to rawaudio object
 
     :param b: byte data of arbitrary number of video frames
@@ -92,7 +93,7 @@ def bytes_to_audio(b: bytes, dtype: str, shape: Tuple[int], squeeze: bool) -> ob
 
 
 @hookspec
-def device_source_api() -> Tuple[str, dict[str, Callable]]:
+def device_source_api() -> tuple[str, dict[str, Callable]]:
     """return a source name and its set of interface functions
 
     keyword/signature                      Descriptions
@@ -106,7 +107,7 @@ def device_source_api() -> Tuple[str, dict[str, Callable]]:
 
 
 @hookspec
-def device_sink_api() -> Tuple[str, dict[str, Callable]]:
+def device_sink_api() -> tuple[str, dict[str, Callable]]:
     """return a sink name and its set of interface functions
 
     keyword/signature                       Descriptions
