@@ -1413,7 +1413,7 @@ def process_raw_inputs(
 
             elif dtypes and shapes:
                 data_info = (shapes[i], dtypes[i])
-                sample_fmt, ac = utils.guess_audio_format(dtypes[i], shapes[i])
+                sample_fmt, ac = utils.guess_audio_format(shapes[i], dtypes[i])
                 acodec, f = utils.get_audio_codec(sample_fmt)
                 more_opts = {"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f}
 
