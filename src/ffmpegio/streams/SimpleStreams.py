@@ -593,7 +593,7 @@ class SimpleAudioWriter(SimpleWriterBase):
         if not ready and (self.dtype_in is not None or self.shape_in is not None):
             inopts = ffmpeg_args["inputs"][0][1]
             inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
-                self.dtype_in, self.shape_in
+                self.shape_in, self.dtype_in
             )
             ready = True
 
@@ -610,7 +610,7 @@ class SimpleAudioWriter(SimpleWriterBase):
 
         inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
         inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
-            self.dtype_in, self.shape_in
+            self.shape_in, self.dtype_in
         )
         inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])
 
