@@ -44,7 +44,7 @@ def _runner(
 
     # True if there is unknown datablob info
     need_stderr = any(
-        info["dst_type"] == "pipe" and info["media_info"] is None
+        info["dst_type"] == "pipe" and info["raw_info"] is None
         for info in output_info
     )
 
@@ -92,14 +92,14 @@ def _gather_outputs(
         b = info["reader"].read_all()
 
         # get datablob info from stderr if needed
-        missing = any(v is None for v in info["media_info"])
+        missing = any(v is None for v in info["raw_info"])
 
         if missing:
             logger.warning('Retrieving stream "%s" information from FFmpeg log.', spec)
             new_info = extract_output_stream(proc.stderr, i)
 
         if info["media_type"] == "video":
-            dtype, shape, rate = info["media_info"]
+            dtype, shape, rate = info["raw_info"]
 
             if missing:
                 if dtype is None:
@@ -114,7 +114,7 @@ def _gather_outputs(
                 b=b, dtype=dtype, shape=shape, squeeze=False
             )
         else:  # 'audio'
-            dtype, shape, rate = info["media_info"]
+            dtype, shape, rate = info["raw_info"]
             if missing:
                 if dtype is None:
                     sample_fmt = new_info["sample_fmt"]
