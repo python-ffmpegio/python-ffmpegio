@@ -106,20 +106,9 @@ def transcode(
     for i in range(len(output_info)):
         configure.build_basic_vf(args, None, i)
 
-    stdin = stdout = input = None
-    if nb_inpipes:
-        inputs = args["inputs"]
-        for i, info in enumerate(input_info):
-            inputs[i] = ("pipe:0", inputs[i][1])
-            if "buffer" in info:
-                input = info["buffer"]
-            else:
-                stdin = fp.PIPE
-    if nb_outpipes:
-        outputs = args["outputs"]
-        for i, info in enumerate(output_info):
-            outputs[i] = ("pipe:1", outputs[i][1])
-            stdout = fp.PIPE
+    stdin, stdout, input = configure.assign_std_pipes(
+        args, input_info, output_info, use_sp_run=True
+    )
 
     kwargs = {**sp_kwargs} if sp_kwargs else {}
     kwargs.update(
