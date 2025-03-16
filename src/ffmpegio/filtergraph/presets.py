@@ -152,7 +152,8 @@ def temp_video_src(r: int | Fraction, pix_fmt: str, s: tuple[int, int]) -> fgb.C
     :param s: frame shape (width x height)
     :return: a chain of color and format filters
     """
-    return fgb.color(s=f"{s[0]}x{s[1]}", r=r) + fgb.format(pix_fmts=pix_fmt)
+    fg = fgb.color(s=f"{s[0]}x{s[1]}", r=r)
+    return fg if pix_fmt == "unknown" else (fg + fgb.format(pix_fmts=pix_fmt))
 
 
 def temp_audio_src(ar: int, sample_fmt: str, ac: int) -> fgb.Chain:
