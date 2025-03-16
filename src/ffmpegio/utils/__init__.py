@@ -508,12 +508,12 @@ def array_to_audio_options(
     :returns: dict of audio options
     """
 
-    shape, dtype = plugins.get_hook().audio_info(obj=data)
+    shape, dtype = info = plugins.get_hook().audio_info(obj=data)
     if shape is None:
-        return {}
+        return ({}, info)
     sample_fmt, ac = guess_audio_format(shape, dtype)
     codec, f = get_audio_codec(sample_fmt)
-    return {"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}
+    return ({"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}, info)
 
 
 def array_to_video_options(
@@ -522,16 +522,21 @@ def array_to_video_options(
     """create an input option dict for the given raw video data blob
 
     :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)
-    :return: option dict
+    :return : option dict
     """
 
-    s, pix_fmt = guess_video_format(*plugins.get_hook().video_info(obj=data))
+    shape, dtype = info = plugins.get_hook().video_info(obj=data)
+    if shape is None:
+        return ({}, info)
+    s, pix_fmt = guess_video_format(shape, dtype)
     return (
-        {"f": "rawvideo", f"c:v": "rawvideo"}
-        if s is None
-        else {"f": "rawvideo", f"c:v": "rawvideo", f"s": s, f"pix_fmt": pix_fmt}
+        (
+            {"f": "rawvideo", f"c:v": "rawvideo"}
+            if s is None
+            else {"f": "rawvideo", f"c:v": "rawvideo", f"s": s, f"pix_fmt": pix_fmt}
+        ),
+        info,
     )
-
 
 def set_sp_kwargs_stdin(
     url: str | None, info: InputSourceDict, sp_kwargs: dict = {}

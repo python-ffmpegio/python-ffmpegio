@@ -130,7 +130,7 @@ def array_to_video_input(
 
     return (
         pipe_id or "-",
-        {**utils.array_to_video_options(data), f"r": rate, **opts},
+        {**utils.array_to_video_options(data)[0], f"r": rate, **opts},
     )
 
 
@@ -153,7 +153,7 @@ def array_to_audio_input(
 
     return (
         pipe_id or "-",
-        {**utils.array_to_audio_options(data), f"ar": rate, **opts},
+        {**utils.array_to_audio_options(data)[0], f"ar": rate, **opts},
     )
 
 
