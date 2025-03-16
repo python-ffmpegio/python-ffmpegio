@@ -525,7 +525,7 @@ def finalize_audio_read_opts(
                 raise FFmpegioError(
                     f"Complex filtergraph or the specified {linklabel=} do not exist."
                 )
-            opt_vals = [info["ar"], info["sample_fmt"], info["ac"]]
+            inopt_vals = [info["ar"], info["sample_fmt"], info["ac"]]
         else:
             ifile = outmap_fields["input_file_id"]
 
@@ -546,7 +546,7 @@ def finalize_audio_read_opts(
                     "0", af, {"f": "lavfi"}, {"src_type": "filtergraph"}
                 )
 
-            opt_vals = [v or s for v, s in zip(opt_vals, inopt_vals)]
+        opt_vals = [v or s for v, s in zip(opt_vals, inopt_vals)]
 
     # assign the values to individual variables
     ar, sample_fmt, ac = opt_vals
