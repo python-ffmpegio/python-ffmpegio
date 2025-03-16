@@ -617,7 +617,7 @@ class WriterThread(Thread):
             if data is None:
                 self._no_more = True
 
-            self._queue.put(data, timeout)
+            self._queue.put(data, timeout != 0, timeout)
             self._empty = False
 
     def flush(self, timeout: float | None = None):
