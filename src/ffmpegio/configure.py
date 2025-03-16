@@ -1883,8 +1883,13 @@ def init_media_write_outputs(
     ) = output_args
 
     # if `merge_audio_streams` is non-`None`, append audio-merge filtergraph
-    a_ids = [i for i, info in enumerate(input_info) if info["media_type"] == "audio"]
-    do_merge = bool(merge_audio_streams) and len(a_ids) > 1
+    do_merge = bool(merge_audio_streams)
+    if do_merge:
+        try:
+            a_ids = [i for i, info in enumerate(input_info) if info["media_type"] == "audio"]
+        except KeyError as e:
+            raise NotImplementedError('audio merging mode is not currently implemented. Please use the `complex_filtergraph=ffmpegio.filtergraph.presets.merge_audio(...)` to assign a custom filtergraph.')
+        do_merge = len(a_ids) > 1
     if do_merge:
         if merge_audio_streams is True:
             # if True, convert to stream indices of audio inputs
