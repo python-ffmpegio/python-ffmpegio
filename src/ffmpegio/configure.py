@@ -2240,3 +2240,83 @@ def init_named_pipes(
         args["global_options"]["y"] = None
 
     return stack if len(input_info) or len(output_info) else None
+
+
+def assign_std_pipes(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    output_info: list[OutputDestinationDict],
+    use_sp_run: bool = False,
+) -> tuple[int | IO | None, int | IO | None, bytes | None]:
+    """initialize named pipes for read & write operations with FFmpeg
+
+    :param args: FFmpeg option arguments (modified)
+    :param input_info: list of input information
+    :param output_info: list of output information
+    :param use_sp_run: True to set `stdin` output to `None` even if input
+                       data is given (so it's compatible with `subprocess.run()`)
+    :returns stdin: stdin argument of subsequent ffmpegprocess.Popen call
+    :returns stdout: stdout argument of subsequent ffmpegprocess.Popen call
+    :returns input: input argument of subsequent ffmpegprocess.Popen call
+
+    In addition to the retured list, this function modifies the dicts in its arguements.
+
+    - The pipe names are assigned to the URLs of FFmpeg input and output (`args['inputs'][][0]`
+      and `args['outputs'][][0]`)
+    - The reader threads for FFmpeg outputs that are written to buffers (i.e.,
+      `output_info[]['dst_type']=='buffer'`) are saved as `output_info[]['reader']`
+      so the reader object can be used to retrieve the data.
+
+
+    if any output is a piped, overwrite flag (-y) is automatically inserted
+    """
+
+    # configure output pipes
+    use_stdin = use_stdout = False
+    stdin = stdout = pinput = None
+    for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
+        if output[0] is None or utils.is_pipe(output[0]):
+            if use_stdout:
+                raise FFmpegioError(
+                    "More than 1 pipe to output found. Cannot use standard pipes."
+                )
+            use_stdout = True
+            assign_output_url(args, i, "pipe:1")
+
+            dst_type = info["dst_type"]
+            if dst_type == "fileobj":
+                stdout = info["fileobj"]
+            elif dst_type == "buffer":
+                stdout = fp.PIPE
+            else:
+                raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
+
+    # configure input pipes (if needed)
+    for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
+        if input[0] is None or utils.is_pipe(input[0]):
+            if use_stdin:
+                raise FFmpegioError(
+                    "More than 1 pipe to input found. Cannot use standard pipes."
+                )
+            use_stdin = True
+            assign_input_url(args, i, "pipe:0")
+            src_type = info["src_type"]
+            if src_type == "fileobj":
+                stdin = info["fileobj"]
+            elif src_type == "buffer":
+                if "buffer" in info:
+                    pinput = info["buffer"]
+                    if not use_sp_run:
+                        stdin = fp.PIPE
+                else:
+                    stdin = fp.PIPE
+            else:
+                raise FFmpegioError(f"{src_type=} is an unknown input data type.")
+
+    if use_stdout:
+        # if any output is piped, must run in the overwrite mode
+        args["global_options"].pop("n", None)
+        args["global_options"]["y"] = None
+
+    return stdin, stdout, pinput
+
