@@ -579,10 +579,11 @@ class WriterThread(Thread):
             self._no_more = True
 
         # close the pipe/stream
-        if self.pipe is None:
-            self.stdin.close()
-        else:
+        if self.pipe is not None:
             self.pipe.close()
+        elif not self.stdin.closed:
+            print(f'{self.stdin.closed=}')
+            self.stdin.close()
 
         # completely flush the queue
         # check if queue has any remaining items
