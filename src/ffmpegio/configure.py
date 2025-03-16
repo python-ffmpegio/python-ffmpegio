@@ -1455,6 +1455,38 @@ def process_raw_inputs(
     return input_info
 
 
+def update_raw_input(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    stream_id: int,
+    data: RawDataBlob,
+):
+    """update raw input stream from the data blob
+
+    :param args: FFmpeg arguments to be modified
+    :param input_info: FFmpeg input information
+    :param stream_id: index of the input stream to be updated
+    :param data: input data blob
+
+    * updates `args['inputs'][stream_id][1]` dict
+    * updates `raw_info` field of ``input_info[stream_id]` dict
+
+    """
+
+    opts = args["inputs"][stream_id][1]
+    info = input_info[stream_id]
+    is_audio = info["media_type"] == "audio"
+    rate = opts["ar" if is_audio else "r"]
+    more_opts, raw_info = (
+        utils.array_to_audio_options(data)
+        if is_audio
+        else utils.array_to_video_options(data)
+    )
+
+    opts.update(more_opts)
+    info["raw_info"] = (*raw_info[::-1], rate)  # dtype, shape, rate
+
+
 def process_url_outputs(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
