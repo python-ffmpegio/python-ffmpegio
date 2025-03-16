@@ -436,7 +436,7 @@ class ReaderThread(Thread):
         # loop till enough data are collected
         while read_all or m > 0:
             tout = timeout and max(timeout - time(), 0)
-            block = not self._running.is_set() and tout
+            block = self._running.is_set() and tout != 0
 
             try:
                 b = self._queue.get(block, tout)
@@ -446,7 +446,9 @@ class ReaderThread(Thread):
                 mr = len(b)
                 m -= mr
                 mread += mr
-                assert mr and (read_all or tout > 0)  # no more read time left
+                assert mr and (
+                    read_all or tout is None or tout > 0
+                )  # no more read time left
             except (Empty, AssertionError):
                 break
 
