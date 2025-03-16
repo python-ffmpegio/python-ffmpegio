@@ -312,10 +312,9 @@ class _RawInputMixin:
             # need to collect input data type and shape from the actual data
             # before starting the FFmpeg
 
-            info = self._input_info[stream_id]
-            opts = self._args["ffmpeg_args"]["inputs"][stream_id][1]
-
-            opts.update(self._array_to_opts[info["media_type"]](data))
+            configure.update_raw_input(
+                self._args["ffmpeg_args"], self._input_info, stream_id, data
+            )
 
             self._deferred_data[stream_id].append(b)
             self._input_ready[stream_id] = True
