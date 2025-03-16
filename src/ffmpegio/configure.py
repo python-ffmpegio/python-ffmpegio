@@ -377,6 +377,12 @@ def finalize_video_read_opts(
 
     # pixel format must be specified
     if pix_fmt is None:
+
+        if pix_fmt_in == "unknown":
+            raise FFmpegioError(
+                "input pixel format unknown. Please specify output pix_fmt (to be autoset)"
+            )
+
         # deduce output pixel format from the input pixel format
         try:
             outopts["pix_fmt"], ncomp, dtype, _ = utils.get_pixel_config(pix_fmt_in)
