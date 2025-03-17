@@ -1,21 +1,26 @@
 from __future__ import annotations
 
-from ._typing import (
+from typing_extensions import (
+    IO,
     Literal,
     get_args,
+    LiteralString,
     Any,
-    MediaType,
-    FFmpegUrlType,
     TypedDict,
+    Unpack,
+    Callable,
+)
+
+from ._typing import (
     DTypeString,
     ShapeTuple,
     RawStreamInfoTuple,
     Buffer,
+    MediaType,
+    FFmpegUrlType,
     InputSourceDict,
     OutputDestinationDict,
     RawStreamDef,
-    Unpack,
-    Callable,
     RawDataBlob,
     FFmpegOptionDict,
 )
@@ -33,6 +38,7 @@ from io import IOBase
 from namedpipe import NPopen
 from contextlib import ExitStack
 
+from . import ffmpegprocess as fp
 from . import utils, probe, plugins
 from . import filtergraph as fgb
 from .filtergraph.abc import FilterGraphObject
@@ -62,8 +68,10 @@ from .threading import ReaderThread, WriterThread, CopyFileObjThread
 UrlType = Literal["input", "output"]
 
 
-FFmpegInputOptionTuple = tuple[FFmpegUrlType | FilterGraphObject, FFmpegOptionDict]
-FFmpegOutputOptionTuple = tuple[FFmpegUrlType, FFmpegOptionDict]
+FFmpegInputOptionTuple = tuple[
+    FFmpegUrlType | IO | Buffer | FilterGraphObject | FFConcat, FFmpegOptionDict
+]
+FFmpegOutputOptionTuple = tuple[FFmpegUrlType | IO, FFmpegOptionDict]
 
 raw_formats = ("rawvideo", *(formats for _, formats in utils.audio_codecs.values()))
 
@@ -672,13 +680,11 @@ def get_video_array_format(ffmpeg_args, type, file_id=0):
     return shape, dtype
 
 
-def move_global_options(args):
+def move_global_options(args: FFmpegArgs) -> FFmpegArgs:
     """move global options from the output options dicts
 
     :param args: FFmpeg arguments
-    :type args: dict
     :returns: FFmpeg arguments (the same object as the input)
-    :rtype: dict
     """
 
     from .caps import options
@@ -702,12 +708,10 @@ def move_global_options(args):
     return args
 
 
-def clear_loglevel(args):
+def clear_loglevel(args: FFmpegArgs):
     """clear global loglevel option
 
     :param args: FFmpeg argument dict
-    :type args: dict
-
 
     """
     try:
@@ -1251,7 +1255,7 @@ def process_url_inputs(
         elif utils.is_url(url):
             input_info = {"src_type": "url"}
         elif isinstance(url, FFConcat):
-            #TODO - generalize this to handle an arbitrary Muxer class
+            # TODO - generalize this to handle an arbitrary Muxer class
             opts["f"] = "concat"
             url0 = url.url
             if url0 in ("-", "unset"):
@@ -1731,7 +1735,7 @@ def init_media_read_outputs(
     :param args: partial FFmpeg arguments (to be modified)
     :param input_info: list of input information
     :param output_options: tuple of mapping assignments and common output options
-    :param deferred_inputs: deferred (partial) input data, probable to retrieve 
+    :param deferred_inputs: deferred (partial) input data, probable to retrieve
                             necessary stream information
     :return output_info: output file information
     """

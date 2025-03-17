@@ -14,7 +14,7 @@ from .._typing import (
     Literal,
     InputSourceDict,
     OutputDestinationDict,
-    FFmpegOptionDict,    
+    FFmpegOptionDict,
 )
 from ..configure import (
     FFmpegArgs,

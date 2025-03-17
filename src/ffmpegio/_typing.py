@@ -7,7 +7,7 @@ from typing_extensions import *
 
 from fractions import Fraction
 from pathlib import Path
-from urllib.parse import ParseResult
+from urllib.parse import ParseResult as UrlParseResult
 
 
 if TYPE_CHECKING:
@@ -77,13 +77,58 @@ ProgressCallable = Callable[[dict[str, Any], bool], bool]
 """
 
 MediaType = Literal["audio", "video"]
+"""supported media stream types
+
+=============== ================================================================
+value           description
+=============== ================================================================
+`'video'`       video stream
+`'audio'`       audio stream
+=============== ================================================================
+"""
 
 FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
+"""FFmpeg media stream types
 
-FFmpegUrlType = str | Path | ParseResult
+=============== ================================================================
+value           description
+=============== ================================================================
+`'video'`       video stream
+`'audio'`       audio stream
+`'subtitle'`    subtitle stream
+`'data'`        data stream
+`'attachments'` attachments stream
+=============== ================================================================
+"""
+
+FFmpegUrlType = str | Path | UrlParseResult
+"""input and output file/stream urls 
+"""
 
 FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
+"""mechanisms to feed input data to FFmpeg
+
+=============== ================================================================
+value           description
+=============== ================================================================
+`'url'`         path to the input file or streaming url
+`'filtergraph'` input filtergraph
+`'buffer'`      binary input data given as a bytes-like object or to be piped in
+`'fileobj'`     open readable file object
+=============== ================================================================
+"""
+
 FFmpegOutputType = Literal["url", "fileobj", "buffer"]
+"""mechanisms to extract output data from FFmpeg
+
+=============== ============================================================================
+value           description
+=============== ============================================================================
+`'url'`         path to the output file or streaming url
+`'buffer'`      buffer output data as `RawDataBlob` (raw stream) or `bytes` (encoded stream)
+`'fileobj'`     open readable file object
+=============== ============================================================================
+"""
 
 
 class InputSourceDict(TypedDict):

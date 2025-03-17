@@ -69,7 +69,7 @@ def is_non_str_sequence(
 
 def as_multi_option(
     value: Any, exclude_classes: tuple[type] = str, SeqCls: type = list
-) -> Sequence[Any]:
+) -> Sequence[Any] | None:
     """Put value in a list if it is not already a sequence
 
     :param value: value to be put in a list
@@ -94,7 +94,7 @@ def dtype_itemsize(dtype: DTypeString) -> int:
 
     :param dtype: numpy-style data type string
     :return: number of bytes per audio sample/video pixel
-    """    
+    """
     return int(dtype[-1])
 
 
