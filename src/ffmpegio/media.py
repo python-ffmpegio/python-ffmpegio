@@ -135,8 +135,8 @@ def _gather_outputs(
 def read(
     *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
     map: Sequence[str] | dict[str, FFmpegOptionDict | None] | None = None,
-    progress: ProgressCallable | None = None,
     show_log: bool | None = None,
+    progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
@@ -196,10 +196,10 @@ def write(
     merge_audio_ar: int | None = None,
     merge_audio_sample_fmt: str | None = None,
     merge_audio_outpad: str | None = None,
-    progress: ProgressCallable | None = None,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ):
@@ -209,15 +209,15 @@ def write(
     :param stream_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
     :param stream_args: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
                          or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                         string or a pair of a url string and an option dict.
     :param merge_audio_streams: True to combine all input audio streams as a single multi-channel stream. Specify a list of the input stream id's
                                 (indices of `stream_types`) to combine only specified streams.
     :param merge_audio_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first merging stream
     :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
-    :param progress: progress callback function, defaults to None
     :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                         string or a pair of a url string and an option dict.
+    :param progress: progress callback function, defaults to None
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                       used to run the FFmpeg, defaults to None
     :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
