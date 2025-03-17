@@ -1890,9 +1890,13 @@ def init_media_write_outputs(
     do_merge = bool(merge_audio_streams)
     if do_merge:
         try:
-            a_ids = [i for i, info in enumerate(input_info) if info["media_type"] == "audio"]
+            a_ids = [
+                i for i, info in enumerate(input_info) if info["media_type"] == "audio"
+            ]
         except KeyError as e:
-            raise NotImplementedError('audio merging mode is not currently implemented. Please use the `complex_filtergraph=ffmpegio.filtergraph.presets.merge_audio(...)` to assign a custom filtergraph.')
+            raise NotImplementedError(
+                "audio merging mode is not currently implemented. Please use the `complex_filtergraph=ffmpegio.filtergraph.presets.merge_audio(...)` to assign a custom filtergraph."
+            )
         do_merge = len(a_ids) > 1
     if do_merge:
         if merge_audio_streams is True:
@@ -2324,3 +2328,76 @@ def assign_std_pipes(
 
     return stdin, stdout, pinput
 
+
+def init_std_pipes(
+    stdin: IO | None,
+    stdout: IO | None,
+    input_info: list[InputSourceDict],
+    output_info: list[OutputDestinationDict],
+    update_rate: float | None = None,
+    blocksize: int | None = None,
+    queue_size: int | None = None,
+) -> ExitStack | None:
+    """initialize named pipes for read & write operations with FFmpeg
+
+    :param args: FFmpeg option arguments (modified)
+    :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
+    :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
+    :param update_rate: target rate at which queue transactions will occur for raw data output,
+                        defaults to None (1 video frame or 1024 audio sample at a time)
+    :param blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
+    :returns: a list of indices of the FFmpeg outputs that are raw data streams
+
+    In addition to the retured list, this function modifies the dicts in its arguements.
+
+    - The pipe names are assigned to the URLs of FFmpeg input and output (`args['inputs'][][0]`
+      and `args['outputs'][][0]`)
+    - The reader threads for FFmpeg outputs that are written to buffers (i.e.,
+      `output_info[]['dst_type']=='buffer'`) are saved as `output_info[]['reader']`
+      so the reader object can be used to retrieve the data.
+
+
+    if any output is a piped, overwrite flag (-y) is automatically inserted
+    """
+
+    stack = ExitStack()
+    in_use = False
+    wr_kws = {"queuesize": queue_size} if queue_size else {}
+
+    # configure output pipes
+    for info in output_info:
+        dst_type = info["dst_type"]
+        if dst_type == "buffer":
+            kws = {**wr_kws}
+            if "raw_info" in info:
+                dtype, shape, rate = info["raw_info"]
+                kws["itemsize"] = utils.get_samplesize(shape, dtype)
+                if update_rate is not None:
+                    kws["nmin"] = round(rate / update_rate) or 1
+            else:
+                # assume encoded output
+                kws["itemsize"] = 1
+                kws["nmin"] = blocksize or 2**16
+            info["reader"] = reader = ReaderThread(stdout, **kws)
+            stack.enter_context(reader)  # starts thread & wait for pipe connection
+            in_use = True
+        break
+
+    # configure input pipes (if needed)
+    for info in input_info:
+        src_type = info["src_type"]
+        if src_type == "buffer":
+            writer = WriterThread(stdin, **wr_kws)
+            # starts thread & wait for pipe connection
+            stack.enter_context(writer)
+            in_use = True
+            if "buffer" in info:
+                # data buffer given, feed the data and terminate
+                writer.write(info["buffer"])
+                writer.write(None)  # close the writer immediately
+            else:
+                # if no data given, provide the access to the writer
+                info["writer"] = writer
+        break
+
+    return stack if in_use else None
