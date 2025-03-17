@@ -890,9 +890,9 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
             ]
         ),
         stream_types: Sequence[Literal["a", "v"]],
-        *stream_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
-        dtypes_in: list[DTypeString] | None = None,
-        shapes_in: list[ShapeTuple] | None = None,
+        *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
         merge_audio_streams: bool | Sequence[int] = False,
         merge_audio_ar: int | None = None,
         merge_audio_sample_fmt: str | None = None,
@@ -910,14 +910,14 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
 
         :param url: output url
         :param stream_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
-        :param stream_rates_or_opts: either sample rate (audio) or frame rate (video)
+        :param input_rates_or_opts: either sample rate (audio) or frame rate (video)
                                      or a dict of input options. The option dict must
                                      include `'ar'` (audio) or `'r'` (video) to specify
                                      the rate.
-        :param dtypes_in: list of numpy-style data type strings of input samples
+        :param input_dtypes: list of numpy-style data type strings of input samples
                           or frames of input media streams, defaults to `None`
                           (auto-detect).
-        :param shapes_in: list of shapes of input samples or frames of input media
+        :param input_shapes: list of shapes of input samples or frames of input media
                           streams, defaults to `None` (auto-detect).
         :param merge_audio_streams: True to combine all input audio streams as a single multi-channel stream. Specify a list of the input stream id's
                                     (indices of `stream_types`) to combine only specified streams.
@@ -944,7 +944,7 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
 
         stream_args = [
             (None, v) if isinstance(v, dict) else (v, None)
-            for v in stream_rates_or_opts
+            for v in input_rates_or_opts
         ]
         args, input_info, input_ready, output_info, output_args = (
             configure.init_media_write(
@@ -957,8 +957,8 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
                 merge_audio_outpad,
                 extra_inputs,
                 {"probesize_in": 32, **options},
-                dtypes_in,
-                shapes_in,
+                input_dtypes,
+                input_shapes,
             )
         )
 
