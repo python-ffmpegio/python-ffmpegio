@@ -214,7 +214,14 @@ class SimpleVideoReader(SimpleReaderBase):
     multi_write = False
 
     def __init__(
-        self, url, show_log=None, progress=None, blocksize=1, sp_kwargs=None, **options
+        self,
+        url,
+        *,
+        show_log=None,
+        progress=None,
+        blocksize=1,
+        sp_kwargs=None,
+        **options,
     ):
         hook = plugins.get_hook()
         super().__init__(
@@ -277,6 +284,7 @@ class SimpleAudioReader(SimpleReaderBase):
     def __init__(
         self,
         url,
+        *,
         show_log=None,
         progress=None,
         blocksize=None,
@@ -483,12 +491,13 @@ class SimpleVideoWriter(SimpleWriterBase):
         self,
         url,
         rate_in,
+        *,
         input_shape=None,
         input_dtype=None,
+        extra_inputs=None,
+        overwrite=None,
         show_log=None,
         progress=None,
-        overwrite=None,
-        extra_inputs=None,
         sp_kwargs=None,
         **options,
     ):
@@ -559,12 +568,13 @@ class SimpleAudioWriter(SimpleWriterBase):
         self,
         url,
         rate_in,
+        *,
         input_shape=None,
         input_dtype=None,
+        extra_inputs=None,
+        overwrite=None,
         show_log=None,
         progress=None,
-        overwrite=None,
-        extra_inputs=None,
         sp_kwargs=None,
         **options,
     ):

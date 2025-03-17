@@ -893,11 +893,12 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
         *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
         input_dtypes: list[DTypeString] | None = None,
         input_shapes: list[ShapeTuple] | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         merge_audio_streams: bool | Sequence[int] = False,
         merge_audio_ar: int | None = None,
         merge_audio_sample_fmt: str | None = None,
         merge_audio_outpad: str | None = None,
-        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        overwrite: bool | None = None,
         show_log: bool | None = None,
         progress: ProgressCallable | None = None,
         blocksize: int | None = None,
@@ -919,6 +920,8 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
                           (auto-detect).
         :param input_shapes: list of shapes of input samples or frames of input media
                           streams, defaults to `None` (auto-detect).
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                            string or a pair of a url string and an option dict.
         :param merge_audio_streams: True to combine all input audio streams as a single multi-channel stream. Specify a list of the input stream id's
                                     (indices of `stream_types`) to combine only specified streams.
         :param merge_audio_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first merging stream
@@ -1071,9 +1074,9 @@ class PipedMediaTranscoder(_EncodedOutputMixin, _EncodedInputMixin, _PipedFFmpeg
         self,
         input_options: Sequence[FFmpegOptionDict],
         output_options: Sequence[FFmpegOptionDict],
+        *,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-        *,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         blocksize: int | None = None,
