@@ -264,8 +264,8 @@ def open(
     args = (*url_fg,) if read else (*url_fg, rate_in)
     if not read:
         for k, v in (
-            ("dtype_in", dtype_in),
-            ("shape_in", shape_in),
+            ("input_dtype", dtype_in),
+            ("input_shape", shape_in),
             ("rate", rate),
             ("shape", shape),
         ):

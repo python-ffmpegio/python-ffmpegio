@@ -336,8 +336,8 @@ class SimpleWriterBase:
         self,
         viewer,
         url,
-        shape_in=None,
-        dtype_in=None,
+        input_shape=None,
+        input_dtype=None,
         show_log=None,
         progress=None,
         overwrite=None,
@@ -347,8 +347,8 @@ class SimpleWriterBase:
     ) -> None:
         self._proc = None
         self._viewer = viewer
-        self.dtype_in = dtype_in
-        self.shape_in = shape_in
+        self.input_dtype = input_dtype
+        self.input_shape = input_shape
 
         # get url/file stream
         url, stdout, _ = configure.check_url(url, True)
@@ -483,8 +483,8 @@ class SimpleVideoWriter(SimpleWriterBase):
         self,
         url,
         rate_in,
-        shape_in=None,
-        dtype_in=None,
+        input_shape=None,
+        input_dtype=None,
         show_log=None,
         progress=None,
         overwrite=None,
@@ -499,8 +499,8 @@ class SimpleVideoWriter(SimpleWriterBase):
         super().__init__(
             plugins.get_hook().video_bytes,
             url,
-            shape_in,
-            dtype_in,
+            input_shape,
+            input_dtype,
             show_log,
             progress,
             overwrite,
@@ -515,8 +515,8 @@ class SimpleVideoWriter(SimpleWriterBase):
 
         ready = "s" in inopts and "pix_fmt" in inopts
 
-        if not (ready or (self.dtype_in is None or self.shape_in is None)):
-            s, pix_fmt = utils.guess_video_format((self.shape_in, self.dtype_in))
+        if not (ready or (self.input_dtype is None or self.input_shape is None)):
+            s, pix_fmt = utils.guess_video_format((self.input_shape, self.input_dtype))
             if "s" not in inopts:
                 inopts["s"] = s
             if "pix_fmt" not in inopts:
@@ -545,8 +545,8 @@ class SimpleVideoWriter(SimpleWriterBase):
         if "pix_fmt" not in inopts:
             inopts["pix_fmt"] = pix_fmt
 
-        self.shape_in = shape
-        self.dtype_in = dtype
+        self.input_shape = shape
+        self.input_dtype = dtype
 
 
 class SimpleAudioWriter(SimpleWriterBase):
@@ -559,8 +559,8 @@ class SimpleAudioWriter(SimpleWriterBase):
         self,
         url,
         rate_in,
-        shape_in=None,
-        dtype_in=None,
+        input_shape=None,
+        input_dtype=None,
         show_log=None,
         progress=None,
         overwrite=None,
@@ -575,8 +575,8 @@ class SimpleAudioWriter(SimpleWriterBase):
         super().__init__(
             plugins.get_hook().audio_bytes,
             url,
-            shape_in,
-            dtype_in,
+            input_shape,
+            input_dtype,
             show_log,
             progress,
             overwrite,
@@ -590,10 +590,10 @@ class SimpleAudioWriter(SimpleWriterBase):
         inopts = ffmpeg_args["inputs"][0][1]
         ready = "sample_fmt" in inopts and "ac" in inopts
 
-        if not ready and (self.dtype_in is not None or self.shape_in is not None):
+        if not ready and (self.input_dtype is not None or self.input_shape is not None):
             inopts = ffmpeg_args["inputs"][0][1]
             inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
-                self.shape_in, self.dtype_in
+                self.input_shape, self.input_dtype
             )
             ready = True
 
@@ -606,11 +606,11 @@ class SimpleAudioWriter(SimpleWriterBase):
         return ready
 
     def _finalize_with_data(self, data):
-        self.shape_in, self.dtype_in = plugins.get_hook().audio_info(obj=data)
+        self.input_shape, self.input_dtype = plugins.get_hook().audio_info(obj=data)
 
         inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
         inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
-            self.shape_in, self.dtype_in
+            self.input_shape, self.input_dtype
         )
         inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])
 
