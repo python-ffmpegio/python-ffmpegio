@@ -92,7 +92,7 @@ ncomp  dtype  pix_fmt    Description
   4     <u2   rgba64le   16-bit RGB with alpha channel
 =====  =====  =========  ===================================
 
-Note that each video pixel format has a specific `dtype` (or `dtype_in`) str argument, which 
+Note that each video pixel format has a specific `dtype` (or `input_dtype`) str argument, which 
 follows the NumPy array data type convention.
 
 Audio Sample Formats :code:`sample_fmt`

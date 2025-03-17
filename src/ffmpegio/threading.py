@@ -1,5 +1,4 @@
-"""collection of thread classes for handling FFmpeg streams
-"""
+"""collection of thread classes for handling FFmpeg streams"""
 
 from __future__ import annotations
 
@@ -32,6 +31,7 @@ __all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread
 
 class NotEmpty(Exception):
     "Exception raised by WriterThread.flush(timeout) if timedout."
+
     pass
 
 
@@ -582,7 +582,6 @@ class WriterThread(Thread):
         if self.pipe is not None:
             self.pipe.close()
         elif not self.stdin.closed:
-            print(f'{self.stdin.closed=}')
             self.stdin.close()
 
         # completely flush the queue
@@ -988,7 +987,7 @@ class CopyFileObjThread(Thread):
         try:
             copyfileobj(src, dst, self.length)
         except:
-            #TODO - test the behavior when FFmpeg is prematurely terminated
+            # TODO - test the behavior when FFmpeg is prematurely terminated
             logger.warning("CopyFileObjThread runner failed to complete the job.")
         if self.auto_close:
             src.close()

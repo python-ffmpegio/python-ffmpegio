@@ -538,6 +538,7 @@ def array_to_video_options(
         info,
     )
 
+
 def set_sp_kwargs_stdin(
     url: str | None, info: InputSourceDict, sp_kwargs: dict = {}
 ) -> tuple[str, dict | None, Callable]:
@@ -613,8 +614,8 @@ def analyze_input_stream(
     fields: list[str],
     stream: str,
     media_type: MediaType,
-    input_url: str | None,
-    input_opts: dict,
+    input_url: FFmpegUrlType | None,
+    input_opts: FFmpegOptionDict,
     input_info: InputSourceDict,
 ) -> list:
     """analyze a stream and return requested field values
@@ -651,7 +652,10 @@ def video_fields_to_options(pix_fmt, width, height, r1, r2):
 
 
 def analyze_video_stream(
-    stream_specifier: str, inurl: str, inopts: dict, input_info: InputSourceDict
+    stream_specifier: str,
+    inurl: FFmpegUrlType,
+    inopts: FFmpegOptionDict,
+    input_info: InputSourceDict,
 ) -> tuple[int | Fraction | None, str | None, tuple[int, int] | None]:
     """analyze video stream core attributes
 
@@ -682,7 +686,10 @@ def analyze_video_stream(
 
 
 def analyze_audio_stream(
-    stream_specifier: str, inurl: str, inopts: dict, input_info: InputSourceDict
+    stream_specifier: str,
+    inurl: FFmpegUrlType,
+    inopts: FFmpegOptionDict,
+    input_info: InputSourceDict,
 ) -> tuple[int | None, str | None, int | None]:
     """analyze input audio stream
 
@@ -720,7 +727,7 @@ def analyze_audio_stream(
 
 def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject | str],
-    inputs: list[tuple[str | None, dict]],
+    inputs: list[tuple[FFmpegUrlType | None, FFmpegOptionDict]],
     inputs_info: list[InputSourceDict],
 ) -> tuple[list[FilterGraphObject], dict[str, dict]]:
     """analyze filtergraphs and return requested field values
@@ -858,7 +865,7 @@ def analyze_complex_filtergraphs(
 
 
 def are_input_pipes_ready(
-    inputs: list[tuple[str, dict]],
+    inputs: list[tuple[FFmpegUrlType, FFmpegOptionDict]],
     input_info: list[InputSourceDict],
     must_probe: bool = False,
 ) -> list[bool]:

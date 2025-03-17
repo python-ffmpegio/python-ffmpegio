@@ -1,5 +1,4 @@
-"""ffmpegio.filtergraph.presets Module - a collection of preset filtergraph generators
-"""
+"""ffmpegio.filtergraph.presets Module - a collection of preset filtergraph generators"""
 
 from __future__ import annotations
 
