@@ -926,8 +926,7 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
                                     (indices of `stream_types`) to combine only specified streams.
         :param merge_audio_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first merging stream
         :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
-        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                            string or a pair of a url string and an option dict.
+        :param overwrite: True to overwrite existing files, defaults to None (auto-set)
         :param show_log: True to show FFmpeg log messages on the console,
                         defaults to None (no show/capture)
                         Ignored if stream format must be retrieved automatically.
@@ -944,6 +943,14 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
 
         if not isinstance(urls, list):
             urls = [urls]
+
+        options = {"probesize_in": 32, **options}
+        if overwrite:
+            if "n" in options:
+                raise FFmpegioError(
+                    "cannot specify both `overwrite=True` and `n=ff.FLAG`."
+                )
+            options["y"] = None
 
         stream_args = [
             (None, v) if isinstance(v, dict) else (v, None)
