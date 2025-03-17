@@ -14,8 +14,8 @@ outext = ".mp4"
 def test_read_video():
     w = 420
     h = 360
-    with ffmpegio.open(
-        url, "rv", vf="transpose", pix_fmt="gray", s=(w, h), show_log=True
+    with streams.SimpleVideoReader(
+        url, vf="transpose", pix_fmt="gray", s=(w, h), show_log=True
     ) as f:
         F = f.read(10)
         print(f.rate)
@@ -41,7 +41,7 @@ def test_read_write_video():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with ffmpegio.open(out_url, "wv", rate_in=fs) as f:
+        with streams.SimpleVideoWriter(out_url, rate_in=fs) as f:
             f.write(F0)
             f.write(F1)
 
@@ -52,7 +52,7 @@ def test_read_audio(caplog):
     fs, x = ffmpegio.audio.read(url)
     bps = utils.get_samplesize(x["shape"][-1:], x["dtype"])
 
-    with ffmpegio.open(url, "ra", show_log=True, blocksize=1024 ** 2) as f:
+    with streams.SimpleAudioReader(url, show_log=True, blocksize=1024**2) as f:
         # x = f.read(1024)
         # assert x['shape'] == (1024, f.ac)
         blks = [blk["buffer"] for blk in f]
@@ -64,8 +64,8 @@ def test_read_audio(caplog):
     t0 = n0 / fs
     t1 = n1 / fs
 
-    with ffmpegio.open(
-        url, "ra", ss_in=t0, to_in=t1, show_log=True, blocksize=1024 ** 2
+    with streams.SimpleAudioReader(
+        url, ss_in=t0, to_in=t1, show_log=True, blocksize=1024**2
     ) as f:
         blks, shapes = zip(*[(blk["buffer"], blk["shape"][0]) for blk in f])
         log = f.readlog()
@@ -85,7 +85,7 @@ def test_read_audio(caplog):
 def test_read_write_audio():
     outext = ".flac"
 
-    with ffmpegio.open(url, "ra") as f:
+    with streams.SimpleAudioReader(url) as f:
         F = b"".join((f.read(100)["buffer"], f.read(-1)["buffer"]))
         fs = f.rate
         shape = f.shape
@@ -96,7 +96,7 @@ def test_read_write_audio():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with ffmpegio.open(out_url, "wa", rate_in=fs, show_log=True) as f:
+        with streams.SimpleAudioWriter(out_url, rate_in=fs, show_log=True) as f:
             f.write({**out, "buffer": F[: 100 * bps]})
             f.write({**out, "buffer": F[100 * bps :]})
 
@@ -106,8 +106,8 @@ def test_video_filter():
 
     fps = 10  # fractions.Fraction(60000,1001)
 
-    with ffmpegio.open(url, "rv", blocksize=30, t=30) as src, ffmpegio.open(
-        "scale=200:100", "fv", rate_in=src.rate, rate=fps, show_log=True
+    with streams.SimpleVideoReader(url, blocksize=30, t=30) as src, streams.SimpleVideoFilter(
+        "scale=200:100", rate_in=src.rate, rate=fps, show_log=True
     ) as f:
 
         def process(i, frames):
@@ -170,23 +170,17 @@ def test_write_extra_inputs():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with ffmpegio.open(
-            out_url,
-            "wv",
-            rate_in=fs,
-            extra_inputs=[url_aud],
-            map=["0:v", "1:a"],
-            show_log=True,
+        with streams.SimpleVideoWriter(
+            out_url, fs, extra_inputs=[url_aud], map=["0:v", "1:a"], show_log=True
         ) as f:
             f.write(F)
 
         info = ffmpegio.probe.streams_basic(out_url)
         assert len(info) == 2
 
-        with ffmpegio.open(
+        with streams.SimpleVideoWriter(
             out_url,
-            "wv",
-            rate_in=fs,
+            fs,
             extra_inputs=[("anoisesrc", {"f": "lavfi"})],
             map=["0:v", "1:a"],
             shortest=None,
@@ -197,11 +191,3 @@ def test_write_extra_inputs():
 
         info = ffmpegio.probe.streams_basic(out_url)
         assert len(info) == 2
-
-
-if __name__ == "__main__":
-    print("starting test")
-    logging.debug("logging check")
-    test_video_filter()
-
-    # python tests\test_simplestreams.py
