@@ -2,9 +2,7 @@ from .SimpleStreams import (
     SimpleVideoReader,
     SimpleVideoWriter,
     SimpleAudioReader,
-    SimpleAudioWriter,
-    SimpleVideoFilter,
-    SimpleAudioFilter,
+    SimpleAudioWriter
 )
 from .StdStreams import (
     StdAudioDecoder,
@@ -27,8 +25,7 @@ from .AviStreams import AviMediaReader
 # TODO Buffered reverse video read
 
 # fmt: off
-__all__ = ["SimpleVideoReader", "SimpleVideoWriter", "SimpleAudioReader",
-    "SimpleAudioWriter", "SimpleVideoFilter", "SimpleAudioFilter",
+__all__ = ["SimpleVideoReader", "SimpleVideoWriter", "SimpleAudioReader", "SimpleAudioWriter"
     "StdAudioDecoder", "StdAudioEncoder", "StdAudioFilter", 
     "StdVideoDecoder", "StdVideoEncoder", "StdVideoFilter", "StdMediaTranscoder",
     "PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter", "PipedMediaTranscoder",

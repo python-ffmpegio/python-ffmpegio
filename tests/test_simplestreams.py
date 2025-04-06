@@ -101,63 +101,6 @@ def test_read_write_audio():
             f.write({**out, "buffer": F[100 * bps :]})
 
 
-def test_video_filter():
-    url = "tests/assets/testvideo-1m.mp4"
-
-    fps = 10  # fractions.Fraction(60000,1001)
-
-    with streams.SimpleVideoReader(url, blocksize=30, t=30) as src, streams.SimpleVideoFilter(
-        "scale=200:100", rate_in=src.rate, rate=fps, show_log=True
-    ) as f:
-
-        def process(i, frames):
-            print(f"{i} - output {frames['shape'][0]} frames ({f.nin},{f.nout})")
-
-        for i, frames in enumerate(src):
-            process(i, f.filter(frames))
-        assert f.rate_in == src.rate
-        assert f.rate == fps
-        process("end", f.flush())
-
-
-def test_audio_filter():
-    url = "tests/assets/testaudio-1m.mp3"
-
-    sps = 4000  # fractions.Fraction(60000,1001)
-
-    with streams.SimpleAudioReader(url, blocksize=1024 * 8, t=10, ar=32000) as src:
-
-        samples = src.read(src.blocksize)
-
-        with streams.SimpleAudioFilter(
-            "lowpass",
-            rate_in=src.rate,
-            rate=sps,
-            show_log=True,
-            # ac=src.channels,
-            # dtype=src['dtype'],
-        ) as f:
-
-            def process(i, samples):
-                if len(samples):
-                    print(
-                        f"{i} - output {samples['shape'][0]} samples ({f.nin, f.nout})"
-                    )
-
-            try:
-                process(-1, f.filter(samples))
-            except TimeoutError:
-                pass
-            for i, samples in enumerate(src):
-                try:
-                    process(i, f.filter(samples))
-                except TimeoutError:
-                    pass
-            assert f.rate_in == src.rate
-            assert f.rate == sps
-            process("end", f.flush())
-
-
 def test_write_extra_inputs():
     url_aud = "tests/assets/testaudio-1m.mp3"
 
