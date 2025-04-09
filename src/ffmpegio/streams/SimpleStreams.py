@@ -53,7 +53,7 @@ __all__ = [ "SimpleVideoReader", "SimpleAudioReader", "SimpleVideoWriter",
 # fmt:on
 
 
-class _SimpleReaderRunner:
+class SimpleReaderBase:
     """base class for SISO media read stream classes"""
 
     def __init__(
