@@ -286,11 +286,8 @@ class _RawInputMixin:
         for src, info in zip(self._deferred_data, self._input_info):
             if "writer" in info and len(src):
                 writer = info["writer"]
-                media_type = info["media_type"]
                 for data in src:
-                    writer.write(
-                        self._get_bytes[media_type](obj=data), self.default_timeout
-                    )
+                    writer.write(data, self.default_timeout)
         self._deferred_data = []
         self._input_ready = True
 
@@ -316,7 +313,7 @@ class _RawInputMixin:
                 self._args["ffmpeg_args"], self._input_info, stream_id, data
             )
 
-            self._deferred_data[stream_id].append(b)
+            self._deferred_data[stream_id].append(bytes(b))
             self._input_ready[stream_id] = True
 
             if all(self._input_ready):
@@ -953,8 +950,7 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
             options["y"] = None
 
         stream_args = [
-            (None, v) if isinstance(v, dict) else (v, None)
-            for v in input_rates_or_opts
+            (None, v) if isinstance(v, dict) else (v, None) for v in input_rates_or_opts
         ]
         args, input_info, input_ready, output_info, output_args = (
             configure.init_media_write(
