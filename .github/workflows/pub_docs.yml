@@ -15,10 +15,22 @@ jobs:
       && (startsWith(github.ref, 'refs/tags') 
       || startsWith(github.event.head_commit.message, 'docs ')))}}
     steps:
-      - name: Set up FFmpeg
-        uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Set up FFmpeg
+      #   uses: FedericoCarboni/setup-ffmpeg@v3
+      #   with:
+      #     # A specific version to download, may also be "release" or a specific version
+      #     # like "6.1.0". At the moment semver specifiers (i.e. >=6.1.0) are supported
+      #     # only on Windows, on other platforms they are allowed but version is matched
+      #     # exactly regardless.
+      #     ffmpeg-version: release
+      #     # Target architecture of the ffmpeg executable to install. Defaults to the
+      #     # system architecture. Only x64 and arm64 are supported (arm64 only on Linux).
+      #     architecture: 'x64'
+      #     # As of version 3 of this action, builds are no longer downloaded from GitHub
+      #     # except on Windows: https://github.com/GyanD/codexffmpeg/releases.
+      #     github-token: ${{ github.server_url == 'https://github.com' && github.token || '' }}
+      - name: Setup FFmpeg
+        uses: AnimMouse/setup-ffmpeg@v1
 
       - name: Checkout
         uses: actions/checkout@master
