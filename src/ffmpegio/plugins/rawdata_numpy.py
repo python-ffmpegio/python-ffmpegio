@@ -59,7 +59,7 @@ def video_bytes(obj: ArrayLike) -> memoryview:
     """
 
     try:
-        return memoryview(np.ascontiguousarray(obj, obj.dtype))
+        return np.ascontiguousarray(obj).view('b')
     except:
         return None
 
@@ -75,7 +75,7 @@ def audio_bytes(obj: ArrayLike) -> memoryview:
     """
 
     try:
-        return memoryview(np.ascontiguousarray(obj, obj.dtype))
+        return np.ascontiguousarray(obj).view('b')
     except:
         return None
 
