@@ -7,7 +7,7 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from typing import Literal
+from typing import Literal, Self
 from fractions import Fraction
 from .._typing import RawDataBlob
 
@@ -81,7 +81,7 @@ class SimpleReaderBase:
         self._input_info = input_info
         self._output_info = output_info
 
-        self.blocksize = None  #:positive int: number of video frames or audio samples to read when used as an iterator
+        self.blocksize = blocksize  #:positive int: number of video frames or audio samples to read when used as an iterator
 
         self._args = {
             "ffmpeg_args": ffmpeg_args,
@@ -91,36 +91,31 @@ class SimpleReaderBase:
         }
         # create logger without assigning the source stream
         self._logger = LoggerThread(None, show_log)
+        self._proc = None
+        self._stack = None
 
-    def _open(self):
+    def __enter__(self) -> Self:
+
+        self.open()
+        return self
+
+    def open(self) -> Self:
         # get std pipe
         stdin, stdout, input = configure.assign_std_pipes(
             self._args["ffmpeg_args"], self._input_info, self._output_info
         )
 
-        if stdin == fp.PIPE and stdout == fp.PIPE:
-            raise FFmpegioError("Both stdin and stdout are piped.")
-        if input is not None:
-            stdin == fp.PIPE
+        if stdin == fp.PIPE or input is not None:
+            raise FFmpegioError("SimpleReader only uses stdout as a pipe.")
 
-        kwargs = {**sp_kwargs} if sp_kwargs else {}
-        kwargs.update(
-            {"stdin": stdin, "progress": progress, "capture_log": True, "bufsize": 0}
-        )
-
-        # start FFmpeg
-        self._proc = fp.Popen(ffmpeg_args, **kwargs)
+        # run the FFmpeg
+        self._proc = fp.Popen(**self._args, stdout=stdout)
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
         self._logger.start()
 
-        # if byte data is given, feed it
-        if input is not None:
-            self._proc.stdin.write(input)
-
-        self.blocksize = blocksize or max(1024**2 // self._input_info[0]["itemsize"], 1)
-        logger.debug("[reader main] completed init")
+        return self
 
     def close(self):
         """Flush and close this stream. This method has no effect if the stream is already
@@ -134,28 +129,27 @@ class SimpleReaderBase:
 
         # no need to close cleanly
 
-        if self._proc is None:
-            return
+        if self._proc is not None and self._proc.poll() is None:
+            # kill the ffmpeg runtime
+            self._proc.terminate()
+            if self._proc.poll() is None:
+                self._proc.kill()
+            self._proc = None
+            self._logger.join()
+            self._logger = None
 
-        self._proc.stdout.close()
-        self._proc.stderr.close()
-
-        if self._proc.poll() is None:
-            try:
-                self._proc.terminate()
-                if self._proc.poll() is None:
-                    self._proc.kill()
-            except:
-                print("failed to terminate")
-                pass
-
-        logger.debug(f"[reader main] FFmpeg closed? {self._proc.poll()}")
-
+    def __exit__(self, *exc_details) -> bool:
         try:
-            self._proc.stdin.close()
+            self.close()
+            return False
         except:
-            pass
-        self._logger.join()
+            if not exc_details[0]:
+                exc_details = sys.exc_info()
+        finally:
+            try:
+                self._logger.join()
+            except RuntimeError:
+                pass
 
     @property
     def closed(self):
@@ -170,11 +164,35 @@ class SimpleReaderBase:
         else:
             return None
 
-    def __enter__(self):
-        return self
+    @property
+    def output_label(self) -> str:
+        """FFmpeg label of output stream"""
+        return self._output_info[0]["user_map"]
 
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
+    @property
+    def output_type(self) -> MediaType:
+        """output media type"""
+        return self._output_info[0]["media_type"]
+
+    @property
+    def output_rate(self) -> int | Fraction:
+        """output sample or frame rates"""
+        return self._output_info[0]["raw_info"][2]
+
+    @property
+    def output_dtype(self) -> DTypeString:
+        """output frame/sample data type"""
+        return self._output_info[0]["raw_info"][0]
+
+    @property
+    def output_shape(self) -> ShapeTuple:
+        """output frame/sample shape"""
+        return self._output_info[0]["raw_info"][1]
+
+    @property
+    def output_samplesize(self) -> int:
+        """output sample/pixel count per frame"""
+        return prod(self._output_info[0]["raw_info"][1])
 
     def __iter__(self):
         return self
@@ -185,13 +203,13 @@ class SimpleReaderBase:
             raise StopIteration
         return F
 
-    def readlog(self, n=None):
+    def readlog(self, n: int = None):
         if n is not None:
             self._logger.index(n)
         with self._logger._newline_mutex:
             return "\n".join(self._logger.logs or self._logger.logs[:n])
 
-    def read(self, n=-1):
+    def read(self, n: int = -1) -> bytes:
         """Read and return numpy.ndarray with up to n frames/samples. If
         the argument is omitted, None, or negative, data is read and
         returned until EOF is reached. An empty bytes object is returned
@@ -206,14 +224,14 @@ class SimpleReaderBase:
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
         logger.debug(f"[reader main] reading {n} samples")
-        b = self._proc.stdout.read(n * self.samplesize if n > 0 else n)
+        b = self._proc.stdout.read(n * self.output_samplesize if n > 0 else n)
         logger.debug(f"[reader main] read {len(b)} bytes")
         if not len(b):
             self._proc.stdout.close()
             return None
-        return self._converter(b=b, shape=self.shape, dtype=self.dtype, squeeze=False)
+        return b
 
-    def readinto(self, array):
+    def readinto(self, array:RawDataBlob)->int:
         """Read bytes into a pre-allocated, writable bytes-like object array and
         return the number of bytes read. For example, b might be a bytearray.
 
@@ -229,10 +247,6 @@ class SimpleReaderBase:
 
 
 class SimpleVideoReader(SimpleReaderBase):
-    readable = True
-    writable = False
-    multi_read = False
-    multi_write = False
 
     def __init__(
         self,
@@ -245,7 +259,6 @@ class SimpleVideoReader(SimpleReaderBase):
         map=None,
         **options,
     ):
-        hook = plugins.get_hook()
 
         if map is None:
             map = "0:V:0"
@@ -258,7 +271,6 @@ class SimpleVideoReader(SimpleReaderBase):
             raise FFmpegioError(f'no video stream found in "{url}" ({map=})')
 
         super().__init__(
-            hook.bytes_to_video,
             hook.video_bytes,
             url,
             show_log,
@@ -268,44 +280,23 @@ class SimpleVideoReader(SimpleReaderBase):
             **options,
         )
 
-    def _finalize(self, ffmpeg_args):
-        # finalize FFmpeg arguments and output array
+    def read(self, n: int = -1) -> RawDataBlob:
+        """Read and return numpy.ndarray with up to n frames/samples. If
+        the argument is omitted, None, or negative, data is read and
+        returned until EOF is reached. An empty bytes object is returned
+        if the stream is already at EOF.
 
-        inopts = ffmpeg_args.get("inputs", [])[0][1]
-        outopts = ffmpeg_args.get("outputs", [])[0][1]
+        If the argument is positive, and the underlying raw stream is not
+        interactive, multiple raw reads may be issued to satisfy the byte
+        count (unless EOF is reached first). But for interactive raw streams,
+        at most one raw read will be issued, and a short result does not
+        imply that EOF is imminent.
 
-        outopts["map"] = "0:v:0"
-        (
-            self.dtype,
-            self.shape,
-            self.rate,
-        ) = configure.finalize_video_read_opts(
-            ffmpeg_args,
-            input_info=[
-                {
-                    "src_type": (
-                        "filtergraph" if outopts.get("f", None) == "lavfi" else "url"
-                    )
-                }
-            ],
-        )
+        A BlockingIOError is raised if the underlying raw stream is in non
+        blocking-mode, and has no data available at the moment."""
 
-        pix_fmt = outopts.get("pix_fmt", None)
-        pix_fmt_in = inopts.get("pix_fmt", None)
-
-        if pix_fmt_in is None and pix_fmt is None:
-            raise ValueError("pix_fmt must be specified.")
-
-        # construct basic video filter if options specified
-        configure.build_basic_vf(
-            ffmpeg_args, utils.alpha_change(pix_fmt_in, pix_fmt, -1)
-        )
-
-    def _finalize_array(self, info):
-        # finalize array setup from FFmpeg log
-
-        self.rate = info["r"]
-        self.dtype, self.shape = utils.get_video_format(info["pix_fmt"], info["s"])
+        hook = plugins.get_hook()
+        return hook.bytes_to_video(super().read(n))
 
 
 class SimpleAudioReader(SimpleReaderBase):

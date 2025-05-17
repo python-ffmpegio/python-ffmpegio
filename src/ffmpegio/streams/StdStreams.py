@@ -199,6 +199,8 @@ class _StdFFmpegRunner:
             if self._proc.poll() is None:
                 self._proc.kill()
             self._proc = None
+            self._logger.join()
+            self._logger = None
 
     def __exit__(self, *exc_details) -> bool:
         try:

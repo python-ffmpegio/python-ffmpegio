@@ -188,6 +188,8 @@ class _PipedFFmpegRunner:
             if self._proc.poll() is None:
                 self._proc.kill()
             self._proc = None
+            self._logger.join()
+            # self._logger = None
 
     def __exit__(self, *exc_details) -> bool:
         try:
@@ -201,16 +203,17 @@ class _PipedFFmpegRunner:
                 self._logger.join()
             except RuntimeError:
                 pass
+        return False
 
     @property
     def closed(self) -> bool:
         """True if the stream is closed."""
-        return self._proc.poll() is not None
+        return self._proc is None or self._proc.poll() is not None
 
     @property
-    def lasterror(self) -> FFmpegError:
+    def lasterror(self) -> FFmpegError | None:
         """Last error FFmpeg posted"""
-        if self._proc.poll():
+        if self._proc and self._proc.poll():
             return self._logger.Exception()
         else:
             return None
