@@ -44,15 +44,18 @@ def _runner(
 
     # True if there is unknown datablob info
     need_stderr = any(
-        info["dst_type"] == "pipe" and info["raw_info"] is None
-        for info in output_info
+        info["dst_type"] == "pipe" and info["raw_info"] is None for info in output_info
     )
 
     # run FFmpeg
     capture_log = True if need_stderr else None if show_log else True
 
     # configure named pipes
-    stack = configure.init_named_pipes(args, input_info, output_info)
+    if len(input_info):
+        sp_kwargs = configure.assign_input_pipes(args, input_info, False, sp_kwargs)
+    if len(output_info):
+        sp_kwargs = configure.assign_output_pipes(args, output_info, False, sp_kwargs)
+    stack = configure.init_named_pipes(input_info, output_info)
 
     def on_exit(rc):
         stack.close()

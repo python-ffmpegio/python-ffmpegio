@@ -9,6 +9,7 @@ from typing_extensions import (
     TypedDict,
     Unpack,
     Callable,
+    BinaryIO,
 )
 
 from ._typing import (
@@ -1658,7 +1659,13 @@ def init_media_read(
     ],
     map: Sequence[str] | dict[str, FFmpegOptionDict | None] | None,
     options: FFmpegOptionDict,
-) -> tuple[FFmpegArgs, list[InputSourceDict], list[OutputDestinationDict]]:
+) -> tuple[
+    FFmpegArgs,
+    list[InputSourceDict],
+    list[bool],
+    list[OutputDestinationDict],
+    list[FFmpegOptionDict | None],
+]:
     """Initialize FFmpeg arguments for media read
 
     :param *urls: URLs of the media files to read.
@@ -2154,14 +2161,133 @@ def init_media_transcoder(
     return args, input_info, output_info
 
 
-def init_named_pipes(
+########################################
+
+
+def assign_output_pipes(
     args: FFmpegArgs,
+    output_info: list[OutputDestinationDict],
+    sp_kwargs: dict | None = None,
+    use_std_pipes: bool = False,
+) -> dict:
+    """initialize pipes for write operations with FFmpeg
+
+    :param args: FFmpeg option arguments (modified)
+    :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
+    :param sp_kwargs: Specify the subprocess.Popen keyword arguments.
+    :param use_std_pipes: True to assign the first piped output to stdout
+    :returns sp_kwargs: Modified Popen keyword arguments
+
+    """
+
+    if sp_kwargs is None:
+        sp_kwargs = {}
+
+    if output_info is None:
+        return sp_kwargs
+
+    # configure output pipes
+    use_stdout = False
+    has_pipeout = False
+
+    for i, (info, arg) in enumerate(zip(output_info, args["outputs"])):
+
+        if arg[0]:
+            # url already configured
+            continue
+
+        has_pipeout = True
+        if use_std_pipes and not use_stdout:
+            use_stdout = True
+            pipe_path = "pipe:1"
+
+            dst_type = info["dst_type"]
+            if dst_type == "fileobj":
+                assert "fileobj" in info
+                sp_kwargs["stdout"] = info["fileobj"]
+            elif dst_type == "buffer":
+                sp_kwargs["stdout"] = fp.PIPE
+        else:
+            # if fileobj or buffer output, use pipe
+            pipe = NPopen("r", bufsize=0)
+            pipe_path = pipe.path
+            info["pipe"] = pipe
+        assign_output_url(args, i, pipe_path)
+
+    if has_pipeout:
+        # if any output is piped, must run in the overwrite mode
+        args["global_options"].pop("n", None)
+        args["global_options"]["y"] = None
+
+    return sp_kwargs
+
+
+def assign_input_pipes(
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    sp_kwargs: dict | None = None,
+    use_std_pipes: bool = False,
+    set_sp_kwargs_input: bool = False,
+) -> dict:
+    """initialize named pipes for write operations with FFmpeg
+
+    :param args: FFmpeg option arguments (modified)
+    :param input_info: FFmpeg input information, its length matches that of `args['inputs']` (modified)
+    :param use_std_pipes: True to assign the first piped output to stdout
+    :param sp_kwargs: Specify the subprocess.Popen keyword arguments.
+    :param set_sp_kwargs_input: True to assign 'input' instead of 'stdin' for sp_kwargs
+    :returns sp_kwargs: Modified Popen keyword arguments
+
+    """
+
+    if sp_kwargs is None:
+        sp_kwargs = {}
+
+    if input_info is None:
+        return sp_kwargs
+
+    # configure input pipes
+    use_stdin = False
+
+    # configure input pipes (if needed)
+    for i, (info, arg) in enumerate(zip(input_info, args["inputs"])):
+
+        if arg[0]:
+            # url already configured
+            continue
+
+        if use_std_pipes and not use_stdin:
+            use_stdin = True
+            pipe_path = "pipe:0"
+
+            src_type = info["src_type"]
+            if src_type == "fileobj":
+                assert "fileobj" in info
+                sp_kwargs["input"] = info["fileobj"]
+            elif src_type == "buffer":
+                if (
+                    set_sp_kwargs_input and "buffer" in info
+                ):  # given data to send to subprocess
+                    sp_kwargs["input"] = info["buffer"]
+                else:
+                    sp_kwargs["stdin"] = fp.PIPE
+        else:
+            pipe = NPopen("w", bufsize=0)
+            pipe_path = pipe.path
+            info["pipe"] = pipe
+        assign_input_url(args, i, pipe_path)
+
+    return sp_kwargs
+
+
+def init_named_pipes(
     input_info: list[InputSourceDict],
     output_info: list[OutputDestinationDict],
     update_rate: float | None = None,
     blocksize: int | None = None,
     queue_size: int | None = None,
-) -> ExitStack | None:
+    stack: ExitStack | None = None,
+) -> ExitStack:
     """initialize named pipes for read & write operations with FFmpeg
 
     :param args: FFmpeg option arguments (modified)
@@ -2170,6 +2296,7 @@ def init_named_pipes(
     :param update_rate: target rate at which queue transactions will occur for raw data output,
                         defaults to None (1 video frame or 1024 audio sample at a time)
     :param blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
+    :param stack: ExitStack context manager object to handle __exit__() of NOpen and Thread objects
     :returns: a list of indices of the FFmpeg outputs that are raw data streams
 
     In addition to the retured list, this function modifies the dicts in its arguements.
@@ -2183,191 +2310,24 @@ def init_named_pipes(
     if any output is a piped, overwrite flag (-y) is automatically inserted
     """
 
-    stack = ExitStack()
-    wr_kws = {"queuesize": queue_size} if queue_size else {}
-
-    # configure output pipes
-    has_pipeout = False
-    for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
-        if output[0] is None:
-
-            has_pipeout = True
-
-            # if fileobj or buffer output, use pipe
-            pipe = NPopen("r", bufsize=0)
-            stack.enter_context(pipe)
-            assign_output_url(args, i, pipe.path)
-            dst_type = info["dst_type"]
-            if dst_type == "fileobj":
-                reader = CopyFileObjThread(info["fileobj"], pipe)
-            elif dst_type == "buffer":
-                kws = {**wr_kws}
-                if "raw_info" in info:
-                    dtype, shape, rate = info["raw_info"]
-                    kws["itemsize"] = utils.get_samplesize(shape, dtype)
-                    if update_rate is not None:
-                        kws["nmin"] = round(rate / update_rate) or 1
-                else:
-                    # assume encoded output
-                    kws["itemsize"] = 1
-                    kws["nmin"] = blocksize or 2**16
-                reader = ReaderThread(pipe, **kws)
-            else:
-                raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
-            stack.enter_context(reader)  # starts thread & wait for pipe connection
-            info["reader"] = reader
-
-    # configure input pipes (if needed)
-    for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
-        if input[0] is None:  # no url == fileobj / buffer / other data via a pipe
-            pipe = NPopen("w", bufsize=0)
-            stack.enter_context(pipe)
-            assign_input_url(args, i, pipe.path)
-            src_type = info["src_type"]
-            if src_type == "fileobj":
-                writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
-                stack.enter_context(writer)
-                # starts thread & wait for pipe connection
-            elif src_type == "buffer":
-                writer = WriterThread(pipe, **wr_kws)
-                # starts thread & wait for pipe connection
-                stack.enter_context(writer)
-                if "buffer" in info:
-                    # data buffer given, feed the data and terminate
-                    writer.write(info["buffer"])
-                    writer.write(None)  # close the writer immediately
-                else:
-                    # if no data given, provide the access to the writer
-                    info["writer"] = writer
-            else:
-                raise FFmpegioError(f"{src_type=} is an unknown input data type.")
-
-    if has_pipeout:
-        # if any output is piped, must run in the overwrite mode
-        args["global_options"].pop("n", None)
-        args["global_options"]["y"] = None
-
-    return stack if len(input_info) or len(output_info) else None
-
-
-def assign_std_pipes(
-    args: FFmpegArgs,
-    input_info: list[InputSourceDict],
-    output_info: list[OutputDestinationDict],
-    use_sp_run: bool = False,
-) -> tuple[int | IO | None, int | IO | None, bytes | None]:
-    """initialize named pipes for read & write operations with FFmpeg
-
-    :param args: FFmpeg option arguments (modified)
-    :param input_info: list of input information
-    :param output_info: list of output information
-    :param use_sp_run: True to set `stdin` output to `None` even if input
-                       data is given (so it's compatible with `subprocess.run()`)
-    :returns stdin: stdin argument of subsequent ffmpegprocess.Popen call
-    :returns stdout: stdout argument of subsequent ffmpegprocess.Popen call
-    :returns input: input argument of subsequent ffmpegprocess.Popen call
-
-    In addition to the retured list, this function modifies the dicts in its arguements.
-
-    - The pipe names are assigned to the URLs of FFmpeg input and output (`args['inputs'][][0]`
-      and `args['outputs'][][0]`)
-    - The reader threads for FFmpeg outputs that are written to buffers (i.e.,
-      `output_info[]['dst_type']=='buffer'`) are saved as `output_info[]['reader']`
-      so the reader object can be used to retrieve the data.
-
-
-    if any output is a piped, overwrite flag (-y) is automatically inserted
-    """
-
-    # configure output pipes
-    use_stdin = use_stdout = False
-    stdin = stdout = pinput = None
-    for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
-        if output[0] is None or utils.is_pipe(output[0]):
-            if use_stdout:
-                raise FFmpegioError(
-                    "More than 1 pipe to output found. Cannot use standard pipes."
-                )
-            use_stdout = True
-            assign_output_url(args, i, "pipe:1")
-
-            dst_type = info["dst_type"]
-            if dst_type == "fileobj":
-                stdout = info["fileobj"]
-            elif dst_type == "buffer":
-                stdout = fp.PIPE
-            else:
-                raise FFmpegioError(f"{dst_type=} is an unknown output data type.")
-
-    # configure input pipes (if needed)
-    for i, (input, info) in enumerate(zip(args["inputs"], input_info)):
-        if input[0] is None or utils.is_pipe(input[0]):
-            if use_stdin:
-                raise FFmpegioError(
-                    "More than 1 pipe to input found. Cannot use standard pipes."
-                )
-            use_stdin = True
-            assign_input_url(args, i, "pipe:0")
-            src_type = info["src_type"]
-            if src_type == "fileobj":
-                stdin = info["fileobj"]
-            elif src_type == "buffer":
-                if "buffer" in info:
-                    pinput = info["buffer"]
-                    if not use_sp_run:
-                        stdin = fp.PIPE
-                else:
-                    stdin = fp.PIPE
-            else:
-                raise FFmpegioError(f"{src_type=} is an unknown input data type.")
-
-    if use_stdout:
-        # if any output is piped, must run in the overwrite mode
-        args["global_options"].pop("n", None)
-        args["global_options"]["y"] = None
-
-    return stdin, stdout, pinput
-
-
-def init_std_pipes(
-    stdin: IO | None,
-    stdout: IO | None,
-    input_info: list[InputSourceDict],
-    output_info: list[OutputDestinationDict],
-    update_rate: float | None = None,
-    blocksize: int | None = None,
-    queue_size: int | None = None,
-) -> ExitStack | None:
-    """initialize named pipes for read & write operations with FFmpeg
-
-    :param args: FFmpeg option arguments (modified)
-    :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
-    :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
-    :param update_rate: target rate at which queue transactions will occur for raw data output,
-                        defaults to None (1 video frame or 1024 audio sample at a time)
-    :param blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
-    :returns: a list of indices of the FFmpeg outputs that are raw data streams
-
-    In addition to the retured list, this function modifies the dicts in its arguements.
-
-    - The pipe names are assigned to the URLs of FFmpeg input and output (`args['inputs'][][0]`
-      and `args['outputs'][][0]`)
-    - The reader threads for FFmpeg outputs that are written to buffers (i.e.,
-      `output_info[]['dst_type']=='buffer'`) are saved as `output_info[]['reader']`
-      so the reader object can be used to retrieve the data.
-
-
-    if any output is a piped, overwrite flag (-y) is automatically inserted
-    """
-
-    stack = ExitStack()
-    in_use = False
+    if stack is None:
+        stack = ExitStack()
     wr_kws = {"queuesize": queue_size} if queue_size else {}
 
     # configure output pipes
     for info in output_info:
+        if "pipe" not in info:
+            continue
+
+        pipe = info["pipe"]
+        stack.enter_context(pipe)
+
         dst_type = info["dst_type"]
-        if dst_type == "buffer":
+        if dst_type == "fileobj":
+            assert "fileobj" in info
+            reader = CopyFileObjThread(pipe, info["fileobj"])
+        else:
+            assert dst_type == "buffer"
             kws = {**wr_kws}
             if "raw_info" in info:
                 dtype, shape, rate = info["raw_info"]
@@ -2378,19 +2338,28 @@ def init_std_pipes(
                 # assume encoded output
                 kws["itemsize"] = 1
                 kws["nmin"] = blocksize or 2**16
-            info["reader"] = reader = ReaderThread(stdout, **kws)
-            stack.enter_context(reader)  # starts thread & wait for pipe connection
-            in_use = True
-        break
+            reader = ReaderThread(pipe, **kws)
+
+        info["reader"] = reader
+        stack.enter_context(reader)  # starts thread & wait for pipe connection
 
     # configure input pipes (if needed)
     for info in input_info:
+        if "pipe" not in info:
+            continue
+
+        pipe = info["pipe"]
+        stack.enter_context(pipe)
+
         src_type = info["src_type"]
-        if src_type == "buffer":
-            writer = WriterThread(stdin, **wr_kws)
+        if src_type == "fileobj":
+            assert "fileobj" in info
+            writer = CopyFileObjThread(info["fileobj"], pipe, auto_close=True)
             # starts thread & wait for pipe connection
-            stack.enter_context(writer)
-            in_use = True
+        else:
+            assert src_type == "buffer"
+            writer = WriterThread(pipe, **wr_kws)
+            # starts thread & wait for pipe connection
             if "buffer" in info:
                 # data buffer given, feed the data and terminate
                 writer.write(info["buffer"])
@@ -2398,6 +2367,6 @@ def init_std_pipes(
             else:
                 # if no data given, provide the access to the writer
                 info["writer"] = writer
-        break
+        stack.enter_context(writer)
 
-    return stack if in_use else None
+    return stack

@@ -12,7 +12,7 @@ from urllib.parse import ParseResult as UrlParseResult
 
 if TYPE_CHECKING:
     from namedpipe import NPopen
-    from .threading import WriterThread, ReaderThread
+    from .threading import WriterThread, ReaderThread, CopyFileObjThread
 
 # from typing_extensions import *
 
@@ -139,7 +139,8 @@ class InputSourceDict(TypedDict):
     fileobj: NotRequired[IO]  # file object
     media_type: NotRequired[MediaType]  # media type if input pipe
     raw_info: NotRequired[RawStreamInfoTuple]
-    writer: NotRequired[WriterThread]  # pipe
+    pipe: NotRequired[NPopen]  # named pipe
+    writer: NotRequired[WriterThread | CopyFileObjThread]  # pipe
 
 
 class OutputDestinationDict(TypedDict):
@@ -153,6 +154,6 @@ class OutputDestinationDict(TypedDict):
     linklabel: NotRequired[str]
     raw_info: NotRequired[RawStreamInfoTuple]
     pipe: NotRequired[NPopen]
-    reader: NotRequired[ReaderThread]
+    reader: NotRequired[ReaderThread | CopyFileObjThread]
     itemsize: NotRequired[int]
     nmin: NotRequired[int]

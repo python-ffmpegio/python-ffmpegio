@@ -1,15 +1,10 @@
-Pillow==10.3.0
 sphinx
 sphinx-rtd-theme
 sphinx-autopackagesummary
-sphinxcontrib-blockdiag
-blockdiag @ git+https://github.com/yuzutech/blockdiag.git
 sphinxcontrib-repl
 sphinx-exec-directive
 sphinx-autobuild
-PyQt5-sip
-PyQt5
+sphinx-book-theme
+sphinx-copybutton
 matplotlib
-ffmpegio
 numpy
-kiwisolver

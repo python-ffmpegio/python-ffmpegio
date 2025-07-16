@@ -8,7 +8,7 @@
 
 There are a number of `FFmpeg filters <https://ffmpeg.org/ffmpeg-filters.html>`_ which analyze video
 and audio streams and inject per-frame results into frame metadata to be used in a later stage of 
-a filtergraph. :py:mod:`ffmpegio.analyze.run` retrieves the injected metadata by appending ``metadata``
+a filtergraph. :py:mod:`run` retrieves the injected metadata by appending ``metadata``
 and ``ametadata`` filters and logs the frame metadata outputs. You can use either the supplied Python 
 classes or a custom class, which conforms to :py:class:`MetadataLogger` interface to specify the FFmpeg
 filter and to log its output.
@@ -88,10 +88,10 @@ Analyze API Reference
    :nosignatures:
    :recursive:
 
-   ffmpegio.analyze.run
+   run
    ffmpegio.video.detect
    ffmpegio.audio.detect
-   ffmpegio.analyze.MetadataLogger
+   MetadataLogger
 
 .. autofunction:: ffmpegio.analyze.run
 .. autofunction:: ffmpegio.video.detect

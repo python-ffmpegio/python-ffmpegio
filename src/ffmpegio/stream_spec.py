@@ -449,3 +449,31 @@ def map_option(
         map = f"{map}?"
 
     return map
+
+
+def stream_spec_to_map_option(
+    stream_spec_or_link_label: str | StreamSpecDict,
+    input_file_id: int = 0,
+) -> str:
+    """Form map option string from stream_spec/link_label
+
+    :param stream_spec_or_link_label: stream_spec or link_label string or
+                                      stream_spec dict
+    :param input_file_id: id of the file, defaults to "0"
+    """
+
+    link_label = None
+    if isinstance(stream_spec_or_link_label, str):
+        try:
+            stream_spec_dict = parse_stream_spec(stream_spec_or_link_label)
+        except ValueError:
+            stream_spec_dict = None
+            link_label = stream_spec_or_link_label
+    else:
+        stream_spec_dict = stream_spec_or_link_label
+
+    return map_option(
+        None if stream_spec_dict is None else input_file_id,
+        link_label,
+        stream_spec_dict,
+    )

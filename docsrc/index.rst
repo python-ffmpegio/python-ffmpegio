@@ -14,6 +14,9 @@
 .. |github-status| image:: https://img.shields.io/github/actions/workflow/status/python-ffmpegio/python-ffmpegio/test_n_pub.yml?branch=main
   :alt: GitHub Workflow Status
 
+* GitHub Repository <https://github.com/python-ffmpegio/python-ffmpegio>
+* GitHub Discussion Board <https://github.com/python-ffmpegio/python-ffmpegio/discussions>
+
 Python `ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
 to read, write, probe, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
 multimedia framework, which can handle most of the multimedia formats available today.
@@ -39,10 +42,13 @@ Main Features
 * I/O device enumeration to eliminate the need to look up device names. (currently supports only: Windows DirectShow)
 * More features to follow
 
-Installation
-------------
 
-Install the full `ffmpegio` package via ``pip``:
+Where to start
+--------------
+
+* Read :ref:`Quick-start guide <quick>`
+
+* Install via ``pip``:
 
 .. code-block:: bash
 
@@ -330,3 +336,45 @@ Run FFmpeg and FFprobe Directly
                               }, capture_log=True)
   >>> print(out.stderr) # print the captured FFmpeg logs (banner text omitted)
   >>> b = out.stdout # width*height bytes of the first frame
+
+Introductory Info
+-----------------
+
+.. toctree::
+    :maxdepth: 1
+
+    quick
+    install
+
+
+High-level API Reference
+------------------------
+
+.. toctree::
+    :maxdepth: 1
+
+    basicio
+    probe
+    options
+    filtergraph
+    caps
+    analysis
+    devices
+    concat
+
+Advanced Topics
+---------------
+
+.. toctree::
+    :maxdepth: 1
+
+    adv-ffmpeg
+    adv-args
+
+External Links
+--------------
+
+.. toctree::
+    :maxdepth: 1
+
+    links

@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import pluggy
-from typing import Callable
+from typing import Protocol, Callable
 from .._typing import DTypeString, ShapeTuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
 
 
 @hookspec(firstresult=True)
-def finder() -> Tuple[str, str]:
+def finder() -> tuple[str, str]:
     """find ffmpeg and ffprobe executable"""
+    ...
+
+class GetInfoCallable(Protocol):
+    def __call__(self, *, obj: object) -> tuple[ShapeTuple, DTypeString]: ...
 
 
 @hookspec(firstresult=True)
@@ -17,9 +21,10 @@ def video_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: object containing video frame data with arbitrary number of frames
-    :return shape: shape (height,width,components) 
+    :return shape: shape (height,width,components)
     :return dtype: data type in numpy dtype str expression
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -27,9 +32,14 @@ def audio_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     """get audio sample info
 
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
-    :return ac: number of channels 
+    :return ac: number of channels
     :return dtype: sample data type in numpy dtype str expression
     """
+    ...
+
+
+class ToBytesCallable(Protocol):
+    def __call__(self, *, obj: object) -> memoryview: ...
 
 
 @hookspec(firstresult=True)
@@ -39,6 +49,7 @@ def video_bytes(obj: object) -> memoryview:
     :param obj: object containing video frame data with arbitrary number of frames
     :return: packed bytes of video frames
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -48,6 +59,14 @@ def audio_bytes(obj: object) -> memoryview:
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: packed bytes of audio samples
     """
+    ...
+
+
+class CountDataCallable(Protocol):
+    def __call__(
+        self, *, b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
+    ) -> int: ...
+
 
 @hookspec(firstresult=True)
 def video_frames(obj: object) -> int:
@@ -56,6 +75,7 @@ def video_frames(obj: object) -> int:
     :param obj: object containing video frame data with arbitrary number of frames
     :return: number of video frames in obj
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -65,6 +85,14 @@ def audio_samples(obj: object) -> int:
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: number of samples in obj
     """
+    ...
+
+
+class FromBytesCallable(Protocol):
+    def __call__(
+        self, *, b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
+    ) -> object: ...
+
 
 @hookspec(firstresult=True)
 def bytes_to_video(
@@ -81,7 +109,9 @@ def bytes_to_video(
 
 
 @hookspec(firstresult=True)
-def bytes_to_audio(b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool) -> object:
+def bytes_to_audio(
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
+) -> object:
     """convert bytes to rawaudio object
 
     :param b: byte data of arbitrary number of video frames
@@ -104,6 +134,7 @@ def device_source_api() -> tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+    ...
 
 
 @hookspec
@@ -118,3 +149,4 @@ def device_sink_api() -> tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+    ...

@@ -56,13 +56,25 @@ def test_PipedMediaWriter():
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
     with streams.PipedMediaWriter(
-        "pipe", stream_types, *rates.values(), show_log=True, f="matroska"
+        "pipe", stream_types, *rates.values(), show_log=True, f="matroska",
     ) as writer:
+        # write full audio streams
+        video_frames = {}
         for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
-            if mtype == "v":
-                writer.write_stream(i, frame[0])
-            else:
+            if mtype == "a":
                 writer.write_stream(i, frame)
+            else:
+                video_frames[i] = frame.shape[0]
+
+        # write video stream one frame at a time
+        frame_count = {k: 0 for k in video_frames}
+        while any(n < nall for n, nall in zip(frame_count.values(), video_frames.values())):
+            for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
+                if i in frame_count:
+                    j = frame_count[i]
+                    print(j)
+                    writer.write_stream(i, frame[j])
+                    frame_count[i] = j + 1
 
         writer.wait(10)
         b = writer.read_encoded_stream(0, -1, 10)

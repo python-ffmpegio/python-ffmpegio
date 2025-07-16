@@ -91,7 +91,7 @@ def test_video_filter():
 
     with (
         streams.SimpleVideoReader(url, blocksize=30, t=30) as src,
-        streams.StdVideoFilter("scale=200:100", src.rate, r=fps, show_log=True) as f,
+        streams.StdVideoFilter("scale=200:100", src.output_rate, r=fps, show_log=True) as f,
     ):
 
         def process(i, frames):
@@ -101,7 +101,7 @@ def test_video_filter():
 
         for i, frames in enumerate(src):
             process(i, f.filter(frames))
-        assert f.input_rate == src.rate
+        assert f.input_rate == src.output_rate
         assert f.output_rate == fps
         f.wait()
         process("end", f.read(-1))
@@ -114,7 +114,7 @@ def test_audio_filter():
 
     with (
         streams.SimpleAudioReader(url, blocksize=1024 * 8, t=10, ar=32000) as src,
-        streams.StdAudioFilter("lowpass", src.rate, ar=sps, show_log=True) as f,
+        streams.StdAudioFilter("lowpass", src.output_rate, ar=sps, show_log=True) as f,
     ):
         samples = src.read(src.blocksize)
 
@@ -134,7 +134,7 @@ def test_audio_filter():
                 process(i, f.filter(samples))
             except TimeoutError:
                 pass
-        assert f.input_rate == src.rate
+        assert f.input_rate == src.output_rate
         assert f.output_rate == sps
         f.wait()
         process("end", f.read(-1))

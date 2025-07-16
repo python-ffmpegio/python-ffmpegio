@@ -18,41 +18,54 @@ Install the :py:mod:`ffmpegio` package via :code:`pip`.
 Install FFmpeg program
 ^^^^^^^^^^^^^^^^^^^^^^
 
-There are two platform independent approaches to install FFmpeg for the use in Python:
+There are two Python libraries to install FFmpeg for the use in Python:
 
-::code::`ffmpeg-downloader`
-"""""""""""""""""""""""""""
+The installation of FFmpeg is platform dependent. One platform agnostic approach
+is to use our sister package: 
+`ffmpeg-downloader <https://github.com/python-ffmpegio/python-ffmpeg-downloader>`__.
+
+Install with `ffmpeg-downloader`
+""""""""""""""""""""""""""""""""
+
+First, install the `ffmpegio-downloader` package, then run its cli command `ffdl`:
 
 .. code-block:: 
+
    pip install ffmpeg-downloader
-   ffdl install -U # grabs the latest version
+   ffdl install
+
+If you wish to use the FFmpeg outside of `ffmpegio`, you can also install and add 
+the installed directory to the user's system path (only for Windows and MacOS).
+
+.. code-block:: 
 
    # optionally
-   ffdl install -U --add-path to have it on the system path in Windows or MacOS
+   ffdl install --add-path
 
-::code::`static-ffmpeg`
-"""""""""""""""""""""""
-
+At a later date, you could re-run `ffdl` to look for an update (similar to `pip`):
+I
 .. code-block:: 
-   pip install static-ffmpeg
-   static_ffmpeg_paths
 
-The installation of FFmpeg is platform dependent. For Ubuntu/Debian Linux,
+   ffdl install -U
+
+Install on Ubuntu/Debian Linux
+""""""""""""""""""""""""""""""
 
 .. code-block::
 
    sudo apt install ffmpeg
 
-and for MacOS,
+Install on MacOS
+""""""""""""""""
 
 .. code-block:: 
 
    brew install ffmpeg
 
-no other actions are needed as these commands will place the FFmpeg executables 
-on the system path. 
+Install on Windows
+""""""""""""""""""
 
-For Windows, it is a bit more complicated.
+It is a bit more complicated in Windows. 
 
 1. Download pre-built packages from the links available on the `FFmpeg's Download page
    <https://ffmpeg.org/download.html#build-windows>`__.

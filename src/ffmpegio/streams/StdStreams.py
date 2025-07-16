@@ -32,6 +32,7 @@ from math import prod
 from .. import configure, ffmpegprocess, plugins, utils, probe
 from ..threading import LoggerThread
 from ..errors import FFmpegError, FFmpegioError
+from .BaseFFmpegRunner import BaseFFmpegRunner
 
 # fmt:off
 __all__ = ["StdAudioDecoder", "StdAudioEncoder", "StdAudioFilter", 
@@ -39,7 +40,7 @@ __all__ = ["StdAudioDecoder", "StdAudioEncoder", "StdAudioFilter",
 # fmt:on
 
 
-class _StdFFmpegRunner:
+class _StdFFmpegRunner(BaseFFmpegRunner):
     """Base class to run FFmpeg and manage its multiple I/O's"""
 
     def __init__(
@@ -56,7 +57,7 @@ class _StdFFmpegRunner:
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         queuesize: int | None = None,
-        sp_kwargs: dict = None,
+        sp_kwargs: dict | None = None,
     ):
         """Encoded media stream transcoder
 
@@ -199,6 +200,8 @@ class _StdFFmpegRunner:
             if self._proc.poll() is None:
                 self._proc.kill()
             self._proc = None
+            self._logger.join()
+            self._logger = None
 
     def __exit__(self, *exc_details) -> bool:
         try:

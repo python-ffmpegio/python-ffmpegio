@@ -125,101 +125,101 @@ up a filtergraph.
 
 
 .. list-table:: Options to manipulate video frames
-  :widths: auto
-  :header-rows: 1
-  :class: tight-table
+   :widths: auto
+   :header-rows: 1
+   :class: tight-table
 
-  * - name
-    - value
-    - FFmpeg filter
-    - Description
-  * - :code:`crop`
-    - seq(int[, int[, int[, int]]])
-    - `crop <https://ffmpeg.org/ffmpeg-filters.html#crop>`__
-    - video frame cropping/padding, values representing the number of pixels to crop from [left top right bottom].
-      If positive, the video frame is cropped from the respective edge. If negative, the video frame is padded on 
-      the respective edge. If right or bottom is missing, uses the same value as left or top, respectively. If top
-      is missing, it defaults to 0.
-  * - :code:`flip`
-    - {:code:`'horizontal'`, :code:`'vertical'`, :code:`'both'`}
-    - `hflip <https://ffmpeg.org/ffmpeg-filters.html#hflip>`__ or `vflip <https://ffmpeg.org/ffmpeg-filters.html#vflip>`__
-    - flip the video frames horizontally, vertically, or both.
-  * - :code:`transpose`
-    - int
-    - `transpose <https://ffmpeg.org/ffmpeg-filters.html#transpose-1>`__
-    - tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
-      For the others, see the FFmpeg documentation.
-  * - :code:`square_pixels`
-    - {:code:`'upscale'`, :code:`'downscale'`, :code:`'upscale_even'`, 
-      :code:`'downscale_even'`}
-    - `scale <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__ and `setsar <https://ffmpeg.org/ffmpeg-filters.html#setsar-1>`__
-    - Resize video frames so that their pixels are square (i.e., SAR=1:1). 
-      :code:`'upscale'` stretches the short side
-      of the pixels while :code:`'downscale'` compresses the long side.
-      :code:`'even'` makes sure that the resulting frame size is even (required by some codecs).
-  * - :code:`remove_alpha`
-    - bool
-    - `overlay <https://ffmpeg.org/ffmpeg-filters.html#overlay-1>`__ and `color <https://ffmpeg.org/ffmpeg-filters.html#color-1>`__
-    - Fill transparent background with :code:`fill_color` color. This filter is automatically
-      inserted if input :code:`'pix_fmt'` has alpha but not the output.
-  * - :code:`fill_color` 
-    - str
-    - n/a
-    - This option is used for the auto-conversion of an image with transparency to
-      opaque by setting the output option :code:`pix_fmt`. The option value 
-      specifies a color according to
-      `FFmpeg Color Specifications <https://ffmpeg.org/ffmpeg-utils.html#Color>`__.
-      Default color is :code:`'white'`.
+   * - name
+     - value
+     - FFmpeg filter
+     - Description
+   * - :code:`crop`
+     - seq(int[, int[, int[, int]]])
+     - `crop <https://ffmpeg.org/ffmpeg-filters.html#crop>`__
+     - video frame cropping/padding, values representing the number of pixels to crop from [left top right bottom].
+       If positive, the video frame is cropped from the respective edge. If negative, the video frame is padded on 
+       the respective edge. If right or bottom is missing, uses the same value as left or top, respectively. If top
+       is missing, it defaults to 0.
+   * - :code:`flip`
+     - {:code:`'horizontal'`, :code:`'vertical'`, :code:`'both'`}
+     - `hflip <https://ffmpeg.org/ffmpeg-filters.html#hflip>`__ or `vflip <https://ffmpeg.org/ffmpeg-filters.html#vflip>`__
+     - flip the video frames horizontally, vertically, or both.
+   * - :code:`transpose`
+     - int
+     - `transpose <https://ffmpeg.org/ffmpeg-filters.html#transpose-1>`__
+     - tarnspose the video frames. Its value specifies the mode of operation. Use 0 for the conventional transpose operation.
+       For the others, see the FFmpeg documentation.
+   * - :code:`square_pixels`
+     - {:code:`'upscale'`, :code:`'downscale'`, :code:`'upscale_even'`, 
+       :code:`'downscale_even'`}
+     - `scale <https://ffmpeg.org/ffmpeg-filters.html#scale-1>`__ and `setsar <https://ffmpeg.org/ffmpeg-filters.html#setsar-1>`__
+     - Resize video frames so that their pixels are square (i.e., SAR=1:1). 
+       :code:`'upscale'` stretches the short side
+       of the pixels while :code:`'downscale'` compresses the long side.
+       :code:`'even'` makes sure that the resulting frame size is even (required by some codecs).
+   * - :code:`remove_alpha`
+     - bool
+     - `overlay <https://ffmpeg.org/ffmpeg-filters.html#overlay-1>`__ and `color <https://ffmpeg.org/ffmpeg-filters.html#color-1>`__
+     - Fill transparent background with :code:`fill_color` color. This filter is automatically
+       inserted if input :code:`'pix_fmt'` has alpha but not the output.
+   * - :code:`fill_color` 
+     - str
+     - n/a
+     - This option is used for the auto-conversion of an image with transparency to
+       opaque by setting the output option :code:`pix_fmt`. The option value 
+       specifies a color according to
+       `FFmpeg Color Specifications <https://ffmpeg.org/ffmpeg-utils.html#Color>`__.
+       Default color is :code:`'white'`.
 
 Note that the these operations are pre-wired to perform in a specific order:
 
-.. blockdiag::
-  :caption: Video Manipulation Order
+.. digraph:: video_manipulation
+   :caption: Video Manipulation Order
 
-  blockdiag {
-    square_pixels -> crop -> flip -> transpose;
-    crop -> flip [folded]
-  }
+   rankdir=LR
+   node [margin=0.1 width=1.5 shape=box];
+   
+   "square_pixels" -> "crop" -> "flip" -> "transpose";
 
 Be aware of this ordering as these filters are non-commutative (i.e., a change in the 
 order of operation alters the outcome). If your desired order of filters differs or
 need to use additional filters, use the :code:`vf` option to specify your own filtergraph. 
 
 .. list-table:: Examples of manipulated images
-  :class: tight-table
+   :class: tight-table
 
-  * - .. plot:: 
+   * - .. plot:: 
     
-        IM = ffmpegio.image.read('ffmpeg-logo.png')
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
+          IM = ffmpegio.image.read('ffmpeg-logo.png')
+          plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+          plt.imshow(IM)
+          plt.gca().set_position((0, 0, 1, 1))
+          plt.axis('off')
     
-      .. code-block:: python
+       .. code-block:: python
 
-        ffmpegio.image.read('ffmpeg-logo.png')
+          ffmpegio.image.read('ffmpeg-logo.png')
 
-  * - .. plot:: 
+   * - .. plot:: 
     
-        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), transpose=0)
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
+          IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), transpose=0)
+          plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+          plt.imshow(IM)
+          plt.gca().set_position((0, 0, 1, 1))
+          plt.axis('off')
     
-      .. code-block:: python
+       .. code-block:: python
 
-        ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), transpose=0)
+          ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), transpose=0)
 
-  * - .. plot:: 
+   * - .. plot:: 
     
-        IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), flip='both', s=(200,50))
-        plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
-        plt.imshow(IM)
-        plt.gca().set_position((0, 0, 1, 1))
-        plt.axis('off')
+          IM = ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), flip='both', s=(200,50))
+          plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
+          plt.imshow(IM)
+          plt.gca().set_position((0, 0, 1, 1))
+          plt.axis('off')
     
-      .. code-block:: python
+       .. code-block:: python
 
-        ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), flip='both', size=(200,-1))
+          ffmpegio.image.read('ffmpeg-logo.png', crop=(100,100,0,0), flip='both', size=(200,-1))
