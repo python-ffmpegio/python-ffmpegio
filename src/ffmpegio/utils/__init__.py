@@ -287,12 +287,11 @@ def guess_audio_format(shape: ShapeTuple, dtype: DTypeString) -> tuple[int, str]
         # => sample_fmt='s16', ac=2
     """
 
-    if shape is not None:
-        ndim = len(shape)
-        if ndim < 1 or ndim > 2:
-            raise ValueError(
-                f"invalid audio data dimension: data shape must be must be 1d or 2d"
-            )
+    ndim = len(shape)
+    if ndim < 1 or ndim > 2:
+        raise ValueError(
+            f"invalid audio data dimension: data shape must be must be 1d or 2d"
+        )
 
     try:
         sample_fmt = {

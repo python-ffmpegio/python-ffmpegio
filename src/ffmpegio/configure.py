@@ -1377,12 +1377,18 @@ def process_raw_inputs(
     stream_types: Sequence[Literal["a", "v"]],
     stream_args: Sequence[RawStreamDef],
     inopts_default: FFmpegOptionDict,
-    dtypes: list[DTypeString] | None = None,
-    shapes: list[ShapeTuple] | None = None,
+    dtypes: list[DTypeString | None] | None = None,
+    shapes: list[ShapeTuple | None] | None = None,
 ) -> list[InputSourceDict]:
 
     input_info: list[InputSourceDict] = []
-    for i, (mtype, arg) in enumerate(zip(stream_types, stream_args)):
+    if dtypes is None:
+        dtypes = [None] * len(stream_types)
+    if shapes is None:
+        shapes = [None] * len(stream_types)
+    for i, (mtype, arg, dtype, shape) in enumerate(
+        zip(stream_types, stream_args, dtypes, shapes)
+    ):
 
         try:
             a1, a2 = arg
@@ -1398,23 +1404,24 @@ def process_raw_inputs(
                     )
             else:
                 assert isinstance(a2, dict)
+                data, opts = a1, a2
                 if mtype not in "av":  # unknown
                     if "ar" in opts:
                         mtype = "a"
                     elif "r" in opts:
                         mtype = "v"
                     else:
-                        raise FFmpegioError(f"unknown input stream media type")
-                data, opts = a1, a2
+                        raise FFmpegioError("unknown input stream media type")
+
         except FFmpegioError:
             raise
-        except:
+        except Exception as e:
             raise ValueError(
                 f"""Invalid raw stream definition: {arg}.\nEach item of `stream_args` must be a two-element tuple: 
                     - a rate (numeric) and a data_blob
                     - a data_blob and a dict of options
                 """
-            )
+            ) from e
 
         opts = {**inopts_default, **opts}
         more_opts = None
@@ -1425,7 +1432,7 @@ def process_raw_inputs(
                 more_opts, raw_info = utils.array_to_audio_options(data)
                 data = plugins.get_hook().audio_bytes(obj=data)
 
-            elif dtypes and shapes:
+            elif dtypes and shapes and shapes[i] is not None and dtypes[i] is not None:
                 raw_info = (shapes[i], dtypes[i])
                 sample_fmt, ac = utils.guess_audio_format(shapes[i], dtypes[i])
                 acodec, f = utils.get_audio_codec(sample_fmt)
@@ -1436,8 +1443,8 @@ def process_raw_inputs(
             if data is not None:
                 more_opts, raw_info = utils.array_to_video_options(data)
                 data = plugins.get_hook().video_bytes(obj=data)
-            elif dtypes and shapes:
-                raw_info = shapes[i], dtypes[i]
+            elif dtype and shape:
+                raw_info = shape, dtype
                 pix_fmt, s = utils.guess_video_format(*raw_info)
                 more_opts = {
                     "f": "rawvideo",
@@ -1776,14 +1783,14 @@ def init_media_write(
         | None
     ),
     options: dict[str, Any],
-    dtypes: list[DTypeString] | None = None,
-    shapes: list[ShapeTuple] | None = None,
+    dtypes: list[DTypeString | None] | None = None,
+    shapes: list[ShapeTuple | None] | None = None,
 ) -> tuple[
     FFmpegArgs,
     list[InputSourceDict],
+    list[bool],
     list[OutputDestinationDict] | None,
     tuple | None,
-    list[bool],
 ]:
     """write multiple streams to a url/file
 

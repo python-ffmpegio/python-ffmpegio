@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-from time import time
 import logging
 
 logger = logging.getLogger("ffmpegio")
 
 from ..plugins.hookspecs import FromBytesCallable, CountDataCallable, ToBytesCallable
-from typing import Literal, Self
-from fractions import Fraction
-from .._typing import RawDataBlob
 
-from typing_extensions import Unpack, Callable
+from typing_extensions import Unpack
 from collections.abc import Sequence
 from .._typing import (
     DTypeString,
@@ -24,88 +20,24 @@ from .._typing import (
     OutputDestinationDict,
 )
 
-from ..filtergraph.abc import FilterGraphObject
-from ..errors import FFmpegioError
-
-from .. import configure, ffmpegprocess as fp, plugins, utils, probe
-from .. import utils, configure, plugins
-from ..threading import LoggerThread
-
-from ..utils import FFmpegInputUrlComposite, FFmpegOutputUrlComposite
-from ..configure import OutputDestinationDict
-from contextlib import ExitStack
-from ..stream_spec import stream_spec_to_map_option, StreamSpecDict
-
-import sys
-from time import time
 from fractions import Fraction
 from math import prod
 
-from ..threading import LoggerThread
-from ..errors import FFmpegError, FFmpegioError
-
+from .. import configure, plugins
+from ..stream_spec import stream_spec_to_map_option, StreamSpecDict
+from ..errors import FFmpegioError
 from ..configure import (
     FFmpegArgs,
     MediaType,
-    InitMediaOutputsCallable,
-    FFmpegUrlType,
+    FFmpegUrlType
 )
-
-from .BaseFFmpegRunner import (
-    BaseFFmpegRunner,
-    BaseRawInputMixin,
-    BaseRawOutputMixin,
-    BaseEncodedInputsMixin,
-    BaseEncodedOutputsMixin,
-)
+from .BaseFFmpegRunner import BaseFFmpegRunner
+from .._utils import get_bytesize
 
 # fmt:off
 __all__ = [ "SimpleVideoReader", "SimpleAudioReader", "SimpleVideoWriter",
     "SimpleAudioWriter"]
 # fmt:on
-
-
-class RawOutputsMixin:
-
-    default_timeout: float | None
-    _input_info: list[InputSourceDict]
-    _output_info: list[OutputDestinationDict]
-    _deferred_data: list[list[bytes]]
-    _input_ready: bool
-    _logger: LoggerThread | None
-
-    def __init__(self, blocksize, **kwargs):
-        super().__init__(**kwargs)
-
-        # set the default read block size for the reference stream
-        self._blocksize = blocksize
-        self._rate = None
-        self._n0: int = 0  # timestamps of the last read sample
-
-
-    def _read_stream_bytes(
-        self,
-        converter: FromBytesCallable,
-        counter: CountDataCallable,
-        dtype: DTypeString,
-        shape: ShapeTuple,
-        info: OutputDestinationDict,
-        stream_id: int | str,
-        n: int,
-        timeout: float | None = None,
-        squeeze: bool = False,
-    ) -> RawDataBlob:
-        """read selected output stream (shared backend)"""
-
-        data = converter(
-            b=info["reader"].read(n, timeout), dtype=dtype, shape=shape, squeeze=squeeze
-        )
-
-        # update the frame/sample counter
-        n = counter(obj=data)  # actual number read
-        self._n0[stream_id] += n
-
-        return data
 
 
 class SimpleReaderBase(BaseFFmpegRunner):
@@ -118,7 +50,6 @@ class SimpleReaderBase(BaseFFmpegRunner):
         input_info: list[InputSourceDict],
         output_info: list[OutputDestinationDict],
         from_bytes: FromBytesCallable,
-        counter: CountDataCallable,
         to_memoryview: ToBytesCallable,
         show_log: bool | None,
         progress: ProgressCallable | None,
@@ -160,7 +91,6 @@ class SimpleReaderBase(BaseFFmpegRunner):
         )
 
         self._converter = from_bytes
-        self._get_num = counter
         self._memoryviewer = to_memoryview
 
         # set the default read block size for the reference stream
@@ -206,6 +136,11 @@ class SimpleReaderBase(BaseFFmpegRunner):
         """number of frames/samples read"""
         return self._n0
 
+    @property
+    def output_bytesize(self) -> int|None:
+        """number of bytes per output sample/pixel"""
+        return get_bytesize(self.output_shape,self.output_dtype)
+
     def _assign_pipes(self):
 
         configure.assign_output_pipes(
@@ -225,7 +160,7 @@ class SimpleReaderBase(BaseFFmpegRunner):
         return F
 
     def read(
-        self, n: int, timeout: float | None = None, squeeze: bool = False
+        self, n: int, squeeze: bool = False
     ) -> RawDataBlob:
         """Read and return numpy.ndarray with up to n frames/samples. If
         the argument is omitted, None, or negative, data is read and
@@ -243,18 +178,16 @@ class SimpleReaderBase(BaseFFmpegRunner):
 
         info = self._output_info[0]
         converter = self._converter
-        dtype, shape, _ = info["raw_info"]
+        nbytes = self.output_bytesize
+        assert nbytes is not None
 
-        if timeout is None:
-            timeout = self.default_timeout
+        dtype, shape, _ = info["raw_info"] # type: ignore
 
-        b = info["reader"].read(n, timeout)
+        b = self._proc.stdout.read(n*nbytes) # type: ignore
         data = converter(b=b, dtype=dtype, shape=shape, squeeze=squeeze)
 
         # update the frame/sample counter
-        n = self._get_num(
-            b=b, dtype=dtype, shape=shape, squeeze=squeeze
-        )  # actual number read
+        n = len(b)//nbytes  # actual number read
         self._n0 += n
 
         return data
@@ -268,12 +201,14 @@ class SimpleReaderBase(BaseFFmpegRunner):
 
         A BlockingIOError is raised if the underlying raw stream is in non
         blocking-mode, and has no data available at the moment."""
+
         info = self._output_info[0]
+        assert 'raw_info' in info
         shape = info["raw_info"][1]
 
-        return self._proc.stdout.readinto(self._memoryviewer(obj=array)) // prod(
+        return self._proc.stdout.readinto(self._memoryviewer(obj=array)) // prod( # type: ignore
             shape[1:]
-        )
+        ) 
 
 
 class SimpleVideoReader(SimpleReaderBase):
@@ -316,7 +251,6 @@ class SimpleVideoReader(SimpleReaderBase):
             blocksize=blocksize,
             sp_kwargs=sp_kwargs,
             from_bytes=hook.bytes_to_video,
-            counter=hook.video_frames,
             to_memoryview=hook.video_bytes,
             default_timeout=default_timeout,
         )
@@ -362,7 +296,6 @@ class SimpleAudioReader(SimpleReaderBase):
             blocksize=blocksize,
             sp_kwargs=sp_kwargs,
             from_bytes=hook.bytes_to_audio,
-            counter=hook.audio_frames,
             to_memoryview=hook.audio_bytes,
             default_timeout=default_timeout,
         )
@@ -371,20 +304,93 @@ class SimpleAudioReader(SimpleReaderBase):
 ###########################################################################
 
 
-class BaseRawInputsMixin:
-    """write a raw media data to a specified stream (backend)"""
+class SimpleWriterBase(BaseFFmpegRunner):
+    def __init__(
+        self,
+        media_type: MediaType,
+        counter: CountDataCallable,
+        to_memoryview: ToBytesCallable,
+        url: FFmpegUrlType,
+        input_rate: int | Fraction,
+        input_shape: ShapeTuple | None = None,
+        input_dtype: DTypeString | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        overwrite: bool | None = None,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        sp_kwargs: dict | None = None,
+        options: Unpack[FFmpegOptionDict],
+    ):
+        """Write video data to a video file
 
-    default_timeout: float | None
-    _input_info: list[InputSourceDict]
-    _output_info: list[OutputDestinationDict]
-    _deferred_data: list[list[bytes]]
-    _input_ready: Literal[True] | list[bool]
-    _logger: LoggerThread | None
-    _open: Callable[[bool], None]
-    _args: dict
+        :param url: output url
+        :param input_rate: video frame rate
+        :param input_dtype: numpy-style data type string of input frames, defaults
+                            to `None` (auto-detect).
+        :param input_shape: shapes of each video frame, defaults to `None`
+                            (auto-detect).
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                            string or a pair of a url string and an option dict.
+        :param overwrite: True to overwrite existing files, defaults to None (auto-set)
+        :param show_log: True to show FFmpeg log messages on the console, defaults
+                         to None (no show/capture). Ignored if stream format must
+                         be retrieved automatically.
+        :param progress: progress callback function, defaults to None
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()`
+                          or `subprocess.Popen()` call used to run the FFmpeg,
+                          defaults to None
+        :param options: FFmpeg options, append '_in[input_url_id]' for input
+                          option names for specific input url or '_in' to be
+                          applied to all inputs. The url-specific option gets
+                          the preference (see :doc:`options` for custom options)
+        """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        options = {"probesize_in": 32, **options, "r_in": input_rate}
+        if overwrite:
+            if "n" in options:
+                raise FFmpegioError(
+                    "cannot specify both `overwrite=True` and `n=ff.FLAG`."
+                )
+            options["y"] = None
+
+        args, input_info, input_ready, output_info, output_args = (
+            configure.init_media_write(
+                [url],
+                [media_type[0]],
+                [(input_rate, None)],
+                False,
+                None,
+                None,
+                None,
+                extra_inputs,
+                options,
+                [input_dtype],
+                [input_shape],
+            )
+        )
+
+        super().__init__(
+            ffmpeg_args=args,
+            input_info=input_info,
+            output_info=output_info or [],
+            input_ready=input_ready,
+            init_deferred_outputs=configure.init_media_write_outputs,
+            deferred_output_args=output_args,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs={**sp_kwargs, "bufsize": 0} if sp_kwargs else {"bufsize": 0},
+        )
+
+        self._get_bytes = to_memoryview
+        self._get_num = counter
+
+        # set the default read block size for the referenc stream
+        info = self._input_info[0]
+        assert "raw_info" in info
+
+        self._rate = info["raw_info"][2]
+        self._n0 = 0  # timestamps of the last read sample
 
         # input data must be initially buffered
         self._deferred_data = [[] for _ in range(len(self._input_info))]
@@ -398,222 +404,48 @@ class BaseRawInputsMixin:
         self._deferred_data = []
         self._input_ready = True
 
-    def _write_stream_bytes(
-        self,
-        converter: ToBytesCallable,
-        stream_id: int,
-        data: RawDataBlob,
-        timeout: float | None,
-    ):
-        """write a raw media data to a specified stream (backend)"""
-
-        b = converter(obj=data)
-        if not len(b):
-            return
-
-        if self._input_ready is True:
-            logger.debug("[writer main] writing...")
-
-            try:
-                self._input_info[stream_id]["writer"].write(b, timeout)
-            except (KeyError, BrokenPipeError, OSError):
-                if self._logger:
-                    self._logger.join_and_raise()
-
-        else:
-            # need to collect input data type and shape from the actual data
-            # before starting the FFmpeg
-
-            configure.update_raw_input(
-                self._args["ffmpeg_args"], self._input_info, stream_id, data
-            )
-
-            self._deferred_data[stream_id].append(b)
-            self._input_ready[stream_id] = True
-
-            if all(self._input_ready):
-                # once data is written for all the necessary inputs,
-                # analyze them and start the FFmpeg
-                self._open(True)
-
-    @property
-    def input_types(self) -> dict[int, MediaType | None]:
-        """media type associated with the input streams"""
-        return {
-            i: v["media_type"] if "media_type" in v else None
-            for i, v in enumerate(self._input_info)
-        }
-
-    @property
-    def input_rates(self) -> dict[int, int | Fraction | None]:
-        """sample or frame rates associated with the input streams"""
-        return {
-            i: v["raw_info"][2] if "raw_info" in v else None
-            for i, v in enumerate(self._input_info)
-        }
-
-    @property
-    def input_dtypes(self) -> dict[int, DTypeString | None]:
-        """frame/sample data type associated with the output streams (key)"""
-        return {
-            i: v["raw_info"][0] if "raw_info" in v else None
-            for i, v in enumerate(self._input_info)
-        }
-
-    @property
-    def input_shapes(self) -> dict[int, ShapeTuple | None]:
-        """frame/sample shape associated with the output streams (key)"""
-        return {
-            i: v["raw_info"][1] if "raw_info" in v else None
-            for i, v in enumerate(self._input_info)
-        }
-
-
-class SimpleWriterBase(BaseEncodedOutputsMixin, BaseRawInputMixin, BaseFFmpegRunner):
-    def __init__(
-        self,
-        viewer,
-        url,
-        input_shape=None,
-        input_dtype=None,
-        show_log=None,
-        progress=None,
-        overwrite=None,
-        extra_inputs=None,
-        sp_kwargs=None,
-        **options,
-    ) -> None:
-        self._proc = None
-        self._viewer = viewer
-        self.input_dtype = input_dtype
-        self.input_shape = input_shape
-
-        # get url/file stream
-        url, stdout, _ = configure.check_url(url, True)
-
-        options = {"probesize_in": 32, **options}
-        input_options = utils.pop_extra_options(options, "_in")
-
-        ffmpeg_args = configure.empty()
-        configure.add_url(ffmpeg_args, "input", "-", input_options)
-        configure.add_url(ffmpeg_args, "output", url, options)
-
-        # add extra input arguments if given
-        if extra_inputs is not None:
-            configure.add_urls(ffmpeg_args, "input", extra_inputs)
-
-        # abstract method to finalize the options only if self.dtype and self.shape are given
-        ready = self._finalize(ffmpeg_args)
-
-        # create logger without assigning the source stream
-        self._logger = LoggerThread(None, show_log)
-
-        # FFmpeg Popen arguments
-        self._cfg = {**sp_kwargs} if sp_kwargs else {}
-        self._cfg.update(
-            {
-                "ffmpeg_args": ffmpeg_args,
-                "progress": progress,
-                "capture_log": True,
-                "overwrite": overwrite,
-                "stdout": stdout,
-                "bufsize": 0,
-            }
-        )
-
-        if ready:
-            self._open()
-
     def _assign_pipes(self):
 
         configure.assign_input_pipes(
             self._args["ffmpeg_args"],
-            self._output_info,
+            self._input_info,
             self._args["sp_kwargs"],
             use_std_pipes=True,
         )
 
     @property
+    def input_type(self) -> MediaType | None:
+        """media type associated with the input streams"""
+        info = self._input_info[0]
+        return info.get("media_type", None)
+
+    @property
+    def input_rate(self) -> int | Fraction | None:
+        """sample or frame rates associated with the input streams"""
+        info = self._input_info[0]
+        return info["raw_info"][2] if "raw_info" in info else None
+
+    @property
+    def input_dtype(self) -> DTypeString | None:
+        """frame/sample data type associated with the output streams (key)"""
+        info = self._input_info[0]
+        return info["raw_info"][0] if "raw_info" in info else None
+
+    @property
+    def input_shape(self) -> ShapeTuple | None:
+        """frame/sample shape associated with the output streams (key)"""
+        info = self._input_info[0]
+        return info["raw_info"][1] if "raw_info" in info else None
+
+    @property
     def input_count(self) -> int:
         """number of input frames/samples written"""
-        return self._nin
+        return self._n0
 
     @property
-    def input_rate(self) -> int | Fraction:
-        """input sample or frame rates"""
-        return self._input_info[0]["raw_info"][2]
-
-    @property
-    def input_dtype(self) -> DTypeString:
-        """input frame/sample data type"""
-        return self._input_info[0]["raw_info"][0]
-
-    @property
-    def input_shape(self) -> ShapeTuple:
-        """input frame/sample shape"""
-        return self._input_info[0]["raw_info"][1]
-
-    @property
-    def input_samplesize(self) -> int:
+    def input_bytesize(self) -> int|None:
         """input sample/pixel count per frame"""
-        return prod(self._input_info[0]["raw_info"][1])
-
-    def _open(self, data=None):
-        # if data array is given, finalize the FFmpeg configuration with it
-        if data is not None:
-            self._finalize_with_data(data)
-
-        # start FFmpeg
-        self._proc = fp.Popen(**self._cfg)
-        self._cfg = False
-
-        # set the log source and start the logger
-        self._logger.stderr = self._proc.stderr
-        self._logger.start()
-
-    def close(self):
-        """close the output stream"""
-        if self._proc is None:
-            return
-
-        if self._proc.stdin and not self._proc.stdin.closed:
-            try:
-                self._proc.stdin.close()  # flushes the buffer first before closing
-            except OSError as e:
-                logger.error(e)
-        self._proc.wait()
-        if self._proc.stderr and not self._proc.stderr.closed:
-            try:
-                self._proc.stderr.close()
-            except OSError as e:
-                logger.error(e)
-
-        self._logger.join()
-
-    @property
-    def closed(self):
-        """:bool: True if stream is closed"""
-        return self._proc.poll() is not None
-
-    @property
-    def lasterror(self):
-        """:FFmpegError or None: Last caught FFmpeg error"""
-        if self._proc.poll():
-            return self._logger.Exception()
-        else:
-            return None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.close()
-
-    def readlog(self, n=None):
-        if n is not None:
-            self._logger.index(n)
-        with self._logger._newline_mutex:
-            return "\n".join(self._logger.logs or self._logger.logs[:n])
+        return get_bytesize(self.input_shape,self.input_dtype)
 
     def write(self, data):
         """Write the given numpy.ndarray object, data, and return the number
@@ -629,161 +461,147 @@ class SimpleWriterBase(BaseEncodedOutputsMixin, BaseRawInputMixin, BaseFFmpegRun
 
         """
 
-        if self._cfg:
-            # if FFmpeg not yet started, finalize the configuration with
-            # the data and start
-            self._open(data)
+        b = self._get_bytes(obj=data)
+        if not len(b):
+            return
 
-        logger.debug("[writer main] writing...")
+        if self._input_ready is True:
+            logger.debug("[writer main] writing...")
+            try:
+                self._proc.stdin.write(b)
+            except (BrokenPipeError, OSError):
+                self._logger.join_and_raise()
 
-        try:
-            self._proc.stdin.write(self._viewer(obj=data))
-        except (BrokenPipeError, OSError):
-            self._logger.join_and_raise()
+        else:
+            # need to collect input data type and shape from the actual data
+            # before starting the FFmpeg
+
+            configure.update_raw_input(
+                self._args["ffmpeg_args"], self._input_info, 0, data
+            )
+
+            self._deferred_data[0].append(b)
+            self._input_ready = True
+
+            if self._input_ready is True:
+                # once data is written for all the necessary inputs,
+                # analyze them and start the FFmpeg
+                self._open(True)
 
     def flush(self):
         self._proc.stdin.flush()
 
 
 class SimpleVideoWriter(SimpleWriterBase):
-    readable = False
-    writable = True
-    multi_read = False
-    multi_write = False
 
     def __init__(
         self,
-        url,
-        rate_in,
+        url: FFmpegUrlType,
+        input_rate: int | Fraction,
         *,
-        input_shape=None,
-        input_dtype=None,
-        extra_inputs=None,
-        overwrite=None,
-        show_log=None,
-        progress=None,
-        sp_kwargs=None,
-        **options,
+        input_shape: ShapeTuple | None = None,
+        input_dtype: DTypeString | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        overwrite: bool | None = None,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        sp_kwargs: dict | None = None,
+        **options: Unpack[FFmpegOptionDict],
     ):
-        options["r_in"] = rate_in
-        if "r" not in options:
-            options["r"] = rate_in
+        """Write video data to a video file
 
+        :param url: output url
+        :param input_rate: video frame rate
+        :param input_dtype: numpy-style data type string of input frames, defaults
+                            to `None` (auto-detect).
+        :param input_shape: shapes of each video frame, defaults to `None`
+                            (auto-detect).
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                            string or a pair of a url string and an option dict.
+        :param overwrite: True to overwrite existing files, defaults to None (auto-set)
+        :param show_log: True to show FFmpeg log messages on the console, defaults
+                         to None (no show/capture). Ignored if stream format must
+                         be retrieved automatically.
+        :param progress: progress callback function, defaults to None
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()`
+                          or `subprocess.Popen()` call used to run the FFmpeg,
+                          defaults to None
+        :param **options: FFmpeg options, append '_in[input_url_id]' for input
+                          option names for specific input url or '_in' to be
+                          applied to all inputs. The url-specific option gets
+                          the preference (see :doc:`options` for custom options)
+        """
+
+        hook = plugins.get_hook()
         super().__init__(
-            plugins.get_hook().video_bytes,
+            'video',
+            hook.video_frames,
+            hook.video_bytes,
             url,
+            input_rate,
             input_shape,
             input_dtype,
+            extra_inputs,
+            overwrite,
             show_log,
             progress,
-            overwrite,
-            extra_inputs,
             sp_kwargs,
-            **options,
+            options,
         )
-
-    def _finalize(self, ffmpeg_args) -> None:
-        inopts = ffmpeg_args["inputs"][0][1]
-        inopts["f"] = "rawvideo"
-
-        ready = "s" in inopts and "pix_fmt" in inopts
-
-        if not (ready or (self.input_dtype is None or self.input_shape is None)):
-            s, pix_fmt = utils.guess_video_format((self.input_shape, self.input_dtype))
-            if "s" not in inopts:
-                inopts["s"] = s
-            if "pix_fmt" not in inopts:
-                inopts["pix_fmt"] = pix_fmt
-            ready = True
-
-        if ready:
-            # set basic video filter chain if related options are specified
-            configure.build_basic_vf(
-                ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
-            )
-        return ready
-
-    def _finalize_with_data(self, data):
-        ffmpeg_args = self._cfg["ffmpeg_args"]
-        inopts = ffmpeg_args["inputs"][0][1]
-        shape, dtype = plugins.get_hook().video_info(obj=data)
-        s, pix_fmt = utils.guess_video_format(shape, dtype)
-
-        configure.build_basic_vf(
-            ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1)
-        )
-
-        if "s" not in inopts:
-            inopts["s"] = s
-        if "pix_fmt" not in inopts:
-            inopts["pix_fmt"] = pix_fmt
-
-        self.input_shape = shape
-        self.input_dtype = dtype
-
 
 class SimpleAudioWriter(SimpleWriterBase):
-    readable = False
-    writable = True
-    multi_read = False
-    multi_write = False
 
     def __init__(
         self,
-        url,
-        rate_in,
+        url: FFmpegUrlType,
+        input_rate: int | Fraction,
         *,
-        input_shape=None,
-        input_dtype=None,
-        extra_inputs=None,
-        overwrite=None,
-        show_log=None,
-        progress=None,
-        sp_kwargs=None,
-        **options,
+        input_shape: ShapeTuple | None = None,
+        input_dtype: DTypeString | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        overwrite: bool | None = None,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        sp_kwargs: dict | None = None,
+        **options: Unpack[FFmpegOptionDict],
     ):
-        options["ar_in"] = rate_in
-        if "ar" not in options:
-            options["ar"] = rate_in
+        """Write video data to a video file
 
+        :param url: output url
+        :param input_rate: video frame rate
+        :param input_dtype: numpy-style data type string of input frames, defaults
+                            to `None` (auto-detect).
+        :param input_shape: shapes of each video frame, defaults to `None`
+                            (auto-detect).
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                            string or a pair of a url string and an option dict.
+        :param overwrite: True to overwrite existing files, defaults to None (auto-set)
+        :param show_log: True to show FFmpeg log messages on the console, defaults
+                         to None (no show/capture). Ignored if stream format must
+                         be retrieved automatically.
+        :param progress: progress callback function, defaults to None
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()`
+                          or `subprocess.Popen()` call used to run the FFmpeg,
+                          defaults to None
+        :param **options: FFmpeg options, append '_in[input_url_id]' for input
+                          option names for specific input url or '_in' to be
+                          applied to all inputs. The url-specific option gets
+                          the preference (see :doc:`options` for custom options)
+        """
+
+        hook = plugins.get_hook()
         super().__init__(
-            plugins.get_hook().audio_bytes,
+            'audio',
+            hook.audio_frames,
+            hook.audio_bytes,
             url,
+            input_rate,
             input_shape,
             input_dtype,
+            extra_inputs,
+            overwrite,
             show_log,
             progress,
-            overwrite,
-            extra_inputs,
             sp_kwargs,
-            **options,
+            options,
         )
-
-    def _finalize(self, ffmpeg_args):
-        # ffmpeg_args must have sample format & sampling rate specified
-        inopts = ffmpeg_args["inputs"][0][1]
-        ready = "sample_fmt" in inopts and "ac" in inopts
-
-        if not ready and (self.input_dtype is not None or self.input_shape is not None):
-            inopts = ffmpeg_args["inputs"][0][1]
-            inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
-                self.input_shape, self.input_dtype
-            )
-            ready = True
-
-        if ready and not ("c:a" in inopts or "acodec" in inopts):
-            # fill audio codec and format options
-            inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])
-            if "acodec" in inopts:
-                del inopts["acodec"]
-
-        return ready
-
-    def _finalize_with_data(self, data):
-        self.input_shape, self.input_dtype = plugins.get_hook().audio_info(obj=data)
-
-        inopts = self._cfg["ffmpeg_args"]["inputs"][0][1]
-        inopts["sample_fmt"], inopts["ac"] = utils.guess_audio_format(
-            self.input_shape, self.input_dtype
-        )
-        inopts["c:a"], inopts["f"] = utils.get_audio_codec(inopts["sample_fmt"])

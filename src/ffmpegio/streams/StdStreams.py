@@ -327,7 +327,7 @@ class _RawInputBaseMixin:
         return self._input_info[0]["raw_info"][1]
 
     @property
-    def input_samplesize(self) -> int:
+    def input_bytesize(self) -> int:
         """input sample/pixel count per frame"""
         return prod(self._input_info[0]["raw_info"][1])
 

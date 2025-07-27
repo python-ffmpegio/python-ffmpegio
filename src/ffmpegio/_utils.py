@@ -11,6 +11,7 @@ from namedpipe import NPopen
 import urllib.parse
 
 import re
+import numpy as np
 
 try:
     from math import prod
@@ -258,3 +259,11 @@ def unescape(txt: str) -> str:
         in_quote = not in_quote
 
     return "".join(blks)
+
+
+def get_bytesize(shape: ShapeTuple | None, dtype: DTypeString | None) -> int | None:
+    return (
+        None
+        if shape is None or dtype is None
+        else prod(shape) * np.dtype(dtype).itemsize
+    )
