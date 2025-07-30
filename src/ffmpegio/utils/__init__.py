@@ -30,6 +30,7 @@ from .._typing import (
     FFmpegOptionDict,
     ShapeTuple,
     DTypeString,
+    FilterGraphInfoDict,
 )
 from ..filtergraph.abc import FilterGraphObject
 from .. import filtergraph as fgb
@@ -728,7 +729,7 @@ def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject | str],
     inputs: list[tuple[FFmpegUrlType | None, FFmpegOptionDict]],
     inputs_info: list[InputSourceDict],
-) -> tuple[list[FilterGraphObject], dict[str, dict]]:
+) -> tuple[list[FilterGraphObject], dict[str, FilterGraphInfoDict]]:
     """analyze filtergraphs and return requested field values
 
     :param fields: a list of stream properties

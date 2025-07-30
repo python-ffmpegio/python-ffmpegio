@@ -147,8 +147,8 @@ class OutputDestinationDict(TypedDict):
     """output source info"""
 
     dst_type: FFmpegOutputType  # True if file path/url
-    user_map: str | None  # user specified map option
     media_type: MediaType | None  #
+    user_map: NotRequired[str]  # user specified map option
     input_file_id: NotRequired[int]
     input_stream_id: NotRequired[int]
     linklabel: NotRequired[str]
@@ -157,3 +157,19 @@ class OutputDestinationDict(TypedDict):
     reader: NotRequired[ReaderThread | CopyFileObjThread]
     itemsize: NotRequired[int]
     nmin: NotRequired[int]
+
+
+class AudioFilterGraphInfoDict(TypedDict):
+    media_type: Literal["audio"]
+    sample_fmt: str
+    ac: int
+    ar: int
+
+
+class VideoFilterGraphInfoDict(TypedDict):
+    media_type: Literal["video"]
+    r: int | Fraction
+    pix_fmt: str
+
+
+FilterGraphInfoDict = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict

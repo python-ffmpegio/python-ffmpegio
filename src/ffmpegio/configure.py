@@ -24,6 +24,7 @@ from ._typing import (
     RawStreamDef,
     RawDataBlob,
     FFmpegOptionDict,
+    FilterGraphInfoDict,
 )
 from collections.abc import Sequence
 from .utils import FFmpegInputUrlComposite, FFmpegOutputUrlComposite
@@ -318,13 +319,16 @@ def finalize_video_read_opts(
     args: FFmpegArgs,
     ofile: int = 0,
     input_info: list[InputSourceDict] = [],
-    fg_info: dict[str, dict] | None = None,
+    fg_info: dict[str, FilterGraphInfoDict] | None = None,
 ) -> RawStreamInfoTuple:
     """finalize raw video read output options
 
     :param args: FFmpeg arguments (will be modified)
     :param ofile: output index, defaults to 0
     :param input_info: source information of the inputs, defaults to []
+    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
+                    keyed by their linklabels, defaults to None to perform the
+                    filtergraph analysis internally
     :return dtype: Numpy-style buffer data type string
     :return s: video shape tuple (height, width, nb_components)
     :return r: video framerate
@@ -435,7 +439,7 @@ def build_basic_vf(
 
     :param args: FFmpeg dict (may be modified if vf is added/changed)
     :param remove_alpha: True to add overlay filter to add a background color, defaults to None
-    :                    This argument would be ignored if `'remove_alpha'` key is defined in `'args'`.
+                         This argument would be ignored if `'remove_alpha'` key is defined in `'args'`.
     :param ofile: output file id, defaults to 0
     :return: True if vf option is added or changed
     """
@@ -497,13 +501,16 @@ def finalize_audio_read_opts(
     args: FFmpegArgs,
     ofile: int = 0,
     input_info: list[InputSourceDict] = [],
-    fg_info: dict[str, dict] | None = None,
+    fg_info: dict[str, FilterGraphInfoDict] | None = None,
 ) -> RawStreamInfoTuple:
     """finalize a raw output audio stream
 
     :param args: FFmpeg arguments. The option dict in args['outputs'][ofile][1] may be modified.
     :param ofile: output file index, defaults to 0
     :param input_info: list of input information, defaults to None
+    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
+                    keyed by their linklabels, defaults to None to perform the
+                    filtergraph analysis internally
     :return dtype: input data type (Numpy style)
     :return ac: number of channels
     :return ar: sampling rate
@@ -952,13 +959,16 @@ def add_filtergraph(
 def resolve_raw_output_streams(
     args: FFmpegArgs,
     input_info: list[InputSourceDict],
-    fg_info: dict[str, dict] | None,
+    fg_info: dict[str, FilterGraphInfoDict] | None,
     streams: dict[str, str | None],
 ) -> dict[str, OutputDestinationDict]:
     """resolve the raw output streams from given sequence of map options
 
     :param args: FFmpeg argument dict
     :param input_info: FFmpeg inputs' additional information, its length must match that of `args['inputs']`
+    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
+                    keyed by their linklabels, defaults to None to perform the
+                    filtergraph analysis internally
     :param streams: FFmpeg -map option values of output streams as their keys and
                     their custom names as the values. To use the map value as
                     the stream names, specify None as a value.
@@ -1044,14 +1054,17 @@ def resolve_raw_output_streams(
 
 
 def auto_map(
-    args: FFmpegArgs, input_info: list[InputSourceDict], fg_info: dict[str, dict] | None
+    args: FFmpegArgs,
+    input_info: list[InputSourceDict],
+    fg_info: dict[str, FilterGraphInfoDict] | None,
 ) -> dict[str, OutputDestinationDict]:
     """list all available streams from all FFmpeg input sources
 
     :param args: FFmpeg argument dict. `filter_complex` argument may be modified.
     :param input_info: a list of input data source information
-    :param fg_info: list of filtergraph outputs or None if complex fitlergraph is
-                    not specified
+    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
+                    keyed by their linklabels, defaults to None to perform the
+                    filtergraph analysis internally
     :return: a map of input/filtergraph output labels and their stream information.
 
     Mapping Input Streams vs. Complex Filtergraph Outputs
@@ -1064,16 +1077,11 @@ def auto_map(
     """
 
     if fg_info is None and "filter_complex" in args["global_options"]:
-        # if filter_complex is specified but no fg_info
-        # run the analysis
+        # if filter_complex is specified but no fg_info, run the analysis
         gopts = args["global_options"]
         if "filter_complex" in gopts:
-            gopts["filter_complex"], fg_info = (
-                utils.analyze_complex_filtergraphs(
-                    gopts["filter_complex"], args["inputs"], input_info
-                )
-                if "filter_complex" in gopts
-                else None
+            gopts["filter_complex"], fg_info = utils.analyze_complex_filtergraphs(
+                gopts["filter_complex"], args["inputs"], input_info
             )
         else:
             fg_info = None
@@ -1290,8 +1298,8 @@ def process_raw_outputs(
     input_info: list[InputSourceDict],
     streams: Sequence[str] | dict[str, FFmpegOptionDict | None] | None,
     options: FFmpegOptionDict,
-    fg_info: dict[str, dict] | None = None,
-) -> tuple[list[OutputDestinationDict], dict[str, dict] | None]:
+    fg_info: dict[str, FilterGraphInfoDict] | None = None,
+) -> tuple[list[OutputDestinationDict], dict[str, FilterGraphInfoDict] | None]:
     """analyze and process piped raw outputs
 
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
@@ -1299,10 +1307,12 @@ def process_raw_outputs(
     :param input_info: list of input information (same length as `args['inputs'])
     :param streams: user's list of map options to be included
     :param options: default output options
-    :param fg_info: filtergraph outputs if filtergraph has been pre-analyzed,
-                    defaults to None to perform the filtergraph analysis internally
+    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
+                    keyed by their linklabels, defaults to None to perform the
+                    filtergraph analysis internally
     :return output_info: list of output information
-    :return fg_info: dict of filtergraph outputs, keyed by their linklabels
+    :return fg_info: dict of filtergraph outputs, keyed by their linklabels;
+                     None if no filtergraph defined
     """
 
     gopts = args["global_options"]
@@ -1514,8 +1524,6 @@ def process_url_outputs(
     :param args: FFmpeg argument dict, A new item in`args['outputs']` is
                  appended for each piped output. Output URLs are left `None`.
     :param input_info: list of input information (same length as `args['inputs'])
-    :param fg_info: list of filtergraph outputs or None if complex fitlergraph is
-                    not specified
     :param urls: output file names and optionally with file-specific options
     :param options: default output options. If `"map"` option is given, it is appended
                     to the per-file `"map"` option in `streams` argument
@@ -1524,7 +1532,6 @@ def process_url_outputs(
     :param no_pipe: True to raise exception if output is piped without data buffer,
                     defaults to False
     :return output_info: list of output information
-    :return fg_info: dict of filtergraph outputs, keyed by their linklabels
     """
 
     missing_map = False

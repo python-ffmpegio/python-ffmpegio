@@ -15,6 +15,7 @@ from .._typing import (
     DTypeString,
     MediaType,
 )
+from ..plugins.hookspecs import FromBytesCallable, CountDataCallable, ToBytesCallable
 
 from collections.abc import Sequence
 
@@ -51,8 +52,8 @@ class _PipedFFmpegRunner(BaseFFmpegRunner):
         self,
         ffmpeg_args: FFmpegArgs,
         input_info: list[InputSourceDict],
-        output_info: list[OutputDestinationDict] | None,
-        input_ready: Literal[True] | list[bool] | None,
+        output_info: list[OutputDestinationDict],
+        input_ready: Literal[True] | list[bool],
         init_deferred_outputs: InitMediaOutputsCallable | None,
         deferred_output_args: list[FFmpegOptionDict | None],
         *,
@@ -198,10 +199,7 @@ class BaseRawInputsMixin:
     @property
     def input_types(self) -> dict[int, MediaType | None]:
         """media type associated with the input streams"""
-        return {
-            i: v["media_type"] if "media_type" in v else None
-            for i, v in enumerate(self._input_info)
-        }
+        return {i: v.get("media_type", None) for i, v in enumerate(self._input_info)}
 
     @property
     def input_rates(self) -> dict[int, int | Fraction | None]:
@@ -304,34 +302,48 @@ class BaseRawOutputsMixin:
         self._n0 = None  # timestamps of the last read sample
 
     @property
-    def output_labels(self) -> list[str]:
+    def output_labels(self) -> list[str | None]:
         """FFmpeg/custom labels of output streams"""
-        return [v["user_map"] for v in self._output_info]
+        return [
+            v.get("user_map", None) or f"{i}" for i, v in enumerate(self._output_info)
+        ]
 
     @property
-    def output_types(self) -> dict[str, MediaType]:
+    def output_types(self) -> list[MediaType | None]:
         """media type associated with the output streams (key)"""
-        return {v["user_map"]: v["media_type"] for v in self._output_info}
+        return [v["media_type"] for v in self._output_info]
 
     @property
-    def output_rates(self) -> dict[str, int | Fraction]:
+    def output_rates(self) -> list[int | Fraction | None]:
         """sample or frame rates associated with the output streams (key)"""
-        return {v["user_map"]: v["raw_info"][2] for v in self._output_info}
+
+        def get_rate(v):
+            return v and v[2]
+
+        return [get_rate(v) for v in self._output_info]
 
     @property
-    def output_dtypes(self) -> dict[str, DTypeString]:
+    def output_dtypes(self) -> list[DTypeString | None]:
         """frame/sample data type associated with the output streams (key)"""
-        return {v["user_map"]: v["raw_info"][1] for v in self._output_info}
+
+        def get_dtype(v):
+            return v and v[1]
+
+        return [get_dtype(v) for v in self._output_info]
 
     @property
-    def output_shapes(self) -> dict[str, ShapeTuple]:
+    def output_shapes(self) -> list[ShapeTuple | None]:
         """frame/sample shape associated with the output streams (key)"""
-        return {v["user_map"]: v["raw_info"][0] for v in self._output_info}
+
+        def get_shape(v):
+            return v and v[0]
+
+        return [get_shape(v) for v in self._output_info]
 
     @property
-    def output_counts(self) -> dict[str, int]:
+    def output_counts(self) -> list[int]:
         """number of frames/samples read"""
-        return {v["user_map"]: n for v, n in zip(self._output_info, self._n0)}
+        return [0] * len(self._output_info) if self._n0 is None else list(self._n0)
 
     def _init_pipes(self) -> ExitStack:
 
@@ -339,7 +351,11 @@ class BaseRawOutputsMixin:
         info = self._output_info[self._ref]
         if self._blocksize is None:
             self._blocksize = 1 if info["media_type"] == "video" else 1024
-        self._rates = [v["raw_info"][2] for v in self._output_info]
+        self._rates = self.output_rates
+
+        if any(r is None for r in self._rates):
+            raise FFmpegioError('There is an output stream without known output rate.')
+        
         self._n0 = [0] * len(self._output_info)  # timestamps of the last read sample
         self._pipe_kws = {
             **self._pipe_kws,
@@ -406,72 +422,6 @@ class BaseEncodedOutputsMixin:
         """read selected output stream (shared backend)"""
 
         return info["reader"].read(n, timeout)
-
-
-class BaseRawInputMixin(BaseRawInputsMixin):
-    """write a raw media data to a specified stream (backend)"""
-
-    @property
-    def input_type(self) -> MediaType | None:
-        """media type associated with the input stream"""
-        info = self._input_info[0]
-        return info["media_type"] if "media_type" in info else None
-
-    @property
-    def input_rate(self) -> int | Fraction | None:
-        """sample or frame rates associated with the input streams"""
-
-        info = self._input_info[0]
-        return info["raw_info"][2] if "raw_info" in info else None
-
-    @property
-    def input_dtype(self) -> DTypeString | None:
-        """frame/sample data type associated with the output streams (key)"""
-        info = self._input_info[0]
-        return info["raw_info"][0] if "raw_info" in info else None
-
-    @property
-    def input_shape(self) -> ShapeTuple | None:
-        """frame/sample shape associated with the output streams (key)"""
-        info = self._input_info[0]
-        return info["raw_info"][1] if "raw_info" in info else None
-
-
-class BaseRawOutputMixin(BaseRawOutputsMixin):
-
-    @property
-    def output_label(self) -> str | None:
-        """FFmpeg/custom labels of output streams"""
-        return self._output_info[0]["user_map"]
-
-    @property
-    def output_type(self) -> dict[str, MediaType | None]:
-        """media type associated with the output streams (key)"""
-        return self._output_info[0]["media_type"]
-
-    @property
-    def output_rate(self) -> int | Fraction | None:
-        """sample or frame rates associated with the output streams (key)"""
-        info = self._output_info[0]
-        return info["raw_info"][2] if "raw_info" in info else None
-
-    @property
-    def output_dtype(self) -> DTypeString | None:
-        """frame/sample data type associated with the output streams (key)"""
-        info = self._output_info[0]
-        return info["raw_info"][0] if "raw_info" in info else None
-
-    @property
-    def output_shape(self) -> ShapeTuple | None:
-        """frame/sample shape associated with the output streams (key)"""
-        info = self._output_info[0]
-        return info["raw_info"][1] if "raw_info" in info else None
-
-    @property
-    def output_count(self) -> int:
-        """number of frames/samples read"""
-        return self._n0[0]
-
 
 class _RawInputMixin(BaseRawInputsMixin):
 
