@@ -21,7 +21,7 @@ def test_read_video():
         assert f.output_rate == 30
         assert f.output_shape == (h, w, 1)
         assert F["shape"] == (10, h, w, 1)
-        assert F["dtype"] == f.output_dtypes
+        assert F["dtype"] == f.output_dtype
 
 
 def test_read_write_video():
@@ -40,9 +40,12 @@ def test_read_write_video():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with streams.SimpleVideoWriter(out_url, rate_in=fs) as f:
+        with streams.SimpleVideoWriter(out_url, fs) as f:
             f.write(F0)
             f.write(F1)
+            f.wait()
+        fs, F = ffmpegio.video.read(out_url)
+        assert len(F['buffer'])
 
 
 def test_read_audio(caplog):
@@ -67,7 +70,7 @@ def test_read_audio(caplog):
         url, ss_in=t0, to_in=t1, show_log=True, blocksize=1024**2
     ) as f:
         blks, shapes = zip(*[(blk["buffer"], blk["shape"][0]) for blk in f])
-        log = f.readlog()
+        log = f.readlog(-1)
         shape = sum(shapes)
 
     print(log)
@@ -86,18 +89,22 @@ def test_read_write_audio():
 
     with streams.SimpleAudioReader(url) as f:
         F = b"".join((f.read(100)["buffer"], f.read(-1)["buffer"]))
-        fs = f.rate
-        shape = f.shape
-        dtype = f.dtype
-        bps = f.samplesize
+        fs = f.output_rate
+        shape = f.output_shape
+        dtype = f.output_dtype
+        bps = f.output_bytesize
 
     out = {"dtype": dtype, "shape": shape}
 
+    print(len(F[: 100 * bps]))
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with streams.SimpleAudioWriter(out_url, rate_in=fs, show_log=True) as f:
+        with streams.SimpleAudioWriter(out_url, fs, show_log=True) as f:
             f.write({**out, "buffer": F[: 100 * bps]})
             f.write({**out, "buffer": F[100 * bps :]})
+            f.wait()
+        assert path.exists(out_url)
 
 
 def test_write_extra_inputs():
@@ -109,13 +116,16 @@ def test_write_extra_inputs():
         "shape": F["shape"],
         "dtype": F["dtype"],
     }
+    print(len(F['buffer']))
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with streams.SimpleVideoWriter(
-            out_url, fs, extra_inputs=[url_aud], map=["0:v", "1:a"], show_log=True
+            out_url, fs, extra_inputs=[url_aud], map=["0:v", "1:a"], show_log=True,loglevel='debug'
         ) as f:
             f.write(F)
+            f.wait()
+            print(f.readlog())
 
         info = ffmpegio.probe.streams_basic(out_url)
         assert len(info) == 2
@@ -130,6 +140,8 @@ def test_write_extra_inputs():
             overwrite=True,
         ) as f:
             f.write(F)
+            f.wait()
+            print(f.readlog())
 
         info = ffmpegio.probe.streams_basic(out_url)
         assert len(info) == 2

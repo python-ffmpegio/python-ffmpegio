@@ -167,3 +167,11 @@ def bytes_to_audio(
         }
     except:
         return None
+
+@hookimpl
+def is_empty(obj: BytesRawDataBlob) -> bool:
+    """True if data blob object has no data
+
+    :param obj: object containing media data
+    """
+    return not bool(obj['buffer'])

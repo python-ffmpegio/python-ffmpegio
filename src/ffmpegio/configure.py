@@ -1399,27 +1399,26 @@ def process_raw_inputs(
     for i, (mtype, arg, dtype, shape) in enumerate(
         zip(stream_types, stream_args, dtypes, shapes)
     ):
-
+        ropt = {"v": "r", "a": "ar"}.get(mtype, None)  # rate option
         try:
             a1, a2 = arg
             if isinstance(a1, (int, float, Fraction)):
                 data = a2
-                if mtype == "a":
-                    opts = {"ar": round(a1)}
-                elif mtype == "v":
-                    opts = {"r": a1}
-                else:
+                opts = {ropt: a1}
+                if ropt is None:
                     raise FFmpegioError(
                         "stream_type not specified, cannot resolve the `rate` input."
                     )
             else:
                 assert isinstance(a2, dict)
                 data, opts = a1, a2
-                if mtype not in "av":  # unknown
+                if ropt is None:  # unknown
                     if "ar" in opts:
                         mtype = "a"
+                        ropt = "ar"
                     elif "r" in opts:
                         mtype = "v"
+                        ropt = "r"
                     else:
                         raise FFmpegioError("unknown input stream media type")
 
@@ -1438,6 +1437,7 @@ def process_raw_inputs(
         raw_info = None
         if mtype == "a":  # audio
             media_type = "audio"
+            opts[ropt] = round(opts[ropt])  # force int sampling rate
             if data is not None:
                 more_opts, raw_info = utils.array_to_audio_options(data)
                 data = plugins.get_hook().audio_bytes(obj=data)
@@ -1447,6 +1447,8 @@ def process_raw_inputs(
                 sample_fmt, ac = utils.guess_audio_format(shapes[i], dtypes[i])
                 acodec, f = utils.get_audio_codec(sample_fmt)
                 more_opts = {"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f}
+
+            raw_info = (*raw_info, opts["ar"]) if raw_info else (None, None, opts["ar"])
 
         else:  # video
             media_type = "video"
@@ -1462,12 +1464,15 @@ def process_raw_inputs(
                     "pix_fmt": pix_fmt,
                     "s": s,
                 }
+
         if more_opts is not None:
             opts.update(more_opts)
 
         info = {"src_type": "buffer", "media_type": media_type}
-        if raw_info is not None:
-            info["raw_info"] = raw_info
+
+        info["raw_info"] = (
+            (None, None, opts[ropt]) if raw_info is None else (*raw_info, opts[ropt])
+        )
 
         if data is not None:
             info["buffer"] = data

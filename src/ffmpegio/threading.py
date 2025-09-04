@@ -203,7 +203,21 @@ class LoggerThread(Thread):
             self.newline.notify_all()
         logger.debug("[logger] exiting")
 
-    def index(self, prefix, start=None, block=True, timeout=None):
+    def index(
+        self,
+        prefix: str,
+        start: int = 0,
+        block: bool = True,
+        timeout: float | None = None,
+    ) -> int | None:
+        """Return an index of the first log line which starts with the specified prefix
+
+        :param prefix: look for log lines starting with this string
+        :param start: log line index to start searching, defaults to 0
+        :param block: True to block until the specified log line appears, default is True
+        :param timeout: blocking timeout, defaults to None (wait indefinitely)
+        :return: index of the matching line of the LoggerThread.logs or None if none found
+        """
         start = int(start or 0)
         with self.newline:
             logs = self.logs[start:] if start else self.logs
@@ -213,7 +227,7 @@ class LoggerThread(Thread):
                     next((i for i, log in enumerate(logs) if log.startswith(prefix)))
                     + start
                 )
-            except:
+            except StopIteration:
                 if not self.is_alive():
                     raise ThreadNotActive("LoggerThread is not running")
 
@@ -247,7 +261,7 @@ class LoggerThread(Thread):
                             )
                             + start
                         )
-                    except:
+                    except StopIteration:
                         # still no match, update the starting position
                         start = len(self.logs)
 

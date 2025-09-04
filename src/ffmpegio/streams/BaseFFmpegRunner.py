@@ -129,6 +129,8 @@ class BaseFFmpegRunner:
 
     def _open(self, deferred: bool):
 
+        logger.info("starting FFmpeg subprocess")
+
         if deferred:
 
             assert self._init_deferred_outputs is not None
@@ -205,17 +207,15 @@ class BaseFFmpegRunner:
         else:
             return None
 
-    def readlog(self, n: int) -> str:
+    def readlog(self, n: int | None = None) -> str:
         """read FFmpeg log lines
 
-        :param n: number of lines to read
+        :param n: number of lines to read or None to read all currently found in the buffer
         :return: logged messages
         """
 
-        if n is not None:
-            self._logger.index(n)
         with self._logger._newline_mutex:
-            return "\n".join(self._logger.logs or self._logger.logs[:n])
+            return "\n".join(self._logger.logs if n is None else self._logger.logs[:n])
 
     def wait(self, timeout: float | None = None) -> int | None:
         """close all input pipes and wait for FFmpeg to exit
@@ -238,10 +238,13 @@ class BaseFFmpegRunner:
 
             # write the sentinel to each input queue
             for info in self._input_info:
-                if "writer" in info:
+                if "writer" in info: # has writer thread
                     info["writer"].write(
                         None, None if timeout is None else timeout - time()
                     )
+                else: # std pipe, no threading
+                    # close the stdout
+                    self._proc.stdin.close()
 
             # wait until the FFmpeg finishes the job
             self._proc.wait(None if timeout is None else timeout - time())

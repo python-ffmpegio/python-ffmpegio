@@ -13,7 +13,7 @@ url = "tests/assets/testmulti-1m.mp4"
 
 
 @pytest.mark.parametrize(
-    "mode,Cls",
+    "src,mode,Cls",
     [
         (url, "rv", ff_streams.SimpleVideoReader),
         (url, "ra", ff_streams.SimpleAudioReader),

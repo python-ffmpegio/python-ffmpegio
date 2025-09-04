@@ -141,3 +141,12 @@ def bytes_to_audio(b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: boo
         return x.squeeze() if squeeze else x
     except:
         return None
+
+
+@hookimpl
+def is_empty(obj: bytes) -> bool:
+    """True if data blob object has no data
+
+    :param obj: object containing media data
+    """
+    return not bool(obj)

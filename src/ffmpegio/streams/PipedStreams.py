@@ -861,10 +861,11 @@ class PipedMediaReader(_EncodedInputMixin, _RawOutputMixin, _PipedFFmpegRunner):
 
     def __next__(self):
         F = self.read(self._blocksize, self.default_timeout)
-        if not any(
-            len(self._get_bytes[info["media_type"]](obj=f))
-            for f, info in zip(F.values(), self._output_info)
-        ):
+        # if not any(
+        #     len(self._get_bytes[info["media_type"]](obj=f))
+        #     for f, info in zip(F.values(), self._output_info)
+        # ):
+        if plugins.get_hook().is_empty(obj=F):
             raise StopIteration
         return F
 
