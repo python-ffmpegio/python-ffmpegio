@@ -30,7 +30,7 @@ _coderRegexp = re.compile(
 )  # g
 _formatRegexp = re.compile(r"([D ]) *([E ]) +(\S+) +(.*)")  # g
 _filterRegexp = re.compile(
-    r"([T.])([S.])([C.])\s+(\S+)\s+(A+|V+|N|\|)->(A+|V+|N|\|)\s+(.*)"
+    r"([T.])([S.])([C.])?\s+(\S+)\s+(A+|V+|N|\|)->(A+|V+|N|\|)\s+(.*)"
 )  # g
 
 _cache = dict()
@@ -878,18 +878,27 @@ def _conv_func(type, s):
         return s
 
 
-def _get_filter_option_constant(str):
+def _get_filter_option_constant(
+    str: str, is_flag: bool = False
+) -> tuple[str, str] | tuple[tuple[str, int], str]:
+    # from libavutil/opts.c opt_list() with flags AV_OPT_FLAG_FILTERING_PARAM and AV_OPT_TYPE_CONST
+
     m = re.match(
-        r"     ([^ \n]+) {1,16}(?:([^ ]+) {1,12}| {13})"
-        r"[.E][.D][.F][.V][.A][.S][.X][.R][.B][.T][.P]"
-        r"(?: (.+))?\n?",
+        r"     (.+?)[.E][.D][.F][.V][.A][.S][.X][.R][.B][.T][.P](?: (.+))?",
         str,
     )
-    return m[1], (m[2] and int(m[2]), m[3] or "")
+    desc = m[2] or ""
+
+    if is_flag:
+        return m[1].strip(), desc
+    else:
+        name, intval = m[1].rsplit(maxsplit=1)
+        return (name, int(intval)), desc
 
 
 def _get_filter_option(str, name):
-    # libavutil/opt.c/opt_list
+    # from libavutil/opts.c opt_list() with flags AV_OPT_FLAG_FILTERING_PARAM
+
     lines = str.splitlines()
 
     # first line is the main option definition
@@ -903,7 +912,7 @@ def _get_filter_option(str, name):
             f"_get_filter_option(): invalid option line found for {name} filter. Likely deprecated:\n{lines[0]}"
         )
         return None
-    name, type, *flags = m0.groups()
+    name, otype, *flags = m0.groups()
 
     m1 = re.search(r"( \(from \S+? to \S+?\))*(?: \(default (.+)\))?$", lines[0])
     ranges_str, default = m1.groups()
@@ -911,19 +920,19 @@ def _get_filter_option(str, name):
     help = lines[0][m0.end() + 1 : m1.start()]
 
     if default:
-        if type == "string":
+        if otype == "string":
             # remove quotes
             default = default[1:-1]
-        elif type == "boolean":
+        elif otype == "boolean":
             default = {"true": True, "false": False}.get(default, default)
 
     conv = (
         partial(_conv_func, int)
-        if type in ("int", "int64", "uint64")
+        if otype in ("int", "int64", "uint64")
         else (
             partial(_conv_func, float)
-            if type in ("float", "double")
-            else partial(_conv_func, Fraction) if type == "rational" else (lambda s: s)
+            if otype in ("float", "double")
+            else partial(_conv_func, Fraction) if otype == "rational" else (lambda s: s)
         )
     )
 
@@ -936,30 +945,43 @@ def _get_filter_option(str, name):
         ]
     )
 
-    constants = [_get_filter_option_constant(l) for l in lines[1:] if l]
+    constants = [
+        _get_filter_option_constant(l, otype == "flags") for l in lines[1:] if l
+    ]
 
-    if len(constants):
-        # combines aliases
-        def chk_is_alias(i, o):
-            other = constants[i]
-            return other[1] == o[1]
+    if not len(constants):
+        cdict = None
+    elif otype == "int":
+        # add int values as constant entries
+        cdict = {}
+        for (k, kint), v in constants:
+            cdict[k] = v
+            cdict[kint] = v
+    else:
+        cdict = dict(constants)
 
-        has_alias = [chk_is_alias(i, o) for i, o in enumerate(constants[1:])]
-        has_alias.append(False)
-        for i, has in enumerate(has_alias):
-            k, v = constants[i]
-            constants[i] = (k, (constants[i + 1][0] if has else None, *v))
+    # if len(constants):
+    #     # combines aliases
+    #     def chk_is_alias(i, o):
+    #         other = constants[i]
+    #         return other[1] == o[1]
 
-        has_alias.insert(0, False)
-        constants = [o for o, isa in zip(constants, has_alias[:-1]) if not isa]
+    #     has_alias = [chk_is_alias(i, o) for i, o in enumerate(constants[1:])]
+    #     has_alias.append(False)
+    #     for i, has in enumerate(has_alias):
+    #         k, v = constants[i]
+    #         constants[i] = (k, (constants[i + 1][0] if has else None, *v))
+
+    #     has_alias.insert(0, False)
+    #     constants = [o for o, isa in zip(constants, has_alias[:-1]) if not isa]
 
     return FilterOption(
         name,
         [],
-        type,
+        otype,
         help,
         ranges,
-        dict(constants),
+        cdict,
         conv(default),
         *(fl != "." for fl in flags),
     )
@@ -1047,6 +1069,8 @@ def filter_info(name):
         return data
 
     blocks = re.split(r"\n(?! |\n|$)", stdout)
+    if blocks[-1].startswith("Exiting with exit code"):
+        blocks = blocks[:-1]
 
     m = re.match(
         r"Filter (\S+)\s*?\n"

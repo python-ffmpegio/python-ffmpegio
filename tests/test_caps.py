@@ -48,6 +48,11 @@ def test_options():
     pprint(caps.options('video',True))
     pprint(caps.options('per-file'))
 
+def test_filters():
+    for f in caps.filters():
+        print(f)
+        pprint(caps.filter_info(f))
+
 if __name__ == '__main__':
-    caps.encoder_info('mpeg1video')
+    caps.filter_info('aresample')
 
