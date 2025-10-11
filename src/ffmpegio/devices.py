@@ -1,6 +1,6 @@
 """I/O Device Enumeration Module
 
-This module allows input and output hardware devices to be enumerated in the same fashion as the 
+This module allows input and output hardware devices to be enumerated in the same fashion as the
 streams of media containers. For example, instead of specifying DirectShow hardware by
 
 ```
@@ -15,6 +15,7 @@ url = 'v:0|a:0'
 
 
 """
+
 import logging
 
 logger = logging.getLogger("ffmpegio")
@@ -59,18 +60,20 @@ def scan():
             universal_newlines=True,
         )
 
-        logger.debug(f"ffmpeg -{dev_type}")
+        logger.debug("ffmpeg -%s", dev_type)
         logger.debug(out.stdout)
 
         src_spans = [
             [m[1], *m.span()]
-            for m in re.finditer(fr"Auto-detected {dev_type} for (.+?):\n", out.stdout)
+            for m in re.finditer(rf"Auto-detected {dev_type} for (.+?):\n", out.stdout)
         ]
-        for i in range(len(src_spans) - 1):
-            src_spans[i][1] = src_spans[i][2]
-            src_spans[i][2] = src_spans[i + 1][1]
-        src_spans[-1][1] = src_spans[-1][2]
-        src_spans[-1][2] = len(out.stdout)
+        if len(src_spans):
+            for span, next_span in zip(src_spans[:-1], src_spans[1:]):
+                span[1] = span[2]
+                span[2] = next_span[1]
+            span = src_spans[-1]
+            span[1] = span[2]
+            span[2] = len(out.stdout)
 
         def parse(log):
             # undoing print_device_list() in fftools/cmdutils.c
