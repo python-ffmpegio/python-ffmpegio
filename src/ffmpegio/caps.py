@@ -12,14 +12,14 @@ from fractions import Fraction
 from functools import partial
 
 from .path import ffmpeg as _ffmpeg
-from .errors import FFmpegError
+from .errors import FFmpegError, FFmpegioError
 
 # fmt:off
 __all__ = ["options", "filters", "codecs", "coders", "formats", "devices",
     "muxers", "demuxers", "bsfilters", "protocols", "pix_fmts", "sample_fmts",
     "layouts", "colors", "demuxer_info", "muxer_info", "encoder_info",
     "decoder_info", "filter_info", "bsfilter_info", "frame_rate_presets",
-    "video_size_presets"]
+    "video_size_presets", "FilterInfo", "BSFInfo"]
 # fmt:on
 
 _ffCodecRegexp = re.compile(
@@ -30,7 +30,7 @@ _ffDecodersRegexp = re.compile(r"\s+\(decoders:([^\)]+)\)")
 _coderRegexp = re.compile(
     r"([VAS])([F.])([S.])([X.])([B.])([D.])\s+([^=\s]\S*)\s+(.*)"
 )  # g
-_formatRegexp = re.compile(r"([D ]) *([E ]) +(\S+) +(.*)")  # g
+_formatRegexp = re.compile(r"([D ])([E ])([d ])? +(\S+) +(.*)")  # g
 _filterRegexp = re.compile(
     r"([T.])([S.])([C.])?\s+(\S+)\s+(A+|V+|N|\|)->(A+|V+|N|\|)\s+(.*)"
 )  # g
@@ -38,10 +38,10 @@ _filterRegexp = re.compile(
 _cache = dict()
 
 
-def ffmpeg(gopts):
+def ffmpeg(gopts: list[str]) -> str:
     out = _ffmpeg(["-hide_banner", *gopts], stdout=sp.PIPE, encoding="utf-8")
 
-    if out.returncode or out.stdout.count("\n") == 1:
+    if out.returncode:
         raise FFmpegError(out.stdout)
 
     return out.stdout
@@ -473,12 +473,13 @@ def _getFormats(type, doCan):
 
     data = {}
     for match in _formatRegexp.finditer(stdout):
-        for format in match[3].split(","):
+        for format in match[4].split(","):
             if not (format in data):
                 data[format] = {"description": match[4]}
             if doCan:
                 data[format]["can_demux"] = match[1] == "D"
                 data[format]["can_mux"] = match[2] == "E"
+                data[format]["is_device"] = match[3] == "d"
 
     _cache[type] = data
     return data
@@ -809,17 +810,17 @@ def _getCodecInfo(name, encoder):
         return data
 
     type = "Encoder" if encoder else "Decoder"
-    m = re.search(
+    m = re.match(
         type
         + r" (\S+) \[([^\]]*)\]:\s*?\n"
-        + r"    General capabilities: ([^\r\n]+?)\s*?\n"
-        + r"(?:    Threading capabilities: ([^\r\n]+?)\s*?\n)?"
+        + r"    General capabilities: ([^\r\n]*?)\s*?\n"
+        + r"(?:    Threading capabilities: ([^\r\n]*?)\s*?\n)?"
         + r"(?:    Supported hardware devices: ([^\r\n]*?)\s*?\n)?"
-        + r"(?:    Supported framerates: ([^\r\n]+?)\s*?\n)?"
-        + r"(?:    Supported pixel formats: ([^\r\n]+?)\s*?\n)?"
-        + r"(?:    Supported sample rates: ([^\r\n]+?)\s*?\n)?"
-        + r"(?:    Supported sample formats: ([^\r\n]+?)\s*?\n)?"
-        + r"(?:    Supported channel layouts: ([^\r\n]+?)\s*?\n)?"
+        + r"(?:    Supported framerates: ([^\r\n]*?)\s*?\n)?"
+        + r"(?:    Supported pixel formats: ([^\r\n]*?)\s*?\n)?"
+        + r"(?:    Supported sample rates: ([^\r\n]*?)\s*?\n)?"
+        + r"(?:    Supported sample formats: ([^\r\n]*?)\s*?\n)?"
+        + r"(?:    Supported channel layouts: ([^\r\n]*?)\s*?\n)?"
         + r"([\s\S]*)",
         stdout,
     )
@@ -862,7 +863,7 @@ FilterInfo = namedtuple(
 )
 FilterOption = namedtuple(
     "FilterOption",
-    ["name", "aliases", "type", "help", "ranges", "constants", "default", 
+    ["name", "aliases", "type", "multiple", "help", "ranges", "constants", "default", 
      "video", "audio", "runtime"],
 )
 # fmt:on
@@ -912,10 +913,14 @@ def _get_filter_option(str, name):
 
     # first line is the main option definition
     m0 = re.match(
-        r"  (?: |-)?([^ \n]+) {1,17}(?:\<([^ >]+)\> {1,12}| {13})"
-        r"[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
+        r"  (?: |-)([^ \n]+?) +(.+?)[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
         lines[0],
     )
+    # m0 = re.match(
+    #     r"  (?: |-)?([^ \n]+) {1,17}(?:\<([^ >]+)\> {1,12}| {13})"
+    #     r"[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
+    #     lines[0],
+    # )
     if not m0:
         # likely deprecated
         logger.info(
@@ -923,6 +928,9 @@ def _get_filter_option(str, name):
         )
         return None
     name, otype, *flags = m0.groups()
+
+    multiple = otype.startswith("[")  # multiple value assignable via |-separated list
+    otype = (otype[1:-1] if multiple else otype).strip()[1:-1]
 
     m1 = re.search(r"( \(from \S+? to \S+?\))*(?: \(default (.+)\))?$", lines[0])
     ranges_str, default = m1.groups()
@@ -989,6 +997,7 @@ def _get_filter_option(str, name):
         name,
         [],
         otype,
+        multiple,
         help,
         ranges,
         cdict,
@@ -997,11 +1006,11 @@ def _get_filter_option(str, name):
     )
 
 
-def _get_filter_options(str):
+def _get_filter_options(str) -> FilterOption:
     m = re.match(r"(.+)? AVOptions:\n", str)
     name = m[1]
     blocks = re.split(r"\n(?!     |\n|$)", str[m.end() :])
-    opts = [_get_filter_option(line, name) for line in blocks if line]
+    opts = [_get_filter_option(line, name) for line in blocks if line and line != "\n"]
 
     # combines aliases
     def is_alias(i, o):
@@ -1030,7 +1039,7 @@ def _get_filter_options(str):
     return name, opts
 
 
-def filter_info(name):
+def filter_info(name: str) -> FilterOption:
     """get detailed info of a filter
 
     :return: list of features
@@ -1075,10 +1084,10 @@ def filter_info(name):
 
     #   // according to fftools/comdutils.c show_help_filter()
     stdout, data = __("filter", name)
-    if stdout.startswith('Unknown'):
-        raise FFmpegError(stdout)
     if data:
         return data
+    if stdout.startswith("Unknown"):
+        raise FFmpegError(stdout)
 
     blocks = re.split(r"\n(?! |\n|$)", stdout)
     if blocks[-1].startswith("Exiting with exit code"):
@@ -1108,31 +1117,37 @@ def filter_info(name):
         (_get_filter_options(b) for b in (blocks[1:-1] if timeline else blocks[1:]))
     )
 
-    options = extra_options.pop(name, None)
-    if options is None and len(extra_options):
-        opt_name = next(
-            (
-                o_name
-                for o_name in extra_options.keys()
-                # if (o_name == f"(a){name}")
-                # or (name[0] == "a" and o_name == f"(a){name[1:]}")
-                # or re.match(o_name, name)
-                # or re.search(rf"(?:^|[^a-z]){name}($|[^a-z])", o_name)
-                # or (name == "highshelf" and o_name == "treble/high/tiltshelf")
-                # or (name == "chromakey_cuda" and o_name == "cudachromakey")
-                # or (name == "hwupload_cuda" and o_name == "cudaupload")
-            ),
-            None,
-        )
-        if opt_name:
-            options = extra_options.pop(opt_name)
-        elif len(extra_options) == 1:
-            o_name, options = extra_options.popitem()
-            logger.info(f"filter_info({name}): assigned mismatched AVOptions {o_name}.")
-        else:
-            logger.warning(
-                f"filter_info({name}): none of the AVOption sets appears to be the main option set:\n   {[k for k in extra_options]}"
+    options = extra_options.pop(name, None) if len(extra_options) else []
+    if options is None:  # options are shared among multiple filters
+
+        def check_o_name(o_name, name):
+            if o_name.startswith("cuda"):
+                return f"{o_name[4:]}_cuda"
+
+            m = re.search(r"\(([^|]+)\)", o_name)
+            if m:
+                # add ? to make parenthetical field optional
+                i = m.end(1) + 1
+                o_name = f"{o_name[:i]}?{o_name[i:]}"
+            else:
+                # shared filters separated by '/' -> use '|' for regex
+                o_name = o_name.replace("/", "|")
+            return re.match(o_name, name)
+
+        try:
+            opt_name = next(
+                (
+                    o_name
+                    for o_name in extra_options.keys()
+                    if check_o_name(o_name, name)
+                ),
             )
+        except StopIteration as e:
+            raise FFmpegioError(
+                f"filter_info({name}): none of the AVOption sets appears to be the main option set:\n   {[k for k in extra_options]}"
+            ) from e
+
+        options = extra_options.pop(opt_name)
 
     data = FilterInfo(
         name,
@@ -1151,11 +1166,13 @@ def filter_info(name):
     return data
 
 
-def bsfilter_info(name):
+BSFInfo = namedtuple("BSFInfo", ["name", "supported_codecs", "options"])
+
+
+def bsfilter_info(name: str) -> BSFInfo:
     """get detailed info of a bitstream filter
 
     :return: list of features
-    :rtype: dict
 
     The returned dict has following entries:
 
@@ -1184,14 +1201,14 @@ def bsfilter_info(name):
     if stdout.startswith("Unknown"):
         raise FFmpegError(stdout)
 
-    data = {
-        "name": m[1],
-        "supported_codecs": m[2].split(" ") if m[2] else [],
-        "options": m[3],
-    }
-    if not "filter" in _cache:
-        _cache["filter"] = {}
-    _cache["filter"][name] = data
+    data = BSFInfo(
+        m[1],  # "name"
+        m[2].split(" ") if m[2] else [],  # "supported_codecs"
+        m[3],  # "options"
+    )
+    if not "bsf" in _cache:
+        _cache["bsf"] = {}
+    _cache["bsf"][name] = data
     return data
 
 
