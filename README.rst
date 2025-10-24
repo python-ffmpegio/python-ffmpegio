@@ -30,6 +30,7 @@ Main Features
 * Media writers can write a new media file from either data given in a Numpy array or :code:`bytes` 
   objects in a :code:`dict`. 
 * Write Matplotlib figures to images or to a video (a simpler interface than Matplotlib's Animation writers). 
+* Read video data as a list of Pillow :code:`Image`s and write Pillow :code:`Image`s to a video stream.
 * Probe media file information
 * Accepts all FFmpeg options including filter graphs
 * Transcode a media file to another in Python
@@ -54,14 +55,15 @@ with them.
 .. table:: 
   :class: tight-table
 
-  ==========================  ======================================================================== =====================================
-  Distro package name         :code:`ffmpegio` features                                                Deprecated plugin names
-  ==========================  ======================================================================== =====================================
-  :code:`numpy`               Support Numpy array inputs and outputs intead of bytes                   :code:`ffmpegio`
-  :code:`matplotlib`          Support generation of images or videos from Matplotlib figure            :code:`ffmpegio-plugin-mpl`
-  :code:`ffmepeg-downloader`  Support the FFmpeg binaries installed by the :code:`ffdl` command        :code:`ffmpegio-plugin-downloader`
-  :code:`static-ffmpeg`       Support the FFmpeg binaries installed by :code:`static-ffmpeg`           :code:`ffmpegio-plugin-static-ffmpeg`
-  ==========================  ======================================================================== =====================================
+  ==========================  ========================================================================== =====================================
+  Distro package name         :code:`ffmpegio` features                                                  Deprecated plugin names
+  ==========================  ========================================================================== =====================================
+  :code:`numpy`               Support Numpy array inputs and outputs instead of bytes                    :code:`ffmpegio`
+  :code:`matplotlib`          Support generation of images or videos from Matplotlib figure              :code:`ffmpegio-plugin-mpl`
+  :code:`pillow`              Support :code:`PIL.Image.Image` as the input and output video frames     
+  :code:`ffmepeg-downloader`  Support the FFmpeg binaries installed by the :code:`ffdl install` command  :code:`ffmpegio-plugin-downloader`
+  :code:`static-ffmpeg`       Support the FFmpeg binaries installed by :code:`static-ffmpeg`             :code:`ffmpegio-plugin-static-ffmpeg`
+  ==========================  ========================================================================== =====================================
 
 These features are automatically enabled if the external packages are installed along along side with `ffmpegio`.
 :code:`ffmpegio` is imported 
@@ -95,6 +97,7 @@ To import `ffmpegio`
 - `Filter Audio, Image, & Video Data <Filter Audio, Image, & Video Data_>`_
 - `Stream I/O <Stream I/O_>`_
 - `Video from Matplotlib Figure <Video from Matplotlib Figure_>`_
+- `Video to/from Pillow Images <Video to/from Pillow Images_>`_
 - `Device I/O Enumeration <Device I/O Enumeration_>`_
 - `Progress Callback <Progress Callback_>`_
 - `Filtergraph Builder`_
@@ -281,6 +284,46 @@ To enable this feature, you must also install :code:`matplotlib`:
   >>>     for n in range(save_count):
   >>>         animate(n) # update figure
   >>>         f.write(fig) # write new frame
+
+Video to/from Pillow Images
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To enable this feature, you must also install :code:`matplotlib`:
+
+.. code-block::
+
+  pip install pillow
+
+Given an image processing iterator, `image_processer()`, which yields a 
+:code:`PIL.Image.Image`, we can create a video file:
+
+.. code-block:: python
+
+  >>> interval=20 # delay in milliseconds
+  >>> 
+  >>> with ffmpegio.open(
+  >>>   "output.mp4", # output file name
+  >>>   "wv", # open file in write-video mode
+  >>>   1e3/interval, # framerate in frames/second
+  >>>   pix_fmt="yuv420p", # specify the pixel format (default is yuv444p)
+  >>> ) as f:
+  >>>     for frame in image_processor(): # frame is PIL Image
+  >>>         f.write(frame) # write new frame
+
+For video writing, :code:`ffmegio` automatically detects the video frame data 
+type (i.e., a dict with bytes, Numpy array, Pillow Image, or Matplotlib Figure).
+
+For video reading, you need to switch the video data object type explicitly by
+:code:`ffmpegio.use()`:
+
+.. code-block:: python
+
+  >>> ffmpegio.use('read_pillow') # make video readers to output Pillow Images
+  >>> 
+  >>> frames = ffmpegio.video.read('video.mp4', vframes=10, pix_fmt='gray')
+  >>> # frames is a list of 10 Pillow Image objects containing 
+  >>> # the first 10 frames of the video in grayscale 
+
 
 Filtergraph Builder
 ^^^^^^^^^^^^^^^^^^^
