@@ -46,6 +46,7 @@ except Exception as e:
     logger.warning(str(e))
 
 use = plugins.use
+using = plugins.using
 
 def __getattr__(name):
     if name == "ffmpeg_ver":
@@ -70,7 +71,7 @@ deprecate_core()
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
     "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
-    "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat", "use"]
+    "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat", "use", "using"]
 # fmt:on
 
 __version__ = "0.11.1"

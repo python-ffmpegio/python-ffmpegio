@@ -100,6 +100,24 @@ def use(name: Literal["read_numpy", "read_bytes"] | str):
         pm.register(plugin)
 
 
+def using(
+    media_type: Literal["video", "audio"],
+) -> Literal["read_numpy", "read_bytes"] | str:
+    """Returns current rawdata primary read mode
+
+    :para media_type: Specifies the target media stream type
+
+    """
+
+    name = "bytes_to_audio" if media_type == "audio" else "bytes_to_video"
+    read_plugin = pm.subset_hook_caller(name, ()).get_hookimpls()[-1].plugin_name
+
+    return {
+        "ffmpegio.plugins.rawdata_numpy": "read_numpy",
+        "ffmpegio.plugins.rawdata_bytes": "read_bytes",
+    }.get(read_plugin, read_plugin)
+
+
 def initialize():
     """initilaize manager and load builtin plugins"""
 
