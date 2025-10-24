@@ -67,11 +67,12 @@ def unregister(name: str) -> Any | None:
 def list_plugins() -> list:
     return [pm.get_name(p) for p in pm.get_plugins()]
 
-def use(name: Literal["read_numpy", "read_bytes"] | str):
+
+def use(name: Literal["read_numpy", "read_bytes", "read_pillow"] | str):
     """Select the plugin to use (among contentious plugins)
 
-    :param name: The plugin to use. This can either be ``'read_numpy'`` or
-                 ``'read_bytes'`` or a plugin module name:
+    :param name: The plugin to use. This can either be ``'read_numpy'``,
+                 ``'read_bytes'``, ``'read_pillow'``, or a plugin module name:
 
                  - ``"read_numpy"`` - All the media readers to output a Numpy array.
                                Also, reverts Numpy array input processing by
@@ -82,15 +83,30 @@ def use(name: Literal["read_numpy", "read_bytes"] | str):
                                     ``"dtype"`` (``str``) Numpy dtype string of ``'"buffer"'``,
                                     and ``"shape"`` (``tuple`` of ``int``s) the data array shape
                                     of ``'"buffer"'``
+                 - ``"read_pillow"`` - All the video/image readers to output Pillow Image
+                   or a list of Pillow Images if the matching pixel format is found.
+                   Pillow must be installed for this plugin to be activated.
 
                  If a plugin name is given, it must be in the form:
                  `plugin://my.plugin.name`.
+
+    The reader plugins are checked in the reverse registration order. So, ``use()``
+    maybe called twice to set the backup conversions. For example ..
+
+      use('read_numpy')
+      use('read_pillow')
+
+    outputs video frames as Pillow Images if possible. Otherwise, NumPy array
+    is used for the unsupported video formats or for audio samples.
+
     """
 
     if name == "read_numpy":
         _try_register_builtin("ffmpegio.plugins.rawdata_numpy", True)
     elif name == "read_bytes":
         _try_register_builtin("ffmpegio.plugins.rawdata_bytes", True)
+    elif name == "read_pillow":
+        _try_register_builtin("ffmpegio.plugins.rawdata_pillow", True)
     else:
         matched_name = re.match(r"plugin://(.+)$", name)
         if matched_name is None:
@@ -117,6 +133,7 @@ def using(
     return {
         "ffmpegio.plugins.rawdata_numpy": "read_numpy",
         "ffmpegio.plugins.rawdata_bytes": "read_bytes",
+        "ffmpegio.plugins.rawdata_pillow": "read_pillow",
     }.get(read_plugin, read_plugin)
 
 
@@ -133,7 +150,13 @@ def initialize():
 
         pm.register(dshow)
 
-    for name in ["rawdata_bytes", "finder_ffdl", "rawdata_mpl", "rawdata_numpy"]:
+    for name in [
+        "rawdata_bytes",
+        "finder_ffdl",
+        "rawdata_mpl",
+        "rawdata_pillow",
+        "rawdata_numpy",
+    ]:
         _try_register_builtin(f"ffmpegio.plugins.{name}")
 
     # load all ffmpegio plugins found in site-packages
