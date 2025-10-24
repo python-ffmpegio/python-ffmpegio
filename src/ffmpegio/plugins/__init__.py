@@ -24,9 +24,10 @@ def _try_register_builtin(plugin_name: str, reregister: bool = False) -> str | N
     module_package, module_name = plugin_name.rsplit(".", 1)
     try:
         module = import_module(f".{module_name}", module_package)
-    except ModuleNotFoundError:
+    except ModuleNotFoundError as e:
         logger.info(
-            f"Skip importing {module_name} builtin-plugin module, likely missing dependency"
+            "Skip importing %s builtin-plugin module, likely missing dependency",
+            module_name,
         )
     else:
         registered = pm.has_plugin(plugin_name)
@@ -35,7 +36,7 @@ def _try_register_builtin(plugin_name: str, reregister: bool = False) -> str | N
         if registered:
             pm.unregister(module)
         name = pm.register(module)
-        logger.info(f"registered {name} builtin-plugin module")
+        logger.info("registered %s builtin-plugin module", name)
         return name
 
 
@@ -61,6 +62,7 @@ def unregister(name: str) -> Any | None:
     If the plugin is already registered, raises a ValueError.
     """
     return pm.unregister(name)
+
 
 def list_plugins() -> list:
     return [pm.get_name(p) for p in pm.get_plugins()]
