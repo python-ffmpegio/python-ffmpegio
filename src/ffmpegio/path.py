@@ -1,3 +1,4 @@
+from typing import Literal
 from os import path as _path, name as _os_name, devnull
 from shutil import which
 from subprocess import run, DEVNULL, PIPE, STDOUT
@@ -212,7 +213,7 @@ def versions():
     s = ffmpeg(
         ["-version"], stdout=PIPE, universal_newlines=True, encoding="utf-8"
     ).stdout.splitlines()
-    v = dict(version=re.match(r"ffmpeg version (\S+)", s[0])[1])
+    v = dict(version=re.match(r"ffmpeg version n?(\S+)", s[0])[1])
     i = 2 if s[1].startswith("built with") else 1
     if s[i].startswith("configuration:"):
         v["configuration"] = sorted([m[1] for m in re.finditer(r"\s--(\S+)", s[i])])
@@ -227,21 +228,24 @@ def versions():
     return v
 
 
-def check_version(ver, cond=None):
+def check_version(
+    ver: str, cond: Literal["==", "!=", "<", "<=", ">", ">="] | None = None
+) -> bool:
     """check FFmpeg version
 
     :param ver: desired version string
-    :type ver: str
     :param cond: condition, defaults to None (">=)
-    :type cond: "==", "!=", "<", "<=", ">", ">=", optional
-    :return: True if condition is met
-    :rtype: bool
+    :return: True if condition is met, False if FFmpeg binary is not found or a nightly release
     """
-    return {
-        "==": FFMPEG_VER.__eq__,
-        "!=": FFMPEG_VER.__ne__,
-        "<": FFMPEG_VER.__lt__,
-        "<=": FFMPEG_VER.__le__,
-        ">": FFMPEG_VER.__gt__,
-        ">=": FFMPEG_VER.__ge__,
-    }[cond or ">="](Version(ver))
+
+    try:
+        return FFMPEG_VER is not None and {
+            "==": FFMPEG_VER.__eq__,
+            "!=": FFMPEG_VER.__ne__,
+            "<": FFMPEG_VER.__lt__,
+            "<=": FFMPEG_VER.__le__,
+            ">": FFMPEG_VER.__gt__,
+            ">=": FFMPEG_VER.__ge__,
+        }[cond or ">="](Version(ver))
+    except NotImplementedError:
+        return False
