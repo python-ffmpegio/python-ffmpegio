@@ -72,8 +72,8 @@ from . import streams, utils
 
 @overload
 def open(
-    urls_fgs: FFmpegUrlType | FilterGraphObject | FFConcat | Buffer | IO,
-    mode: Literal["rv", "ra", "e->v", "e->a"],
+    urls_fgs: FFmpegUrlType | FilterGraphObject | FFConcat | Buffer,
+    mode: Literal["rv"],
     *,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
@@ -81,8 +81,44 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleAudioReader | streams.SimpleVideoReader:
-    """open a single-source reader (`mode = "rv" | "ra" | "e->v" | "e->a"`)
+) -> streams.SimpleVideoReader:
+    """open a single-stream video reader
+
+    :param urls_fgs: URL of the file or format/device object to obtain a video stream from.
+                     It can also be an input filtergraph object or string. The input
+                     could also be fed by a buffered bytes-like data object or a readable file object.
+    :param mode: `'rv'` to read video data
+    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param progress: progress callback function, defaults to None
+    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
+    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                    `subprocess.Popen()` call used to run the FFmpeg, defaults
+                    to None
+    :param options: global/default FFmpeg options. For output and global options,
+                    use FFmpeg option names as is. For input options, append "_in" to the
+                    option name. For example, r_in=2000 to force the input frame rate
+                    to 2000 frames/s (see :doc:`options`). These input and output options
+                    specified here are treated as default, common options, and the
+                    url-specific duplicate options in the ``inputs`` or ``outputs``
+                    sequence will overwrite those specified here.
+    :return: reader stream object
+    """
+
+
+@overload
+def open(
+    urls_fgs: FFmpegUrlType | FilterGraphObject | FFConcat | Buffer,
+    mode: Literal["ra"],
+    *,
+    show_log: bool | None = None,
+    progress: ProgressCallable | None = None,
+    blocksize: int | None = None,
+    default_timeout: float | None = None,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> streams.SimpleAudioReader:
+    """open a single-source audio reader
 
     :param urls_fgs: URL of the file or format/device object to obtain a media stream from.
                      It can also be an input filtergraph object or string. The input
@@ -108,12 +144,12 @@ def open(
 
 @overload
 def open(
-    urls_fgs: FFmpegUrlType | IO | Buffer,
-    mode: Literal["wv", "wa", "v->e", "a->e"],
+    urls_fgs: FFmpegUrlType,
+    mode: Literal["wv"],
     input_rate: int | Fraction,
     *,
-    input_shape: ShapeTuple = None,
-    input_dtype: DTypeString = None,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     overwrite: bool = False,
     show_log: bool | None = None,
@@ -122,8 +158,8 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleAudioWriter | streams.SimpleVideoReader:
-    """open a single-destination writer (`mode = "wv" | "wa" | "v->e" | "a->e"`)
+) -> streams.SimpleVideoReader:
+    """open a single-destination video writer
 
     :param urls_fgs: URL of the file or format/device object to write media stream to. The output
                      could also be written to a bytes object or a writable file object.
@@ -155,8 +191,55 @@ def open(
 
 @overload
 def open(
-    urls_fgs: None | Literal["pipe", "-", "pipe:0"],
-    mode: Literal["e->v", "e->a"],
+    urls_fgs: FFmpegUrlType,
+    mode: Literal["wa"],
+    input_rate: int | Fraction,
+    *,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    overwrite: bool = False,
+    show_log: bool | None = None,
+    progress: ProgressCallable | None = None,
+    blocksize: int | None = None,
+    default_timeout: float | None = None,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> streams.SimpleAudioWriter:
+    """open a single-destination audio writer
+
+    :param urls_fgs: URL of the file or format/device object to write media stream to. The output
+                     could also be written to a bytes object or a writable file object.
+    :param mode: `'wv'` or `'v->ev'` to create a video file, `'wa'` or `'a->e'` to create an audio file
+    :param input_rate: Input frame rate (video) or sampling rate (audio)
+    :param input_shape: input video frame size (height, width) or number of input audio channel, defaults
+                     to None (auto-detect)
+    :param input_dtype: input data format in a Numpy dtype string, defaults to None (auto-detect)
+    :param extra_inputs: extra media source files/urls, defaults to None
+    :param overwrite: True to overwrite output URL, defaults to False.
+    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param progress: progress callback function, defaults to None
+    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
+    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                    `subprocess.Popen()` call used to run the FFmpeg, defaults
+                    to None
+    :param options: global/default FFmpeg options. For output and global options,
+                    use FFmpeg option names as is. For input options, append "_in" to the
+                    option name. For example, r_in=2000 to force the input frame rate
+                    to 2000 frames/s (see :doc:`options`). These input and output options
+                    specified here are treated as default, common options, and the
+                    url-specific duplicate options in the ``inputs`` or ``outputs``
+                    sequence will overwrite those specified here.
+    :return: audio writer stream object
+
+    """
+
+
+@overload
+def open(
+    urls_fgs: None | Literal["pipe", "-"],
+    mode: LiteralString,
     *,
     f_in: str,
     show_log: bool | None = None,
@@ -166,7 +249,7 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.StdAudioDecoder | streams.StdVideoDecoder:
+) -> streams.MediaReader:
     """open a piped single-source reader (`mode = "rv" | "ra" | "e->v" | "e->a"`)
 
     :param urls_fgs: A pipe path or `None` to indicate input is provided by `write_encoded()`.
@@ -193,13 +276,13 @@ def open(
 
 @overload
 def open(
-    urls_fgs: Literal["-", "pipe", "pipe:1"] | None,
-    mode: Literal["wv", "wa", "v->e", "a->e"],
-    input_rate: int | Fraction,
+    urls_fgs: Literal["-", "pipe"] | None,
+    mode: LiteralString, # ["w(v|a)+", "(v|a)+->e+"],
+    input_rate: Sequence[int | Fraction],
     *,
     f: str,
-    input_shape: ShapeTuple = None,
-    input_dtype: DTypeString = None,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     overwrite: bool = False,
     show_log: bool | None = None,
@@ -209,7 +292,7 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.StdAudioEncoder | streams.StdVideoEncoder:
+) -> streams.MediaWriter:
     """open a piped single-destination writer (`mode = "wv" | "wa" | "v->e" | "a->e"`)
 
     :param urls_fgs: A pipe path or `None` to indicate input is provided by `write_encoded()`.
@@ -244,7 +327,7 @@ def open(
 @overload
 def open(
     urls_fgs: str | FilterGraphObject,
-    mode: Literal["fv", "fa", "v->v", "a->a"],
+    mode: LiteralString #["f(v|a)+", "fa", "v->v", "a->a"],
     input_rate: int | Fraction,
     *,
     input_shape: ShapeTuple = None,

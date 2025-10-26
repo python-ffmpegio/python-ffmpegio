@@ -209,8 +209,7 @@ class SimpleVideoReader(SimpleReaderBase):
 
     def __init__(
         self,
-        url: FFmpegUrlType,
-        *,
+        *urls: FFmpegUrlType,
         show_log: bool | None = None,
         progress: ProgressCallable | None = None,
         blocksize: int = 1,
@@ -223,7 +222,7 @@ class SimpleVideoReader(SimpleReaderBase):
         map = "0:V:0" if stream is None else stream_spec_to_map_option(stream)
 
         args, input_info, ready, output_info, _ = configure.init_media_read(
-            [url], [map], options
+            [*urls], [map], options
         )
 
         if len(output_info) != 1 or output_info[0]["media_type"] != "video":
@@ -254,8 +253,7 @@ class SimpleAudioReader(SimpleReaderBase):
 
     def __init__(
         self,
-        url: FFmpegUrlType,
-        *,
+        *urls: FFmpegUrlType,
         show_log: bool | None = None,
         progress: ProgressCallable | None = None,
         blocksize: int = 1,
@@ -268,7 +266,7 @@ class SimpleAudioReader(SimpleReaderBase):
         map = "0:a:0" if stream is None else stream_spec_to_map_option(stream)
 
         args, input_info, ready, output_info, _ = configure.init_media_read(
-            [url], [map], options
+            [*urls], [map], options
         )
 
         if len(output_info) != 1 or output_info[0]["media_type"] != "audio":

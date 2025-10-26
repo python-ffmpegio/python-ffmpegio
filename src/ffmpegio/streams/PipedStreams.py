@@ -37,13 +37,18 @@ from ..configure import FFmpegArgs, InitMediaOutputsCallable
 from .BaseFFmpegRunner import (
     BaseFFmpegRunner as _BaseFFmpegRunner,
     RawInputsMixin as _RawInputsMixin,
-    EncodedInputsMixin as _EncodedInputsMixin,
     RawOutputsMixin as _RawOutputsMixin,
+    RawInputMixin as _RawInputMixin,
+    RawOutputMixin as _RawOutputMixin,
+    EncodedInputsMixin as _EncodedInputsMixin,
     EncodedOutputsMixin as _EncodedOutputsMixin,
 )
 
-# fmt:off
-__all__ = ["PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter", "PipedMediaTranscoder"]
+# fmt: off
+__all__ = [
+    "MediaReader", "MediaWriter", "MediaTranscoder", 
+    "SISOMediaFilter", "MISOMediaFilter", "SIMOMediaFilter", "MIMOMediaFilter",
+]
 # fmt:on
 
 
@@ -133,7 +138,7 @@ class _PipedFFmpegRunner(_BaseFFmpegRunner):
         )
 
 
-class PipedMediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner):
+class MediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner):
 
     def __init__(
         self,
@@ -218,7 +223,7 @@ class PipedMediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner
         return F
 
 
-class PipedMediaWriter(_EncodedOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
+class MediaWriter(_EncodedOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
 
     def __init__(
         self,
@@ -326,8 +331,77 @@ class PipedMediaWriter(_EncodedOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner
             sp_kwargs=sp_kwargs,
         )
 
+class MediaTranscoder(
+    _EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRunner
+):
+    """Class to transcode encoded media streams"""
 
-class PipedMediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
+    def __init__(
+        self,
+        input_options: Sequence[FFmpegOptionDict],
+        output_options: Sequence[FFmpegOptionDict],
+        *,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        blocksize: int | None = None,
+        queuesize: int | None = None,
+        default_timeout: float | None = None,
+        sp_kwargs: dict = None,
+        **options: Unpack[FFmpegOptionDict],
+    ):
+        """Encoded media stream transcoder
+
+        :param input_options: FFmpeg input option dicts of all the input pipes. Each dict
+                              must contain the `"f"` option to specify the media format.
+        :param output_options: FFmpeg output option dicts of all the output pipes. Each dict
+                               must contain the `"f"` option to specify the media format.
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                             string or a pair of a url string and an option dict.
+        :param extra_outputs: list of additional output destinations, defaults to None. Each destination
+                              may be url string or a pair of a url string and an option dict.
+        :param progress: progress callback function, defaults to None
+        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
+        :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                        `subprocess.Popen()` call used to run the FFmpeg, defaults
+                        to None
+        :param options: global/default FFmpeg options. For output and global options,
+                        use FFmpeg option names as is. For input options, append "_in" to the
+                        option name. For example, r_in=2000 to force the input frame rate
+                        to 2000 frames/s (see :doc:`options`). These input and output options
+                        specified here are treated as default, common options, and the
+                        url-specific duplicate options in the ``inputs`` or ``outputs``
+                        sequence will overwrite those specified here.
+        """
+
+        args, input_info, output_info = configure.init_media_transcoder(
+            [("pipe", opts) for opts in input_options],
+            [("pipe", opts) for opts in output_options],
+            extra_inputs,
+            extra_outputs,
+            {"y": None, **options},
+        )
+
+        super().__init__(
+            ffmpeg_args=args,
+            input_info=input_info,
+            output_info=output_info,
+            input_ready=None,
+            init_deferred_outputs=None,
+            deferred_output_args=None,
+            default_timeout=default_timeout,
+            progress=progress,
+            show_log=show_log,
+            blocksize=blocksize,
+            queuesize=queuesize,
+            sp_kwargs=sp_kwargs,
+        )
+
+class SISOMediaFilter(_RawOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
 
     def __init__(
         self,
@@ -413,70 +487,261 @@ class PipedMediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
         )
 
 
-class PipedMediaTranscoder(_EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRunner):
-    """Class to transcode encoded media streams"""
+class MISOMediaFilter(_RawOutputMixin, _RawInputsMixin, _PipedFFmpegRunner):
 
     def __init__(
         self,
-        input_options: Sequence[FFmpegOptionDict],
-        output_options: Sequence[FFmpegOptionDict],
-        *,
+        expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+        input_types: Sequence[Literal["a", "v"]],
+        *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-        extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-        progress: ProgressCallable | None = None,
+        ref_output: int = 0,
+        output_options: dict[str, FFmpegOptionDict] | None = None,
         show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
         default_timeout: float | None = None,
-        sp_kwargs: dict = None,
+        sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
-        """Encoded media stream transcoder
+        """Filter audio/video data streams with FFmpeg filtergraphs
 
-        :param input_options: FFmpeg input option dicts of all the input pipes. Each dict
-                              must contain the `"f"` option to specify the media format.
-        :param output_options: FFmpeg output option dicts of all the output pipes. Each dict
-                               must contain the `"f"` option to specify the media format.
+        :param expr: complex filtergraph expression or a list of filtergraphs
+        :param input_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
+        :param input_rates_or_opts: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
+                                    or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+        :param input_dtypes: list of numpy-style data type strings of input samples
+                             or frames of input media streams, defaults to `None`
+                             (auto-detect).
+        :param input_shapes: list of shapes of input samples or frames of input media
+                             streams, defaults to `None` (auto-detect).
         :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                              string or a pair of a url string and an option dict.
-        :param extra_outputs: list of additional output destinations, defaults to None. Each destination
-                              may be url string or a pair of a url string and an option dict.
-        :param progress: progress callback function, defaults to None
+        :param ref_output: index or label of the reference stream to pace read operation, defaults to 0.
+                           `PipedMediaFilter.read()` operates around the reference stream.
+        :param output_options: specific options for keyed filtergraph output pads.
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-        :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
+        :param progress: progress callback function, defaults to None
+        :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
+        :                 defaults to `None` to use 1 video frame or 1024 audio frames
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
         :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                        `subprocess.Popen()` call used to run the FFmpeg, defaults
-                        to None
-        :param options: global/default FFmpeg options. For output and global options,
-                        use FFmpeg option names as is. For input options, append "_in" to the
-                        option name. For example, r_in=2000 to force the input frame rate
-                        to 2000 frames/s (see :doc:`options`). These input and output options
-                        specified here are treated as default, common options, and the
-                        url-specific duplicate options in the ``inputs`` or ``outputs``
-                        sequence will overwrite those specified here.
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
+                        used to run the FFmpeg, defaults to None
+        :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+                        will be applied to all input streams unless the option has been already defined in `stream_data`
         """
 
-        args, input_info, output_info = configure.init_media_transcoder(
-            [("pipe", opts) for opts in input_options],
-            [("pipe", opts) for opts in output_options],
+        input_args = [
+            (None, v) if isinstance(v, dict) else (v, None) for v in input_rates_or_opts
+        ]
+
+        (
+            args,
+            input_info,
+            input_ready,
+            output_info,
+            deferred_output_args,
+        ) = configure.init_media_filter(
+            expr,
+            input_types,
+            input_args,
             extra_inputs,
-            extra_outputs,
-            {"y": None, **options},
+            input_dtypes,
+            input_shapes,
+            {"probesize_in": 32, **options},
+            output_options or {},
         )
 
         super().__init__(
             ffmpeg_args=args,
             input_info=input_info,
             output_info=output_info,
-            input_ready=None,
-            init_deferred_outputs=None,
-            deferred_output_args=None,
+            input_ready=input_ready,
+            init_deferred_outputs=configure.init_media_filter_outputs,
+            deferred_output_args=deferred_output_args,
+            ref_output=ref_output,
+            blocksize=blocksize,
             default_timeout=default_timeout,
             progress=progress,
             show_log=show_log,
-            blocksize=blocksize,
             queuesize=queuesize,
             sp_kwargs=sp_kwargs,
         )
+
+
+class SIMOMediaFilter(_RawOutputsMixin, _RawInputMixin, _PipedFFmpegRunner):
+
+    def __init__(
+        self,
+        expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+        input_types: Sequence[Literal["a", "v"]],
+        *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        ref_output: int = 0,
+        output_options: dict[str, FFmpegOptionDict] | None = None,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        blocksize: int | None = None,
+        queuesize: int | None = None,
+        default_timeout: float | None = None,
+        sp_kwargs: dict | None = None,
+        **options: Unpack[FFmpegOptionDict],
+    ):
+        """Filter audio/video data streams with FFmpeg filtergraphs
+
+        :param expr: complex filtergraph expression or a list of filtergraphs
+        :param input_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
+        :param input_rates_or_opts: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
+                                    or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+        :param input_dtypes: list of numpy-style data type strings of input samples
+                             or frames of input media streams, defaults to `None`
+                             (auto-detect).
+        :param input_shapes: list of shapes of input samples or frames of input media
+                             streams, defaults to `None` (auto-detect).
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                             string or a pair of a url string and an option dict.
+        :param ref_output: index or label of the reference stream to pace read operation, defaults to 0.
+                           `PipedMediaFilter.read()` operates around the reference stream.
+        :param output_options: specific options for keyed filtergraph output pads.
+        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param progress: progress callback function, defaults to None
+        :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
+        :                 defaults to `None` to use 1 video frame or 1024 audio frames
+        :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
+                        used to run the FFmpeg, defaults to None
+        :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+                        will be applied to all input streams unless the option has been already defined in `stream_data`
+        """
+
+        input_args = [
+            (None, v) if isinstance(v, dict) else (v, None) for v in input_rates_or_opts
+        ]
+
+        (
+            args,
+            input_info,
+            input_ready,
+            output_info,
+            deferred_output_args,
+        ) = configure.init_media_filter(
+            expr,
+            input_types,
+            input_args,
+            extra_inputs,
+            input_dtypes,
+            input_shapes,
+            {"probesize_in": 32, **options},
+            output_options or {},
+        )
+
+        super().__init__(
+            ffmpeg_args=args,
+            input_info=input_info,
+            output_info=output_info,
+            input_ready=input_ready,
+            init_deferred_outputs=configure.init_media_filter_outputs,
+            deferred_output_args=deferred_output_args,
+            ref_output=ref_output,
+            blocksize=blocksize,
+            default_timeout=default_timeout,
+            progress=progress,
+            show_log=show_log,
+            queuesize=queuesize,
+            sp_kwargs=sp_kwargs,
+        )
+
+
+class MIMOMediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
+
+    def __init__(
+        self,
+        expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+        input_types: Sequence[Literal["a", "v"]],
+        *input_rates_or_opts: *tuple[int | Fraction | FFmpegOptionDict, ...],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        ref_output: int = 0,
+        output_options: dict[str, FFmpegOptionDict] | None = None,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        blocksize: int | None = None,
+        queuesize: int | None = None,
+        default_timeout: float | None = None,
+        sp_kwargs: dict | None = None,
+        **options: Unpack[FFmpegOptionDict],
+    ):
+        """Filter audio/video data streams with FFmpeg filtergraphs
+
+        :param expr: complex filtergraph expression or a list of filtergraphs
+        :param input_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
+        :param input_rates_or_opts: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
+                                    or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+        :param input_dtypes: list of numpy-style data type strings of input samples
+                             or frames of input media streams, defaults to `None`
+                             (auto-detect).
+        :param input_shapes: list of shapes of input samples or frames of input media
+                             streams, defaults to `None` (auto-detect).
+        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+                             string or a pair of a url string and an option dict.
+        :param ref_output: index or label of the reference stream to pace read operation, defaults to 0.
+                           `PipedMediaFilter.read()` operates around the reference stream.
+        :param output_options: specific options for keyed filtergraph output pads.
+        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param progress: progress callback function, defaults to None
+        :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
+        :                 defaults to `None` to use 1 video frame or 1024 audio frames
+        :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
+        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
+                        used to run the FFmpeg, defaults to None
+        :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+                        will be applied to all input streams unless the option has been already defined in `stream_data`
+        """
+
+        input_args = [
+            (None, v) if isinstance(v, dict) else (v, None) for v in input_rates_or_opts
+        ]
+
+        (
+            args,
+            input_info,
+            input_ready,
+            output_info,
+            deferred_output_args,
+        ) = configure.init_media_filter(
+            expr,
+            input_types,
+            input_args,
+            extra_inputs,
+            input_dtypes,
+            input_shapes,
+            {"probesize_in": 32, **options},
+            output_options or {},
+        )
+
+        super().__init__(
+            ffmpeg_args=args,
+            input_info=input_info,
+            output_info=output_info,
+            input_ready=input_ready,
+            init_deferred_outputs=configure.init_media_filter_outputs,
+            deferred_output_args=deferred_output_args,
+            ref_output=ref_output,
+            blocksize=blocksize,
+            default_timeout=default_timeout,
+            progress=progress,
+            show_log=show_log,
+            queuesize=queuesize,
+            sp_kwargs=sp_kwargs,
+        )
+
+
