@@ -15,22 +15,22 @@ audio_url = "tests/assets/testaudio-1m.mp3"
 outext = ".mp4"
 
 
-def test_PipedMediaReader():
-    with streams.PipedMediaReader(mult_url, t=1) as reader:
+def test_MediaReader():
+    with streams.MediaReader(mult_url, t=1) as reader:
         # data = reader.read(2)
         for data in reader:
             for k, v in data.items():
                 print(f"{k}: {len(v['buffer'])}")
 
 
-def test_PipedMediaWriter_audio():
+def test_MediaWriter_audio():
 
     ff.use("read_numpy")
 
     rates, data = ff.media.read(audio_url, t=1, ar=8000, sample_fmt="s16")
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
-    with streams.PipedMediaWriter(
+    with streams.MediaWriter(
         "pipe",
         stream_types,
         *rates.values(),
@@ -48,14 +48,14 @@ def test_PipedMediaWriter_audio():
         b = writer.readall_encoded()
 
 
-def test_PipedMediaWriter():
+def test_MediaWriter():
 
     ff.use("read_numpy")
 
     rates, data = ff.media.read(mult_url, t=1)
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
-    with streams.PipedMediaWriter(
+    with streams.MediaWriter(
         "pipe", stream_types, *rates.values(), show_log=True, f="matroska",
     ) as writer:
         # write full audio streams
@@ -77,11 +77,11 @@ def test_PipedMediaWriter():
                     frame_count[i] = j + 1
 
         writer.wait(10)
-        b = writer.read_encoded_stream(0, -1, 10)
+        b = writer.read_encoded(-1, 10)
         assert isinstance(b, bytes) and len(b) > 0
 
 
-def test_PipedMediaFilter():
+def test_MediaFilter():
 
     ff.use("read_bytes")
 
@@ -91,7 +91,7 @@ def test_PipedMediaFilter():
 
     print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
 
-    with streams.PipedMediaFilter(
+    with streams.MediaFilter(
         ["[0:V:0][1:V:0]vstack,split", "[2:a:0][3:a:0]amerge"],
         "vvaa",
         fps,
@@ -114,10 +114,10 @@ def test_PipedMediaFilter():
         assert all(v["shape"][0] == n[k] for k, v in data.items())
 
 
-def test_PipedMediaTranscoder():
+def test_MediaTranscoder():
     url = "tests/assets/testmulti-1m.mp4"
 
-    with streams.PipedMediaTranscoder(
+    with streams.MediaTranscoder(
         [],
         [{"f": "matroska", "codec": "copy", "to": 1}],
         extra_inputs=[url],
@@ -125,14 +125,14 @@ def test_PipedMediaTranscoder():
     ) as f:
         if f.wait(timeout=10):
             raise f.lasterror
-        data = f.read_encoded_stream(0, -1, timeout=10)
+        data = f.read_encoded(-1, timeout=10)
 
-    with streams.PipedMediaTranscoder(
+    with streams.MediaTranscoder(
         [{"f": "matroska"}],
         [{"f": "flac"}, {"f": "matroska", "codec": "copy"}],
         show_log=False,
     ) as f:
-        f.write_encoded_stream(0, data, timeout=10)
+        f.write_encoded(data, timeout=10)
         if f.wait(timeout=10):
             raise f.lasterror
         enc_data = f.readall_encoded(timeout=10)

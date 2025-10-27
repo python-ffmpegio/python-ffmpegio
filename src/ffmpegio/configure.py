@@ -4,12 +4,10 @@ from typing_extensions import (
     IO,
     Literal,
     get_args,
-    LiteralString,
     Any,
     TypedDict,
     Unpack,
     Callable,
-    BinaryIO,
 )
 
 from ._typing import (
