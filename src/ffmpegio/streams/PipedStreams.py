@@ -8,8 +8,8 @@ from time import time
 from typing_extensions import Literal, Unpack
 from .._typing import (
     ProgressCallable,
-    InputSourceDict,
-    OutputDestinationDict,
+    InputInfoDict,
+    OutputInfoDict,
     FFmpegOptionDict,
     RawDataBlob,
     ShapeTuple,
@@ -36,9 +36,17 @@ from .BaseFFmpegRunner import (
     BaseEncodedOutputsMixin as _BaseEncodedOutputsMixin,
 )
 
-logger = logging.getLogger("ffmpegio")
+logger = (logging.getLogger("ffmpegio"),)
 
-__all__ = ["MediaReader", "MediaWriter", "MediaTranscoder", "MediaFilter"]
+__all__ = [
+    "MediaReader",
+    "MediaWriter",
+    "MediaTranscoder",
+    "SISOMediaFilter",
+    "MISOMediaFilter",
+    "SIMOMediaFilter",
+    "MIMOMediaFilter",
+]
 
 
 class _PipedFFmpegRunner(_BaseFFmpegRunner):
@@ -47,8 +55,8 @@ class _PipedFFmpegRunner(_BaseFFmpegRunner):
     def __init__(
         self,
         ffmpeg_args: FFmpegArgs,
-        input_info: list[InputSourceDict],
-        output_info: list[OutputDestinationDict],
+        input_info: list[InputInfoDict],
+        output_info: list[OutputInfoDict],
         input_ready: Literal[True] | list[bool],
         init_deferred_outputs: InitMediaOutputsCallable | None,
         deferred_output_args: list[FFmpegOptionDict | None],
@@ -109,18 +117,18 @@ class _PipedFFmpegRunner(_BaseFFmpegRunner):
         All named pipes must be
         """
         if len(self._input_info):
-            configure.assign_input_pipes(
+            inpipe_info = configure.assign_input_pipes(
                 self._args["ffmpeg_args"],
                 self._input_info,
                 self._args["sp_kwargs"],
-            )
+            )[0]
 
         if len(self._output_info):
-            configure.assign_output_pipes(
+            outpipe_info = configure.assign_output_pipes(
                 self._args["ffmpeg_args"],
                 self._output_info,
                 self._args["sp_kwargs"],
-            )
+            )[0]
 
         configure.init_named_pipes(
             self._input_info, self._output_info, **self._pipe_kws, stack=self._stack
@@ -146,7 +154,7 @@ class _RawInputsMixin(_BaseRawInputsMixin):
 
     def _write_stream(
         self,
-        info: OutputDestinationDict,
+        info: OutputInfoDict,
         stream_id: int,
         data: RawDataBlob,
         timeout: float | None,
@@ -309,7 +317,7 @@ class _RawOutputsMixin(_BaseRawOutputsMixin):
 
     def _read_stream(
         self,
-        info: OutputDestinationDict,
+        info: OutputInfoDict,
         stream_id: int | str,
         n: int,
         timeout: float | None = None,
@@ -728,7 +736,7 @@ class MediaTranscoder(_EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRun
                         sequence will overwrite those specified here.
         """
 
-        args, input_info, output_info = configure.init_media_transcoder(
+        args, input_info, output_info = configure.init_media_transcode(
             [("pipe", opts) for opts in input_options],
             [("pipe", opts) for opts in output_options],
             extra_inputs,
@@ -750,6 +758,18 @@ class MediaTranscoder(_EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRun
             queuesize=queuesize,
             sp_kwargs=sp_kwargs,
         )
+
+
+class SISOMediaFilter: ...
+
+
+class MISOMediaFilter: ...
+
+
+class SIMOMediaFilter: ...
+
+
+class MIMOMediaFilter: ...
 
 
 class MediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):

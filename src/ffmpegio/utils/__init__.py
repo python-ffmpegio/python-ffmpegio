@@ -21,9 +21,9 @@ from ..errors import FFmpegError, FFmpegioError
 from .._typing import (
     Any,
     MediaType,
-    InputSourceDict,
+    InputInfoDict,
     RawDataBlob,
-    OutputDestinationDict,
+    OutputInfoDict,
     FFmpegUrlType,
     IO,
     Buffer,
@@ -540,7 +540,7 @@ def array_to_video_options(
 
 
 def set_sp_kwargs_stdin(
-    url: str | None, info: InputSourceDict, sp_kwargs: dict = {}
+    url: str | None, info: InputInfoDict, sp_kwargs: dict = {}
 ) -> tuple[str, dict | None, Callable]:
     """configure sp_kwargs for ffprobe/ffmpeg call to pipe-in the data via stdin
 
@@ -578,7 +578,7 @@ def analyze_input_file(
     fields: list[str],
     input_url: str | None,
     input_opts: dict,
-    input_info: InputSourceDict,
+    input_info: InputInfoDict,
     stream: str | StreamSpecDict | None = None,
 ) -> list[list]:
     """analyze a file and return requested field values of all returned streams
@@ -616,7 +616,7 @@ def analyze_input_stream(
     media_type: MediaType,
     input_url: FFmpegUrlType | None,
     input_opts: FFmpegOptionDict,
-    input_info: InputSourceDict,
+    input_info: InputInfoDict,
 ) -> list:
     """analyze a stream and return requested field values
 
@@ -655,7 +655,7 @@ def analyze_video_stream(
     stream_specifier: str,
     inurl: FFmpegUrlType,
     inopts: FFmpegOptionDict,
-    input_info: InputSourceDict,
+    input_info: InputInfoDict,
 ) -> tuple[int | Fraction | None, str | None, tuple[int, int] | None]:
     """analyze video stream core attributes
 
@@ -689,7 +689,7 @@ def analyze_audio_stream(
     stream_specifier: str,
     inurl: FFmpegUrlType,
     inopts: FFmpegOptionDict,
-    input_info: InputSourceDict,
+    input_info: InputInfoDict,
 ) -> tuple[int | None, str | None, int | None]:
     """analyze input audio stream
 
@@ -728,7 +728,7 @@ def analyze_audio_stream(
 def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject | str],
     inputs: list[tuple[FFmpegUrlType | None, FFmpegOptionDict]],
-    inputs_info: list[InputSourceDict],
+    inputs_info: list[InputInfoDict],
 ) -> tuple[list[FilterGraphObject], dict[str, FilterGraphInfoDict]]:
     """analyze filtergraphs and return requested field values
 
@@ -866,7 +866,7 @@ def analyze_complex_filtergraphs(
 
 def are_input_pipes_ready(
     inputs: list[tuple[FFmpegUrlType, FFmpegOptionDict]],
-    input_info: list[InputSourceDict],
+    input_info: list[InputInfoDict],
     must_probe: bool = False,
 ) -> list[bool]:
     """Test if all the input information is provided for raw output initialization
@@ -908,7 +908,7 @@ def are_input_pipes_ready(
 
 
 def get_output_stream_id(
-    output_info: list[OutputDestinationDict], stream: str | int
+    output_info: list[OutputInfoDict], stream: str | int
 ) -> int:
     """get output stream id
 

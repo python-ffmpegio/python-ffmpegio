@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pluggy
-from typing import Protocol, Callable
+from typing import Callable
 from .._typing import DTypeString, ShapeTuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
@@ -11,9 +11,6 @@ hookspec = pluggy.HookspecMarker("ffmpegio")
 def finder() -> tuple[str, str]:
     """find ffmpeg and ffprobe executable"""
     ...
-
-class GetInfoCallable(Protocol):
-    def __call__(self, *, obj: object) -> tuple[ShapeTuple, DTypeString]: ...
 
 
 @hookspec(firstresult=True)
@@ -38,10 +35,6 @@ def audio_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     ...
 
 
-class ToBytesCallable(Protocol):
-    def __call__(self, *, obj: object) -> memoryview: ...
-
-
 @hookspec(firstresult=True)
 def video_bytes(obj: object) -> memoryview:
     """return bytes-like object of packed video pixels, associated with `video_info()`
@@ -62,12 +55,6 @@ def audio_bytes(obj: object) -> memoryview:
     ...
 
 
-class CountDataCallable(Protocol):
-    def __call__(
-        self, *, b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
-    ) -> int: ...
-
-
 @hookspec(firstresult=True)
 def video_frames(obj: object) -> int:
     """get number of video frames in obj
@@ -86,12 +73,6 @@ def audio_samples(obj: object) -> int:
     :return: number of samples in obj
     """
     ...
-
-
-class FromBytesCallable(Protocol):
-    def __call__(
-        self, *, b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
-    ) -> object: ...
 
 
 @hookspec(firstresult=True)
@@ -150,9 +131,6 @@ def device_sink_api() -> tuple[str, dict[str, Callable]]:
     Partial definition is OK
     """
     ...
-
-class HasDataCallable(Protocol):
-    def __call__(self, *, obj: object) -> bool: ...
 
 
 @hookspec(firstresult=True)

@@ -12,8 +12,8 @@ from ._typing import (
     RawDataBlob,
     Unpack,
     FFmpegUrlType,
-    InputSourceDict,
-    OutputDestinationDict,
+    InputInfoDict,
+    OutputInfoDict,
     FFmpegOptionDict,
 )
 from .configure import (
@@ -34,8 +34,8 @@ __all__ = ["read", "write"]
 
 def _runner(
     args: FFmpegArgs,
-    input_info: list[InputSourceDict],
-    output_info: list[OutputDestinationDict],
+    input_info: list[InputInfoDict],
+    output_info: list[OutputInfoDict],
     show_log: bool | None,
     progress: ProgressCallable | None,
     sp_kwargs: dict | None,
@@ -51,11 +51,18 @@ def _runner(
     capture_log = True if need_stderr else None if show_log else True
 
     # configure named pipes
+    input_pipes = output_pipes = {}
     if len(input_info):
-        sp_kwargs = configure.assign_input_pipes(args, input_info, False, sp_kwargs)
+        input_pipes, sp_kwargs = configure.assign_input_pipes(
+            args, input_info, sp_kwargs, False
+        )
     if len(output_info):
-        sp_kwargs = configure.assign_output_pipes(args, output_info, False, sp_kwargs)
-    stack = configure.init_named_pipes(input_info, output_info)
+        output_pipes, sp_kwargs = configure.assign_output_pipes(
+            args, output_info, sp_kwargs, False
+        )
+    stack = configure.init_named_pipes(
+        input_pipes, output_pipes, input_info, output_info
+    )
 
     def on_exit(rc):
         stack.close()
@@ -86,7 +93,7 @@ def _runner(
 
 
 def _gather_outputs(
-    output_info: list[OutputDestinationDict], proc: ffmpegprocess.Popen
+    output_info: list[OutputInfoDict], proc: ffmpegprocess.Popen
 ) -> tuple[dict[str, int | Fraction], dict[str, RawDataBlob]]:
     rates = {}
     data = {}

@@ -13,8 +13,8 @@ from .. import configure, probe, ffmpegprocess
 
 from .._typing import (
     ProgressCallable,
-    InputSourceDict,
-    OutputDestinationDict,
+    InputInfoDict,
+    OutputInfoDict,
     FFmpegOptionDict,
     RawDataBlob,
     ShapeTuple,
@@ -25,7 +25,7 @@ from .._typing import (
 from ..configure import FFmpegArgs, MediaType, InitMediaOutputsCallable
 from ..threading import LoggerThread
 from ..errors import FFmpegError, FFmpegioError
-from ..plugins.hookspecs import FromBytesCallable, CountDataCallable, ToBytesCallable
+from .._typing import FromBytesCallable, CountDataCallable, ToBytesCallable
 
 logger = logging.getLogger("ffmpegio")
 
@@ -47,8 +47,8 @@ class BaseFFmpegRunner:
     def __init__(
         self,
         ffmpeg_args: FFmpegArgs,
-        input_info: list[InputSourceDict],
-        output_info: list[OutputDestinationDict],
+        input_info: list[InputInfoDict],
+        output_info: list[OutputInfoDict],
         input_ready: Literal[True] | list[bool],
         init_deferred_outputs: InitMediaOutputsCallable | None,
         deferred_output_args: list[FFmpegOptionDict | None],
@@ -275,8 +275,8 @@ class BaseRawInputsMixin:
     """write a raw media data to a specified stream (backend)"""
 
     default_timeout: float | None
-    _input_info: list[InputSourceDict]
-    _output_info: list[OutputDestinationDict]
+    _input_info: list[InputInfoDict]
+    _output_info: list[OutputInfoDict]
     _deferred_data: list[list[bytes]]
     _input_ready: Literal[True] | list[bool]
     _logger: LoggerThread | None
@@ -370,8 +370,8 @@ class BaseEncodedInputsMixin:
 
     # FFmpegRunner's properties accessed
     default_timeout: float | None
-    _input_info: list[InputSourceDict]
-    _output_info: list[OutputDestinationDict]
+    _input_info: list[InputInfoDict]
+    _output_info: list[OutputInfoDict]
     _deferred_data: list[list[bytes]]
     _input_ready: Literal[True] | list[bool]
     _logger: LoggerThread | None
@@ -387,7 +387,7 @@ class BaseEncodedInputsMixin:
     def _write_encoded_stream(
         self,
         index: int,
-        info: OutputDestinationDict,
+        info: OutputInfoDict,
         data: bytes,
         timeout: float | None,
     ):
@@ -426,8 +426,8 @@ class BaseEncodedInputsMixin:
 class BaseRawOutputsMixin:
 
     default_timeout: float | None
-    _input_info: list[InputSourceDict]
-    _output_info: list[OutputDestinationDict]
+    _input_info: list[InputInfoDict]
+    _output_info: list[OutputInfoDict]
     _deferred_data: list[list[bytes]]
     _input_ready: bool
     _logger: LoggerThread | None
@@ -511,7 +511,7 @@ class BaseRawOutputsMixin:
         counter: CountDataCallable,
         dtype: DTypeString,
         shape: ShapeTuple,
-        info: OutputDestinationDict,
+        info: OutputInfoDict,
         stream_id: int | str,
         n: int,
         timeout: float | None = None,
@@ -533,8 +533,8 @@ class BaseRawOutputsMixin:
 class BaseEncodedOutputsMixin:
 
     default_timeout: float | None
-    _input_info: list[InputSourceDict]
-    _output_info: list[OutputDestinationDict]
+    _input_info: list[InputInfoDict]
+    _output_info: list[OutputInfoDict]
     _deferred_data: list[list[bytes]]
     _input_ready: bool
     _logger: LoggerThread
@@ -555,7 +555,7 @@ class BaseEncodedOutputsMixin:
 
     def _read_encoded_stream(
         self,
-        info: OutputDestinationDict,
+        info: OutputInfoDict,
         n: int,
         timeout: float | None = None,
     ) -> bytes:

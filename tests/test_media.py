@@ -20,12 +20,14 @@ url2 = "tests/assets/testaudio-1m.mp3"
     ],
 )
 def test_media_read(urls, kwargs):
+    assert False
     rates, data = ff.media.read(*urls, **kwargs)
     print(rates)
     print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
 
 
 def test_media_read_filter_complex():
+    assert False
     urls = (url2, url) # aud + mul
     kwargs = dict(t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono;[1:v:1]setpts=0.5*PTS')
     # kwargs = dict(map=(['[vout]','[aout]']), t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono[aout];[1:v:1]setpts=0.5*PTS[vout]')
@@ -35,6 +37,7 @@ def test_media_read_filter_complex():
 
 
 def test_media_write():
+    assert False
     fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3")
 
     fps, F = ff.video.read("tests/assets/testvideo-1m.mp4", vframes=120)
@@ -54,6 +57,7 @@ def test_media_write():
 
 
 def test_media_write_audio_merge():
+    assert False
     stream1 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=8000, sample_fmt="s16")
     stream2 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=16000, sample_fmt="flt")
     stream3 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=4000, sample_fmt="dbl")
@@ -77,6 +81,7 @@ def test_media_write_audio_merge():
 
 
 def test_media_filter():
+    assert False
     fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3")
 
     fps, F = ff.video.read("tests/assets/testvideo-1m.mp4", vframes=120)

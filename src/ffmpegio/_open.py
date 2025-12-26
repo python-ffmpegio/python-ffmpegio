@@ -369,8 +369,8 @@ def open(
     mode: LiteralString, #["f(v|a)+", "(v|a)+->(v|a)+"],
     input_rate: int | Fraction,
     *,
-    input_shape: ShapeTuple = None,
-    input_dtype: DTypeString = None,
+    input_shape: ShapeTuple|None = None,
+    input_dtype: DTypeString|None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     queuesize: int | None = None,
@@ -409,7 +409,7 @@ def open(
 @overload
 def open(
     urls_fgs: str | FilterGraphObject,
-    mode: LiteralString #["f(v|a)+", "fa", "v->v", "a->a"],
+    mode: LiteralString, #["f(v|a)+", "fa", "v->v", "a->a"],
     input_rate: int | Fraction,
     *,
     input_shape: ShapeTuple = None,

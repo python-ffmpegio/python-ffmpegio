@@ -6,8 +6,6 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from ..plugins.hookspecs import FromBytesCallable, CountDataCallable, ToBytesCallable
-
 from typing_extensions import Unpack, Literal
 from collections.abc import Sequence
 from .._typing import (
@@ -16,8 +14,11 @@ from .._typing import (
     ProgressCallable,
     RawDataBlob,
     FFmpegOptionDict,
-    InputSourceDict,
-    OutputDestinationDict,
+    InputInfoDict,
+    RawOutputInfoDict,
+    FromBytesCallable,
+    CountDataCallable,
+    ToBytesCallable,
 )
 
 from fractions import Fraction
@@ -36,6 +37,10 @@ __all__ = [ "SimpleVideoReader", "SimpleAudioReader", "SimpleVideoWriter",
 # fmt:on
 
 
+# info["reader"].read(n, timeout)
+# info["writer"].write(None, None if timeout is None else timeout - time())
+
+
 class SimpleReaderBase(BaseFFmpegRunner):
     """queue-less SISO media reader class"""
 
@@ -43,8 +48,8 @@ class SimpleReaderBase(BaseFFmpegRunner):
         self,
         *,
         ffmpeg_args: FFmpegArgs,
-        input_info: list[InputSourceDict],
-        output_info: list[OutputDestinationDict],
+        input_info: list[InputInfoDict],
+        output_info: list[RawOutputInfoDict],
         from_bytes: FromBytesCallable,
         to_memoryview: ToBytesCallable,
         show_log: bool | None,
@@ -132,10 +137,47 @@ class SimpleReaderBase(BaseFFmpegRunner):
         """number of frames/samples read"""
         return self._n0
 
-    @property
     def output_bytesize(self) -> int | None:
         """number of bytes per output sample/pixel"""
         return get_bytesize(self.output_shape, self.output_dtype)
+
+    @property
+    def output_labels(self) -> list[str | None]:
+        """FFmpeg/custom labels of output streams"""
+        return [self._output_info[0].get("user_map", None)]
+
+    @property
+    def output_types(self) -> list[MediaType | None]:
+        """media type associated with the output streams (key)"""
+        return [self._output_info[0]["media_type"]]
+
+    @property
+    def output_rates(self) -> list[int | Fraction | None]:
+        """sample or frame rates associated with the output streams (key)"""
+        info = self._output_info[0]
+        return [info["raw_info"][2] if "raw_info" in info else None]
+
+    @property
+    def output_dtypes(self) -> list[DTypeString | None]:
+        """frame/sample data type associated with the output streams (key)"""
+        info = self._output_info[0]
+        return [info["raw_info"][0] if "raw_info" in info else None]
+
+    @property
+    def output_shapes(self) -> list[ShapeTuple | None]:
+        """frame/sample shape associated with the output streams (key)"""
+        info = self._output_info[0]
+        return [info["raw_info"][1] if "raw_info" in info else None]
+
+    @property
+    def output_counts(self) -> list[int]:
+        """number of frames/samples read"""
+        return [self._n0]
+
+    @property
+    def output_bytesizes(self) -> list[int | None]:
+        """number of bytes per output sample/pixel"""
+        return [get_bytesize(self.output_shape, self.output_dtype)]
 
     def _assign_pipes(self):
 
@@ -226,7 +268,7 @@ class SimpleVideoReader(SimpleReaderBase):
         )
 
         if len(output_info) != 1 or output_info[0]["media_type"] != "video":
-            raise FFmpegioError(f'no output video stream found in "{url}" ({map=})')
+            raise FFmpegioError(f'no output video stream found in "{urls}" ({map=})')
 
         if not all(ready):
             raise RuntimeError(
@@ -300,8 +342,8 @@ class SimpleWriterBase(BaseFFmpegRunner):
     def __init__(
         self,
         ffmpeg_args: FFmpegArgs,
-        input_info: list[InputSourceDict],
-        output_info: list[OutputDestinationDict],
+        input_info: list[InputInfoDict],
+        output_info: list[RawOutputInfoDict],
         input_ready: Literal[True] | list[bool],
         init_deferred_outputs: InitMediaOutputsCallable | None,
         deferred_output_args: list[FFmpegOptionDict | None],
