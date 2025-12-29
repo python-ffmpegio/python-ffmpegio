@@ -38,7 +38,15 @@ from ..filtergraph.presets import temp_video_src, temp_audio_src
 from .concat import FFConcat
 
 FFmpegInputUrlComposite = FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
+"""all input types supported by ffmpegio"""
 FFmpegOutputUrlComposite = FFmpegUrlType | IO
+"""all output types supported by ffmpegio"""
+
+FFmpegInputUrlNoPipe = FFmpegUrlType | FFConcat | FilterGraphObject
+"""all non-piped input types supported by ffmpegio"""
+
+FFmpegOutputUrlNoPipe = FFmpegUrlType
+"""all non-piped output types supported by ffmpegio"""
 
 # TODO: auto-detect endianness
 # import sys
@@ -130,7 +138,7 @@ def alpha_change(
     return d if dir is None else d > 0 if dir > 0 else d < 0 if dir < 0 else d == 0
 
 
-def get_pixel_format(fmt: str) -> tuple[str, int]:
+def get_pixel_format(fmt: str) -> tuple[DTypeString, int]:
     """get data format and number of components associated with video pixel format
 
     :param fmt: ffmpeg pix_fmt
@@ -251,9 +259,7 @@ def get_audio_codec(fmt: str) -> tuple[str, str]:
         raise ValueError(f"{fmt} is not a valid raw audio sample_fmt")
 
 
-def get_audio_format(
-    fmt: str, ac: int | None = None
-) -> str | tuple[DTypeString, ShapeTuple]:
+def get_audio_format(fmt: str, ac: int | None = None) -> tuple[DTypeString, ShapeTuple]:
     """get audio sample data format
 
     :param fmt: ffmpeg sample_fmt or data type string
@@ -907,9 +913,7 @@ def are_input_pipes_ready(
     ]
 
 
-def get_output_stream_id(
-    output_info: list[OutputInfoDict], stream: str | int
-) -> int:
+def get_output_stream_id(output_info: list[OutputInfoDict], stream: str | int) -> int:
     """get output stream id
 
     :param output_info: list of output stream information

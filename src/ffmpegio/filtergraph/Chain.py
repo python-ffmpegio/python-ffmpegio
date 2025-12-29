@@ -86,7 +86,9 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     Output pads: ({self.get_num_outputs()}): {', '.join((str(id) for id,*_ in self.iter_output_pads()))}
 """
 
-    def __getitem__(self, key: int | slice | tuple[int | slice, int | slice]):
+    def __getitem__(
+        self, key: int | slice | tuple[int | slice, int | slice]
+    ) -> fgb.Filter:
         if not isinstance(key, (int, slice)):
             i, key = key
             if i != 0:
@@ -104,7 +106,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number 
+        :param chain: id of the chain, defaults to None to get the total number
                       of filters across all chains
         """
 

@@ -230,7 +230,7 @@ def write(
 
     configure.add_url(ffmpeg_args, "output", url, options)
 
-    configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
+    # configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
 
     kwargs = {**sp_kwargs} if sp_kwargs else {}
     kwargs.update(

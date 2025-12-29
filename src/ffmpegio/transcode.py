@@ -103,8 +103,8 @@ def transcode(
         )
 
     # convert basic VF options to vf option
-    for i in range(len(output_info)):
-        configure.build_basic_vf(args, None, i)
+    # for i in range(len(output_info)):
+    #     configure.build_basic_vf(args, None, i)
 
     kwargs = {**sp_kwargs} if sp_kwargs else {}
 

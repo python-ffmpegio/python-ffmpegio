@@ -263,10 +263,11 @@ class SimpleVideoReader(SimpleReaderBase):
         # assign the input stream
         map = "0:V:0" if stream is None else stream_spec_to_map_option(stream)
 
-        args, input_info, ready, output_info, _ = configure.init_media_read(
+        args, input_info, output_info, _ = configure.init_media_read(
             [*urls], [map], options
         )
-
+        ready = output_info is not None
+        
         if len(output_info) != 1 or output_info[0]["media_type"] != "video":
             raise FFmpegioError(f'no output video stream found in "{urls}" ({map=})')
 

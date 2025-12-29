@@ -208,7 +208,7 @@ def write(
     outopts = configure.add_url(ffmpeg_args, "output", url, options)[1][1]
     outopts["frames:v"] = 1
 
-    configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
+    # configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
 
     kwargs = {**sp_kwargs} if sp_kwargs else {}
     kwargs.update(

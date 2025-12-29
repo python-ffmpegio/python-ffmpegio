@@ -178,6 +178,14 @@ def test_process_url_inputs(url, opts, defopts, ret):
             fileobj.close()
 
 
+from functools import cache
+
+
+@cache
+def get_output_callables(media_type):
+    return configure.get_raw_output_plugin_callables(media_type)
+
+
 @pytest.mark.parametrize(
     ("inputs", "input_info", "filters_complex", "ret"),
     [
@@ -190,6 +198,7 @@ def test_process_url_inputs(url, opts, defopts, ret):
                     "media_type": mtype,
                     "input_file_id": 0,
                     "input_stream_id": i,
+                    **get_output_callables(mtype),
                 }
                 for (i, mtype), j in zip(mul_streams, [0, 0, 1, 1])
             },
@@ -203,11 +212,13 @@ def test_process_url_inputs(url, opts, defopts, ret):
                     "media_type": "video",
                     "input_file_id": 0,
                     "input_stream_id": 0,
+                    **get_output_callables("video"),
                 },
                 "1:a:0": {
                     "media_type": "audio",
                     "input_file_id": 1,
                     "input_stream_id": 0,
+                    **get_output_callables("audio"),
                 },
             },
         ),
@@ -216,8 +227,16 @@ def test_process_url_inputs(url, opts, defopts, ret):
             [{"src_type": "url"}],
             ["split=outputs=2"],
             {
-                "[out0]": {"media_type": "video", "linklabel": "[out0]"},
-                "[out1]": {"media_type": "video", "linklabel": "[out1]"},
+                "[out0]": {
+                    "media_type": "video",
+                    "linklabel": "[out0]",
+                    **get_output_callables("video"),
+                },
+                "[out1]": {
+                    "media_type": "video",
+                    "linklabel": "[out1]",
+                    **get_output_callables("video"),
+                },
             },
         ),
     ],

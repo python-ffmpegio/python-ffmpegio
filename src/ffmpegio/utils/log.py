@@ -3,6 +3,8 @@ from fractions import Fraction
 
 from . import layout_to_channels
 from ..caps import sample_fmts
+from .._typing import RawStreamInfoTuple, Sequence
+from .. import utils
 
 _re_audio = re.compile(r"(?:(\d+) Hz, )?(.+)")
 
@@ -111,19 +113,19 @@ _re_stream = re.compile(
 )
 
 
-def extract_output_stream(logs, file_id=0, stream_id=0, hint=None):
+def extract_output_stream(
+    logs: str | Sequence[str],
+    file_id: int = 0,
+    stream_id: int = 0,
+    hint: int | None = None,
+) -> dict:
     """extract output stream info from the log lines
 
     :param logs: lines of FFmpeg log messages
-    :type logs: seq(str)
     :param file_id: output file id, defaults to 0
-    :type file_id: int, optional
     :param stream_id: output stream id, defaults to 0
-    :type stream_id: int, optional
     :param hint: starting log line index to search, defaults to None
-    :type hint: int, optional
     :return: stream information
-    :rtype: dict
     """
     if isinstance(logs, str):
         logs = re.split(r"[\n\r]+", logs)
@@ -155,3 +157,36 @@ def extract_output_stream(logs, file_id=0, stream_id=0, hint=None):
         raise RuntimeError(f"parser for {type.lower()} codec is not defined.")
 
     return sinfo
+
+
+def extract_output_audio_raw_info(
+    logs: str | Sequence[str], file_id=0, stream_id=0, hint=None
+) -> RawStreamInfoTuple:
+    """extract output stream info from the log lines
+
+    :param logs: lines of FFmpeg log messages
+    :param file_id: output file id, defaults to 0
+    :param stream_id: output stream id, defaults to 0
+    :param hint: starting log line index to search, defaults to None
+    :return: stream information
+    """
+
+    info = extract_output_stream(logs, file_id, stream_id, hint)
+    return utils.get_audio_format(info["sample_fmt"])[0], info["ac"], info["ar"]
+
+
+def extract_output_video_raw_info(
+    logs: str | Sequence[str], file_id=0, stream_id=0, hint=None
+) -> RawStreamInfoTuple:
+    """extract output stream info from the log lines
+
+    :param logs: lines of FFmpeg log messages
+    :param file_id: output file id, defaults to 0
+    :param stream_id: output stream id, defaults to 0
+    :param hint: starting log line index to search, defaults to None
+    :return: stream information
+    """
+
+    info = extract_output_stream(logs, file_id, stream_id, hint)
+    dtype, nb_comp = utils.get_pixel_format(info["pix_fmt"])
+    return dtype, (*info["s"][::-1], nb_comp), info["r"]

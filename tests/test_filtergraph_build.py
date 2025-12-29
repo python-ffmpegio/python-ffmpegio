@@ -76,3 +76,14 @@ def test_attach(left, right, left_on, right_on, ret):
     else:
         fg = fgb.attach(left, right, left_on, right_on)
         assert fg.compose() == ret
+
+
+def test_join_bug():
+    af1 = fgb.Chain("aevalsrc=0,aformat=sample_fmts=s16:r=44100")
+    af2 = fgb.Graph(
+        "channelmap=channel_layout=stereo:map=FC|FC,bandpass=channels=FL,aresample=22050"
+    )
+    af3 = fgb.Chain("channelmap=channel_layout=stereo:map=FC|FC,bandpass=channels=FL,aresample=22050"
+    )
+    af = af1 + af2
+    assert af==af1+af3

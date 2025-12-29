@@ -1,91 +1,41 @@
-"""Audio Read/Write Module
-"""
+"""Audio Read/Write Module"""
 
+from __future__ import annotations
+
+import logging
 import warnings
-from . import ffmpegprocess, utils, configure, FFmpegError, plugins, analyze
-from .utils import log as log_utils
+
+from . import configure, plugins, analyze, FFmpegioError
+
+from ._typing import TYPE_CHECKING, Any, ProgressCallable, RawDataBlob
+
+if TYPE_CHECKING:
+    from .configure import (
+        FFmpegInputOptionTuple,
+        FFmpegInputUrlComposite,
+        FFmpegInputUrlNoPipe,
+        FFmpegNoPipeInputOptionTuple,
+        FFmpegOutputUrlNoPipe,
+        FFmpegNoPipeOutputOptionTuple,
+    )
+    from .filtergraph.abc import FilterGraphObject
+
+from ._std_runners import run_and_return_raw, run_and_return_encoded
+
+logger = logging.getLogger("ffmpegio")
 
 __all__ = ["create", "read", "write", "filter", "detect"]
 
 
-def _run_read(
+def create(
+    expr: str,
     *args,
+    squeeze=True,
+    progress=None,
     show_log=None,
     sp_kwargs=None,
-    **kwargs,
+    **options,
 ):
-    """run FFmpeg and retrieve audio stream data
-    :param *args ffmpegprocess.run arguments
-    :type *args: tuple
-    :param sample_fmt_in: input sample format if known but not specified in the ffmpeg arg dict, defaults to None
-    :type sample_fmt_in: str, optional
-    :param ac_in: number of input channels if known but not specified in the ffmpeg arg dict, defaults to None
-    :type ac_in: int, optional
-    :param ar_in: input sampling rate if known but not specified in the ffmpeg arg dict, defaults to None
-    :type ar_in: int, optional
-    :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
-    :type sp_kwargs: dict, optional
-    :param **kwargs ffmpegprocess.run keyword arguments
-    :type **kwargs: tuple
-    :return: [description]
-    :rtype: [type]
-    """
-    """
-
-    :param show_log: True to show FFmpeg log messages on the console, 
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
-    :rtype: (int, str)
-    """
-
-    outopts = args[0]["outputs"][0][1]
-    outopts["map"] = "0:a:0"
-    dtype, ac, rate = configure.finalize_audio_read_opts(
-        args[0],
-        input_info=[
-            {"src_type": "filtergraph" if outopts.get("f", None) == "lavfi" else "url"}
-        ],
-    )
-
-    if sp_kwargs is not None:
-        kwargs = {**sp_kwargs, **kwargs}
-
-    if ac is None or rate is None:
-        configure.clear_loglevel(args[0])
-
-        out = ffmpegprocess.run(*args, capture_log=True, **kwargs)
-        if show_log:
-            print(out.stderr)
-        if out.returncode:
-            raise FFmpegError(out.stderr)
-
-        info = log_utils.extract_output_stream(out.stderr)
-
-        ac = info.get("ac", None)
-        ac = ac and (ac,)
-        rate = info.get("ar", None)
-    else:
-        out = ffmpegprocess.run(
-            *args,
-            capture_log=None if show_log else True,
-            **kwargs,
-        )
-        if out.returncode:
-            raise FFmpegError(out.stderr, show_log)
-
-    return rate, plugins.get_hook().bytes_to_audio(
-        b=out.stdout, dtype=dtype, shape=ac, squeeze=False
-    )
-
-
-def create(expr, *args, progress=None, show_log=None, sp_kwargs=None, **options):
     """Create audio data using an audio source filter
 
     :param expr: name of the source filter or full filter expression
@@ -94,6 +44,9 @@ def create(expr, *args, progress=None, show_log=None, sp_kwargs=None, **options)
                     a single-filter expr, and they will overwrite the
                     options set by expr.
     :type \\*args: seq, optional
+    :param squeeze: False to return 2D data with the 2nd dimension as the audio
+                    channels, defaults to True to reduce monaural data to 1D,
+                    eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
     :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
@@ -131,53 +84,67 @@ def create(expr, *args, progress=None, show_log=None, sp_kwargs=None, **options)
 
     """
 
-    input_options = utils.pop_extra_options(options, "_in")
-    output_options = utils.pop_extra_options(options, "_out")
     url, t_, options = configure.config_input_fg(expr, args, options)
-    options = {**options, **output_options}
 
-    if (
-        t_ is None
-        and not any(a in input_options for a in ("t", "to"))
-        and not any(a in options for a in ("t", "to", "frames:a", "aframes"))
+    if t_ is None and not any(
+        a in options for a in ("t_in", "to_in", "t", "to", "frames:a", "aframes")
     ):
         warnings.warn(
             "neither input nor output duration specified. this function call may hang."
         )
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(ffmpeg_args, "input", url, {**input_options, "f": "lavfi"})[1][1]
-    configure.add_url(ffmpeg_args, "output", "-", {"sample_fmt": "dbl", **options})[1][
-        1
-    ]
-
-    return _run_read(
-        ffmpeg_args,
+    return read(
+        url,
+        squeeze=squeeze,
         progress=progress,
         show_log=show_log,
         sp_kwargs=sp_kwargs,
+        **options,
     )
 
 
-def read(url, progress=None, show_log=None, sp_kwargs=None, **options):
+def read(
+    url: (
+        FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+    ),
+    *,
+    extra_outputs: (
+        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    ) = None,
+    squeeze: bool = True,
+    progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
+    **options,
+) -> tuple[int, RawDataBlob]:
     """Read audio samples.
 
-    :param url: URL of the audio file to read.
-    :type url: str
+    :param url: URL of the audio file to read or a list of URLs to be used by
+                complex filtergraph. Each url may be accompanied by its own input
+                options (a tuple pair of url and its option dict). These options
+                supersede the input options given with keyword arguments with `'_in'`
+                suffix.
+    :param extra_outputs: list of additional encoded output sources, defaults to
+                          None. Each destination may be url string or a pair of
+                          a url string and an option dict.
+    :param squeeze: False to return 2D data with the 2nd dimension as the audio
+                    channels, defaults to True to reduce monaural data to 1D,
+                    eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
-    :return: sample rate in samples/second and audio data object specified by `bytes_to_audio` plugin hook
-    :rtype: tuple(float, object)
+    :return rate: sample rate in samples/second
+    :return data: audio data object specified by selected `bytes_to_audio` plugin hook.
+                  (pre v0.12.0) the output shape is always 2D with the time axis in the
+                  first dimension. (since v0.12.0) The shape is default to 1D if
+                  data is monaural. To match the shape
 
     .. note:: Even if :code:`start_time` option is set, all the prior samples will be read.
         The retrieved data will be truncated before returning it to the caller.
@@ -188,25 +155,30 @@ def read(url, progress=None, show_log=None, sp_kwargs=None, **options):
 
     """
 
-    input_options = utils.pop_extra_options(options, "_in")
-    url, stdin, input = configure.check_url(
-        url, False, format=input_options.get("f", None)
+    # use user-specified map or default 'a:0' map
+    output_map = options.pop("map", "a:0")
+
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, _, output_info, __ = configure.init_media_read(
+        url if isinstance(url, list) else [url],
+        [output_map],
+        options,
+        extra_outputs,
+        squeeze,
     )
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(ffmpeg_args, "input", url, input_options)[1][1]
-    configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
+    if output_info is None:
+        raise FFmpegioError(
+            "Unknown configuration error occurred. Necessary output information could not be collected."
+        )
 
-    # override user specified stdin and input if given
-    sp_kwargs = {**sp_kwargs} if sp_kwargs else {}
-    sp_kwargs["stdin"] = stdin
-    sp_kwargs["input"] = input
-
-    return _run_read(
-        ffmpeg_args,
-        progress=progress,
-        show_log=show_log,
-        sp_kwargs=sp_kwargs,
+    return run_and_return_raw(
+        args,
+        input_info,
+        output_info,
+        progress,
+        show_log,
+        sp_kwargs,
     )
 
 
@@ -214,13 +186,16 @@ def write(
     url,
     rate_in,
     data,
+    *,
+    extra_inputs: (
+        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    ) = None,
     progress=None,
     overwrite=None,
     show_log=None,
-    extra_inputs=None,
     sp_kwargs=None,
     **options,
-):
+) -> bytes | None:
     """Write a NumPy array to an audio file.
 
     :param url: URL of the audio file to write.
@@ -236,7 +211,7 @@ def write(
     :type overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_log: bool, optional
+    :type show_slog: bool, optional
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
     :type extra_inputs: seq(str|(str,dict))
@@ -248,89 +223,86 @@ def write(
     :type \\**options: dict, optional
     """
 
-    url, stdout, _ = configure.check_url(url, True)
-    input_options = utils.pop_extra_options(options, "_in")
+    ac, dtype = plugins.get_hook().audio_info(obj=data)
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(
-        ffmpeg_args,
-        "input",
-        *configure.array_to_audio_input(rate_in, data=data, **input_options),
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, _, output_info, __ = configure.init_media_write(
+        [url], ["a"], [(rate_in, data)], extra_inputs, options, [dtype], [(ac,)]
     )
 
-    # add extra input arguments if given
-    if extra_inputs is not None:
-        configure.add_urls(ffmpeg_args, "input", extra_inputs)
-
-    configure.add_url(ffmpeg_args, "output", url, options)
-
-    kwargs = {**sp_kwargs} if sp_kwargs else {}
-    kwargs.update(
-        {
-            "input": plugins.get_hook().audio_bytes(obj=data),
-            "stdout": stdout,
-            "progress": progress,
-            "overwrite": overwrite,
-        }
+    return run_and_return_encoded(
+        progress, overwrite, show_log, sp_kwargs, args, input_info, output_info
     )
-    kwargs["capture_log"] = None if show_log else False
-
-    out = ffmpegprocess.run(ffmpeg_args, **kwargs)
-    if out.returncode:
-        raise FFmpegError(out.stderr, show_log)
 
 
 def filter(
-    expr,
-    input_rate,
-    input,
-    progress=None,
-    show_log=None,
-    sp_kwargs=None,
+    expr: str | FilterGraphObject | None,
+    input_rate: int,
+    input: RawDataBlob,
+    *,
+    extra_inputs: (
+        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    ) = None,
+    extra_outputs: (
+        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    ) = None,
+    squeeze: bool = True,
+    progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
     **options,
-):
+) -> tuple[int, RawDataBlob]:
     """Filter audio samples.
 
-    :param expr: SISO filter graph or None if implicit filtering via output options.
-    :type expr: str, None
+    :param expr: filter graph or None if implicit filtering via output options.
     :param input_rate: Input sample rate in samples/second
-    :type input_rate: int
     :param input: input audio data, accessed by `audio_info()` and `audio_bytes()` plugin hooks.
-    :type input: object
+    :param extra_inputs: list of additional input sources, defaults to None.
+                         Each source may be url string or a pair of a url string
+                         and an option dict.
+    :param extra_outputs: list of additional encoded output sources, defaults to
+                          None. Each destination may be url string or a pair of
+                          a url string and an option dict.
+    :param squeeze: False to always returning 2D data with the 2nd dimension as
+                    the audio channels, defaults to True to reduce monaural data
+                    to 1D, eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_log: bool, optional
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
     :return: output sampling rate and audio data object, created by `bytes_to_audio` plugin hook
-    :rtype: tuple(int, object)
 
     """
 
-    input_options = utils.pop_extra_options(options, "_in")
+    if expr and extra_inputs is None and extra_outputs is None:
+        # guaranteed SISO filtering
+        options["filter:a"] = expr
+        expr = None
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(
-        ffmpeg_args,
-        "input",
-        *configure.array_to_audio_input(input_rate, data=input, **input_options),
+    ac, dtype = plugins.get_hook().audio_info(obj=input)
+
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, _, output_info, __ = configure.init_media_filter(
+        expr,
+        ["a"],
+        [(input_rate, input)],
+        extra_inputs,
+        extra_outputs,
+        [dtype],
+        [(ac,)],
+        options,
+        {},
+        squeeze,
     )
-    outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
-    if expr:
-        outopts["filter:a"] = expr
 
-    return _run_read(
-        ffmpeg_args,
-        input=plugins.get_hook().audio_bytes(obj=input),
-        progress=progress,
-        show_log=show_log,
-        sp_kwargs=sp_kwargs,
+    if output_info is None:
+        raise RuntimeError("Something went wrong in setting up filter operation...")
+
+    return run_and_return_raw(
+        args, input_info, output_info, progress, show_log, sp_kwargs
     )
 
 

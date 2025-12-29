@@ -587,7 +587,13 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             yield v
 
     def get_num_inputs(self, chainable_only=False):
-        return len(list(self.iter_input_pads(exclude_stream_specs=True, chainable_only=chainable_only)))
+        return len(
+            list(
+                self.iter_input_pads(
+                    exclude_stream_specs=True, chainable_only=chainable_only
+                )
+            )
+        )
 
     def get_num_outputs(self, chainable_only=False):
         return len(list(self.iter_output_pads(chainable_only=chainable_only)))
@@ -801,7 +807,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """remove an input/output label
 
         :param label: linkn label
-        :param inpad: specify input pad if multiple pads receives the same input 
+        :param inpad: specify input pad if multiple pads receives the same input
                       stream, defaults to `None` to delete all input pads.
         """
 
@@ -841,7 +847,6 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         :param chain_id: chain id
         :param check_input: False to check only for single-output, defaults to True
         :param check_output: False to check only for single-input, defaults to True
-        :param check_link: True to return True if and only if the chain has no active connection, defaults to True
         """
 
         try:
@@ -849,13 +854,62 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         except IndexError:
             raise ValueError(f"{chain_id=} is an invalid chain id.")
 
-        if check_input and chain.get_num_inputs() != 1:
+        if len(chain) == 0:
+            return False  # empty chain
+
+        if check_input and chain[0].get_num_inputs() != 1:
             return False
 
-        if check_output and chain.get_num_outputs() != 1:
+        if check_output and chain[-1].get_num_outputs() != 1:
             return False
 
         return not (check_link and self._links.chain_has_link(chain_id))
+
+    def is_chain_prependable(self, chain_id: int) -> bool:
+        """True if another chain can be prepended to the specified filter chain"""
+
+        try:
+            chain = self[chain_id]
+        except IndexError:
+            raise ValueError(f"{chain_id=} is an invalid chain id.")
+
+        if len(chain) == 0:
+            return True  # empty chain
+
+        # must have at least one input pad
+        nin = chain[0].get_num_inputs()
+        if nin == 0:
+            return False
+
+        inpad = (chain_id, 0, nin - 1)
+        conn_from = self._links.input_dict().get(inpad)
+
+        return conn_from is None or isinstance(conn_from, str)
+
+    def is_chain_appendable(self, chain_id: int) -> bool:
+        """True if another chain can be appended to the specified filter chain
+
+        :param chain_id: chain id
+        """
+
+        try:
+            chain = self[chain_id]
+        except IndexError:
+            raise ValueError(f"{chain_id=} is an invalid chain id.")
+
+        if len(chain) == 0:
+            return True  # empty chain
+
+        nout = chain[-1].get_num_outputs()
+        if nout == 0:  # a sink filter, no connectivity
+            return False
+
+        # the last output pad must not be already connected
+        filter_id = len(chain) - 1
+        outpad = (chain_id, filter_id, nout - 1)
+
+        conn_to = self._links.output_dict().get(outpad)
+        return conn_to is None or isinstance(conn_to, str)
 
     def _stack(
         self,
@@ -959,13 +1013,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
                 # label check
                 if (
-                    fg.is_chain_siso(
-                        ochain, check_input=False, check_output=True, check_link=False
-                    )
+                    fg.is_chain_appendable(ochain)
                     and not fg._links.are_linked(None, outpad)
-                    and right.is_chain_siso(
-                        ichain, check_input=True, check_output=False, check_link=True
-                    )
+                    and right.is_chain_prependable(ichain)
                 ):
                     # add the right chain to the matching left chain
                     fg[ochain].extend(right[ichain])
@@ -1060,13 +1110,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
                 # label check
                 if (
-                    fg.is_chain_siso(
-                        ichain, check_input=True, check_output=False, check_link=False
-                    )
+                    fg.is_chain_prependable(ichain)
                     and not fg._links.are_linked(inpad, None)
-                    and left.is_chain_siso(
-                        ochain, check_input=False, check_output=True, check_link=True
-                    )
+                    and left.is_chain_appendable(ochain)
                 ):
                     # add the right chain to the matching left chain
                     left_chain = left[ochain]

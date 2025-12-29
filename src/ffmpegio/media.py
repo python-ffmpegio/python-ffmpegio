@@ -13,7 +13,10 @@ from ._typing import (
     Unpack,
     FFmpegUrlType,
     InputInfoDict,
+    RawInputInfoDict,
     OutputInfoDict,
+    RawOutputInfoDict,
+    OutputPipeInfoDict,
     FFmpegOptionDict,
 )
 from .configure import (
@@ -25,7 +28,7 @@ from .configure import (
 from fractions import Fraction
 
 from . import ffmpegprocess, utils, configure, FFmpegError, plugins
-from .utils.log import extract_output_stream
+from .utils import log
 from .errors import FFmpegioError
 from .filtergraph.abc import FilterGraphObject
 
@@ -93,50 +96,34 @@ def _runner(
 
 
 def _gather_outputs(
-    output_info: list[OutputInfoDict], proc: ffmpegprocess.Popen
+    pipe_info: dict[int, OutputPipeInfoDict],
+    output_info: list[RawOutputInfoDict],
+    proc: ffmpegprocess.Popen,
 ) -> tuple[dict[str, int | Fraction], dict[str, RawDataBlob]]:
     rates = {}
     data = {}
-    for i, info in enumerate(output_info):
+    for i, pinfo in pipe_info.items():
+        info = output_info[i]
         spec = info["user_map"]
-        b = info["reader"].read_all()
+        b = pinfo["reader"].read_all()
 
         # get datablob info from stderr if needed
+        dtype, shape, rate = info["raw_info"]
         missing = any(v is None for v in info["raw_info"])
 
         if missing:
             logger.warning('Retrieving stream "%s" information from FFmpeg log.', spec)
-            new_info = extract_output_stream(proc.stderr, i)
+            if proc.stderr is None:
+                raise FFmpegioError(
+                    "stderr was not captured to compose the output data"
+                )
+            dtype, shape, rate = (
+                log.extract_output_video_raw_info
+                if info["media_type"] == "video"
+                else log.extract_output_audio_raw_info
+            )(proc.stderr.readlines(), i)
 
-        if info["media_type"] == "video":
-            dtype, shape, rate = info["raw_info"]
-
-            if missing:
-                if dtype is None:
-                    pix_fmt = new_info["pix_fmt"]
-                    dtype = utils.get_pixel_format(pix_fmt)[0]
-                if shape is None:
-                    shape = new_info["s"]
-                if rate is None:
-                    rate = new_info["r"]
-
-            data[spec] = plugins.get_hook().bytes_to_video(
-                b=b, dtype=dtype, shape=shape, squeeze=False
-            )
-        else:  # 'audio'
-            dtype, shape, rate = info["raw_info"]
-            if missing:
-                if dtype is None:
-                    sample_fmt = new_info["sample_fmt"]
-                    dtype = utils.get_audio_format(sample_fmt)
-                if shape is None:
-                    shape = (new_info["ac"],)
-                if rate is None:
-                    rate = new_info["ar"]
-
-            data[spec] = plugins.get_hook().bytes_to_audio(
-                b=b, dtype=dtype, shape=shape, squeeze=False
-            )
+        data[spec] = info["bytes2data"](b=b, dtype=dtype, shape=shape, squeeze=False)
         rates[spec] = rate
 
         return rates, data

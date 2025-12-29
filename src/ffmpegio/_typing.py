@@ -100,8 +100,8 @@ value           description
 =============== ================================================================
 """
 
-FFmpegUrlType = str | Path | UrlParseResult
-"""input and output file/stream urls 
+FFmpegUrlType = str
+"""input and output file/stream urls (str or a stringifiable object)
 """
 
 FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
@@ -158,7 +158,7 @@ class ToBytesCallable(Protocol):
     :return: a FFmpeg raw media stream compatible bytes
     """
 
-    def __call__(self, obj: object) -> memoryview: ...
+    def __call__(self, *, obj: object) -> memoryview: ...
 
 
 class CountDataCallable(Protocol):
@@ -293,7 +293,7 @@ class InputPipeInfoDict(TypedDict):
 ##################################################
 
 
-class RawOutputInfoDict(TypedDict):
+class RawDirectOutputInfoDict(TypedDict):
     """raw output media stream info
 
     =================== ================================================================
@@ -302,27 +302,76 @@ class RawOutputInfoDict(TypedDict):
     `'dst_type'`        `'buffer'`
     `'media_type'`      media stream identifier: `'audio'` or '`video'`
     `'raw_info'`        tuple of (dtype, shape, rate)
-    `'data_info'`       function to gather media information from raw data blob
     `'bytes2data'`      function to convert bytes to raw data blob
-    `'is_empty'`        function to check empty data frame check
-    `'user_map'`        (optional) user specified FFmpeg map option of this stream
-    `'input_file_id'`   (optional) input file id if there is no complex filtergraph
-    `'input_stream_id'` (optional) input stream id if there is no complex filtergraph
-    `'linklabel'`       (optional) mapped filtergraph output label if there is complex
-                        filtergraph
+    `'data_is_empty'`   function to check empty data frame
+    `'data_count'`      function to count number of frames/samples in a blob
+    `'user_map'`        user specified FFmpeg map option of this stream
+    `'squeeze'`         True to squeeze output shape (remove all length-1 dims)
+    `'input_file_id'`   input file id
+    `'input_stream_id'` input stream id
+    =================== ================================================================
+    """
+
+    dst_type: Literal["buffer"]  # True if file path/url
+    media_type: MediaType | None  #
+    raw_info: RawStreamInfoTuple
+    bytes2data: FromBytesCallable
+    data_is_empty: IsEmptyCallable
+    data_count: CountDataCallable
+    user_map: str  # user specified map option
+    squeeze: bool
+    input_file_id: NotRequired[int]
+    input_stream_id: NotRequired[int]
+
+
+class RawFilteredOutputInfoDict(TypedDict):
+    """raw output media stream info
+
+    =================== ================================================================
+    key                 description
+    =================== ================================================================
+    `'dst_type'`        `'buffer'`
+    `'media_type'`      media stream identifier: `'audio'` or '`video'`
+    `'raw_info'`        tuple of (dtype, shape, rate)
+    `'bytes2data'`      function to convert bytes to raw data blob
+    `'data_is_empty'`   function to check empty data frame
+    `'data_count'`      function to count number of frames/samples in a blob
+    `'user_map'`        user specified FFmpeg map option of this stream
+    `'squeeze'`         True to squeeze output shape (remove all length-1 dims)
+    `'linklabel'`       mapped filtergraph output label 
     =============== ================================================================
     """
 
     dst_type: Literal["buffer"]  # True if file path/url
     media_type: MediaType | None  #
-    data_info: GetInfoCallable
+    raw_info: RawStreamInfoTuple
     bytes2data: FromBytesCallable
-    is_empty: IsEmptyCallable
-    user_map: NotRequired[str]  # user specified map option
-    input_file_id: NotRequired[int]
-    input_stream_id: NotRequired[int]
-    linklabel: NotRequired[str]
-    raw_info: NotRequired[RawStreamInfoTuple]
+    data_is_empty: IsEmptyCallable
+    data_count: CountDataCallable
+    user_map: str  # user specified map option
+    squeeze: bool
+    linklabel: str
+
+
+RawOutputInfoDict = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
+"""raw output media stream info
+
+=================== ================================================================
+key                 description
+=================== ================================================================
+`'dst_type'`        `'buffer'`
+`'media_type'`      media stream identifier: `'audio'` or '`video'`
+`'raw_info'`        tuple of (dtype, shape, rate)
+`'bytes2data'`      function to convert bytes to raw data blob
+`'data_is_empty'`   function to check empty raw data blob
+`'data_count'`      function to count number of frames/samples in a blob
+`'squeeze'`         True to squeeze output shape (remove all length-1 dims)
+`'input_file_id'`   (optional) input file id if there is no complex filtergraph
+`'input_stream_id'` (optional) input stream id if there is no complex filtergraph
+`'linklabel'`       (optional) mapped filtergraph output label if there is complex
+                    filtergraph
+=============== ================================================================
+"""
 
 
 class UrlOrPipedEncodedOutputInfoDict(TypedDict):
