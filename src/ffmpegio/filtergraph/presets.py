@@ -19,6 +19,18 @@ if TYPE_CHECKING:
 def remove_video_alpha(
     fill_color: str, input_label: str | None = None, output_label: str | None = None
 ) -> Graph:
+    """generate a filter graph to remove alpha channel from a video
+
+    :param fill_color: _description_
+    :param input_label: _description_, defaults to None
+    :param output_label: _description_, defaults to None
+    :return: Resulting filter graph in the form:
+
+        ```
+        color,[in]scale2ref[main],[main]overlay[out]
+        ```
+
+    """
 
     fg = fgb.Graph("scale2ref[l2],[l2]overlay=shortest=1").rconnect(
         f"color=c={fill_color}", (0, 0, 0), (0, 0, 0)

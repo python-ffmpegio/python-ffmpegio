@@ -60,8 +60,10 @@ def get_pixel_config(
 
     :param input_pix_fmt: input pixel format
     :param pix_fmt: desired output pixel format, defaults to None (auto-select)
-    :return: output pix_fmt, number of components, data type string, and whether
-             alpha component must be removed
+    :return pix_fmt_out: output pix_fmt
+    :return ncomp: number of components
+    :return dtype: data type string
+    :return has_alpha: True if alpha component must be removed
 
     =====  =====  =========  ===================================
     ncomp  dtype  pix_fmt    Description
@@ -96,8 +98,13 @@ def get_pixel_config(
             pix_fmt = "ya8" if bpp <= 16 else "ya16le"
         elif n_in == 3:
             pix_fmt = "rgb24" if bpp <= 24 else "rgb48le"
-        elif n_in == 4:
+        else:  # if n_in == 4:
             pix_fmt = "rgba" if bpp <= 32 else "rgba64le"
+    else:
+        fmt_info = caps.pix_fmts()[pix_fmt]
+        bits_per_comp = fmt_info["bits_per_pixel"] / fmt_info["nb_components"]
+        if bits_per_comp != round(bits_per_comp):
+            raise ValueError(f"{pix_fmt=} is not supported as a raw data pixel format.")
 
     if pix_fmt == input_pix_fmt:
         n_out = n_in
@@ -106,7 +113,6 @@ def get_pixel_config(
         pix_fmt = input_pix_fmt
         n_out = n_in
     else:
-        fmt_info = caps.pix_fmts()[pix_fmt]
         n_out = fmt_info["nb_components"]
         bpp = fmt_info["bits_per_pixel"]
 
@@ -142,7 +148,14 @@ def get_pixel_format(fmt: str) -> tuple[DTypeString, int]:
     """get data format and number of components associated with video pixel format
 
     :param fmt: ffmpeg pix_fmt
-    :return: data type string and the number of components associated with the pix_fmt
+    :return dtype: data type string compatible with `pix_fmt`
+    :return nb_components: the number of components of `pix_fmt`
+
+    If `fmt` is not rgb or grayscale, the format must have byte-aligned pixel depth.
+    Also, such `fmt`'s are assumed to have integer pixel values. As a result,
+    floating-point pixel format may lead to an incorrect `dtype` return value, and
+    requires a post-read type casting.
+
     """
     try:
         return dict(
@@ -159,8 +172,16 @@ def get_pixel_format(fmt: str) -> tuple[DTypeString, int]:
             rgba=("|u1", 4),
             rgba64le=("<u2", 4),
         )[fmt]
-    except:
-        raise ValueError(f"{fmt} is not a valid grayscale/rgb pix_fmt")
+    except KeyError as e:
+        fmt_info = caps.pix_fmts()[fmt]
+
+        bytes_per_comp = fmt_info["bits_per_pixel"] / (8 * fmt_info["nb_components"])
+        if bytes_per_comp != round(bytes_per_comp):
+            raise ValueError(
+                f"{fmt=} is not supported as a raw data pixel format (must be byte-aligned)."
+            ) from e
+        dtype = f"<u{bytes_per_comp}" if bytes_per_comp > 1 else "|u1"
+        return dtype, fmt_info["nb_components"]
 
 
 def get_video_format(
@@ -184,7 +205,8 @@ def guess_video_format(
 
     :param shape: frame data shape
     :param dtype: frame data type
-    :return: frame size and pix_fmt
+    :return s: frame size
+    :return pix_fmt: frame pixel format
 
     ```
         X = np.ones((100,480,640,3),'|u1')
@@ -264,7 +286,8 @@ def get_audio_format(fmt: str, ac: int | None = None) -> tuple[DTypeString, Shap
 
     :param fmt: ffmpeg sample_fmt or data type string
     :param ac: number of channels, default to None (to return only dtype)
-    :return: data type string and array shape tuple
+    :return dtype: numpy-style dtype string
+    :return shape: array shape tuple
     """
 
     try:
@@ -586,7 +609,7 @@ def analyze_input_file(
     input_opts: dict,
     input_info: InputInfoDict,
     stream: str | StreamSpecDict | None = None,
-) -> list[list]:
+) -> list[dict]:
     """analyze a file and return requested field values of all returned streams
 
     :param fields: a list of stream properties
@@ -653,12 +676,15 @@ def analyze_input_stream(
     return [q.get(f, None) for f in fields]
 
 
-def video_fields_to_options(pix_fmt, width, height, r1, r2):
+def video_fields_to_options(
+    pix_fmt: str, width: int, height: int, r1: Fraction | int, r2: Fraction | int
+) -> tuple[Fraction | int, str, tuple[int, int]]:
     return r1 or r2, pix_fmt, (width, height) if width and height else None
 
 
 def analyze_video_stream(
     stream_specifier: str,
+    s: tuple[int, int] | None,
     inurl: FFmpegUrlType,
     inopts: FFmpegOptionDict,
     input_info: InputInfoDict,
@@ -703,7 +729,7 @@ def analyze_audio_stream(
     :param ofile: output file index, defaults to 0
     :param input_info: list of input information, defaults to None
     :return ar: sampling rate
-    :return sample_fmt: input data type (Numpy style)
+    :return sample_fmt: input sample format
     :return ac: number of channels
 
     * Possible Output Options Modification
@@ -868,6 +894,73 @@ def analyze_complex_filtergraphs(
             }
 
     return filtergraphs, fg_info
+
+
+def analyze_output_video_filter(
+    filtergraph: FilterGraphObject,
+    s: tuple[int, int] | None,
+    r_in: Fraction | int,
+    pix_fmt_in: str,
+    s_in: tuple[int, int],
+) -> tuple[int | Fraction, str, tuple[int, int]]:
+    """analyze an output video filter
+
+    :param filtergraph: simple filter graph.
+    :param s: -s output option
+    :param r_in: input frame rate
+    :param pix_fmt_in: input pixel format
+    :param s_in: input frame shape (width, height)
+    :return r: output frame rate
+    :return pix_fmt: output pixel format
+    :return s: output frame shape (width, height)
+
+    """
+
+    # append a color source filter to the filtergraph
+    fg = temp_video_src(r_in, pix_fmt_in, s_in) + fgb.as_filtergraph_object(filtergraph)
+
+    if s is not None:
+        fg += fgb.scale(*s)
+
+    # query the filtergraph
+    fields = ["pix_fmt", "width", "height", "r_frame_rate", "avg_frame_rate"]
+    stream = analyze_input_file(
+        fields, fg, {"f": "lavfi"}, {"src_type": "filtergraph"}
+    )[0]
+
+    return video_fields_to_options(*(stream[f] for f in fields))
+
+
+def analyze_output_audio_filter(
+    filtergraph: FilterGraphObject,
+    ar_in: int,
+    sample_fmt_in: str,
+    ac_in: int,
+) -> tuple[int, str, tuple[int, int]]:
+    """analyze an output audio filter
+
+    :param filtergraph: simple filter graph.
+    :param ar: input sampling rate
+    :param sample_fmt: input sample format
+    :param ac: input number of channels
+    :return ar: output sampling rate
+    :return sample_fmt: output sample format
+    :return ac: output number of channels
+
+    """
+
+    # append a color source filter to the filtergraph
+    fg = temp_audio_src(ar_in, sample_fmt_in, ac_in) + fgb.as_filtergraph_object(
+        filtergraph
+    )
+
+    # query the filtergraph
+    fields = ["sample_rate", "sample_fmt", "channels"]
+    stream = analyze_input_file(
+        fields, fg, {"f": "lavfi"}, {"src_type": "filtergraph"}
+    )[0]
+
+    return (*stream.values(),)
 
 
 def are_input_pipes_ready(

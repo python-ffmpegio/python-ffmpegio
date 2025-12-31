@@ -155,11 +155,11 @@ def read(
 
     """
 
-    # use user-specified map or default 'a:0' map
-    output_map = options.pop("map", "a:0")
+    # use user-specified map or default '0:a:0' map
+    output_map = options.pop("map", "0:a:0")
 
     # initialize FFmpeg argument dict and get input & output information
-    args, input_info, _, output_info, __ = configure.init_media_read(
+    args, input_info, output_info = configure.init_media_read(
         url if isinstance(url, list) else [url],
         [output_map],
         options,

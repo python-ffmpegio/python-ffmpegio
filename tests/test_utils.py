@@ -42,6 +42,19 @@ def test_get_pixel_config():
     assert cfg[0] == "rgb24" and cfg[1] == 3 and cfg[2] == "|u1"
 
 
+def test_get_pixel_format():
+
+    with pytest.raises(KeyError):
+        utils.get_pixel_format("yuv")  # unknown format
+    cfg = utils.get_pixel_format("rgb24")  # unknown format
+    assert cfg[1] == 3 and cfg[0] == "|u1"
+
+    with pytest.raises(ValueError):
+        utils.get_pixel_format("yuv420p")
+    cfg = utils.get_pixel_format("yuv444p")  # unknown format
+    assert cfg[0] == "|u1" and cfg[1] == 3
+
+
 def test_alpha_change():
 
     cases = (("rgb24", "rgba", 1), ("rgb24", "rgb24", 0), ("ya8", "gray", -1))
@@ -116,7 +129,7 @@ def test_get_output_stream_id():
             [False],
         ),
         (
-            [(None, {"s": (10,10), "pix_fmt": "gray"})],
+            [(None, {"s": (10, 10), "pix_fmt": "gray"})],
             [{"src_type": "buffer", "media_type": "video"}],
             False,
             [True],
@@ -126,3 +139,16 @@ def test_get_output_stream_id():
 def test_are_input_pipes_ready(inputs, input_info, must_probe, ret):
 
     assert utils.are_input_pipes_ready(inputs, input_info, must_probe) == ret
+
+
+def test_analyze_output_video_filter():
+    res = utils.analyze_output_video_filter(
+        "format=yuv420p,scale=320:240,framerate=100",
+        30,
+        "rgb24",
+        (
+            1920,
+            1080,
+        ),
+    )
+    assert res==(100,'yuv420p',(320,240))

@@ -131,7 +131,12 @@ def _gather_outputs(
 
 def read(
     *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
-    map: Sequence[str] | dict[str, FFmpegOptionDict | None] | None = None,
+    map: (
+        Sequence[str]
+        | Sequence[FFmpegOptionDict]
+        | dict[str, FFmpegOptionDict | None]
+        | None
+    ) = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
@@ -140,7 +145,11 @@ def read(
     """Read video and audio data from multiple media files
 
     :param *urls: URLs of the media files to read or a tuple of the URL and its input option dict.
-    :param map: FFmpeg map options
+    :param map: a list of FFmpeg output stream map options. Alternately, the list
+                may consist of an FFmpeg output option dict (with a required `'map'` item) 
+                a dict keyed by the map option value to apply different set of 
+                output options to each output. If not specified (default), it 
+                outputs all the streams.
     :param progress: progress callback function, defaults to None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
