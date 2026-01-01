@@ -70,6 +70,28 @@ def test_read():
     # assert np.array_equal(x1, x2)
 
 
+def test_read_af():
+
+    url = "tests/assets/testaudio-1m.mp3"
+
+    T = 0.51111
+    T = 0.49805
+    fs, x = audio.read(
+        url, t=T, show_log=True, af="aresample=8000,channelmap=map=FL-FC"
+    )
+    assert fs == 8000
+    assert len(x["shape"]) == 1
+
+def test_read_filter():
+
+    url = "tests/assets/testaudio-1m.mp3"
+
+    T = 0.51111
+    T = 0.49805
+    fs, x = audio.read(
+        [url,url], t=T, show_log=True, filter_complex="[0][1]amix[mixed]",map='[mixed]'
+    )
+
 def test_read_write():
     url = "tests/assets/testaudio-1m.mp3"
     outext = ".flac"

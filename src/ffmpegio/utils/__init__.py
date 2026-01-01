@@ -1057,3 +1057,76 @@ def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
         valid = is_fileobj(url, writable=True)
 
     return valid
+
+
+def find_filter_simple_option(
+    options: FFmpegOptionDict, media_type: MediaType | None = None
+) -> (
+    Literal[
+        "filter_complex_script",
+        "filter",
+        "/filter",
+        "af",
+        "/af",
+        "filter:a",
+        "/filter:a",
+        "vf",
+        "/vf",
+        "filter:v",
+        "/filter:v",
+    ]
+    | None
+):
+    """Returns FFmpeg argument which specify a simple filter graph
+
+    :param options: FFmpeg argument dict
+    :param media_type: for output stream filter, specify to check a particular
+                       media type, defaults to checking both types of filters
+    :return: FFmpeg option name if filter graph is specified else None
+    """
+
+    optnames = {
+        None: (
+            "filter",
+            "/filter",
+            "af",
+            "/af",
+            "filter:a",
+            "/filter:a",
+            "vf",
+            "/vf",
+            "filter:v",
+            "/filter:v",
+        ),
+        "audio": ("af", "/af", "filter:a", "/filter:a"),
+        "video": ("vf", "/vf", "filter:v", "/filter:v"),
+    }[media_type]
+
+    return next((o for o in optnames if o in options), None)
+
+
+def find_filter_complex_option(options: FFmpegOptionDict) -> (
+    Literal[
+        "filter_complex",
+        "/filter_complex",
+        "lavfi",
+        "/lavfi",
+        "filter_complex_script",
+    ]
+    | None
+):
+    """True if FFmpeg arguments specify a complex filter graph
+
+    :param options: FFmpeg argument dict
+    :return: FFmpeg option name if filter graph is specified else None
+    """
+
+    optnames = (
+        "filter_complex",
+        "lavfi",
+        "/filter_complex",
+        "/lavfi",
+        "filter_complex_script",
+    )
+
+    return next((o for o in optnames if o in options), None)

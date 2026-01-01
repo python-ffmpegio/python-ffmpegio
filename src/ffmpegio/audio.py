@@ -183,51 +183,62 @@ def read(
 
 
 def write(
-    url,
-    rate_in,
-    data,
+    url: (
+        FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+    ),
+    rate_in: int,
+    data: RawDataBlob,
     *,
     extra_inputs: (
         list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
-    progress=None,
-    overwrite=None,
-    show_log=None,
-    sp_kwargs=None,
+    progress: ProgressCallable | None = None,
+    overwrite: bool | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
     **options,
 ) -> bytes | None:
     """Write a NumPy array to an audio file.
 
     :param url: URL of the audio file to write.
-    :type url: str
     :param rate_in: The sample rate in samples/second.
-    :type rate_in: int
     :param data: input audio data object, converted to bytes by `audio_bytes` plugin hook .
-    :type data: object
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :type overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_slog: bool, optional
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
-    :type extra_inputs: seq(str|(str,dict))
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
     """
+
+    # if filter_complex is not defined use '0:a:0' as default mapping
+    if not any(
+        (o in options)
+        for o in (
+            "filter_complex",
+            "lavfi",
+            "/filter_complex",
+            "/lavfi",
+            "filter_complex_script",
+        )
+    ):
+        if not isinstance(url, list):
+            url = [url]
+        if "map" not in options:
+            options["map"] = "0:a:0"
 
     ac, dtype = plugins.get_hook().audio_info(obj=data)
 
     # initialize FFmpeg argument dict and get input & output information
-    args, input_info, _, output_info, __ = configure.init_media_write(
-        [url], ["a"], [(rate_in, data)], extra_inputs, options, [dtype], [(ac,)]
+    args, input_info, output_info = configure.init_media_write(
+        url, ["a"], [(rate_in, data)], extra_inputs, options, [dtype], [(ac,)]
     )
 
     return run_and_return_encoded(
@@ -280,21 +291,22 @@ def filter(
     if expr and extra_inputs is None and extra_outputs is None:
         # guaranteed SISO filtering
         options["filter:a"] = expr
+        options["map"] = "0:a:0"
         expr = None
 
     ac, dtype = plugins.get_hook().audio_info(obj=input)
 
     # initialize FFmpeg argument dict and get input & output information
-    args, input_info, _, output_info, __ = configure.init_media_filter(
+    args, input_info, output_info = configure.init_media_filter(
         expr,
         ["a"],
         [(input_rate, input)],
         extra_inputs,
+        None,
         extra_outputs,
         [dtype],
         [(ac,)],
         options,
-        {},
         squeeze,
     )
 

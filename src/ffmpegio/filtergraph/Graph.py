@@ -1001,7 +1001,14 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         must_link_fwd = [True] * len(fwd_links)
         right_chained = []
 
-        if chain_siso and not len(bwd_links):
+        if (
+            chain_siso
+            and not len(bwd_links)
+            and (
+                len(set(l[0][0] for l in fwd_links))
+                == len(set(l[1][0] for l in fwd_links))
+            )
+        ):
             # if linking chains are both siso and free of any other linkages and both pads are not labeled
             # the chain of the right fg is joined to the chain of the left
 
@@ -1098,7 +1105,14 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         must_link_fwd = [True] * len(fwd_links)
         left_chained = []
 
-        if chain_siso and not len(bwd_links):
+        if (
+            chain_siso
+            and not len(bwd_links)
+            and (
+                len(set(l[0][0] for l in fwd_links))
+                == len(set(l[1][0] for l in fwd_links))
+            )
+        ):
             # if linking chains are both siso and free of any other linkages and both pads are not labeled
             # the chain of the right fg is joined to the chain of the left
 
