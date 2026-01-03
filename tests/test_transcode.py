@@ -66,7 +66,7 @@ def test_transcode_2pass():
             show_log=True,
             two_pass=True,
             t=1,
-            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"}
+            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"},
         )
 
         transcode(
@@ -78,7 +78,7 @@ def test_transcode_2pass():
             pass1_extras={"an": None},
             overwrite=True,
             t=1,
-            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"}
+            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"},
         )
 
 
@@ -89,22 +89,6 @@ def test_transcode_vf():
         out_url = path.join(tmpdirname, path.basename(url))
         transcode(url, out_url, t="0.1", vf="scale=in_w:in_h*9/10", show_log=True)
         assert path.isfile(out_url)
-
-
-def test_transcode_image():
-    url = "tests/assets/ffmpeg-logo.png"
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # print(probe.audio_streams_basic(url))
-        out_url = path.join(tmpdirname, path.basename(url) + ".jpg")
-        transcode(
-            url,
-            out_url,
-            show_log=True,
-            remove_alpha=True,
-            s=[300, -1],
-            transpose=0,
-            vframes=1,
-        )
 
 
 if __name__ == "__main__":

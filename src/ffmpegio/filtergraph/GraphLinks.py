@@ -625,7 +625,7 @@ class GraphLinks(UserDict):
         :param chain_id: index of the chain under test
         :param check_input: True to check all the input pads, defaults to True
         :param check_output: _description_, defaults to True
-        """        
+        """
         for inpads, outpad in self.values():
             if check_output and outpad and outpad[0] == chain_id:
                 return True
@@ -903,13 +903,40 @@ class GraphLinks(UserDict):
         self._modify_pad_ids(select, adj)
 
     def map_chains(
-        self, mapper: int | Mapping[int:int], validate_new: bool = True
+        self, mapper: int | Mapping[int, int]|None, shifter: Mapping[int, int] | None = None
     ) -> GraphLinks:
         """Generate a new GraphLink object with a chain id mapper
 
-        :param mapper: the current chain id as a key and the new chain id as its value
+        :param mapper: the current chain id as a key and the new chain id as its
+        value. If an int value, all the chains are offset by the value.
+        :param shifter: keyed chain links are shifted by the given value if specified
+
+        Note: if a chain is indexed in both `mapper` and `shifter`, its links
+        are first shifted then mapped.
+
 
         """
+
+        if shifter is not None and len(shifter):
+
+            def shift_padidx(pad):
+                if pad[0] in shifter:
+                    pad = (pad[0], pad[1] + shifter[pad[0]], pad[2])
+                return pad
+
+            def shift_pair(inpads, outpad):
+                if outpad is not None:
+                    outpad = shift_padidx(outpad)
+                if inpads is not None:
+                    if isinstance(inpads[0], int):  # single-input
+                        inpads = shift_padidx(inpads)
+                    else:  # multiple-inputs (an input stream)
+                        inpads = tuple(shift_padidx(d) for d in inpads)
+                return (inpads, outpad)
+
+            data = {label: shift_pair(*value) for label, value in self.items()}
+        else:
+            data = self.data
 
         # check for duplicate value
         if isinstance(mapper, int):
@@ -917,6 +944,9 @@ class GraphLinks(UserDict):
             class OffsetMapper:
                 def __init__(self, offset):
                     self._off = offset
+
+                def __len__(self):
+                    return len(data)
 
                 def __contains__(self, _):
                     # applies to all
@@ -929,41 +959,27 @@ class GraphLinks(UserDict):
                     return k + self._off
 
             mapper = OffsetMapper(mapper)
-        elif validate_new:
-            new_ids = sorted(set(mapper.values()))
-            if len(new_ids) != len(mapper):
-                raise ValueError("Values of mapper must have no duplicate.")
-            if new_ids != list(range(len(new_ids))):
-                raise ValueError(
-                    "Values of mapper must be values between 0 and len(mapper)."
-                )
 
-        def adjust_pair(inpads, outpad):
-            if outpad is not None:
-                if outpad[0] not in mapper:
-                    return None
-                outpad = (mapper[outpad[0]], *outpad[1:])
-            if inpads is not None:
-                if isinstance(inpads[0], int):  # single-input
-                    if inpads[0] not in mapper:
-                        return None
-                    inpads = (mapper[inpads[0]], *inpads[1:])
-                else:  # multiple-inputs (an input stream)
-                    inpads = tuple(
-                        (cid, *d[1:])
-                        for d in inpads
-                        if ((cid := mapper.get(d[0], None)) is not None)
-                    )
-                    if not len(inpads):
-                        return None
-            return (inpads, outpad)
+        if mapper is not None and len(mapper):
+            def map_padidx(pad):
+                if pad[0] in shifter:
+                    pad = (mapper[pad[0]], *pad[1:])
+                return pad
+
+            def adjust_pair(inpads, outpad):
+                if outpad is not None:
+                    outpad = map_padidx(outpad)
+                if inpads is not None:
+                    if isinstance(inpads[0], int):  # single-input
+                        inpad = map_padidx(inpad)
+                    else:  # multiple-inputs (an input stream)
+                        inpads = tuple(map_padidx(d) for d in inpads)
+                return (inpads, outpad)
+
+            data = {label: adjust_pair(*value) for label, value in data.items()}
 
         fglinks = GraphLinks()
-        fglinks.data = {
-            label: pair
-            for label, value in self.data.items()
-            if (pair := adjust_pair(*value)) is not None
-        }
+        fglinks.data = data
         return fglinks
 
     def drop_labels(self, labels: Sequence[str], keep_links: bool = True) -> GraphLinks:

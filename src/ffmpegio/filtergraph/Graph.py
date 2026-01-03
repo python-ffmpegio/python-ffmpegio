@@ -956,7 +956,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
             try:
                 fg._links.update(
-                    other._links.map_chains(len(self), False), auto_link=auto_link
+                    other._links.map_chains(len(self)), auto_link=auto_link
                 )
             except Exception as e:
                 if auto_link:
@@ -1000,6 +1000,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         must_link_fwd = [True] * len(fwd_links)
         right_chained = []
+        lut_shift = {}
+        lut_map = {}
 
         if (
             chain_siso
@@ -1017,6 +1019,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             # chain links if there is no ambiguity
             for i, (outpad, inpad) in enumerate(fwd_links):
                 ochain, ichain = outpad[0], inpad[0]
+
+                lut_shift[inpad[0]] = len(fg[ochain])
 
                 # label check
                 if (
@@ -1042,31 +1046,31 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             n0 = fg.get_num_chains()  # chain index offset
 
             # stack 2 filtergraphs and build right chain id conversion lookup table
-            lut = {}
             for i, c in enumerate(right):
                 if i not in right_chained:
-                    lut[i] = n0
+                    lut_map[i] = n0
                     n0 += 1
                     fg = fg._stack(c)
 
-            right_links = right._links.drop_labels(tuple(fg._links.keys())).map_chains(
-                lut, False
-            )
+        # map the remainig right links to the new fg
+        right_links = right._links.drop_labels(tuple(fg._links.keys())).map_chains(
+            lut_map, lut_shift
+        )
 
-            # transfer the right links to fg (remap chains)
-            fg._links.update(right_links)
+        # transfer the right links to fg (remap chains)
+        fg._links.update(right_links)
 
-            # create iterators to organize the links in (input, output) of the combined graph
-            it_fwd = (
-                ((lut[r[0]], *r[1:]), l)
-                for (l, r), do_link in zip(fwd_links, must_link_fwd)
-                if do_link
-            )
-            it_bwd = ((l, (lut[r[0]], *r[1:])) for (r, l) in bwd_links)
-            fg._links.update(
-                {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
-                validate=False,
-            )
+        # create iterators to organize the links in (input, output) of the combined graph
+        it_fwd = (
+            ((lut[r[0]], *r[1:]), l)
+            for (l, r), do_link in zip(fwd_links, must_link_fwd)
+            if do_link
+        )
+        it_bwd = ((l, (lut[r[0]], *r[1:])) for (r, l) in bwd_links)
+        fg._links.update(
+            {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
+            validate=False,
+        )
 
         if replace_sws_flags and right.sws_flags:
             fg.sws_flags = right.sws_flags

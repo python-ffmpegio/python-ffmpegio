@@ -87,7 +87,7 @@ def transcode(
         outputs = [outputs]
 
     args, input_info, output_info = configure.init_media_transcode(
-        inputs, outputs, None, None, options
+        inputs, outputs, options
     )
 
     # check number of pipes
@@ -122,6 +122,8 @@ def transcode(
         }
     )
     if two_pass:
+        if len(output_info)>1:
+            raise ValueError('transcode() only supports two_pass mode for one output.')
         kwargs["pass1_omits"] = pass1_omits
         kwargs["pass1_extras"] = pass1_extras
 

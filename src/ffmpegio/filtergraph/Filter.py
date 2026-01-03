@@ -152,9 +152,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
         """
 
         return (
-            fgb.Graph(self).compose(
-                show_unconnected_inputs, show_unconnected_outputs
-            )
+            fgb.Graph(self).compose(show_unconnected_inputs, show_unconnected_outputs)
             if show_unconnected_inputs or show_unconnected_outputs
             else filter_utils.compose_filter(*self)
         )
@@ -371,6 +369,20 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
                 self.get_option_value("v") + self.get_option_value("a")
             )
 
+        def _scale():
+            # ref input supported in v7.1 or later
+            w_expr = self.get_option_value("w")
+            h_expr = self.get_option_value("h")
+            return (
+                2
+                if any(
+                    expr.find(key) >= 0
+                    for expr in (w_expr, h_expr)
+                    for key in ("ref_", "rw", "rh")
+                )
+                else 1
+            )
+
         option_name, inc = {
             "afir": ("nbirs", 1),
             "concat": (None, _concat),
@@ -383,6 +395,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             "premultiply": (None, _inplace),
             "unpremultiply": (None, _inplace),
             "signature": ("nb_inputs", 0),
+            "scale": (None, _scale),
             # "astreamselect": ("inputs", 0),
             # "bm3d": ("inputs", 0),
             # "hstack": ("inputs", 0),
@@ -494,7 +507,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number 
+        :param chain: id of the chain, defaults to None to get the total number
                       of filters across all chains
         """
 

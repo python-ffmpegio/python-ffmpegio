@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 from . import (
-    ffmpegprocess,
+    ffmpegprocess as fp,
     configure,
     FFmpegError,
     FFmpegioError,
@@ -71,8 +71,6 @@ def run_and_return_raw(
         raise FFmpegioError("No audio stream found.")
     if len(output_info) > 1:
         raise ValueError("Too many audio stream found.")
-    if output_info[0]["media_type"] != "audio":
-        raise ValueError("Mapped stream is not an audio stream.")
     if output_info[0]["dst_type"] != "buffer":
         raise ValueError("Not outputting to pipe")
 
@@ -94,7 +92,7 @@ def run_and_return_raw(
         # ignore user's stdin, stdout, stdout if specified
         kwargs = {**sp_kwargs, **kwargs}
 
-    out = ffmpegprocess.run(
+    out = fp.run(
         args,
         progress=progress,
         capture_log=None if show_log else True,
@@ -112,7 +110,16 @@ def run_and_return_raw(
 
 
 def run_and_return_encoded(
-    progress, overwrite, show_log, sp_kwargs, args, input_info, output_info
+    progress,
+    overwrite,
+    show_log,
+    sp_kwargs,
+    args,
+    input_info,
+    output_info,
+    two_pass=False,
+    pass1_omits=None,
+    pass1_extras=None,
 ):
     if output_info is None:
         raise FFmpegioError("Unknown error occurred to complete FFmpeg configuration.")
@@ -144,7 +151,13 @@ def run_and_return_encoded(
         # ignore user's stdin, stdout, stdout if specified
         kwargs = {**sp_kwargs, **kwargs}
 
-    out = ffmpegprocess.run(
+    if two_pass:
+        if pass1_omits is not None:
+            kwargs["pass1_omits"] = pass1_omits
+        if pass1_extras is not None:
+            kwargs["pass1_extras"] = pass1_extras
+
+    out = (fp.run_two_pass if two_pass else fp.run)(
         args,
         progress=progress,
         capture_log=None if show_log else True,

@@ -18,11 +18,18 @@ from ._typing import (
     RawOutputInfoDict,
     OutputPipeInfoDict,
     FFmpegOptionDict,
+    DTypeString,
+    ShapeTuple,
+    InputPipeInfoDict,
 )
 from .configure import (
     FFmpegArgs,
     FFmpegOutputUrlComposite,
     FFmpegInputUrlComposite,
+    FFmpegOutputUrlNoPipe,
+    FFmpegNoPipeOutputOptionTuple,
+    FFmpegInputUrlNoPipe,
+    FFmpegNoPipeInputOptionTuple,
 )
 
 from fractions import Fraction
@@ -43,7 +50,9 @@ def _runner(
     progress: ProgressCallable | None,
     sp_kwargs: dict | None,
     overwrite: bool | None = None,
-) -> ffmpegprocess.Popen:
+) -> tuple[
+    ffmpegprocess.Popen, dict[int, InputPipeInfoDict], dict[int, OutputPipeInfoDict]
+]:
 
     # True if there is unknown datablob info
     need_stderr = any(
@@ -56,12 +65,10 @@ def _runner(
     # configure named pipes
     input_pipes = output_pipes = {}
     if len(input_info):
-        input_pipes, sp_kwargs = configure.assign_input_pipes(
-            args, input_info, sp_kwargs, False
-        )
+        input_pipes, sp_kwargs = configure.assign_input_pipes(args, input_info, False)
     if len(output_info):
         output_pipes, sp_kwargs = configure.assign_output_pipes(
-            args, output_info, sp_kwargs, False
+            args, output_info, False
         )
     stack = configure.init_named_pipes(
         input_pipes, output_pipes, input_info, output_info
@@ -92,51 +99,46 @@ def _runner(
     if proc.returncode:
         raise FFmpegError(proc.stderr, capture_log)
 
-    return proc
+    return proc, input_pipes, output_pipes
 
 
 def _gather_outputs(
-    pipe_info: dict[int, OutputPipeInfoDict],
     output_info: list[RawOutputInfoDict],
-    proc: ffmpegprocess.Popen,
+    pipe_info: dict[int, OutputPipeInfoDict],
 ) -> tuple[dict[str, int | Fraction], dict[str, RawDataBlob]]:
+
     rates = {}
     data = {}
     for i, pinfo in pipe_info.items():
         info = output_info[i]
+
         spec = info["user_map"]
         b = pinfo["reader"].read_all()
-
-        # get datablob info from stderr if needed
         dtype, shape, rate = info["raw_info"]
-        missing = any(v is None for v in info["raw_info"])
 
-        if missing:
-            logger.warning('Retrieving stream "%s" information from FFmpeg log.', spec)
-            if proc.stderr is None:
-                raise FFmpegioError(
-                    "stderr was not captured to compose the output data"
-                )
-            dtype, shape, rate = (
-                log.extract_output_video_raw_info
-                if info["media_type"] == "video"
-                else log.extract_output_audio_raw_info
-            )(proc.stderr.readlines(), i)
-
-        data[spec] = info["bytes2data"](b=b, dtype=dtype, shape=shape, squeeze=False)
+        data[spec] = info["bytes2data"](
+            b=b, dtype=dtype, shape=shape, squeeze=info["squeeze"]
+        )
         rates[spec] = rate
 
-        return rates, data
+    return rates, data
 
 
 def read(
-    *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
-    map: (
+    *urls: *tuple[
+        FFmpegInputUrlComposite
+        | tuple[FFmpegInputUrlComposite, FFmpegOptionDict | None]
+    ],
+    streams: (
         Sequence[str]
         | Sequence[FFmpegOptionDict]
         | dict[str, FFmpegOptionDict | None]
         | None
     ) = None,
+    extra_outputs: (
+        Sequence[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    ) = None,
+    squeeze: bool = False,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
@@ -145,16 +147,20 @@ def read(
     """Read video and audio data from multiple media files
 
     :param *urls: URLs of the media files to read or a tuple of the URL and its input option dict.
-    :param map: a list of FFmpeg output stream map options. Alternately, the list
-                may consist of an FFmpeg output option dict (with a required `'map'` item) 
-                a dict keyed by the map option value to apply different set of 
-                output options to each output. If not specified (default), it 
+    :param streams: a list of FFmpeg output stream map options. Alternately, the list
+                may consist of an FFmpeg output option dict (with a required `'map'` item)
+                a dict keyed by the map option value to apply different set of
+                output options to each output. If not specified (default), it
                 outputs all the streams.
-    :param progress: progress callback function, defaults to None
+    :param extra_outputs: list of additional encoded output sources, defaults to
+                          None. Each destination may be a url string or a pair of
+                          a url string and an option dict.
+    :param squeeze: False to return 4D data for video and 2D data for audio. True
+                    eliminates any dimensions which only has the length of one.
+     :param progress: progress callback function, defaults to None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
-    :param use_ya: True if piped video streams uses `ya8` pix_fmt instead of `gray16le`, default to None
     :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                         input url or '_in' to be applied to all inputs. The url-specific option gets the
                         preference (see :doc:`options` for custom options)
@@ -167,26 +173,19 @@ def read(
 
         map = ['0:v:0','1:a:3'] # pick 1st file's 1st video stream and 2nd file's 4th audio stream
 
-    Unlike :py:mod:`video` and :py:mod:`image`, video pixel formats are not autodetected. If output
-    'pix_fmt' option is not explicitly set, 'rgb24' is used.
-
-    For audio streams, if 'sample_fmt' output option is not specified, 's16'.
     """
 
-    # initialize FFmpeg argument dict and get input & output information
-    args, input_info, input_ready, output_info, _ = configure.init_media_read(
-        urls, map, options
+    args, input_info, output_info = configure.init_media_read(
+        urls, streams, options, extra_outputs, squeeze
     )
 
-    # if any input buffer is empty, invalid
-    if not all(input_ready):
-        raise FFmpegioError("Not all inputs are resolved.")
-
     # run FFmpeg
-    proc = _runner(args, input_info, output_info, show_log, progress, sp_kwargs)
+    proc, input_pipes, output_pipes = _runner(
+        args, input_info, output_info, show_log, progress, sp_kwargs
+    )
 
     # gather and return output
-    return _gather_outputs(output_info, proc)
+    return _gather_outputs(output_info, output_pipes)
 
 
 def write(
@@ -198,10 +197,6 @@ def write(
     ),
     stream_types: Sequence[Literal["a", "v"]],
     *stream_args: *tuple[RawStreamDef, ...],
-    merge_audio_streams: bool | Sequence[int] = False,
-    merge_audio_ar: int | None = None,
-    merge_audio_sample_fmt: str | None = None,
-    merge_audio_outpad: str | None = None,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
@@ -243,21 +238,9 @@ def write(
     if not isinstance(urls, list):
         urls = [urls]
 
-    args, input_info, input_ready, output_info, _ = configure.init_media_write(
-        urls,
-        stream_types,
-        stream_args,
-        merge_audio_streams,
-        merge_audio_ar,
-        merge_audio_sample_fmt,
-        merge_audio_outpad,
-        extra_inputs,
-        options,
+    args, input_info, output_info = configure.init_media_write(
+        urls, stream_types, stream_args, extra_inputs, options
     )
-
-    # if any input buffer is empty, invalid
-    if not all(input_ready):
-        raise FFmpegioError("Invalid input data.")
 
     # run FFmpeg
     _runner(args, input_info, output_info, show_log, progress, sp_kwargs, overwrite)
@@ -272,11 +255,17 @@ def write(
 
 
 def filter(
-    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
     input_types: Sequence[Literal["a", "v"]],
     *input_args: *tuple[RawStreamDef, ...],
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    output_options: dict[str, FFmpegOptionDict] | None = None,
+    extra_inputs: (
+        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    ) = None,
+    output_args: Sequence[str] | dict[str, FFmpegOptionDict | None] | None,
+    extra_outputs: (
+        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    ) = None,
+    squeeze: bool = False,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
@@ -308,22 +297,21 @@ def filter(
       for some outputs as needed.
 
     """
-    args, input_info, input_ready, output_info, _ = configure.init_media_filter(
+
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, output_info = configure.init_media_filter(
         expr,
         input_types,
         input_args,
         extra_inputs,
-        None,
-        None,
+        output_args,
+        extra_outputs,
         options,
-        output_options or {},
+        squeeze,
     )
 
-    # if any input buffer is empty, invalid
-    if not all(input_ready):
-        raise FFmpegioError(
-            "Data type and shape of some inputs could not be determined."
-        )
+    if output_info is None:
+        raise RuntimeError("Something went wrong in setting up filter operation...")
 
     # run FFmpeg
     proc = _runner(args, input_info, output_info, show_log, progress, sp_kwargs)

@@ -120,6 +120,7 @@ from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
 
 __all__ = [
     "abc",
+    "presets",
     "as_filter",
     "as_filterchain",
     "as_filtergraph",

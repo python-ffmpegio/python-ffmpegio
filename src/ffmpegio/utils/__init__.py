@@ -54,12 +54,11 @@ FFmpegOutputUrlNoPipe = FFmpegUrlType
 
 
 def get_pixel_config(
-    input_pix_fmt: str, pix_fmt: str | None = None
+    input_pix_fmt: str
 ) -> tuple[str, int, DTypeString, bool]:
     """get best pixel configuration to read video data in specified pixel format
 
     :param input_pix_fmt: input pixel format
-    :param pix_fmt: desired output pixel format, defaults to None (auto-select)
     :return pix_fmt_out: output pix_fmt
     :return ncomp: number of components
     :return dtype: data type string
@@ -82,6 +81,7 @@ def get_pixel_config(
       4     <u2   rgba64le   16-bit RGB with alpha channel
     =====  =====  =========  ===================================
     """
+
     try:
         fmt_info = caps.pix_fmts()[input_pix_fmt]
     except:
@@ -91,20 +91,14 @@ def get_pixel_config(
     n_in = fmt_info["nb_components"]
     bpp = fmt_info["bits_per_pixel"]
 
-    if pix_fmt is None:
-        if n_in == 1:
-            pix_fmt = "gray" if bpp <= 8 else "gray16le" if bpp <= 16 else "grayf32le"
-        elif n_in == 2:
-            pix_fmt = "ya8" if bpp <= 16 else "ya16le"
-        elif n_in == 3:
-            pix_fmt = "rgb24" if bpp <= 24 else "rgb48le"
-        else:  # if n_in == 4:
-            pix_fmt = "rgba" if bpp <= 32 else "rgba64le"
-    else:
-        fmt_info = caps.pix_fmts()[pix_fmt]
-        bits_per_comp = fmt_info["bits_per_pixel"] / fmt_info["nb_components"]
-        if bits_per_comp != round(bits_per_comp):
-            raise ValueError(f"{pix_fmt=} is not supported as a raw data pixel format.")
+    if n_in == 1:
+        pix_fmt = "gray" if bpp <= 8 else "gray16le" if bpp <= 16 else "grayf32le"
+    elif n_in == 2:
+        pix_fmt = "ya8" if bpp <= 16 else "ya16le"
+    elif n_in == 3:
+        pix_fmt = "rgb24" if bpp <= 24 else "rgb48le"
+    else:  # if n_in == 4:
+        pix_fmt = "rgba" if bpp <= 32 else "rgba64le"
 
     if pix_fmt == input_pix_fmt:
         n_out = n_in
@@ -684,7 +678,6 @@ def video_fields_to_options(
 
 def analyze_video_stream(
     stream_specifier: str,
-    s: tuple[int, int] | None,
     inurl: FFmpegUrlType,
     inopts: FFmpegOptionDict,
     input_info: InputInfoDict,
@@ -777,7 +770,7 @@ def analyze_complex_filtergraphs(
         for fg in as_multi_option(filtergraphs, (str, FilterGraphObject))
     ]
 
-    # name the output
+    # label unlabeled outputs (and return modified fg's)
     i = 0
     for j, fg in enumerate(filtergraphs):
         new_labels = []

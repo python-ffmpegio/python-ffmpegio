@@ -22,5 +22,5 @@ def test_video_basic_filter(kwargs):
         {"fill_color": "red", "input_label": "in", "output_label": "[out]"},
     ],
 )
-def test_remove_video_alpha(kwargs):
-    print(presets.remove_video_alpha(**kwargs))
+def test_remove_alpha(kwargs):
+    print(presets.remove_alpha(**kwargs))

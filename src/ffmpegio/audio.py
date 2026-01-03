@@ -5,22 +5,22 @@ from __future__ import annotations
 import logging
 import warnings
 
-from . import configure, plugins, analyze, FFmpegioError
+from . import configure, plugins, analyze, FFmpegioError, utils
 
 from ._typing import TYPE_CHECKING, Any, ProgressCallable, RawDataBlob
 
-if TYPE_CHECKING:
-    from .configure import (
-        FFmpegInputOptionTuple,
-        FFmpegInputUrlComposite,
-        FFmpegInputUrlNoPipe,
-        FFmpegNoPipeInputOptionTuple,
-        FFmpegOutputUrlNoPipe,
-        FFmpegNoPipeOutputOptionTuple,
-    )
-    from .filtergraph.abc import FilterGraphObject
+from .configure import (
+    FFmpegInputOptionTuple,
+    FFmpegInputUrlComposite,
+    FFmpegInputUrlNoPipe,
+    FFmpegNoPipeInputOptionTuple,
+    FFmpegOutputUrlNoPipe,
+    FFmpegNoPipeOutputOptionTuple,
+)
+from .filtergraph.abc import FilterGraphObject
+from . import filtergraph as fgb
 
-from ._std_runners import run_and_return_raw, run_and_return_encoded
+from .std_runners import run_and_return_raw, run_and_return_encoded
 
 logger = logging.getLogger("ffmpegio")
 
@@ -28,35 +28,30 @@ __all__ = ["create", "read", "write", "filter", "detect"]
 
 
 def create(
-    expr: str,
+    expr: str | fgb.abc.FilterGraphObject,
     *args,
-    squeeze=True,
-    progress=None,
-    show_log=None,
-    sp_kwargs=None,
+    squeeze: bool = True,
+    progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
     **options,
 ):
     """Create audio data using an audio source filter
 
     :param expr: name of the source filter or full filter expression
-    :type expr: str
     :param \\*args: sequential filter option arguments. Only valid for
                     a single-filter expr, and they will overwrite the
                     options set by expr.
-    :type \\*args: seq, optional
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
     :param \\**options: Named filter options or FFmpeg options. Items are
                         only considered as the filter options if expr is a
                         single-filter graph, and take the precedents over
@@ -64,10 +59,11 @@ def create(
                         option names (see :doc:`options`), and '_out' for
                         output option names if they conflict with the filter
                         options.
-    :type \\**options: dict, optional
-    :return: sampling rate and audio data (a plugin may change this behavior
-             with the `bytes_to_audio` hook.)
-    :rtype: tuple[int, object]
+    :return rate: sample rate in samples/second
+    :return data: audio data object specified by selected `bytes_to_audio` plugin hook.
+                  (pre v0.12.0) the output shape is always 2D with the time axis in the
+                  first dimension. (since v0.12.0) The shape is default to 1D if
+                  data is monaural. To match the shape
 
     .. seealso::
         https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources for available
@@ -160,7 +156,7 @@ def read(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_read(
-        url if isinstance(url, list) else [url],
+        [url] if utils.is_valid_input_url(url) else url,
         [output_map],
         options,
         extra_outputs,
@@ -171,6 +167,8 @@ def read(
         raise FFmpegioError(
             "Unknown configuration error occurred. Necessary output information could not be collected."
         )
+    if output_info[0]["media_type"] != "audio":
+        raise ValueError("Mapped stream is not an audio stream.")
 
     return run_and_return_raw(
         args,
@@ -199,8 +197,8 @@ def write(
     show_log: bool | None = None,
     sp_kwargs: dict[str, Any] | None = None,
     **options,
-) -> bytes | None:
-    """Write a NumPy array to an audio file.
+):
+    """Write a raw audio data blob to an audio file.
 
     :param url: URL of the audio file to write.
     :param rate_in: The sample rate in samples/second.
@@ -218,27 +216,29 @@ def write(
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
-    # if filter_complex is not defined use '0:a:0' as default mapping
-    if not any(
-        (o in options)
-        for o in (
-            "filter_complex",
-            "lavfi",
-            "/filter_complex",
-            "/lavfi",
-            "filter_complex_script",
-        )
-    ):
-        if not isinstance(url, list):
-            url = [url]
-        if "map" not in options:
-            options["map"] = "0:a:0"
+    # single input, put it in a list
+    if utils.is_valid_output_url(url):
+        url = [url]
 
-    ac, dtype = plugins.get_hook().audio_info(obj=data)
+    # if filter_complex is not defined use '0:a:0' as default mapping
+    if (
+        not any(
+            (o in options)
+            for o in (
+                "filter_complex",
+                "lavfi",
+                "/filter_complex",
+                "/lavfi",
+                "filter_complex_script",
+            )
+        )
+        or "map" not in options
+    ):
+        options["map"] = "0:a:0"
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_write(
-        url, ["a"], [(rate_in, data)], extra_inputs, options, [dtype], [(ac,)]
+        url, ["a"], [(rate_in, data)], extra_inputs, options
     )
 
     return run_and_return_encoded(
@@ -284,7 +284,11 @@ def filter(
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :return: output sampling rate and audio data object, created by `bytes_to_audio` plugin hook
+    :return rate: sample rate in samples/second
+    :return data: audio data object specified by selected `bytes_to_audio` plugin hook.
+                  (pre v0.12.0) the output shape is always 2D with the time axis in the
+                  first dimension. (since v0.12.0) The shape is default to 1D if
+                  data is monaural. To match the shape
 
     """
 
@@ -294,8 +298,6 @@ def filter(
         options["map"] = "0:a:0"
         expr = None
 
-    ac, dtype = plugins.get_hook().audio_info(obj=input)
-
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
         expr,
@@ -304,8 +306,6 @@ def filter(
         extra_inputs,
         None,
         extra_outputs,
-        [dtype],
-        [(ac,)],
         options,
         squeeze,
     )
