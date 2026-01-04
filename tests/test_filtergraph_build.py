@@ -16,7 +16,7 @@ import pytest
         ("split", "vstack",[(0,0,0),(0,0,1)],[(0,0,1),(0,0,0)],True,'[UNC0]split[L0][L1];[L1][L0]vstack[UNC1]'),
         ("scale", "fps,eq",(0,0,0),(0,0,0),True,'scale,fps,eq'),
         ("scale,fps", "eq",(0,1,0),(0,0,0),True,'scale,fps,eq'),
-        ("scale", "[0:v]vstack[out]",(0,0,0),(0,0,1),True,'[UNC0]scale[L0];[0:v][L0]vstack[out]'),
+        ("scale", "[0:v]vstack[out]",(0,0,0),(0,0,1),True,'[UNC0]scale,[0:v]vstack[out]'),
         ("scale", "[in1][0:v]vstack[out]",(0,0,0),(0,0,0),True,'[UNC0]scale[L0];[L0][0:v]vstack[out]'),
         # fmt: on
     ],
@@ -37,11 +37,11 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
         ("scale,fps","eq",'all',0,False,False,'scale,fps,eq'),
         ("split","vstack",'all',0,False,False,'[UNC0]split[L0][L1];[L0][L1]vstack[UNC1]'),
         ("split","vstack",'all',1,False,False,'[UNC0]split[L0][UNC2];[L0][UNC1]vstack[UNC3]'),
-        ("[vin]scale;[ain]asplit","vstack[vout];atrim[aout]",'all',0,False,False,'[vin]scale[L0];[ain]asplit[L1][L2];[L0][L1]vstack[vout];[L2]atrim[aout]'),
+        ("[vin1]scale;[vin2]split","vstack[vout1];trim[vout2]",'all',0,False,False,'[vin1]scale[L0];[vin2]split[L1],trim[vout2];[L0][L1]vstack[vout1]'),
         ("[vin]scale;[ain]asplit","vstack[vout];atrim[aout]",'per_chain',0,False,False,'[vin]scale[L0];[ain]asplit[L1][UNC1];[L0][UNC0]vstack[vout];[L1]atrim[aout]'),
         ("[vin]scale;[ain]asplit","vstack[vout]",'all',0,False,False,'[vin]scale[L0];[ain]asplit[L1][UNC0];[L0][L1]vstack[vout]'),
         ("[vin]scale;[ain]asplit","vstack[vout]",'all',0,True,False,None),
-        ("split[out]","[in]vstack",'all',0,False,True,'[UNC0]split[out][L0];[in][L0]vstack[UNC1]'),
+        ("split[out]","[in]vstack",'all',0,False,True,'[UNC0]split[out],[in]vstack[UNC1]'),
         # fmt: on
     ],
 )
@@ -79,11 +79,10 @@ def test_attach(left, right, left_on, right_on, ret):
 
 
 def test_join_bug():
-    af1 = fgb.Chain("aevalsrc=0,aformat=sample_fmts=s16:r=44100")
-    af2 = fgb.Graph(
-        "channelmap=channel_layout=stereo:map=FC|FC,bandpass=channels=FL,aresample=22050"
-    )
-    af3 = fgb.Chain("channelmap=channel_layout=stereo:map=FC|FC,bandpass=channels=FL,aresample=22050"
-    )
-    af = af1 + af2
-    assert af==af1+af3
+    af1 = fgb.Chain("aevalsrc,aformat")
+    af2 = fgb.Graph("channelmap,bandpass,aresample")
+    af3 = fgb.Chain("channelmap,bandpass,aresample")
+    af_a = af1 + af2
+    af_b = af1 + af3
+
+    assert af_a==af_b

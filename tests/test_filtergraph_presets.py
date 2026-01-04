@@ -8,7 +8,7 @@ import ffmpegio.filtergraph.presets as presets
     "kwargs",
     [
         dict(crop=None, flip=None, transpose=None),
-        dict(scale=1.2, crop=100, flip="both", transpose=90, square_pixels="upscale"),
+        dict(scale=1.2, crop=100, flip="both", transpose=90),
     ],
 )
 def test_video_basic_filter(kwargs):

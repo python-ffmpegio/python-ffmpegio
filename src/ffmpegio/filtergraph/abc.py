@@ -269,7 +269,9 @@ class FilterGraphObject(ABC):
         return None
 
     @abstractmethod
-    def normalize_pad_index(self, input: bool, index: PAD_INDEX) -> PAD_INDEX:
+    def normalize_pad_index(
+        self, input: bool, index: PAD_INDEX
+    ) -> tuple[int, int, int]:
         """normalize pad index.
 
         Returns three-element pad index with non-negative indices.
@@ -351,7 +353,7 @@ class FilterGraphObject(ABC):
         """remove an input/output label
 
         :param label: linkn label
-        :param inpad: specify input pad if multiple pads receives the same input 
+        :param inpad: specify input pad if multiple pads receives the same input
                       stream, defaults to `None` to delete all input pads.
         """
 
@@ -663,7 +665,27 @@ class FilterGraphObject(ABC):
 
         :param show_unconnected_inputs: display [UNC#] on all unconnected input pads, defaults to True
         :param show_unconnected_outputs: display [UNC#] on all unconnected output pads, defaults to True
+
         """
+
+    # def __eq__(self, value: FilterGraphObject | str) -> bool:
+    def __eq__(self, value: object) -> bool:
+
+        try:
+            value = fgb.convert.as_filtergraph_object_like(value, self)
+        except Exception:
+            return False
+
+        return super().__eq__(value)
+
+    # def __ne__(self, value: FilterGraphObject | str) -> bool:
+    def __ne__(self, value: object) -> bool:
+        try:
+            value = fgb.convert.as_filtergraph_object_like(value, self)
+        except Exception:
+            return True
+
+        return super().__ne__(value)
 
     def __str__(self) -> str:
         return self.compose(False, False)

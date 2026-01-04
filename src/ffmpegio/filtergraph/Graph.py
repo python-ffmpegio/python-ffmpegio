@@ -220,7 +220,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             chainable_first=chainable_first,
         )
 
-    def normalize_pad_index(self, input: bool, index: PAD_INDEX) -> PAD_INDEX:
+    def normalize_pad_index(
+        self, input: bool, index: PAD_INDEX
+    ) -> tuple[int, int, int]:
         """normalize pad index.
 
         Returns three-element pad index with non-negative indices.
@@ -984,8 +986,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """combine another filtergraph object and make downstream connections (worker)
 
         :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing self's output pad and right's ipnut pad
-        :param bwd_links: a list of tuples, pairing right's output pad and self's ipnut pad
+        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
+        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
         :param chain_siso: True to chain the single-input single-output connection, default: True
         :param replace_sws_flags: True to use `right` sws_flags if present,
                                   False to drop `right` sws_flags,
@@ -996,83 +998,126 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         """
 
+        # procedure outline
+        # 0. analyze fwd_links whether they can be chained or not
+        # 1. chain or stack each chain of the right filtergraph object
+        #    - chain if there is a responsible fwd_link else stack
+        #    - drop chained fwd_link from the list
+        # 2. if right is a Graph, add its links to the output fg with adjustments
+        # 3. add remaining fwd_links
+        # 4. add bwd_links
+
         fg = Graph(self)
 
-        must_link_fwd = [True] * len(fwd_links)
-        right_chained = []
+        right_links = (
+            GraphLinks(right._links) if isinstance(right, Graph) else GraphLinks(None)
+        )
+
         lut_shift = {}
         lut_map = {}
 
-        if (
-            chain_siso
-            and not len(bwd_links)
-            and (
-                len(set(l[0][0] for l in fwd_links))
-                == len(set(l[1][0] for l in fwd_links))
+        # scan fwd_links: split fwd_links to be chained and stacked
+        fwd_chain_links = {}  # keyed by input chain idx
+        fwd_stack_links = []
+        for outpad, inpad in fwd_links:
+
+            link = (
+                self.normalize_pad_index(False, outpad),
+                right.normalize_pad_index(True, inpad),
             )
-        ):
-            # if linking chains are both siso and free of any other linkages and both pads are not labeled
-            # the chain of the right fg is joined to the chain of the left
 
-            right = fgb.as_filtergraph(right, copy=True)
+            if (
+                chain_siso
+                and self._output_pad_is_chainable(link[0])
+                and right._input_pad_is_chainable(link[1])
+            ):
+                # there should be only 1 link which is a chaining link for inpad (and also for outpad)
+                fwd_chain_links[link[1][0]] = link
+            else:
+                fwd_stack_links.append(link)
 
-            # chain links if there is no ambiguity
-            for i, (outpad, inpad) in enumerate(fwd_links):
-                ochain, ichain = outpad[0], inpad[0]
+            # drop labels currently exists on these pads
+            label = fg._links.find_outpad_label(outpad)
+            if label is not None:
+                assert isinstance(label, str)
+                fg._links.remove_label(label)
+            label = right_links.find_inpad_label(inpad)
+            if label is not None:
+                assert isinstance(label, str)
+                right_links.remove_label(label)
 
-                lut_shift[inpad[0]] = len(fg[ochain])
+        # scan bwd_links
+        bwd_links_ = []
+        for outpad, inpad in bwd_links:
+            link = (
+                self.normalize_pad_index(False, outpad),
+                right.normalize_pad_index(True, inpad),
+            )
+            bwd_links_.append(link)
 
-                # label check
-                if (
-                    fg.is_chain_appendable(ochain)
-                    and not fg._links.are_linked(None, outpad)
-                    and right.is_chain_prependable(ichain)
-                ):
-                    # add the right chain to the matching left chain
-                    fg[ochain].extend(right[ichain])
+            # drop labels currently exists on these pads
+            label = right_links.find_outpad_label(outpad)
+            if label is not None:
+                assert isinstance(label, str)
+                right_links.remove_label(label)
+            label = fg._links.find_inpad_label(inpad)
+            if label is not None:
+                assert isinstance(label, str)
+                fg._links.remove_label(label)
 
-                    label = fg._links.find_outpad_label(outpad)
-                    if label:
-                        fg._links.remove_label(label)
+        # stack/chain the chains of the right filtergraph to the left fg
+        n0 = len(fg)  # chain index offset
+        for i, c in right.iter_chains():
 
-                    # mark already connected
-                    must_link_fwd[i] = False
-                    right_chained.append(ichain)
+            if i in fwd_chain_links:
+                op, ip = fwd_chain_links[i]
 
-        # stack the remaining chains
-        if len(bwd_links) or any(must_link_fwd):
+                # all the links on this chain gets mapped to outpad's chain
+                # and shifted by the length of the chain before chaining
+                lut_map[ip[0]] = op[0]
+                lut_shift[ip[0]] = len(fg[op[0]])
 
-            # sift through the connections for chainable and unchainables
-            n0 = fg.get_num_chains()  # chain index offset
+                # chain
+                fg[op[0]].extend(c)
 
-            # stack 2 filtergraphs and build right chain id conversion lookup table
-            for i, c in enumerate(right):
-                if i not in right_chained:
-                    lut_map[i] = n0
-                    n0 += 1
-                    fg = fg._stack(c)
+            else:  # stack
+                # map the right links to the new chain
+                lut_map[i] = n0
+                # increment the chain counter
+                n0 += 1
+                # stack the new chain
+                fg = fg._stack(c)
 
         # map the remainig right links to the new fg
-        right_links = right._links.drop_labels(tuple(fg._links.keys())).map_chains(
-            lut_map, lut_shift
-        )
+        right_links = right_links.map_chains(lut_map, lut_shift)
+
+        # make sure labels don't collide
+        right_links = {
+            fg._links.resolve_label(label, auto_index=True): link
+            for label, link in right_links.items()
+        }
 
         # transfer the right links to fg (remap chains)
         fg._links.update(right_links)
 
-        # create iterators to organize the links in (input, output) of the combined graph
-        it_fwd = (
-            ((lut[r[0]], *r[1:]), l)
-            for (l, r), do_link in zip(fwd_links, must_link_fwd)
-            if do_link
-        )
-        it_bwd = ((l, (lut[r[0]], *r[1:])) for (r, l) in bwd_links)
+        # add the new links in (input, output) of the combined graph
+        def adjust_right_pad(pad):
+            c = pad[0]
+            if c in lut_shift:
+                pad = (pad[0], pad[1] + lut_shift[c], pad[2])
+            if c in lut_map:
+                pad = (lut_map[c], *pad[1:])
+            return pad
+
+        it_fwd = tuple((adjust_right_pad(r), l) for l, r in fwd_stack_links)
+        it_bwd = tuple((l, adjust_right_pad(r)) for r, l in bwd_links)
         fg._links.update(
             {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
             validate=False,
         )
 
-        if replace_sws_flags and right.sws_flags:
+        # if commanded, use the right sws flags as the output sws flags
+        if replace_sws_flags and isinstance(right, Graph) and right.sws_flags:
             fg.sws_flags = right.sws_flags
 
         return fg
@@ -1100,63 +1145,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         """
 
-        # return fgb.as_filtergraph(left)._connect(
-        #     self, fwd_links, bwd_links, chain_siso, replace_sws_flags
-        # )
-
-        fg = Graph(self)
-
-        must_link_fwd = [True] * len(fwd_links)
-        left_chained = []
-
-        if (
-            chain_siso
-            and not len(bwd_links)
-            and (
-                len(set(l[0][0] for l in fwd_links))
-                == len(set(l[1][0] for l in fwd_links))
-            )
-        ):
-            # if linking chains are both siso and free of any other linkages and both pads are not labeled
-            # the chain of the right fg is joined to the chain of the left
-
-            left = fgb.as_filtergraph(left, copy=True)
-
-            # chain links if there is no ambiguity
-            for i, (outpad, inpad) in enumerate(fwd_links):
-                ochain, ichain = outpad[0], inpad[0]
-
-                # label check
-                if (
-                    fg.is_chain_prependable(ichain)
-                    and not fg._links.are_linked(inpad, None)
-                    and left.is_chain_appendable(ochain)
-                ):
-                    # add the right chain to the matching left chain
-                    left_chain = left[ochain]
-                    fg[ichain].data = [*left_chain, *fg[ichain]]
-
-                    label = fg._links.find_inpad_label(inpad)
-                    if label:
-                        fg._links.remove_label(label)
-
-                    fg._links.adjust_filters(ichain, 0, len(left_chain))
-
-                    # mark already connected
-                    must_link_fwd[i] = False
-                    left_chained.append(ochain)
-
-        # stack the remaining chains
-        if len(bwd_links) or any(must_link_fwd):
-            fg = left._connect(
-                fg,
-                [link for link, do_link in zip(fwd_links, must_link_fwd) if do_link],
-                bwd_links,
-                chain_siso=False,
-                replace_sws_flags=replace_sws_flags,
-            )
-
-        return fg
+        return fgb.as_filtergraph(left)._connect(
+            self, fwd_links, bwd_links, chain_siso, replace_sws_flags
+        )
 
     def _iter_io_pads(self, is_input, how, ignore_labels=False):
         """Iterates input/output pads of the filtergraph
@@ -1271,10 +1262,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """returns True if specified input pad index is available"""
 
         # check linked indices
-        if any(
-            link[1] == index
-            for link in self._links.iter_links(include_input_stream=True)
-        ):
+        if self._links.are_linked(inpad=index, outpad=None, check_input_stream=True):
             # already connected
             return False
 
@@ -1285,7 +1273,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """returns True if specified output pad index is available"""
 
         # check linked indices
-        if any(link[2] == index for link in self._links.iter_links()):
+        if self._links.are_linked(outpad=index, inpad=None):
             # already connected
             return False
 

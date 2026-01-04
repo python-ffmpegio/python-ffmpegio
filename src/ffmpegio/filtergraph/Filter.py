@@ -65,7 +65,23 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
 
     def __new__(self, filter_spec, *args, filter_id=None, **kwargs):
         """_summary_"""
+
+        if isinstance(filter_spec, fgb.Graph):
+            if len(filter_spec) != 1:
+                raise TypeError(
+                    "Cannot convert a `Graph` object with more than one filter to a `Filter` object"
+                )
+            filter_spec = filter_spec[0]
+
+        if isinstance(filter_spec, fgb.Chain):
+            if len(filter_spec) != 1:
+                raise TypeError(
+                    "Cannot convert a `Chain` or `Graph` object to a `Filter` object if it does not have exactly one filter."
+                )
+            filter_spec = filter_spec[0]
+
         proto = []
+
         if isinstance(filter_spec, Filter):
             if filter_spec.id and filter_id is not None:  # new id
                 proto.append((filter_spec.name, filter_id))
@@ -481,7 +497,9 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             else inc()
         )
 
-    def normalize_pad_index(self, input: bool, index: PAD_INDEX) -> PAD_INDEX:
+    def normalize_pad_index(
+        self, input: bool, index: PAD_INDEX
+    ) -> tuple[int, int, int]:
         """normalize pad index.
 
         Returns three-element pad index with non-negative indices.

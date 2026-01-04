@@ -891,18 +891,18 @@ def analyze_complex_filtergraphs(
 
 def analyze_output_video_filter(
     filtergraph: FilterGraphObject,
-    s: tuple[int, int] | None,
     r_in: Fraction | int,
     pix_fmt_in: str,
     s_in: tuple[int, int],
+    s: tuple[int, int] | None=None,
 ) -> tuple[int | Fraction, str, tuple[int, int]]:
     """analyze an output video filter
 
     :param filtergraph: simple filter graph.
-    :param s: -s output option
     :param r_in: input frame rate
     :param pix_fmt_in: input pixel format
     :param s_in: input frame shape (width, height)
+    :param s: -s output option, defaults to None (not given)
     :return r: output frame rate
     :return pix_fmt: output pixel format
     :return s: output frame shape (width, height)

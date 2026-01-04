@@ -261,7 +261,7 @@ class GraphLinks(UserDict):
 
         if not (in_label or out_label):
             # new label, resolve
-            label = self._resolve_label(label, force)
+            label = self.resolve_label(label, force)
 
         # create the new link (overwrite if forced)
         self.data[label] = (inpad, outpad)
@@ -310,11 +310,13 @@ class GraphLinks(UserDict):
         for id in range(new_id + 1, old_id + 1):
             del self.data[id]
 
-    def _resolve_label(
+    def resolve_label(
         self,
         label: str | int | None,
         force: bool = False,
         check_stream_spec: bool = True,
+        auto_index: bool = False,
+        auto_index_sep: str = "",
     ) -> str | int:
         """check the label name for duplicate, adjust as needed
 
@@ -322,6 +324,10 @@ class GraphLinks(UserDict):
                       is ignored and replaced with the autonumbering label
         :param force: True to allow overwrite an existing label, defaults to False
         :param check_stream_spec: False to skip stream spec check, defaults to True
+        :param auto_index: True to append a number to a string label until a unique
+                           label is found, defaults to False to error out.
+        :param auto_index_sep: a string to separate the label and the auto-index number,
+                               defaults to ''
         :return: validated label name/id
         """
 
@@ -335,7 +341,13 @@ class GraphLinks(UserDict):
             return label
 
         if not force and label in self:
-            raise GraphLinks.Error(f"{label=} is already in use.")
+            if not auto_index:
+                raise GraphLinks.Error(f"{label=} is already in use.")
+            i = 0
+            label_ = f'{label}{auto_index_sep}'
+            while label in self:
+                i += 1
+                label = f"{label_}{i}"
 
         self.validate_label(label)
 
@@ -667,7 +679,7 @@ class GraphLinks(UserDict):
 
         is_stspec = is_map_option(label, allow_missing_file_id=True)
         if not is_stspec:
-            label = self._resolve_label(label, force=force, check_stream_spec=False)
+            label = self.resolve_label(label, force=force, check_stream_spec=False)
 
         label_in_use = label in self
 
@@ -771,7 +783,7 @@ class GraphLinks(UserDict):
         :return: renamed label name
         """
         v = self.data[old_label]
-        label = self._resolve_label(new_label, force)
+        label = self.resolve_label(new_label, force)
         del self.data[old_label]
         self.data[label] = v
         return label
@@ -903,7 +915,9 @@ class GraphLinks(UserDict):
         self._modify_pad_ids(select, adj)
 
     def map_chains(
-        self, mapper: int | Mapping[int, int]|None, shifter: Mapping[int, int] | None = None
+        self,
+        mapper: int | Mapping[int, int] | None,
+        shifter: Mapping[int, int] | None = None,
     ) -> GraphLinks:
         """Generate a new GraphLink object with a chain id mapper
 
@@ -942,11 +956,13 @@ class GraphLinks(UserDict):
         if isinstance(mapper, int):
 
             class OffsetMapper:
+                nmap = len(self)
+
                 def __init__(self, offset):
                     self._off = offset
 
                 def __len__(self):
-                    return len(data)
+                    return self.nmap
 
                 def __contains__(self, _):
                     # applies to all
@@ -961,8 +977,9 @@ class GraphLinks(UserDict):
             mapper = OffsetMapper(mapper)
 
         if mapper is not None and len(mapper):
+
             def map_padidx(pad):
-                if pad[0] in shifter:
+                if pad[0] in mapper:
                     pad = (mapper[pad[0]], *pad[1:])
                 return pad
 
@@ -971,7 +988,7 @@ class GraphLinks(UserDict):
                     outpad = map_padidx(outpad)
                 if inpads is not None:
                     if isinstance(inpads[0], int):  # single-input
-                        inpad = map_padidx(inpad)
+                        inpads = map_padidx(inpads)
                     else:  # multiple-inputs (an input stream)
                         inpads = tuple(map_padidx(d) for d in inpads)
                 return (inpads, outpad)
@@ -993,7 +1010,7 @@ class GraphLinks(UserDict):
         def keep(k):
             if isinstance(k, str) and k in labels:
                 if keep_links and self.is_linked(k):
-                    return self._resolve_label(None)
+                    return self.resolve_label(None)
                 return None
             else:
                 return k

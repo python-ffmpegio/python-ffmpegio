@@ -207,10 +207,10 @@ def join(
             for c in range(nleft):
                 # get the first available pad to join
                 left_pad, *_ = next(
-                    left.iter_output_pads(chain=c, chainable_only=True, **iter_kws)
+                    left.iter_output_pads(chain=c, **iter_kws)
                 )
                 right_pad, *_ = next(
-                    right.iter_input_pads(chain=c, chainable_only=True, **iter_kws)
+                    right.iter_input_pads(chain=c, **iter_kws)
                 )
                 links[c] = (left_pad, right_pad)
         except:

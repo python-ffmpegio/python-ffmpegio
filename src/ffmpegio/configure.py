@@ -819,7 +819,7 @@ def gather_video_read_opts(
             if (vf := (options.get("vf") or options.get("filter:v"))) or scaled_s:
                 # analyze output simple filter
                 r_in, pix_fmt_in, s_in = utils.analyze_output_video_filter(
-                    vf, s if scaled_s else None, r_in, pix_fmt_in, s_in
+                    vf, r_in, pix_fmt_in, s_in, s if scaled_s else None
                 )
 
         # pixel format must be specified
@@ -872,118 +872,6 @@ def gather_video_read_opts(
     outopts["f"] = "rawvideo"
 
     return raw_info, outopts
-
-
-def finalize_video_read_opts(
-    args: FFmpegArgs,
-    ofile: int = 0,
-    input_info: list[RawInputInfoDict | EncodedInputInfoDict] = [],
-    fg_info: dict[str, FilterGraphInfoDict] | None = None,
-    skip_analysis: bool = False,
-) -> RawStreamInfoTuple:
-    """finalize raw video read output options
-
-    :param args: FFmpeg arguments (will be modified)
-    :param ofile: output index, defaults to 0
-    :param input_info: source information of the inputs, defaults to []
-    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
-                    keyed by their linklabels, defaults to None to perform the
-                    filtergraph analysis internally
-    :return dtype: Numpy-style buffer data type string
-    :return s: video shape tuple (height, width, nb_components)
-    :return r: video framerate
-    """
-
-    options = ["r", "pix_fmt", "s"]
-
-    outopts = args["outputs"][ofile][1]
-    outmap = outopts["map"]
-    map_fields = parse_map_option(
-        outmap, input_file_id=0 if len(args["inputs"]) == 1 else None
-    )
-    has_simple_filter = "vf" in outopts or "filter:v" in outopts
-    fill_color = outopts.get("fill_color", None)
-    if fill_color is not None and "remove_alpha" not in outopts:
-        outopts.pop("fill_color")
-
-    # use the output option by default
-    opt_vals = [outopts.get(o, None) for o in options]
-
-    if all(opt_vals) and skip_analysis:
-        return tuple(opt_vals)
-
-    # get the options of the input/filtergraph output
-    if linklabel := map_fields.get("linklabel", None):
-        if fg_info is None or not (info := fg_info.get(linklabel, None)):
-            raise FFmpegioError(
-                f"Complex filtergraph or the specified {linklabel=} do not exist."
-            )
-        inopt_vals = [info["r"], info["pix_fmt"], info["s"]]
-    else:
-        # insert basic video filter if specified
-        # build_basic_vf(args, False, ofile)
-
-        ifile = map_fields["input_file_id"]
-
-        # get input option values
-        inopt_vals = utils.analyze_video_stream(
-            map_fields["stream_specifier"],
-            *args["inputs"][ifile],
-            input_info[ifile],
-        )
-
-        # directly from the input url (if not forced via input options)
-        if has_simple_filter:
-
-            # create a source chain with matching spec and attach it to the af graph
-            vf = temp_video_src(*inopt_vals) + outopts.get(
-                "filter:v", outopts.get("vf", None)
-            )
-
-            outpad = next(vf.iter_output_pads(unlabeled_only=True), None)
-            if outpad is not None:
-                vf = vf >> "[out0]"
-            inopt_vals = utils.analyze_video_stream(
-                "0", vf, {"f": "lavfi"}, {"src_type": "filtergraph"}
-            )
-
-    # assign the values to individual variables
-    r, pix_fmt, s = opt_vals
-    r_in, pix_fmt_in, s_in = inopt_vals
-
-    # pixel format must be specified
-    if pix_fmt is None:
-
-        if pix_fmt_in == "unknown":
-            raise FFmpegioError(
-                "input pixel format unknown. Please specify output pix_fmt (to be autoset)"
-            )
-
-        # deduce output pixel format from the input pixel format
-        try:
-            outopts["pix_fmt"], ncomp, dtype, _ = utils.get_pixel_config(pix_fmt_in)
-        except:
-            ncomp = dtype = None
-    else:
-        # make sure assigned pix_fmt is valid
-        if pix_fmt_in is None:
-            try:
-                dtype, ncomp = utils.get_pixel_format(pix_fmt)
-            except:
-                ncomp = dtype = None
-        else:
-            _, ncomp, dtype, remove_alpha = utils.get_pixel_config(pix_fmt_in, pix_fmt)
-            # if remove_alpha:
-            #     # append the remove-video-alpha filter chain
-            #     build_basic_vf(args, True, ofile)
-
-    outopts["f"] = "rawvideo"
-
-    # use output option value or else use the input value
-    r = r or r_in
-    s = s or s_in
-
-    return dtype, None if s is None else (*s[::-1], ncomp), r
 
 
 def check_alpha_change(args, dir=None, ifile=0, ofile=0):
@@ -1128,106 +1016,6 @@ def gather_audio_read_opts(
     outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
 
     return raw_info, outopts
-
-
-def finalize_audio_read_opts(
-    args: FFmpegArgs,
-    ofile: int = 0,
-    input_info: list[RawInputInfoDict | EncodedInputInfoDict] = [],
-    fg_info: dict[str, FilterGraphInfoDict] | None = None,
-    skip_analysis: bool = False,
-) -> RawStreamInfoTuple:
-    """finalize a raw output audio stream
-
-    :param args: FFmpeg arguments. The option dict in args['outputs'][ofile][1] may be modified.
-    :param ofile: output file index, defaults to 0
-    :param input_info: list of input information, defaults to []
-    :param fg_info: filtergraph output info if filtergraph has been pre-analyzed,
-                    keyed by their linklabels, defaults to None to perform the
-                    filtergraph analysis internally
-    :return dtype: input data type (Numpy style)
-    :return ac: number of channels
-    :return ar: sampling rate
-
-    * Possible Output Options Modification
-      - "f" and "c:a" - raw audio format and codec will always be set
-      - "sample_fmt" - planar format to non-planar equivalent format or 'dbl' if format is unknown
-      -
-
-    * args['outputs'][ofile]['map'] is a valid mapping str (not a list of str)
-    * If complex filtergraph(s) is used, args['global_options']['filter_complex'] must be a list of fgb.Graph objects
-
-    """
-
-    options = ["ar", "sample_fmt", "ac"]
-
-    outopts = args["outputs"][ofile][1]
-    outmap = outopts["map"]
-    map_fields = parse_map_option(
-        outmap, input_file_id=0 if len(args["inputs"]) == 1 else None
-    )
-
-    # use the output options by default
-    opt_vals = [outopts.get(o, None) for o in options]
-    if not all(opt_vals):
-        if skip_analysis:
-            return tuple(opt_vals)
-        if linklabel := map_fields.get("linklabel", None):
-            if fg_info is None or not (info := fg_info.get(linklabel, None)):
-                raise FFmpegioError(
-                    f"Complex filtergraph or the specified {linklabel=} do not exist."
-                )
-            inopt_vals = [info["ar"], info["sample_fmt"], info["ac"]]
-        else:
-            ifile = map_fields["input_file_id"]
-
-            # get input option values
-            inopt_vals = utils.analyze_audio_stream(
-                map_fields["stream_specifier"],
-                *args["inputs"][ifile],
-                input_info[ifile],
-            )
-
-            # if a simple filter is present, use the stream specs of its output
-            if "af" in outopts or "filter:a" in outopts:
-
-                # create a source chain with matching specs and attach it to the af graph
-                af1 = temp_audio_src(*inopt_vals)
-                af2 = outopts.get("filter:a", outopts.get("af", None))
-                inopt_vals = utils.analyze_audio_stream(
-                    "0", af1 + af2, {"f": "lavfi"}, {"src_type": "filtergraph"}
-                )
-
-        opt_vals = [v or s for v, s in zip(opt_vals, inopt_vals)]
-
-    # assign the values to individual variables
-    ar, sample_fmt, ac = opt_vals
-
-    # sample format must be specified
-    if sample_fmt is None:
-        logger.warning(
-            'Sample format of audio stream "%s" could not be retrieved. Uses "dbl".',
-            outmap,
-        )
-        sample_fmt = outopts["sample_fmt"] = "dbl"
-    elif sample_fmt[-1] == "p":
-        # planar format is not supported
-        logger.warning(
-            "The audio stream %s uses a planar sample format '%s' which is not supported for audio data IO. Changed to %s.",
-            outmap,
-            sample_fmt,
-            sample_fmt[:-1],
-        )
-        sample_fmt = sample_fmt[:-1]
-        outopts["sample_fmt"] = sample_fmt  # set the format to non-planar
-
-    # set output format and codec
-    outopts["c:a"], outopts["f"] = utils.get_audio_codec(sample_fmt)
-
-    # sample_fmt must be given
-    dtype, _ = utils.get_audio_format(sample_fmt, ac)
-
-    return dtype, ac and (ac,), ar
 
 
 ################################################################################
@@ -1658,7 +1446,19 @@ def resolve_raw_output_streams(
     for i, opts in enumerate(stream_opts):
 
         spec = opts["map"]
-        opt = parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
+        user_map = stream_names.get(i, spec)
+
+        try:
+            opt = parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
+        except ValueError:
+            # incorrect spec if there is no complex filter in place
+            if not utils.find_filter_complex_option(args['global_options']):
+                raise
+
+            # test spec with possibly omitted brackets
+            spec = f"[{spec}]"
+            opt = parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
+            opts["map"] = spec
 
         # get output stream information
         if "linklabel" in opt:
@@ -1669,7 +1469,7 @@ def resolve_raw_output_streams(
             output_opts.append(opts)
             output_info.append(
                 {
-                    "user_map": stream_names.get(i, spec[1:-1]),
+                    "user_map": user_map,
                     "linklabel": opt["linklabel"],
                 }
             )
@@ -1680,7 +1480,6 @@ def resolve_raw_output_streams(
 
             file_index = opt["input_file_id"]
             stream_spec = opt["stream_specifier"]
-            user_map = stream_names.get(i, spec)
 
             # retrieve input stream data
             if "index" in stream_spec and "stream_type" in stream_spec:

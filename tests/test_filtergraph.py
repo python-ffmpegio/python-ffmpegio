@@ -215,14 +215,14 @@ def test_resolve_pad_index(
             "trim",
             None,
             None,
-            "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]",
+            "[UNC0]split=2[C],trim[UNC1];[C]crop[UNC2]",
         ),
         (
             "split=2[C][out];[C]crop",
             "trim",
             "out",
             None,
-            "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]",
+            "[UNC0]split=2[C],trim[UNC1];[C]crop[UNC2]",
         ),
     ],
 )
@@ -242,11 +242,11 @@ def test_attach(fg, fc, left_on, right_on, out):
         # fmt: off
         ("fps;crop", "trim", None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
         ("[in]fps;crop", "trim", None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
-        ("fps;crop", "trim", (1, 0, 0), "[UNC0]fps[UNC2];[UNC1]trim,crop[UNC3]"),
-        ("fps;[in]crop", "trim", "in", "[UNC0]fps[UNC2];[UNC1]trim,crop[UNC3]"),
-        ("[L]fps;crop[L]", "trim", None, "[L]fps[UNC1];[UNC0]trim,crop[L]"),
-        ("[C]overlay;crop[C]", "trim", None, "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]"),
-        ("[C][in]overlay;crop[C]", "trim", "in", "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]"),
+        ("fps;crop", "trim", (1, 0, 0), "[UNC0]trim,crop[UNC2];[UNC1]fps[UNC3]"),
+        ("fps;[in]crop", "trim", "in", "[UNC0]trim,crop[UNC2];[UNC1]fps[UNC3]"),
+        ("[L]fps;crop[L]", "trim", None, "[UNC0]trim,crop[L];[L]fps[UNC1]"),
+        ("[C]overlay;crop[C]", "trim", None, "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]"),
+        ("[C][in]overlay;crop[C]", "trim", "in", "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]"),
         # fmt: on
     ],
 )
@@ -373,8 +373,8 @@ def test_get_output_pad(fg, id, out):
     [
         # fmt: off
         ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], None, "[a1]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[d1]"),
-        ("[la]fps;crop[lb]", "[lb]trim;scale[la]", ['lb'], ['lb'], None, "[la]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[UNC4]"),
-        ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], True, "[a1]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[d1]"),
+        ("[la]fps;crop[lb]", "[lb]trim;scale[la]", ['lb'], ['lb'], None, "[la]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[la1]"),
+        ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], True, "[a1]fps[UNC2];[UNC0]crop,trim[UNC3];[UNC1]scale[d1]"),
         # fmt: on
     ],
 )
@@ -394,7 +394,7 @@ def test_connect(fg, r, to_l, to_r, chain, out):
     [
         # fmt: off
         ("fps;crop", "trim;scale", None, False, "[UNC0]fps,trim[UNC2];[UNC1]crop,scale[UNC3]"),
-        ("[in1]fps;crop[ou1]", "[in2]trim;scale[out2]", None, True, "[in1]fps[L0];[UNC0]crop[ou1];[in2]trim[UNC1];[L0]scale[out2]"),
+        ("[in1]fps;crop[ou1]", "[in2]trim;scale[out2]", None, True, "[in1]fps,scale[out2];[UNC0]crop[ou1];[in2]trim[UNC1]"),
         ("fps", "overlay", 'per_chain', False, "[UNC0]fps[L0];[L0][UNC1]overlay[UNC2]"),
         # fmt: on
     ],

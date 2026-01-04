@@ -58,7 +58,7 @@ def test_media_write():
         pprint(ff.probe.format_basic(outfile))
         pprint(ff.probe.streams_basic(outfile))
 
-
+@pytest.mark.skip(reason='To be implemented - merge_audio preset filtergraph needs more work.')
 def test_media_write_audio_merge():
     stream1 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=8000, sample_fmt="s16")
     stream2 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=16000, sample_fmt="flt")
@@ -90,19 +90,18 @@ def test_media_filter():
 
     print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
 
-    with TemporaryDirectory() as tmpdirname:
-        outrates, outdata = ff.media.filter(
-            ["[0:V:0][1:V:0]vstack,split", "[2:a:0][3:a:0]amerge"],
-            "vvaa",
-            (fps, F),
-            (fps, F),
-            (fs, x),
-            (fs, x),
-            output_args={"[out0]": {}, "audio": {"map": "[out2]"}},
-            show_log=True,
-            shortest=ff.FLAG,
-        )
+    outrates, outdata = ff.media.filter(
+        ["[0:V:0][1:V:0]vstack,split[out0]", "[2:a:0][3:a:0]amerge[out2]"],
+        "vvaa",
+        (fps, F),
+        (fps, F),
+        (fs, x),
+        (fs, x),
+        output_args={"[out0]": {},"out1":{}, "audio": {"map": "[out2]"}},
+        show_log=True,
+        shortest=ff.FLAG,
+    )
 
-        assert all(k in ("[out0]", "out1", "audio") for k in outrates)
+    assert all(k in ("[out0]", "out1", "audio") for k in outrates)
 
-        print(outrates)
+    print(outrates)

@@ -314,7 +314,9 @@ def filter(
         raise RuntimeError("Something went wrong in setting up filter operation...")
 
     # run FFmpeg
-    proc = _runner(args, input_info, output_info, show_log, progress, sp_kwargs)
+    proc, input_pipes, output_pipes = _runner(
+        args, input_info, output_info, show_log, progress, sp_kwargs
+    )
 
     # gather and return output
-    return _gather_outputs(output_info, proc)
+    return _gather_outputs(output_info, output_pipes)

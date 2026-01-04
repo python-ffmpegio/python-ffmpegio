@@ -152,11 +152,11 @@ def test_init(base_links):
         (["a", "b"], ["a", "b"]),
     ],
 )
-def test_resolve_label(labels, expects):
+def testresolve_label(labels, expects):
     links = GraphLinks()
 
     def update(label):
-        links.data[links._resolve_label(label)] = None
+        links.data[links.resolve_label(label)] = None
 
     for label in labels:
         update(label)

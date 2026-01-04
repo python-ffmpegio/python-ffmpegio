@@ -224,8 +224,8 @@ def test_resolve_pad_index(
 #         pad_fill_value: int | None = None,
 #         chainable_first: bool = False,
 #     ) -> PAD_INDEX:
-# def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
-# def _output_pad_is_available(self, index: tuple[int, int, int]) -> bool:
+# def is_input_linkable(self, inpad: PAD_INDEX)->bool:
+# def is_output_linkable(self, outpad: PAD_INDEX)->bool:
 # def _check_partial_pad_index(
 #     self, index: tuple[int | None, int | None, int | None], is_input: bool
 # ) -> bool:
