@@ -54,13 +54,8 @@ def _runner(
     ffmpegprocess.Popen, dict[int, InputPipeInfoDict], dict[int, OutputPipeInfoDict]
 ]:
 
-    # True if there is unknown datablob info
-    need_stderr = any(
-        info["dst_type"] == "pipe" and info["raw_info"] is None for info in output_info
-    )
-
-    # run FFmpeg
-    capture_log = True if need_stderr else None if show_log else True
+    # convert show_log to capture_log
+    capture_log = None if show_log else True
 
     # configure named pipes
     input_pipes = output_pipes = {}

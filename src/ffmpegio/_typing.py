@@ -49,7 +49,7 @@ ShapeTuple = tuple[int, ...]
 
 
 RawStreamDef = (
-    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob | None, FFmpegOptionDict]
+    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
 )
 """2-element tuple to define a raw stream data
 

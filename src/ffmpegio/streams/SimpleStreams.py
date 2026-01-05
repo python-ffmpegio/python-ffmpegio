@@ -41,22 +41,15 @@ __all__ = [ "SimpleVideoReader", "SimpleAudioReader", "SimpleVideoWriter",
 # info["writer"].write(None, None if timeout is None else timeout - time())
 
 
-class SimpleReaderBase(BaseFFmpegRunner):
+class SimpleReader(BaseFFmpegRunner):
     """queue-less SISO media reader class"""
 
     def __init__(
         self,
-        *,
-        ffmpeg_args: FFmpegArgs,
-        input_info: list[InputInfoDict],
-        output_info: list[RawOutputInfoDict],
-        from_bytes: FromBytesCallable,
-        to_memoryview: ToBytesCallable,
-        show_log: bool | None,
-        progress: ProgressCallable | None,
-        blocksize: int,
-        default_timeout: float | None,
-        sp_kwargs: dict | None,
+        **init_kws,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        sp_kwargs: dict | None = None,
     ):
         """Queue-less simple media io runner
 
@@ -247,113 +240,17 @@ class SimpleReaderBase(BaseFFmpegRunner):
         )
 
 
-class SimpleVideoReader(SimpleReaderBase):
-
-    def __init__(
-        self,
-        *urls: FFmpegUrlType,
-        show_log: bool | None = None,
-        progress: ProgressCallable | None = None,
-        blocksize: int = 1,
-        sp_kwargs: dict | None = None,
-        stream: str | StreamSpecDict | None = None,
-        default_timeout: float | None = None,
-        **options,
-    ):
-        # assign the input stream
-        map = "0:V:0" if stream is None else stream_spec_to_map_option(stream)
-
-        args, input_info, output_info, _ = configure.init_media_read(
-            [*urls], [map], options
-        )
-        ready = output_info is not None
-        
-        if len(output_info) != 1 or output_info[0]["media_type"] != "video":
-            raise FFmpegioError(f'no output video stream found in "{urls}" ({map=})')
-
-        if not all(ready):
-            raise RuntimeError(
-                "Given file/url does not pre-provide the media information. Use media.read instead."
-            )
-
-        hook = plugins.get_hook()
-
-        super().__init__(
-            ffmpeg_args=args,
-            input_info=input_info,
-            output_info=output_info,
-            show_log=show_log,
-            progress=progress,
-            blocksize=blocksize,
-            sp_kwargs=sp_kwargs,
-            from_bytes=hook.bytes_to_video,
-            to_memoryview=hook.video_bytes,
-            default_timeout=default_timeout,
-        )
-
-
-class SimpleAudioReader(SimpleReaderBase):
-
-    def __init__(
-        self,
-        *urls: FFmpegUrlType,
-        show_log: bool | None = None,
-        progress: ProgressCallable | None = None,
-        blocksize: int = 1,
-        sp_kwargs: dict | None = None,
-        stream: str | StreamSpecDict | None = None,
-        default_timeout: float | None = None,
-        **options,
-    ):
-        # assign the input stream
-        map = "0:a:0" if stream is None else stream_spec_to_map_option(stream)
-
-        args, input_info, ready, output_info, _ = configure.init_media_read(
-            [*urls], [map], options
-        )
-
-        if len(output_info) != 1 or output_info[0]["media_type"] != "audio":
-            raise FFmpegioError(f'no output audio stream found in "{url}" ({map=})')
-
-        if not all(ready):
-            raise RuntimeError(
-                "Given file/url does not pre-provide the media information. Use media.read instead."
-            )
-
-        hook = plugins.get_hook()
-
-        super().__init__(
-            ffmpeg_args=args,
-            input_info=input_info,
-            output_info=output_info,
-            show_log=show_log,
-            progress=progress,
-            blocksize=blocksize,
-            sp_kwargs=sp_kwargs,
-            from_bytes=hook.bytes_to_audio,
-            to_memoryview=hook.audio_bytes,
-            default_timeout=default_timeout,
-        )
-
 
 ###########################################################################
 
 
-class SimpleWriterBase(BaseFFmpegRunner):
+class SimpleWriter(BaseFFmpegRunner):
     def __init__(
         self,
-        ffmpeg_args: FFmpegArgs,
-        input_info: list[InputInfoDict],
-        output_info: list[RawOutputInfoDict],
-        input_ready: Literal[True] | list[bool],
-        init_deferred_outputs: InitMediaOutputsCallable | None,
-        deferred_output_args: list[FFmpegOptionDict | None],
-        from_bytes: FromBytesCallable,
-        to_memoryview: ToBytesCallable,
-        show_log: bool | None,
-        progress: ProgressCallable | None,
-        default_timeout: float | None,
-        sp_kwargs: dict | None,
+        **init_kws,
+        show_log: bool | None = None,
+        progress: ProgressCallable | None = None,
+        sp_kwargs: dict | None = None,
     ):
         """Queue-less simple media writer
 
@@ -404,8 +301,6 @@ class SimpleWriterBase(BaseFFmpegRunner):
         self._n0 = 0  # timestamps of the last read sample
 
         ############
-
-        self._get_bytes = to_memoryview
 
         # input data must be initially buffered
         self._deferred_data = []
@@ -502,179 +397,3 @@ class SimpleWriterBase(BaseFFmpegRunner):
     def flush(self):
         self._proc.stdin.flush()
 
-
-class SimpleVideoWriter(SimpleWriterBase):
-
-    def __init__(
-        self,
-        url: FFmpegUrlType,
-        input_rate: int | Fraction,
-        *,
-        input_shape: ShapeTuple | None = None,
-        input_dtype: DTypeString | None = None,
-        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-        overwrite: bool | None = None,
-        show_log: bool | None = None,
-        progress: ProgressCallable | None = None,
-        sp_kwargs: dict | None = None,
-        stream: str | StreamSpecDict | None = None,
-        default_timeout: float | None = None,
-        **options: Unpack[FFmpegOptionDict],
-    ):
-        """Write video data to a video file
-
-        :param url: output url
-        :param input_rate: video frame rate
-        :param input_dtype: numpy-style data type string of input frames, defaults
-                            to `None` (auto-detect).
-        :param input_shape: shapes of each video frame, defaults to `None`
-                            (auto-detect).
-        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                            string or a pair of a url string and an option dict.
-        :param overwrite: True to overwrite existing files, defaults to None (auto-set)
-        :param show_log: True to show FFmpeg log messages on the console, defaults
-                         to None (no show/capture). Ignored if stream format must
-                         be retrieved automatically.
-        :param progress: progress callback function, defaults to None
-        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()`
-                          or `subprocess.Popen()` call used to run the FFmpeg,
-                          defaults to None
-        :param **options: FFmpeg options, append '_in[input_url_id]' for input
-                          option names for specific input url or '_in' to be
-                          applied to all inputs. The url-specific option gets
-                          the preference (see :doc:`options` for custom options)
-        """
-
-        # assign the input stream
-        st_map = options.pop("map", None)
-        if st_map is None:
-            st_map = "0:v:0" if stream is None else stream_spec_to_map_option(stream)
-
-        hook = plugins.get_hook()
-
-        options = {"probesize_in": 32, **options, "map": st_map}
-        if overwrite:
-            if "n" in options:
-                raise FFmpegioError(
-                    "cannot specify both `overwrite=True` and `n=ff.FLAG`."
-                )
-            options["y"] = None
-
-        args, input_info, input_ready, output_info, output_args = (
-            configure.init_media_write(
-                [url],
-                ["v"],
-                [(None, {"r": input_rate})],
-                False,
-                None,
-                None,
-                None,
-                extra_inputs,
-                options,
-                [input_dtype],
-                [input_shape],
-            )
-        )
-
-        super().__init__(
-            ffmpeg_args=args,
-            input_info=input_info,
-            output_info=[{}] if output_info is None else output_info,
-            input_ready=input_ready,
-            init_deferred_outputs=configure.init_media_write_outputs,
-            deferred_output_args=output_args,
-            from_bytes=hook.bytes_to_video,
-            to_memoryview=hook.video_bytes,
-            show_log=show_log,
-            progress=progress,
-            default_timeout=default_timeout,
-            sp_kwargs=sp_kwargs,
-        )
-
-
-class SimpleAudioWriter(SimpleWriterBase):
-
-    def __init__(
-        self,
-        url: FFmpegUrlType,
-        input_rate: int | Fraction,
-        *,
-        input_shape: ShapeTuple | None = None,
-        input_dtype: DTypeString | None = None,
-        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-        overwrite: bool | None = None,
-        show_log: bool | None = None,
-        progress: ProgressCallable | None = None,
-        sp_kwargs: dict | None = None,
-        stream: str | StreamSpecDict | None = None,
-        default_timeout: float | None = None,
-        **options: Unpack[FFmpegOptionDict],
-    ):
-        """Write video data to a video file
-
-        :param url: output url
-        :param input_rate: video frame rate
-        :param input_dtype: numpy-style data type string of input frames, defaults
-                            to `None` (auto-detect).
-        :param input_shape: shapes of each video frame, defaults to `None`
-                            (auto-detect).
-        :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                            string or a pair of a url string and an option dict.
-        :param overwrite: True to overwrite existing files, defaults to None (auto-set)
-        :param show_log: True to show FFmpeg log messages on the console, defaults
-                         to None (no show/capture). Ignored if stream format must
-                         be retrieved automatically.
-        :param progress: progress callback function, defaults to None
-        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()`
-                          or `subprocess.Popen()` call used to run the FFmpeg,
-                          defaults to None
-        :param **options: FFmpeg options, append '_in[input_url_id]' for input
-                          option names for specific input url or '_in' to be
-                          applied to all inputs. The url-specific option gets
-                          the preference (see :doc:`options` for custom options)
-        """
-
-        # assign the input stream
-        st_map = options.pop("map", None)
-        if st_map is None:
-            st_map = "0:a:0" if stream is None else stream_spec_to_map_option(stream)
-        hook = plugins.get_hook()
-
-        options = {"probesize_in": 32, **options, "map": st_map}
-        if overwrite:
-            if "n" in options:
-                raise FFmpegioError(
-                    "cannot specify both `overwrite=True` and `n=ff.FLAG`."
-                )
-            options["y"] = None
-
-        args, input_info, input_ready, output_info, output_args = (
-            configure.init_media_write(
-                [url],
-                ["a"],
-                [(None, {"ar": input_rate})],
-                False,
-                None,
-                None,
-                None,
-                extra_inputs,
-                options,
-                [input_dtype],
-                [input_shape],
-            )
-        )
-
-        super().__init__(
-            ffmpeg_args=args,
-            input_info=input_info,
-            output_info=output_info,
-            input_ready=input_ready,
-            init_deferred_outputs=configure.init_media_write_outputs,
-            deferred_output_args=output_args,
-            from_bytes=hook.bytes_to_audio,
-            to_memoryview=hook.audio_bytes,
-            show_log=show_log,
-            progress=progress,
-            default_timeout=default_timeout,
-            sp_kwargs=sp_kwargs,
-        )
