@@ -10,6 +10,7 @@ from .. import ffmpegprocess, configure, utils
 
 from .._typing import (
     Any,
+    Literal,
     Iterable,
     Callable,
     RawDataBlob,
@@ -47,8 +48,9 @@ class BaseFFmpegRunner:
     _init_kws: dict
 
     _nb_inputs: tuple[int, int] = (0, 0)  # (raw, raw+encoded)
-    _init_pipe: dict
-    _buffer: dict[int, bytes | list[RawDataBlob]]
+    _piped_inputs: dict[int, Literal["input_urls", "input_stream_args", "extra_input"]]
+    _piped_inputs_buffer: dict[int, bytes | list[RawDataBlob]]
+    _piped_inputs_avail: int = 0
 
     _input_info: list[InputInfoDict]
     _output_info: list[OutputInfoDict]
@@ -65,12 +67,12 @@ class BaseFFmpegRunner:
         self,
         init_func: Callable,
         init_kws: dict,
-        probesize: int | None = None,
         default_timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
+        probesize: int | None = None,
     ):
         """Base FFmpeg runner
 
@@ -81,6 +83,8 @@ class BaseFFmpegRunner:
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
         """
+
+        init_kws["options"] = {"probesize_in": probesize, **init_kws["options"]}
 
         self._init_func = staticmethod(init_func)
         self._init_kws = init_kws
@@ -106,44 +110,87 @@ class BaseFFmpegRunner:
         if probesize is not None:
             self.probesize = int(probesize)
 
-        self._input_pipes = {}
-        self._buffer = {}
+        self._piped_inputs = {}
+        self._piped_inputs_buffer = {}
 
     def _analyze_inputs(self):
-        """identify which input init_fun keyword arguments require user input"""
+        """identify which input init_fun keyword arguments require data from pipe"""
         kws = self._init_kws
-        pipes = {}
-        if (
-            "input_urls" in kws
-        ):  # list[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]]
-            pipes["input_urls"] = [
-                i
-                for i, (url, opts) in enumerate(kws["input_urls"])
-                if utils.is_pipe(url)
-            ]
+        pipes = self._piped_inputs
+        if "input_urls" in kws:
+            # encoded: list[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]]
+            for i, (url, _) in enumerate(kws["input_urls"]):
+                if utils.is_pipe(url):
+                    pipes[i] = "input_urls"
             self._nb_inputs = (0, len(kws["input_urls"]))
-        if "input_stream_args" in kws:  # list[tuple[RawDataBlob, FFmpegOptionDict]]
+        if "input_stream_args" in kws:
+            # raw: list[tuple[RawDataBlob, FFmpegOptionDict]]
             n_in = len(kws["input_stream_args"])
-            pipes["input_stream_args"] = range(n_in)
-            if (
-                "extra_input" in kws
-            ):  # list[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]]
-                pipes["extra_input"] = [
-                    i + n_in
-                    for i, (url, opts) in enumerate(kws["extra_input"])
-                    if utils.is_pipe(url)
-                ]
+            for i in range(n_in):
+                pipes[i] = "input_stream_args"
+            if "extra_input" in kws:
+                # encoded:list[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]]
+                for i, (url, _) in enumerate(kws["extra_input"]):
+                    if utils.is_pipe(url):
+                        pipes[i + n_in] = "extra_input"
             self._nb_inputs = (n_in, n_in + len(kws["extra_input"]))
-        self._init_pipe = pipes
 
-    def _config_ffmpeg(self) -> bool:
+    def _put_aside_input(
+        self, stream: int, data: RawDataBlob | bytes
+    ) -> bytes | RawDataBlob | None:
+        """write data to a buffer prior to running ffmpeg
+
+        :param stream: input stream id, index to self._input_info
+        :param data: data blob if raw media data or bytes if encoded data
+        :returns: the first data blob of the raw stream or all received bytes of
+                  encoded stream (repeats every time) or None if no new data
+
+        If ffprobe analysis is necessary to configure the FFmpeg arguments,
+        every input pipe must be filled with the first batch of data. This
+        function is to be called from a write function to sets pre-run written
+        data aside.
+
+        if it contains data for a new stream, attempts to configure ffmpeg args
+        """
+
+        assert stream < self._nb_inputs[1]
+        assert self._status == self._status.NOTHING_SET
+
+        if stream in self._piped_inputs_buffer:
+            buf = self._piped_inputs_buffer[stream]
+            if isinstance(data, bytes):
+                assert isinstance(buf, bytes)
+                self._piped_inputs_buffer[stream] = buf = buf + data
+                return buf
+
+            else:
+                assert not isinstance(buf, bytes)
+                self._piped_inputs_buffer[stream].append(data)
+
+        else:  # first write -> update the kws
+            self._piped_inputs_buffer[stream] = (
+                data if isinstance(data, bytes) else [data]
+            )
+            self._piped_inputs_avail = self._piped_inputs_avail + 1
+            return data
+
+        return None
+
+    def _try_config_ffmpeg(
+        self, stream: int = -1, data: bytes | RawDataBlob | None = None
+    ) -> bool:
         """Configure FFmpeg options"""
 
         if self._status != self._status.NOTHING_SET:
             raise FFmpegioError("FFmpeg options have already been configured.")
 
+        if stream >= 0 and data is not None:
+            # load the new data blob/bytes to the respective keyword argument
+            kw_name = self._piped_inputs[stream]
+            i = stream - self._nb_inputs[0] if kw_name == "extra_input" else stream
+            self._init_kws[kw_name][i] = (data, self._init_kws[kw_name][i][1])
+
         kws = self._init_kws
-        kws["options"] = {"probesize_in": self.probesize, **kws["options"]}
 
         try:
             ffmpeg_args, input_info, output_info = self._init_func(**kws)
@@ -155,61 +202,6 @@ class BaseFFmpegRunner:
         self._output_info = output_info
 
         self._status = self._status.ARGUMENTS_SET
-
-        return True
-
-    def _pre_write(self, stream: int, data: RawDataBlob | bytes):
-        """write data to a buffer prior to running ffmpeg
-
-        :param stream: input stream id, index to self._input_info
-        :param data: data blob if raw media data or bytes if encoded data
-
-        if it contains data for a new stream, attempts to configure ffmpeg args
-        """
-
-        assert stream < self._nb_inputs[1]
-        assert self._status == self._status.NOTHING_SET
-
-        # kws = self._init_func
-        # if "input_urls" in kws:
-
-        #     kws["input_urls"]  # encoded input
-        #     kws["extra_input"]  # encoded input
-        #     kws["input_stream_args"]  # raw input
-
-        if stream in self._buffer:
-            buf = self._buffer[stream]
-            if isinstance(data, bytes):
-                assert isinstance(buf, bytes)
-                self._buffer[stream] = buf + data
-
-                # update the kws
-                self._pipes
-
-            else:
-                assert not isinstance(buf, bytes)
-                self._buffer[stream].append(data)
-
-        else:  # first write -> update the kws
-            if isinstance(data, bytes):
-                self._buffer[stream] = data
-            else:
-                assert not isinstance(buf, bytes)
-                self._buffer[stream] = [data]
-
-    def _buffer_full(self, streams: Iterable[int]) -> bool:
-        """True if all piped input streams
-
-        :param streams: iterator of piped input stream indices
-        """
-
-        bufs = self._buffer
-        for s in streams:
-            if s not in bufs:
-                return False
-            buf = bufs[s]
-            if isinstance(buf, bytes) and len(buf) < self.probesize:
-                return False
 
         return True
 
@@ -275,6 +267,21 @@ class BaseFFmpegRunner:
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
         self._logger.start()
+
+    def _write_from_buffer(self):
+        # remove the data from the init keyword args
+        for st, kw in self._piped_inputs.items():
+            i = st - self._nb_inputs[0] if kw == "extra_input" else st
+            self._init_kws[kw][i] = ("-", self._init_kws[kw][i][1])
+
+            buf = self._piped_inputs_buffer[buf]
+            if isinstance(buf, bytes):
+                self._input_pipes[i]["writer"].write(buf)
+            else:
+                for frame in buf:
+                    self._input_pipes[i]["writer"].write(frame)
+
+            del self._piped_inputs_buffer[buf]
 
     def _terminate(self):
         """Kill FFmpeg process and close the streams"""
