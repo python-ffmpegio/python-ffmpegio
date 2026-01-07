@@ -46,6 +46,7 @@ from ._typing import (
     cast,
     Any,
     TypedDict,
+    NotRequired,
     Unpack,
     Callable,
     DTypeString,
@@ -90,13 +91,6 @@ from . import ffmpegprocess as fp
 from . import utils, probe, plugins
 from . import filtergraph as fgb
 from .filtergraph.abc import FilterGraphObject
-from .filtergraph.presets import (
-    merge_audio,
-    filter_video_basic,
-    remove_alpha,
-    temp_video_src,
-    temp_audio_src,
-)
 from .utils.concat import FFConcat  # for typing
 from ._utils import as_multi_option, is_non_str_sequence
 from .utils import (
@@ -114,7 +108,12 @@ from .stream_spec import (
     parse_map_option,
     map_option as compose_map_option,
 )
-from .errors import FFmpegioError, FFmpegioNoPipeAllowed
+from .errors import (
+    FFmpegioError,
+    FFmpegioNoPipeAllowed,
+    FFmpegioInsufficientInputData,
+    FFmpegError,
+)
 from .threading import ReaderThread, WriterThread, CopyFileObjThread
 
 #################################
@@ -205,6 +204,48 @@ InitMediaOutputsCallable = Callable[
 #################################
 ## module functions
 
+###############################################################################
+### compatible typed dicts for media initializer function keyword arguments ###
+###############################################################################
+
+
+class MediaReadKwsDict(TypedDict):
+    input_urls: list[FFmpegInputOptionTuple]
+    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
+    options: FFmpegOptionDict
+    extra_outputs: list[FFmpegOutputOptionTuple]
+    squeeze: bool
+
+
+class MediaWriteKwsDict(TypedDict):
+    output_urls: list[FFmpegOutputOptionTuple]
+    input_stream_types: list[Literal["a", "v"]]
+    input_stream_args: list[tuple[RawDataBlob|None, FFmpegOptionDict]]
+    extra_inputs: list[FFmpegInputOptionTuple]
+    options: dict[str, Any]
+    input_dtypes: NotRequired[list[DTypeString | None] | None]
+    input_shapes: NotRequired[list[ShapeTuple | None] | None]
+
+
+class MediaFilterKwsDict(TypedDict):
+    expr: str | FilterGraphObject | list[str | FilterGraphObject] | None
+    input_stream_types: list[Literal["a", "v"]]
+    input_stream_args: list[tuple[RawDataBlob|None, FFmpegOptionDict]]
+    extra_inputs: list[FFmpegInputOptionTuple]
+    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
+    extra_outputs: list[FFmpegOutputOptionTuple]
+    options: FFmpegOptionDict
+    squeeze: bool
+    input_dtypes: NotRequired[list[DTypeString] | None]
+    input_shapes: NotRequired[list[ShapeTuple] | None]
+
+
+class MediaTranscoderKwsDict(TypedDict):
+    input_urls: list[FFmpegInputOptionTuple]
+    output_urls: list[FFmpegOutputOptionTuple]
+    options: FFmpegOptionDict
+
+
 ####################R###
 ### I/O initializers ###
 ########################
@@ -279,9 +320,14 @@ def init_media_read(
     input_info = process_url_inputs(args, input_urls, inopts_default)
 
     # assign outputs
-    output_info = process_raw_outputs(
-        args, input_info, output_streams, options, squeeze
-    )
+    try:
+        output_info = process_raw_outputs(
+            args, input_info, output_streams, options, squeeze
+        )
+    except FFmpegError as e:
+        raise FFmpegioInsufficientInputData(
+            "Failed to retrieve input stream information."
+        ) from e
 
     # standardize output stream options
 
@@ -392,8 +438,8 @@ def init_media_write(
 
 def init_media_filter(
     expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
-    input_types: Sequence[Literal["a", "v"]],
-    input_args: Sequence[RawStreamDef],
+    input_stream_types: Sequence[Literal["a", "v"]],
+    input_stream_args: Sequence[RawStreamDef],
     extra_inputs: Sequence[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None,
     output_streams: (
         Sequence[str | FFmpegOptionDict] | dict[str, FFmpegOptionDict | None] | None
@@ -408,12 +454,13 @@ def init_media_filter(
 ) -> tuple[FFmpegArgs, list[RawInputInfoDict], list[RawOutputInfoDict]]:
     """Prepare FFmpeg arguments for media read
 
-    :param expr: complex filtergraph definition(s).
-    :param input_types: list/string of 'a' or 'v', specifying the input raw streams' media types
-    :param input_args: list of input option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param expr: filtergraph definition(s), may be None to perform implicit filtering
+                 via output options (e.g., rate or format changes)
+    :param input_stream_types: list/string of 'a' or 'v', specifying the input raw streams' media types
+    :param input_stream_args: list of input option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
-    :param output_args: output stream mappings and optional per-stream options:
+    :param output_streams: output stream mappings and optional per-stream options:
                 - `None` to map all filtergraph outputs
                 - a sequence of output option dict with `'map'` item to output-specific
                   options
@@ -461,7 +508,12 @@ def init_media_filter(
 
     # analyze and assign inputs
     input_info = process_raw_inputs(
-        args, input_types, input_args, inopts_default, input_dtypes, input_shapes
+        args,
+        input_stream_types,
+        input_stream_args,
+        inopts_default,
+        input_dtypes,
+        input_shapes,
     )
 
     if extra_inputs is not None:
@@ -472,9 +524,14 @@ def init_media_filter(
 
     # analyze and assign outputs
 
-    output_info = process_raw_outputs(
-        args, input_info, output_streams, options, squeeze
-    )
+    try:
+        output_info = process_raw_outputs(
+            args, input_info, output_streams, options, squeeze
+        )
+    except FFmpegError as e:
+        raise FFmpegioInsufficientInputData(
+            "Failed to retrieve input stream information."
+        ) from e
 
     # if additional (encoded) outputs are specified, append them to ffmpeg args
     # and output info
@@ -2090,17 +2147,18 @@ def process_raw_inputs(
                     "s": s,
                 }
 
+        if raw_info is None:
+            raise FFmpegioInsufficientInputData(
+                "Failed to resolve raw input data format."
+            )
+
         if more_opts is not None:
             opts.update(more_opts)
 
         info = {
             "src_type": "buffer",
             "media_type": media_type,
-            "raw_info": (
-                (None, None, opts[ropt])
-                if raw_info is None
-                else (*raw_info, opts[ropt])
-            ),
+            "raw_info": (*raw_info, opts[ropt]),
             **get_callables(media_type),
         }
 

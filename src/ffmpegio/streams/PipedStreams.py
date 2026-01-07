@@ -28,8 +28,8 @@ from ..configure import (
 from ..filtergraph.abc import FilterGraphObject
 from ..errors import FFmpegioError
 
-from .BaseFFmpegRunner import (
-    BaseFFmpegRunner as _BaseFFmpegRunner,
+from .BaseFFmpegRunner import BaseFFmpegRunner as _BaseFFmpegRunner
+from .mixins import (
     BaseRawInputsMixin as _BaseRawInputsMixin,
     BaseRawOutputsMixin as _BaseRawOutputsMixin,
     BaseEncodedInputsMixin as _BaseEncodedInputsMixin,

@@ -313,7 +313,7 @@ class RawDirectOutputInfoDict(TypedDict):
     """
 
     dst_type: Literal["buffer"]  # True if file path/url
-    media_type: MediaType | None  #
+    media_type: MediaType  #
     raw_info: RawStreamInfoTuple
     bytes2data: FromBytesCallable
     data_is_empty: IsEmptyCallable
@@ -343,7 +343,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     """
 
     dst_type: Literal["buffer"]  # True if file path/url
-    media_type: MediaType | None  #
+    media_type: MediaType  #
     raw_info: RawStreamInfoTuple
     bytes2data: FromBytesCallable
     data_is_empty: IsEmptyCallable

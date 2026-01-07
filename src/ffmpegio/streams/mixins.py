@@ -12,6 +12,8 @@ from .. import configure, probe
 from .._typing import (
     InputInfoDict,
     OutputInfoDict,
+    InputPipeInfoDict,
+    OutputPipeInfoDict,
     FFmpegOptionDict,
     RawDataBlob,
     ShapeTuple,
@@ -34,7 +36,104 @@ __all__ = [
 ]
 
 
-class BaseRawInputsMixin:
+class BaseInputsMixin:
+    """write a raw media data to a specified stream (backend)"""
+
+    _init_kws: dict
+    _piped_inputs: dict[int, Literal["input_urls", "input_stream_args", "extra_input"]]
+    _input_info: list[InputInfoDict] | None
+    _input_pipes: list[InputPipeInfoDict] | None
+    _logger: LoggerThread | None
+    _open: Callable[[bool], None]
+    _args: dict
+
+    # def __init__(self, **kwargs):
+    #     super().__init__(**kwargs)
+
+    #     # input data must be initially buffered
+    #     self._deferred_data = [[] for _ in range(len(self._input_info))]
+
+    @property
+    def input_types(self) -> dict[int, MediaType | Literal["encoded"]]:
+        """input piped types (lists both encoded and raw media pipes)
+
+        - only piped inputs are returned
+        - integer keys is the unique input index (this index is not contiguous
+          if non-piped inputs are also used.)
+        - values are either 'video' or 'audio' if raw media stream or 'encoded'
+          if encoded byte stream
+
+        """
+
+        kws = self._init_kws
+        return {
+            i: (
+                "encoded"
+                if kw in ("input_urls", "extra_inputs")
+                else {"a": "audio", "v": "video"}[kws["input_stream_types"][i]]
+            )
+            for i, kw in self._piped_inputs.items()
+        }
+
+    @property
+    def input_rates(self) -> dict[int, int | Fraction]:
+        """audio sample or video frame rates associated with the input media streams"""
+        kws = self._init_kws
+        return {
+            i: kws["input_stream_args"][i][1][
+                {"a": "ar", "v": "r"}[kws["input_stream_types"][i]]
+            ]
+            for i, kw in self._piped_inputs.items()
+            if kw == "input_stream_args"
+        }
+
+    def _write_deferred_data(self):
+        for data, info in zip(self._deferred_data, self._input_info):
+            if len(data) and "writer" in info:
+                info["writer"].write(data, self.default_timeout)
+        self._deferred_data = []
+        self._input_ready = True
+
+    def _write_encoded_stream(
+        self,
+        index: int,
+        info: OutputInfoDict,
+        data: bytes,
+        timeout: float | None,
+    ):
+        """write a raw media data to a specified stream (backend)"""
+
+        if self._input_ready is True:
+            try:
+                info["writer"].write(data, timeout)
+            except:
+                raise FFmpegioError("Cannot write to a non-piped input.")
+
+        else:
+
+            # buffer must be contiguous
+            data0 = self._deferred_data[index]
+            if len(data0):
+                data0.append(data)
+
+            else:
+                self._deferred_data[index] = [data]
+
+            # need to be able to probe the input streams before starting the FFmpeg
+            try:
+                probe.format_basic(data)
+            except FFmpegError:
+                pass  # not ready yet
+            else:
+                self._input_ready[index] = True
+
+            if all(self._input_ready):
+                # once data is written for all the necessary inputs,
+                # analyze them and start the FFmpeg
+                self._open(True)
+
+
+class BaseRawInputsMixin(BaseInputsMixin):
     """write a raw media data to a specified stream (backend)"""
 
     default_timeout: float | None
@@ -100,90 +199,54 @@ class BaseRawInputsMixin:
                 self._open(True)
 
     @property
-    def input_types(self) -> dict[int, MediaType | None]:
-        """media type associated with the input streams"""
-        return {i: v.get("media_type", None) for i, v in enumerate(self._input_info)}
-
-    @property
-    def input_rates(self) -> dict[int, int | Fraction | None]:
-        """sample or frame rates associated with the input streams"""
-        return {
-            i: v["raw_info"][2] if "raw_info" in v else None
-            for i, v in enumerate(self._input_info)
-        }
-
-    @property
     def input_dtypes(self) -> dict[int, DTypeString | None]:
         """frame/sample data type associated with the output streams (key)"""
-        return {
-            i: v["raw_info"][0] if "raw_info" in v else None
-            for i, v in enumerate(self._input_info)
-        }
+        kws = self._init_kws
+        if self._input_info is not None:
+            return {
+                i: v["raw_info"][0]
+                for i, v in enumerate(self._input_info)
+                if "raw_info" in v
+            }
+        elif "input_dtypes" in kws:  # dtypes maybe given
+            dtypes = kws["input_dtypes"]
+            return {
+                i: dtypes[i]
+                for i, kw in self._piped_inputs.items()
+                if kw == "input_stream_args"
+            }
+        else:
+            # not known yet
+            return {
+                i: None
+                for i, kw in self._piped_inputs.items()
+                if kw == "input_stream_args"
+            }
 
     @property
     def input_shapes(self) -> dict[int, ShapeTuple | None]:
         """frame/sample shape associated with the output streams (key)"""
-        return {
-            i: v["raw_info"][1] if "raw_info" in v else None
-            for i, v in enumerate(self._input_info)
-        }
-
-
-class BaseEncodedInputsMixin:
-
-    # FFmpegRunner's properties accessed
-    default_timeout: float | None
-    _input_info: list[InputInfoDict]
-    _output_info: list[OutputInfoDict]
-    _deferred_data: list[list[bytes]]
-    _input_ready: Literal[True] | list[bool]
-    _logger: LoggerThread | None
-    _open: Callable[[bool], None]
-
-    def _write_deferred_data(self):
-        for data, info in zip(self._deferred_data, self._input_info):
-            if len(data) and "writer" in info:
-                info["writer"].write(data, self.default_timeout)
-        self._deferred_data = []
-        self._input_ready = True
-
-    def _write_encoded_stream(
-        self,
-        index: int,
-        info: OutputInfoDict,
-        data: bytes,
-        timeout: float | None,
-    ):
-        """write a raw media data to a specified stream (backend)"""
-
-        if self._input_ready is True:
-            try:
-                info["writer"].write(data, timeout)
-            except:
-                raise FFmpegioError("Cannot write to a non-piped input.")
-
+        kws = self._init_kws
+        if self._input_info is not None:
+            return {
+                i: v["raw_info"][1]
+                for i, v in enumerate(self._input_info)
+                if "raw_info" in v
+            }
+        elif "input_dtypes" in kws:  # dtypes maybe given
+            dtypes = kws["input_dtypes"]
+            return {
+                i: dtypes[i]
+                for i, kw in self._piped_inputs.items()
+                if kw == "input_stream_args"
+            }
         else:
-
-            # buffer must be contiguous
-            data0 = self._deferred_data[index]
-            if len(data0):
-                data0.append(data)
-
-            else:
-                self._deferred_data[index] = [data]
-
-            # need to be able to probe the input streams before starting the FFmpeg
-            try:
-                probe.format_basic(data)
-            except FFmpegError:
-                pass  # not ready yet
-            else:
-                self._input_ready[index] = True
-
-            if all(self._input_ready):
-                # once data is written for all the necessary inputs,
-                # analyze them and start the FFmpeg
-                self._open(True)
+            # not known yet
+            return {
+                i: None
+                for i, kw in self._piped_inputs.items()
+                if kw == "input_stream_args"
+            }
 
 
 class BaseRawOutputsMixin:

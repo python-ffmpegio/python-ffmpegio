@@ -32,8 +32,7 @@ from .BaseFFmpegRunner import BaseFFmpegRunner
 from .._utils import get_bytesize
 
 # fmt:off
-__all__ = [ "SimpleVideoReader", "SimpleAudioReader", "SimpleVideoWriter",
-    "SimpleAudioWriter"]
+__all__ = [ "SimpleReader", "SimpleWriter"]
 # fmt:on
 
 
@@ -46,7 +45,8 @@ class SimpleReader(BaseFFmpegRunner):
 
     def __init__(
         self,
-        **init_kws,
+        *,
+        init_kws,
         show_log: bool | None = None,
         progress: ProgressCallable | None = None,
         sp_kwargs: dict | None = None,
@@ -240,14 +240,13 @@ class SimpleReader(BaseFFmpegRunner):
         )
 
 
-
 ###########################################################################
 
 
 class SimpleWriter(BaseFFmpegRunner):
     def __init__(
         self,
-        **init_kws,
+        # **init_kws,
         show_log: bool | None = None,
         progress: ProgressCallable | None = None,
         sp_kwargs: dict | None = None,
@@ -396,4 +395,3 @@ class SimpleWriter(BaseFFmpegRunner):
 
     def flush(self):
         self._proc.stdin.flush()
-

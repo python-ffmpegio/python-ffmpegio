@@ -53,9 +53,7 @@ FFmpegOutputUrlNoPipe = FFmpegUrlType
 # sys.byteorder
 
 
-def get_pixel_config(
-    input_pix_fmt: str
-) -> tuple[str, int, DTypeString, bool]:
+def get_pixel_config(input_pix_fmt: str) -> tuple[str, int, DTypeString, bool]:
     """get best pixel configuration to read video data in specified pixel format
 
     :param input_pix_fmt: input pixel format
@@ -648,17 +646,14 @@ def analyze_input_stream(
     :param input_url: url or None if piped or fileobj
     :param input_opts: input options
     :param input_info: input infomration
-    :raises NotImplementedError: _description_
+    :raises FFmpegError: if provided data in input_info is insufficient
     :return values of the requested fields of the stream
     """
 
-    try:
-        q = analyze_input_file(
-            [*fields, "codec_type"], input_url, input_opts, input_info, stream
-        )
-    except FFmpegError:
-        # no change
-        return [None] * len(fields)
+    # run ffprobe on the input file for the stream to be used
+    q = analyze_input_file(
+        [*fields, "codec_type"], input_url, input_opts, input_info, stream
+    )
 
     q = [i for i in q if media_type is None or i["codec_type"] == media_type]
     if len(q) != 1:
@@ -894,7 +889,7 @@ def analyze_output_video_filter(
     r_in: Fraction | int,
     pix_fmt_in: str,
     s_in: tuple[int, int],
-    s: tuple[int, int] | None=None,
+    s: tuple[int, int] | None = None,
 ) -> tuple[int | Fraction, str, tuple[int, int]]:
     """analyze an output video filter
 

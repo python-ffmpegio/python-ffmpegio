@@ -81,7 +81,7 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleVideoReader:
+) -> streams.SimpleReader:
     """open a single-stream video reader
 
     :param urls_fgs: URL of the file or format/device object to obtain a video stream from.
@@ -117,7 +117,7 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleAudioReader:
+) -> streams.SimpleReader:
     """open a single-source audio reader
 
     :param urls_fgs: URL of the file or format/device object to obtain a media stream from.
@@ -158,7 +158,7 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleVideoReader:
+) -> streams.SimpleReader:
     """open a single-destination video writer
 
     :param urls_fgs: URL of the file or format/device object to write media stream to. The output
@@ -205,7 +205,7 @@ def open(
     default_timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleAudioWriter:
+) -> streams.SimpleWriter:
     """open a single-destination audio writer
 
     :param urls_fgs: URL of the file or format/device object to write media stream to. The output
@@ -826,8 +826,8 @@ def _create_reader(
     streams.MediaReader
     | streams.StdAudioDecoder
     | streams.StdVideoDecoder
-    | streams.SimpleAudioReader
-    | streams.SimpleVideoReader
+    | streams.SimpleReader
+    | streams.SimpleReader
 ):
 
     if len(args):
@@ -855,7 +855,7 @@ def _create_reader(
         StreamClass = (
             streams.MediaReader
             if not is_siso
-            else streams.SimpleAudioReader if is_audio else streams.SimpleVideoReader
+            else streams.SimpleReader if is_audio else streams.SimpleReader
         )
         reader = StreamClass(*urls, **kwargs)
 
@@ -871,8 +871,8 @@ def _create_writer(
     streams.MediaWriter
     | streams.StdAudioEncoder
     | streams.StdVideoEncoder
-    | streams.SimpleAudioWriter
-    | streams.SimpleVideoWriter
+    | streams.SimpleWriter
+    | streams.SimpleWriter
 ):
 
     if len(args) > 1:
@@ -899,7 +899,7 @@ def _create_writer(
         writer = StreamClass(*args, **kwargs)
     else:
         StreamClass = (
-            streams.SimpleAudioWriter if is_audio else streams.SimpleVideoWriter
+            streams.SimpleWriter if is_audio else streams.SimpleWriter
         )
         writer = StreamClass(*urls, *args, **kwargs)
     return writer

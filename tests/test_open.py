@@ -15,10 +15,10 @@ url = "tests/assets/testmulti-1m.mp4"
 @pytest.mark.parametrize(
     "src,mode,Cls",
     [
-        (url, "rv", ff_streams.SimpleVideoReader),
-        (url, "ra", ff_streams.SimpleAudioReader),
-        (url, "e->v", ff_streams.SimpleVideoReader),
-        (url, "e->a", ff_streams.SimpleAudioReader),
+        (url, "rv", ff_streams.SimpleReader),
+        (url, "ra", ff_streams.SimpleReader),
+        (url, "e->v", ff_streams.SimpleReader),
+        (url, "e->a", ff_streams.SimpleReader),
     ],
 )
 def test_readers(src, mode, Cls):

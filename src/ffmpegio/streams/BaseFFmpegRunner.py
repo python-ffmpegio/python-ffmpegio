@@ -23,7 +23,7 @@ from .._typing import (
 
 from ..configure import FFmpegArgs
 from ..threading import LoggerThread
-from ..errors import FFmpegError, FFmpegioError
+from ..errors import FFmpegError, FFmpegioError, FFmpegioInsufficientInputData
 
 logger = logging.getLogger("ffmpegio")
 
@@ -35,31 +35,37 @@ class BaseFFmpegRunner:
 
     class Status(IntEnum):
         NOTHING_SET = 0
-        ARGUMENTS_SET = 1
-        PIPES_SET = 2
-        RUNNING = 3
-        STOPPED = 4
+        BUFFERING = 1
+        ARGUMENTS_SET = 2
+        PIPES_SET = 3
+        RUNNING = 4
+        STOPPED = 5
 
     probesize: int = 64 * 1024
     default_timeout: float | None = None
-    _args: dict[str, Any]
 
+    # configure.init_media_xxx function & its keyword arguments
     _init_func: Callable
     _init_kws: dict
 
+    # object status enum
+    _status: Status = Status.NOTHING_SET
+
+    # pre-analysis/buffering variables
     _nb_inputs: tuple[int, int] = (0, 0)  # (raw, raw+encoded)
-    _piped_inputs: dict[int, Literal["input_urls", "input_stream_args", "extra_input"]]
+    _piped_inputs: dict[int, Literal["input_urls", "input_stream_args", "extra_inputs"]]
     _piped_inputs_buffer: dict[int, bytes | list[RawDataBlob]]
     _piped_inputs_avail: int = 0
 
+    # ffmpeg arguments and associated input/output information
+    _args: dict[str, Any]
     _input_info: list[InputInfoDict]
     _output_info: list[OutputInfoDict]
+
+    # ffmpeg subprocess and associated objects
+    _proc: ffmpegprocess.Popen
     _input_pipes: dict[int, InputPipeInfoDict] | None = None
     _output_pipes: dict[int, OutputPipeInfoDict] | None = None
-
-    _status: Status = Status.NOTHING_SET
-
-    _proc: ffmpegprocess.Popen
     _stack: ExitStack
     _logger: LoggerThread
 
@@ -113,6 +119,10 @@ class BaseFFmpegRunner:
         self._piped_inputs = {}
         self._piped_inputs_buffer = {}
 
+        # identify the piped inputs, which may require data pre-buffering to
+        # configure the FFmpeg arguments
+        self._analyze_inputs()
+
     def _analyze_inputs(self):
         """identify which input init_fun keyword arguments require data from pipe"""
         kws = self._init_kws
@@ -128,12 +138,12 @@ class BaseFFmpegRunner:
             n_in = len(kws["input_stream_args"])
             for i in range(n_in):
                 pipes[i] = "input_stream_args"
-            if "extra_input" in kws:
+            if "extra_inputs" in kws:
                 # encoded:list[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]]
-                for i, (url, _) in enumerate(kws["extra_input"]):
+                for i, (url, _) in enumerate(kws["extra_inputs"]):
                     if utils.is_pipe(url):
-                        pipes[i + n_in] = "extra_input"
-            self._nb_inputs = (n_in, n_in + len(kws["extra_input"]))
+                        pipes[i + n_in] = "extra_inputs"
+            self._nb_inputs = (n_in, n_in + len(kws["extra_inputs"]))
 
     def _put_aside_input(
         self, stream: int, data: RawDataBlob | bytes
@@ -187,15 +197,35 @@ class BaseFFmpegRunner:
         if stream >= 0 and data is not None:
             # load the new data blob/bytes to the respective keyword argument
             kw_name = self._piped_inputs[stream]
-            i = stream - self._nb_inputs[0] if kw_name == "extra_input" else stream
+            i = stream - self._nb_inputs[0] if kw_name == "extra_inputs" else stream
             self._init_kws[kw_name][i] = (data, self._init_kws[kw_name][i][1])
 
         kws = self._init_kws
 
         try:
             ffmpeg_args, input_info, output_info = self._init_func(**kws)
-        except:
+        except FFmpegioInsufficientInputData:
+            # fail only if the error was caused by insufficient input data
             return False
+
+        # Set Input Pipes
+        # those input streams which required pre-buffered data are
+        # misconfigured because the data were presented to the configurator
+        # as the buffered data (as opposed to partial data)
+
+        for st, kw in self._piped_inputs.items():
+            i = st - self._nb_inputs[0] if kw == "extra_inputs" else st
+            data, opts = self._init_kws[kw][i]
+
+            # look for the matching data in info['buffer']
+            for info in input_info:
+                data_in_info = info.get("buffer", None)
+                if data_in_info == data:
+                    del info["buffer"]
+                    break
+
+            # remove the data from the init keyword args
+            self._init_kws[kw][i] = ("-", opts)
 
         self._args["ffmpeg_args"] = ffmpeg_args
         self._input_info = input_info
@@ -205,7 +235,13 @@ class BaseFFmpegRunner:
 
         return True
 
-    def _init_pipes(self, use_std_pipes: bool):
+    def _on_exit(self, rc):
+        if self._status.RUNNING:
+            self._stack.close()
+            self._status = self._status.STOPPED
+
+    def _run_ffmpeg(self, use_std_pipes: bool):
+
         # set up and activate standard pipes and read/write threads
         # configure named pipes
 
@@ -241,13 +277,6 @@ class BaseFFmpegRunner:
         self._args.update(more_args)
         self._status = self._status.PIPES_SET
 
-    def _on_exit(self, rc):
-        if self._status.RUNNING:
-            self._stack.close()
-            self._status = self._status.STOPPED
-
-    def _run_ffmpeg(self):
-
         if self._status != self._status.PIPES_SET:
             if self._status < self._status.PIPES_SET:
                 raise FFmpegioError(
@@ -269,15 +298,18 @@ class BaseFFmpegRunner:
         self._logger.start()
 
     def _write_from_buffer(self):
-        # remove the data from the init keyword args
+
         for st, kw in self._piped_inputs.items():
-            i = st - self._nb_inputs[0] if kw == "extra_input" else st
+            i = st - self._nb_inputs[0] if kw == "extra_inputs" else st
+
+            # remove the data from the init keyword args
             self._init_kws[kw][i] = ("-", self._init_kws[kw][i][1])
 
-            buf = self._piped_inputs_buffer[buf]
-            if isinstance(buf, bytes):
+            # write all the buffered data to the stream
+            buf = self._piped_inputs_buffer[st]
+            if isinstance(buf, bytes):  # bytes -> encoded stream
                 self._input_pipes[i]["writer"].write(buf)
-            else:
+            else:  # raw data blob -> raw data stream
                 for frame in buf:
                     self._input_pipes[i]["writer"].write(frame)
 
@@ -294,7 +326,7 @@ class BaseFFmpegRunner:
 
             self._logger.join()
 
-    def start(self):
+    def open(self):
         """start FFmpeg processing
 
         Note
@@ -306,19 +338,27 @@ class BaseFFmpegRunner:
 
         """
 
-        if self._input_ready is True or all(self._input_ready):
-            self._open(False)
+        if self._status != self._status.NOTHING_SET:
+            raise FFmpegioError("Already opened once.")
+
+        # try configure FFmpeg arguments without any pre-buffered data
+        ok = self._try_config_ffmpeg()
+
+        # if failed to configure, need to buffer input data first
+        if not ok:
+            self._status = self._status.BUFFERING
+            return
+
+        # otherwise, ready to roll
+        self._run_ffmpeg(False)
 
     def close(self):
         """Kill FFmpeg process and close the streams"""
 
-        if self._proc is not None and self._proc.poll() is None:
-            # kill the ffmpeg runtime
-            self._proc.terminate()
-            if self._proc.poll() is None:
-                self._proc.kill()
+        if self._status != self._status.RUNNING:
+            raise FFmpegioError("FFmpeg is not running.")
 
-            self._logger.join()
+        self._terminate()
 
     def __enter__(self):
 
