@@ -61,7 +61,7 @@ class _PipedFFmpegRunner(_BaseFFmpegRunner):
         init_deferred_outputs: InitMediaOutputsCallable | None,
         deferred_output_args: list[FFmpegOptionDict | None],
         *,
-        default_timeout: float | None = None,
+        timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         queuesize: int | None = None,
@@ -79,7 +79,7 @@ class _PipedFFmpegRunner(_BaseFFmpegRunner):
         :param init_deferred_outputs: function to initialize the outputs which have been deferred to
                                       configure until the first batch of input data is in
         :param deferred_output_args:
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
@@ -102,7 +102,7 @@ class _PipedFFmpegRunner(_BaseFFmpegRunner):
             input_ready,
             init_deferred_outputs,
             deferred_output_args,
-            default_timeout,
+            timeout,
             progress,
             show_log,
             sp_kwargs,
@@ -172,7 +172,7 @@ class _RawInputsMixin(_BaseRawInputsMixin):
         :param stream_id: input stream index or label
         :param data: media data blob (depends on the active data conversion plugin)
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is written
                         to the buffer queue
         :return: currently available encoded data (bytes) if returning the encoded
@@ -198,7 +198,7 @@ class _RawInputsMixin(_BaseRawInputsMixin):
             raise FFmpegioError(f"{stream_id=} is an invalid input stream index.")
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         self._write_stream(info, stream_id, data, timeout)
 
@@ -211,7 +211,7 @@ class _RawInputsMixin(_BaseRawInputsMixin):
 
         :param data: media data blob keyed by stream index
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is written
                         to the buffer queue
 
@@ -220,7 +220,7 @@ class _RawInputsMixin(_BaseRawInputsMixin):
         it_data = data.items() if isinstance(data, dict) else enumerate(data)
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         if timeout is not None:
             timeout += time()
@@ -245,7 +245,7 @@ class _EncodedInputsMixin(_BaseEncodedInputsMixin):
         :param stream_id: input stream index or label
         :param data: media data bytes
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is written
                         to the buffer queue
         :return: currently available encoded data (bytes) if returning the encoded
@@ -271,7 +271,7 @@ class _EncodedInputsMixin(_BaseEncodedInputsMixin):
             raise FFmpegioError(f"{stream_id=} is an invalid input stream index.")
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         self._write_encoded_stream(stream_id, info, data, timeout)
 
@@ -284,7 +284,7 @@ class _EncodedInputsMixin(_BaseEncodedInputsMixin):
 
         :param data: media byte data keyed by stream index
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is written
                         to the buffer queue
 
@@ -293,7 +293,7 @@ class _EncodedInputsMixin(_BaseEncodedInputsMixin):
         it_data = data.items() if isinstance(data, dict) else enumerate(data)
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         if timeout is not None:
             timeout += time()
@@ -341,7 +341,7 @@ class _RawOutputsMixin(_BaseRawOutputsMixin):
         :param n: number of frames/samples to read, defaults to -1 to read as many as available
         :param stream_id: stream index or label, defaults to 0
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is read
                         from the buffer queue
         :return: retrieved data
@@ -362,7 +362,7 @@ class _RawOutputsMixin(_BaseRawOutputsMixin):
         """
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         info = self._output_info
         stream_id = utils.get_output_stream_id(info, stream_id)
@@ -373,7 +373,7 @@ class _RawOutputsMixin(_BaseRawOutputsMixin):
 
         :param n: number of frames/samples of the reference output stream to read
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is read
                         from the buffer queue
         :return: retrieved data keyed by output streams
@@ -402,7 +402,7 @@ class _RawOutputsMixin(_BaseRawOutputsMixin):
         data = {}  # output
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         if timeout is not None:
             timeout += time()
@@ -443,7 +443,7 @@ class _EncodedOutputsMixin(_BaseEncodedOutputsMixin):
         :param stream_id: stream index or label
         :param n: number of bytes to read
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until all the data is read
                         from the buffer queue
         :return: retrieved data
@@ -464,7 +464,7 @@ class _EncodedOutputsMixin(_BaseEncodedOutputsMixin):
         """
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         info = self._output_info
         stream_id = utils.get_output_stream_id(info, stream_id)
@@ -474,7 +474,7 @@ class _EncodedOutputsMixin(_BaseEncodedOutputsMixin):
         """Read available data from all output streams
 
         :param timeout: timeout in seconds or defaults to `None` to use the
-                        `default_timeout` property. If `default_timeout` is `None`
+                        `timeout` property. If `timeout` is `None`
                         then the operation will block until FFmpeg stops
         :return: retrieved data keyed by output streams
 
@@ -483,7 +483,7 @@ class _EncodedOutputsMixin(_BaseEncodedOutputsMixin):
         data = {}  # output
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         if timeout is not None:
             timeout += time()
@@ -508,7 +508,7 @@ class MediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner):
         progress: ProgressCallable | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
-        default_timeout: float | None = None,
+        timeout: float | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -524,7 +524,7 @@ class MediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner):
         :param progress: progress callback function, defaults to None
         :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
@@ -558,7 +558,7 @@ class MediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner):
             deferred_output_args=output_args,
             ref_output=ref_stream,
             blocksize=blocksize,
-            default_timeout=default_timeout,
+            timeout=timeout,
             progress=progress,
             show_log=show_log,
             queuesize=queuesize,
@@ -572,7 +572,7 @@ class MediaReader(_EncodedInputsMixin, _RawOutputsMixin, _PipedFFmpegRunner):
         return self
 
     def __next__(self):
-        F = self.read(self._blocksize, self.default_timeout)
+        F = self.read(self._blocksize, self.timeout)
         # if not any(
         #     len(self._get_bytes[info["media_type"]](obj=f))
         #     for f, info in zip(F.values(), self._output_info)
@@ -607,7 +607,7 @@ class MediaWriter(_EncodedOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
         progress: ProgressCallable | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
-        default_timeout: float | None = None,
+        timeout: float | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -637,7 +637,7 @@ class MediaWriter(_EncodedOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
         :param progress: progress callback function, defaults to None
         :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
@@ -682,7 +682,7 @@ class MediaWriter(_EncodedOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
             input_ready=input_ready,
             init_deferred_outputs=configure.init_media_write_outputs,
             deferred_output_args=output_args,
-            default_timeout=default_timeout,
+            timeout=timeout,
             progress=progress,
             show_log=show_log,
             blocksize=blocksize,
@@ -705,7 +705,7 @@ class MediaTranscoder(_EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRun
         show_log: bool | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
-        default_timeout: float | None = None,
+        timeout: float | None = None,
         sp_kwargs: dict = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -723,7 +723,7 @@ class MediaTranscoder(_EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRun
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
         :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
@@ -751,7 +751,7 @@ class MediaTranscoder(_EncodedOutputsMixin, _EncodedInputsMixin, _PipedFFmpegRun
             input_ready=None,
             init_deferred_outputs=None,
             deferred_output_args=None,
-            default_timeout=default_timeout,
+            timeout=timeout,
             progress=progress,
             show_log=show_log,
             blocksize=blocksize,
@@ -788,7 +788,7 @@ class MediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
         progress: ProgressCallable | None = None,
         blocksize: int | None = None,
         queuesize: int | None = None,
-        default_timeout: float | None = None,
+        timeout: float | None = None,
         sp_kwargs: dict | None = None,
         **options: Unpack[FFmpegOptionDict],
     ):
@@ -813,7 +813,7 @@ class MediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
         :param blocksize: Background reader thread blocksize (how many reference stream frames/samples to read at once from FFmpeg)
         :                 defaults to `None` to use 1 video frame or 1024 audio frames
         :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
@@ -850,7 +850,7 @@ class MediaFilter(_RawOutputsMixin, _RawInputsMixin, _PipedFFmpegRunner):
             deferred_output_args=deferred_output_args,
             ref_output=ref_output,
             blocksize=blocksize,
-            default_timeout=default_timeout,
+            timeout=timeout,
             progress=progress,
             show_log=show_log,
             queuesize=queuesize,

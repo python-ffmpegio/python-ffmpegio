@@ -61,7 +61,7 @@ class SimpleReader(BaseFFmpegRunner):
                         Ignored if stream format must be retrieved automatically.
         :param progress: progress callback function, defaults to None
         :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
@@ -76,7 +76,7 @@ class SimpleReader(BaseFFmpegRunner):
             input_ready=True,
             init_deferred_outputs=None,
             deferred_output_args=[],
-            default_timeout=default_timeout,
+            timeout=timeout,
             progress=progress,
             show_log=show_log,
             sp_kwargs={**sp_kwargs, "bufsize": 0} if sp_kwargs else {"bufsize": 0},
@@ -265,7 +265,7 @@ class SimpleWriter(BaseFFmpegRunner):
                         Ignored if stream format must be retrieved automatically.
         :param progress: progress callback function, defaults to None
         :param blocksize: Background reader thread blocksize, defaults to `None` to use 64-kB blocks
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                         used to run the FFmpeg, defaults to None
         :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
@@ -282,7 +282,7 @@ class SimpleWriter(BaseFFmpegRunner):
             input_ready=input_ready,
             init_deferred_outputs=init_deferred_outputs,
             deferred_output_args=deferred_output_args,
-            default_timeout=default_timeout,
+            timeout=timeout,
             progress=progress,
             show_log=show_log,
             sp_kwargs={**sp_kwargs, "bufsize": 0} if sp_kwargs else {"bufsize": 0},

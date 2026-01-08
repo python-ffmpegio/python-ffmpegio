@@ -78,7 +78,7 @@ def open(
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.SimpleReader:
@@ -91,7 +91,7 @@ def open(
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -114,7 +114,7 @@ def open(
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.SimpleReader:
@@ -127,7 +127,7 @@ def open(
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -155,7 +155,7 @@ def open(
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.SimpleReader:
@@ -173,7 +173,7 @@ def open(
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -202,7 +202,7 @@ def open(
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.SimpleWriter:
@@ -220,7 +220,7 @@ def open(
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -245,7 +245,7 @@ def open(
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaReader:
@@ -257,7 +257,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -286,7 +286,7 @@ def open(
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaWriter:
@@ -305,7 +305,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -332,7 +332,7 @@ def open(
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaTranscoder:
@@ -349,7 +349,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (64 kB)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -374,7 +374,7 @@ def open(
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MIMOMediaFilter|streams.MISOMediaFilter|streams.SIMOMediaFilter|streams.SISOMediaFilter:
@@ -390,7 +390,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -417,7 +417,7 @@ def open(
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MIMOMediaFilter:
@@ -433,7 +433,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -460,7 +460,7 @@ def open(
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaReader:
@@ -479,7 +479,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (64 kB)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -517,7 +517,7 @@ def open(
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaWriter:
@@ -543,7 +543,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (64 kB)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -572,7 +572,7 @@ def open(
     show_log: bool | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaFilter:
@@ -592,7 +592,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (64 kB)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None
@@ -620,7 +620,7 @@ def open(
     progress: ProgressCallable | None = None,
     blocksize: int | None = None,
     queuesize: int | None = None,
-    default_timeout: float | None = None,
+    timeout: float | None = None,
     sp_kwargs: dict = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> streams.MediaTranscoder:
@@ -642,7 +642,7 @@ def open(
     :param progress: progress callback function, defaults to None
     :param blocksize: Background reader queue's item size in bytes, defaults to `None` (64 kB)
     :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                     `subprocess.Popen()` call used to run the FFmpeg, defaults
                     to None

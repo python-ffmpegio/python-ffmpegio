@@ -48,9 +48,7 @@ ShapeTuple = tuple[int, ...]
 """Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int)."""
 
 
-RawStreamDef = (
-    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
-)
+RawStreamDef = tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
 """2-element tuple to define a raw stream data
 
     It comes in two forms: rate-data or data-option. The rate-data form specifies
@@ -276,6 +274,14 @@ key             description
 InputInfoDict = RawInputInfoDict | EncodedInputInfoDict
 
 
+class PipeWriter(Protocol):
+    def write(self, data: bytes | None): ...
+
+
+class PipeReader(Protocol):
+    def read(self, n: int = -1) -> bytes: ...
+
+
 class InputPipeInfoDict(TypedDict):
     """
     ==========  ==========================================
@@ -284,9 +290,9 @@ class InputPipeInfoDict(TypedDict):
     ==========  ==========================================
     """
 
-    pipe: NPopen
+    pipe: NPopen | Literal["stdin"]
     """named pipe assigned to this data stream"""
-    writer: WriterThread
+    writer: PipeWriter
     """writer thread assigned to this data stream"""
 
 
@@ -338,7 +344,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     `'data_count'`      function to count number of frames/samples in a blob
     `'user_map'`        user specified FFmpeg map option of this stream
     `'squeeze'`         True to squeeze output shape (remove all length-1 dims)
-    `'linklabel'`       mapped filtergraph output label 
+    `'linklabel'`       mapped filtergraph output label
     =============== ================================================================
     """
 
@@ -419,8 +425,8 @@ class OutputPipeInfoDict(TypedDict):
     =============== ================================================================
     """
 
-    pipe: NPopen
-    reader: ReaderThread | CopyFileObjThread
+    pipe: NPopen | Literal["stdout"]
+    reader: PipeReader | CopyFileObjThread
     itemsize: NotRequired[int]
     nmin: NotRequired[int]
 

@@ -220,7 +220,7 @@ class MediaReadKwsDict(TypedDict):
 class MediaWriteKwsDict(TypedDict):
     output_urls: list[FFmpegOutputOptionTuple]
     input_stream_types: list[Literal["a", "v"]]
-    input_stream_args: list[tuple[RawDataBlob|None, FFmpegOptionDict]]
+    input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]]
     extra_inputs: list[FFmpegInputOptionTuple]
     options: dict[str, Any]
     input_dtypes: NotRequired[list[DTypeString | None] | None]
@@ -230,7 +230,7 @@ class MediaWriteKwsDict(TypedDict):
 class MediaFilterKwsDict(TypedDict):
     expr: str | FilterGraphObject | list[str | FilterGraphObject] | None
     input_stream_types: list[Literal["a", "v"]]
-    input_stream_args: list[tuple[RawDataBlob|None, FFmpegOptionDict]]
+    input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]]
     extra_inputs: list[FFmpegInputOptionTuple]
     output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
     extra_outputs: list[FFmpegOutputOptionTuple]
@@ -245,6 +245,10 @@ class MediaTranscoderKwsDict(TypedDict):
     output_urls: list[FFmpegOutputOptionTuple]
     options: FFmpegOptionDict
 
+
+FFmpegMediaKwsDict = (
+    MediaReadKwsDict | MediaWriteKwsDict | MediaFilterKwsDict | MediaTranscoderKwsDict
+)
 
 ####################R###
 ### I/O initializers ###
@@ -2417,6 +2421,7 @@ def assign_output_pipes(
                 sp_kwargs["stdout"] = info["fileobj"]
             elif dst_type == "buffer":
                 sp_kwargs["stdout"] = fp.PIPE
+                pipe_info[i] = {"pipe": "stdout"}
         else:
             # if fileobj or buffer output, use pipe
             pipe = NPopen("r", bufsize=0)
@@ -2480,6 +2485,7 @@ def assign_input_pipes(
                     sp_kwargs["input"] = info["buffer"]
                 else:
                     sp_kwargs["stdin"] = fp.PIPE
+                pipe_info[i] = {"pipe": "stdin"}
         else:
             pipe = NPopen("w", bufsize=0)
             pipe_path = pipe.path
@@ -2494,9 +2500,10 @@ def init_named_pipes(
     outpipe_info: dict[int, OutputPipeInfoDict],
     input_info: list[InputInfoDict],
     output_info: list[OutputInfoDict],
-    update_rate: float | None = None,
+    update_rate: int | Fraction | None = None,
     blocksize: int | None = None,
     queue_size: int | None = None,
+    timeout: float | None = None,
     stack: ExitStack | None = None,
 ) -> ExitStack:
     """initialize named pipes for read & write operations with FFmpeg
@@ -2523,13 +2530,17 @@ def init_named_pipes(
 
     if stack is None:
         stack = ExitStack()
-    wr_kws = {"queuesize": queue_size} if queue_size else {}
+    wr_kws = {"queuesize": queue_size, "timeout": timeout} if queue_size else {}
 
     # configure output pipes
     for i, pinfo in outpipe_info.items():
         info = output_info[i]
 
         pipe = pinfo["pipe"]
+
+        if pipe == "stdout":
+            continue
+
         stack.enter_context(pipe)
 
         dst_type = info["dst_type"]
@@ -2543,6 +2554,7 @@ def init_named_pipes(
                 dtype, shape, rate = info["raw_info"]
                 kws["itemsize"] = utils.get_samplesize(shape, dtype)
                 if update_rate is not None:
+                    # set the number of frames/samples to enqueue at a time
                     kws["nmin"] = round(rate / update_rate) or 1
             else:
                 # assume encoded output
@@ -2553,11 +2565,14 @@ def init_named_pipes(
         pinfo["reader"] = reader
         stack.enter_context(reader)  # starts thread & wait for pipe connection
 
-    # configure input pipes (if needed)
+    # configure input pipes
     for i, pinfo in inpipe_info.items():
         info = input_info[i]
 
         pipe = pinfo["pipe"]
+        if pipe == "stdin":
+            continue
+
         stack.enter_context(pipe)
 
         src_type = info["src_type"]
@@ -2579,3 +2594,78 @@ def init_named_pipes(
         stack.enter_context(writer)
 
     return stack
+
+
+class StdWriter:
+    def __init__(self, proc: fp.Popen) -> None:
+        self._proc = proc
+
+    def write(self, data: bytes | None):
+        if data is None:
+            self._proc.stdin.flush()
+            self._proc.stdin.close()
+        else:
+            self._proc.stdin.write(data)
+
+
+class StdReader:
+    def __init__(self, proc: fp.Popen) -> None:
+        self._proc = proc
+
+    def read(self, n: int = -1) -> bytes:
+        return self._proc.stdout.read(n)
+
+
+def init_std_pipes(
+    input_pipes: dict[int, InputPipeInfoDict],
+    output_pipes: dict[int, OutputPipeInfoDict],
+    proc: fp.Popen,
+):
+
+    stdin = next((st for st, p in input_pipes.items() if p["pipe"] == "stdin"), None)
+    if stdin is not None:
+        input_pipes[stdin]["writer"] = StdWriter(proc)
+
+    stdout = next((st for st, p in output_pipes.items() if p["pipe"] == "stdout"), None)
+    if stdout is not None:
+        output_pipes[stdout]["reader"] = StdReader(proc)
+
+
+def find_primary_output_index(
+    output_pipes: dict[int, OutputPipeInfoDict],
+    output_info: list[OutputInfoDict],
+    primary_output: int | str | None = None,
+) -> int | None:
+    """find index of the primary raw media output stream
+
+    :param output_pipes: output pipe information dicts, keyed by output stream index
+    :param output_info: output stream information list
+    :param primary_output: primary output index or label, defaults to the first
+                           output media stream
+    :return: primary output index or None if not found
+    """
+
+    if primary_output is None:
+        # use first raw stream
+        try:
+            st = next(i for i in output_pipes if "media_type" in output_info[i])
+        except StopIteration:
+            return None  # no output raw stream present
+    else:
+        # validate the specified stream (convert to int idx if str label given)
+        st_ = primary_output
+        if isinstance(st_, str):
+            try:
+                st = next(
+                    i for i in output_pipes if output_info[i].get("user_map") == st_
+                )
+            except StopIteration:
+                return None
+        else:
+            st = st_
+
+        # if invalid output stream index, return None
+        if st < 0 or st >= len(output_info):
+            return None
+
+    return st

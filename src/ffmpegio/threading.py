@@ -308,6 +308,7 @@ class ReaderThread(Thread):
         queuesize: int | None = None,
         itemsize: int | None = None,
         retry_delay: float | None = None,
+        timeout: float | None = None,
     ):
         super().__init__()
         is_pipe = isinstance(stdout_or_pipe, NPopen)
@@ -320,6 +321,7 @@ class ReaderThread(Thread):
         self._halt = Event()
         self._running = Event()
         self._retry_delay = 0.001 if retry_delay is None else retry_delay
+        self._timeout = float(timeout)
 
     def start(self):
         if self.itemsize is None:
@@ -334,6 +336,9 @@ class ReaderThread(Thread):
         self._halt.set()
 
     def join(self, timeout=None):
+
+        if timeout is None:
+            timeout = self._timeout
 
         if self.pipe is None:
             self.stdout.close()
@@ -361,7 +366,7 @@ class ReaderThread(Thread):
         return self._running.is_set()
 
     def wait_till_running(self, timeout: float | None = None) -> bool:
-        return self._running.wait(timeout)
+        return self._running.wait(timeout or self._timeout)
 
     def __enter__(self):
         self.start()
@@ -433,6 +438,8 @@ class ReaderThread(Thread):
         read_all = n < 0
 
         # wait till matching line is read by the thread
+        if timeout is None:
+            timeout = self._timeout
         if timeout is not None:
             timeout = time() + timeout
 
@@ -515,10 +522,15 @@ class WriterThread(Thread):
 
     :param stdin: stream to write data to
     :param queuesize: depth of a queue for inter-thread data transfer, defaults to None
-    :param bufsize: maximum number of bytes to write at once, defaults to None (1048576 bytes)
+    :param timeout: maximum number of bytes to write at once, defaults to None (1048576 bytes)
     """
 
-    def __init__(self, stdin_or_pipe: BinaryIO | NPopen, queuesize: int | None = None):
+    def __init__(
+        self,
+        stdin_or_pipe: BinaryIO | NPopen,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+    ):
         super().__init__()
         is_pipe = isinstance(stdin_or_pipe, NPopen)
         self.pipe = stdin_or_pipe if is_pipe else None
@@ -527,6 +539,7 @@ class WriterThread(Thread):
         self._empty_cond = Condition()
         self._empty = True
         self._no_more = False  # true if sentinel has been written to the queue
+        self._timeout = float(timeout)
 
     def join(self, timeout: float | None = None):
 
@@ -540,7 +553,7 @@ class WriterThread(Thread):
             self._queue.put(None)
 
         # if queue is full,
-        super().join(timeout)
+        super().join(timeout or self._timeout)
 
     def __enter__(self):
         self.start()
@@ -571,21 +584,21 @@ class WriterThread(Thread):
 
             queue.task_done()
             if data is None:
-                logger.info(f"writer thread: received a sentinel to stop the writer")
+                logger.info("writer thread: received a sentinel to stop the writer")
                 break
             else:
-                logger.info(f"writer thread: received {len(data)} bytes to write")
+                logger.info("writer thread: received %d bytes to write", len(data))
 
             try:
                 nwritten = 0
                 nwritten = stream.write(data)
-                logger.info(f"writer thread: written {nwritten} written")
+                logger.info("writer thread: written %d written", nwritten)
             except Exception as e:
                 # stdout stream closed/FFmpeg terminated, end the thread as well
-                logger.info(f"writer thread exception: {e}")
+                logger.info("writer thread exception: %s", e)
                 break
             if not nwritten and stream.closed:  # just in case
-                logger.info(f"writer thread: somethin' else happened")
+                logger.info("writer thread: somethin' else happened")
                 break
 
         # set flag to prevent any more writes
@@ -616,7 +629,7 @@ class WriterThread(Thread):
                 self._empty = True
                 self._empty_cond.notify_all()
 
-        logger.info(f"writer thread exiting")
+        logger.info("writer thread exiting")
 
     def write(self, data, timeout=None):
         with self._empty_cond:
@@ -630,7 +643,7 @@ class WriterThread(Thread):
             if data is None:
                 self._no_more = True
 
-            self._queue.put(data, timeout != 0, timeout)
+            self._queue.put(data, timeout != 0, timeout or self._timeout)
             self._empty = False
 
     def flush(self, timeout: float | None = None):
@@ -642,7 +655,11 @@ class WriterThread(Thread):
         """
 
         with self._empty_cond:
-            if not (self._no_more or self._empty or self._empty_cond.wait(timeout)):
+            if not (
+                self._no_more
+                or self._empty
+                or self._empty_cond.wait(timeout or self._timeout)
+            ):
                 raise NotEmpty()
 
     def qsize(self) -> int:
@@ -667,291 +684,6 @@ class WriterThread(Thread):
         write() will not block.
         """
         return self._queue.full()
-
-
-class AviReaderThread(Thread):
-    class InvalidAviStream(FFmpegError): ...
-
-    def __init__(self, queuesize=None):
-        super().__init__()
-        self.reader = AviReader()  #:utils.avi.AviReader: AVI demuxer
-        self.streamsready = Event()  #:Event: Set when received stream header info
-        self.rates = None  # :dict(int:int|Fraction)
-        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
-        self._ids = None  #:dict(int:int): stream indices
-        self._nread = None  #:dict(int:int): number of samples read/stream
-        self._carryover = (
-            None  #:dict(int:ndarray) extra data that was not previously read by user
-        )
-
-    @property
-    def streams(self):
-        return self.reader.streams if self.streamsready else None
-
-    def start(self, stdout, use_ya=None):
-        self._args = (stdout, use_ya)
-        super().start()
-
-    def join(self, timeout=None):
-        # if queue is full,
-        super().join(timeout)
-
-    def __bool__(self):
-        """True if FFmpeg stdout stream is still open or there are more frames in the buffer"""
-        return self.is_alive() or not self._queue.empty()
-
-    # def __enter__(self):
-    #     self.start()
-    #     return self
-
-    # def __exit__(self, *_):
-    #     self.join()  # will wait until stdout is closed
-    #     return self
-
-    def run(self):
-        reader = self.reader
-
-        try:
-            # start the AVI reader to process stdout byte stream
-            reader.start(*self._args)
-
-            # initialize the stream properties
-            self._ids = ids = [i for i in reader.streams]
-            self._nread = {k: 0 for k in ids}
-            self.rates = {
-                k: v["frame_rate"] if v["type"] == "v" else v["sample_rate"]
-                for k, v in reader.streams.items()
-            }
-        except Exception as e:
-            logger.critical(e)
-            return
-        finally:
-            self.streamsready.set()
-
-        reader = self.reader
-        for id, data in reader:
-            self._queue.put((id, data))
-        self._queue.put(None)  # end of stream
-
-    def wait(self, timeout: float | None = None) -> bool:
-        """wait till stream is ready to be read
-
-        :param timeout: timeout in seconds, defaults to None (waits indefinitely)
-        :type timeout: float, optional
-        :raises InvalidAviStream: if thread has been terminated before stream header info was read
-        :return: tuple of stream specifier and data array
-        :rtype: (str, object)
-        """
-
-        flag = self.streamsready.wait(timeout)
-        if not (flag or self.is_alive()):
-            raise self.InvalidAviStream(
-                "No stream header info was found in FFmpeg's AVI stream."
-            )
-        return flag
-
-    def readchunk(self, timeout=None) -> tuple[str, object]:
-        """read the next avi chunk
-
-        :param timeout: timeout in seconds, defaults to None (waits indefinitely)
-        :type timeout: float, optional
-        :raises TimeoutError: if terminated due to timeout
-        :return: tuple of stream specifier and data array
-        """
-
-        # wait till matching line is read by the thread
-        tend = timeout and time() + timeout
-
-        # if stream header not received in time, raise error
-        if not self.wait(timeout):
-            raise TimeoutError("timed out waiting for the stream headers")
-
-        block = self.is_alive()
-
-        # if any leftover data available, return the first one
-        if self._carryover is not None:
-            (id, data) = next(
-                ((k, v) for k, v in self._carryover.items() if v is not None)
-            )
-            self._carryover[id] = None
-            if all((k for k, v in self._carryover.items() if v is None)):
-                self._carryover = None
-            return self.reader.streams[id]["spec"], self.reader.from_bytes(id, data)
-
-        # get next chunk
-        try:
-            if timeout is not None:
-                timeout = tend - time()
-                assert timeout > 0
-            chunk = self._queue.get(block, timeout)
-            if chunk is None:
-                raise ThreadNotActive("reached end-of-stream")
-            id, data = chunk
-        except Empty:
-            raise TimeoutError("timed out waiting for next chunk")
-        self._queue.task_done()
-
-        return self.reader.streams[id]["spec"], self.reader.from_bytes(id, data)
-
-    def find_id(self, ref_stream: str) -> object:
-        self.wait()
-        try:
-            return next(
-                (k for k, v in self.reader.streams.items() if v["spec"] == ref_stream)
-            )
-        except:
-            ValueError(f"{ref_stream} is not a valid stream specifier")
-
-    def read(
-        self, n: int = -1, ref_stream: str | None = None, timeout: float | None = None
-    ) -> dict[str, bytes]:
-        """read data from all streams
-
-        :param n: number of samples, negate to non-blocking, defaults to -1
-        :param ref_stream: stream specifier to count the samples,
-                           defaults to None (first stream)
-        :param timeout: timeout in seconds, defaults to None (waits indefinitely)
-        :raises TimeoutError: if terminated due to timeout
-        :return: dict of data object keyed by stream specifier string, each data object is
-                 created by `bytes_to_video` or `bytes_to_image` plugin hook. If all frames
-                 have been read, dict items would be all empty
-        """
-
-        # wait till matching line is read by the thread
-        block = self.is_alive() and n != 0
-        tend = timeout and (time() + timeout)
-
-        # if stream header not received in time, raise error
-        if not self.wait(timeout):
-            raise TimeoutError("timed out waiting for the stream headers")
-
-        # get the reference stream id
-        if ref_stream is None:
-            ref_stream = self._ids[0]
-        else:
-            ref_stream = self.find_id(ref_stream)
-
-        # identify how many samples are needed for each stream
-        nref = max(n, -n)
-        tref = (self._nread[ref_stream] + nref) / self.rates[ref_stream]
-        n_need = {
-            k: ceil(tref * self.rates[k]) - self._nread[k] if k != ref_stream else nref
-            for k in self._ids
-        }
-        nremain = deepcopy(n_need)
-
-        # initialize output arrays
-        arrays = {k: [] for k in self._ids}
-
-        itemsizes = self.reader.itemsizes
-
-        # grab any leftover data from previous read
-        if self._carryover is not None:
-            for k, v in self._carryover.items():
-                if v is not None:
-                    arrays[k] = [v]
-                    nremain[k] -= len(v) // itemsizes[k]
-            self._carryover = None
-
-        # loop till enough data are collected
-        while any((v > 0 for k, v in nremain.items() if n_need[k] > 0)):
-            try:
-                if timeout:
-                    timeout = tend - time()
-                    if timeout <= 0:
-                        break
-                chunk = self._queue.get(block, timeout)
-                if chunk is None:
-                    break
-                k, data = chunk
-                self._queue.task_done()
-                arrays[k].append(data)
-                nremain[k] -= len(data) // itemsizes[k]
-
-            except Empty:
-                break
-
-        def combine(id, array, n, nr):
-            # combine all the data and return requested amount
-            if not len(array):
-                return (id, None, None)
-            all_data = b"".join(array)
-            nbytes = n * itemsizes[id]
-            return (
-                (id, all_data, None)
-                if nr >= 0
-                else (id, all_data[:nbytes], all_data[nbytes:])
-            )
-
-        ids, data, excess = zip(
-            *(
-                combine(id, array, n_need[id], nremain[id])
-                for id, array in arrays.items()
-            )
-        )
-
-        # any excess samples, store as a _carryover dict
-        if any((sdata is not None for sdata in excess)):
-            self._carryover = {id: sdata for id, sdata in zip(ids, excess)}
-
-        # final formatting of data
-        out = {}
-        for id, sdata in zip(ids, data):
-            info = self.reader.streams[id]
-            spec = info["spec"]
-            if sdata is None:
-                out[spec] = self.reader.from_bytes(id, b"")
-            else:
-                self._nread[id] += len(sdata) // itemsizes[id]
-                out[spec] = self.reader.from_bytes(id, sdata)
-
-        return out
-
-    def readall(self, timeout: float | None = None) -> dict[str, bytes]:
-        # wait till matching line is read by the thread
-        if timeout is not None:
-            timeout = time() + timeout
-
-        # if stream header not received in time, raise error
-        if not self.wait(timeout):
-            raise TimeoutError("timed out waiting for the stream headers")
-
-        # initialize output arrays
-        arrays = {k: [] for k in self._ids}
-
-        itemsizes = self.reader.itemsizes
-
-        # grab any leftover data from previous read
-        if self._carryover is not None:
-            for k, v in self._carryover.items():
-                if v is not None:
-                    arrays[k] = [v]
-                    self._nread[k] += len(v) // itemsizes[k]
-            self._carryover = None
-
-        # loop till enough data are collected
-        while True:
-            try:
-                chunk = self._queue.get(self.is_alive(), timeout and timeout - time())
-                if chunk is None:
-                    break  # end of stream
-                k, data = chunk
-                self._queue.task_done()
-                arrays[k].append(data)
-                self._nread[k] += len(data) // itemsizes[k]
-            except Empty:
-                break
-
-        # final formatting of data
-        out = {}
-        for id, sdata in arrays.items():
-            info = self.reader.streams[id]
-            spec = info["spec"]
-            out[spec] = self.reader.from_bytes(
-                id, b"" if sdata is None else b"".join(sdata)
-            )
-
-        return out
 
 
 class CopyFileObjThread(Thread):

@@ -5,6 +5,7 @@ import sys
 from time import time
 from contextlib import ExitStack
 from enum import IntEnum
+from fractions import Fraction
 
 from .. import ffmpegprocess, configure, utils
 
@@ -30,19 +31,21 @@ logger = logging.getLogger("ffmpegio")
 __all__ = ["BaseFFmpegRunner"]
 
 
+class FFmpegStatus(IntEnum):
+    NOTHING_SET = 0
+    BUFFERING = 1
+    ARGUMENTS_SET = 2
+    PIPES_SET = 3
+    RUNNING = 4
+    STOPPED = 5
+
+
 class BaseFFmpegRunner:
     """Base class to run FFmpeg and manage its multiple I/O's"""
 
-    class Status(IntEnum):
-        NOTHING_SET = 0
-        BUFFERING = 1
-        ARGUMENTS_SET = 2
-        PIPES_SET = 3
-        RUNNING = 4
-        STOPPED = 5
+    Status = FFmpegStatus
 
-    probesize: int = 64 * 1024
-    default_timeout: float | None = None
+    _pipe_kws: dict
 
     # configure.init_media_xxx function & its keyword arguments
     _init_func: Callable
@@ -61,9 +64,10 @@ class BaseFFmpegRunner:
     _args: dict[str, Any]
     _input_info: list[InputInfoDict]
     _output_info: list[OutputInfoDict]
+    _primary_output: int | str | None = None
 
     # ffmpeg subprocess and associated objects
-    _proc: ffmpegprocess.Popen
+    _proc: ffmpegprocess.Popen | None = None
     _input_pipes: dict[int, InputPipeInfoDict] | None = None
     _output_pipes: dict[int, OutputPipeInfoDict] | None = None
     _stack: ExitStack
@@ -73,16 +77,19 @@ class BaseFFmpegRunner:
         self,
         init_func: Callable,
         init_kws: dict,
-        default_timeout: float | None = None,
+        primary_output: int | str | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        probesize: int | None = None,
+        probesize: int = 1024**2,
+        blocksize: int | None = None,
+        queue_size: int | None = None,
+        timeout: float | None = None,
     ):
         """Base FFmpeg runner
 
-        :param default_timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
         :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
@@ -94,6 +101,7 @@ class BaseFFmpegRunner:
 
         self._init_func = staticmethod(init_func)
         self._init_kws = init_kws
+        self._primary_output = primary_output
 
         self._stack: ExitStack = ExitStack()
 
@@ -110,8 +118,13 @@ class BaseFFmpegRunner:
             self._args["overwrite"] = overwrite
 
         # set the default read block size for the reference stream
-        if default_timeout is not None:
-            self.default_timeout = default_timeout
+        self._pipe_kws = {"stack": self._stack}
+        if timeout is not None:
+            self._pipe_kws["timeout"] = timeout
+        if blocksize is not None:
+            self._pipe_kws["blocksize"] = blocksize
+        if queue_size is not None:
+            self._pipe_kws["queue_size"] = queue_size
 
         if probesize is not None:
             self.probesize = int(probesize)
@@ -268,8 +281,14 @@ class BaseFFmpegRunner:
             )
             more_args.update(sp_kwargs)
 
-        self._stack = configure.init_named_pipes(
-            input_pipes, output_pipes, self._input_info, self._output_info
+        # find the primary output stream's rate
+        configure.init_named_pipes(
+            input_pipes,
+            output_pipes,
+            self._input_info,
+            self._output_info,
+            update_rate=self.primary_output_rate,
+            **self._pipe_kws,
         )
 
         self._input_pipes = input_pipes
@@ -296,6 +315,30 @@ class BaseFFmpegRunner:
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
         self._logger.start()
+
+        # if stdin/stdout is used, attach StdWriter/StdReader object to each
+        configure.init_std_pipes(self._input_pipes, self._output_pipes, self._proc)
+
+    @property
+    def primary_output_label(self) -> str | None:
+        """primary raw media stream label (None if FFmpeg not started or no output raw stream)"""
+
+        st = self.primary_output_index
+        return st and self._output_info and self._output_info[st].get("user_map")
+
+    @property
+    def primary_output_index(self) -> int | None:
+        """primary raw media stream index (None if FFmpeg not started or no output raw stream)"""
+
+        return self._output_pipes or configure.find_primary_output_index(
+            self._output_pipes, self._output_info, self._primary_output
+        )
+
+    @property
+    def primary_output_rate(self) -> int | Fraction | None:
+        """sample/frame rate of the primary raw media stream (None if FFmpeg not started or no output raw stream)"""
+        st = self.primary_output_index
+        return st and self._output_info and self._output_info[st]["raw_info"][-1]
 
     def _write_from_buffer(self):
 
@@ -414,26 +457,20 @@ class BaseFFmpegRunner:
         """
 
         if timeout is None:
-            timeout = self.default_timeout
+            timeout = self.timeout
 
         if self._proc:
 
             if timeout is not None:
                 timeout += time()
 
-            # std pipe, no threading, flush and close the stdin
-            if self._proc.stdin is not None:
-                self._proc.stdin.flush()
-                self._proc.stdin.close()
-
             # write the sentinel to each input queue
-            for pinfo in self._input_pipes.values():
-                pinfo["writer"].write(
-                    None, None if timeout is None else timeout - time()
-                )
+            if self._input_pipes is not None:
+                for pinfo in self._input_pipes.values():
+                    pinfo["writer"].write(None)
 
             # wait until the FFmpeg finishes the job
-            self._proc.wait(None if timeout is None else timeout - time())
+            self._proc.wait(timeout and timeout - time())
 
             rc = self._proc.returncode
             if rc is not None:
@@ -441,19 +478,3 @@ class BaseFFmpegRunner:
         else:
             rc = None
         return rc
-
-    # def _write_raw(self, stream: int, data: RawDataBlob):
-    #     info = self._input_pipes[stream]
-    #     info["writer"].write(data)
-
-    # def _write_enc(self, stream: int, data: bytes):
-    #     info = self._input_pipes[stream]
-    #     info["writer"].write(data)
-
-    # def _read_raw(self, stream: int, n: int, timeout: float | None) -> RawDataBlob:
-    #     info = self._output_pipes[stream]
-    #     return info["reader"].read(n, timeout or self.default_timeout)
-
-    # def _read_enc(self, stream: int, n: int, timeout: float | None) -> bytes:
-    #     info = self._output_pipes[stream]
-    #     return info["reader"].read(n, timeout or self.default_timeout)
