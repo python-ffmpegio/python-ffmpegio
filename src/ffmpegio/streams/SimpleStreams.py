@@ -100,6 +100,7 @@ class StdFFmpegRunner(BaseFFmpegRunner):
 
         return ready
 
+
 class SimpleReader(BaseRawOutputsMixin, StdFFmpegRunner):
     """queue-less SISO media reader class"""
 
@@ -214,6 +215,10 @@ class SimpleReader(BaseRawOutputsMixin, StdFFmpegRunner):
         """sample or frame rates associated with the output streams (key)"""
         orates = self.output_rates
         return None if orates is None else orates[0]
+
+    @property
+    def _output_rate(self) -> int | Fraction | None:
+        return self.output_rate
 
     @property
     def output_dtype(self) -> DTypeString | None:

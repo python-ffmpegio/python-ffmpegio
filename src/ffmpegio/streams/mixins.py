@@ -62,7 +62,7 @@ class BaseRawInputsMixin:
     def input_dtypes(self) -> dict[int, DTypeString | None]:
         """frame/sample data type associated with the output streams (key)"""
         kws = self._init_kws
-        if self._input_info is not None:
+        if self._args_not_ready:
             return {
                 i: v["raw_info"][0]
                 for i, v in enumerate(self._input_info)
@@ -87,7 +87,7 @@ class BaseRawInputsMixin:
     def input_shapes(self) -> dict[int, ShapeTuple | None]:
         """frame/sample shape associated with the output streams (key)"""
         kws = self._init_kws
-        if self._input_info is not None:
+        if self._args_not_ready:
             # ffmpeg configured
             return {
                 i: v["raw_info"][1]
@@ -110,6 +110,23 @@ class BaseRawInputsMixin:
                 if kw == "input_stream_args"
             }
 
+    def _write_raw(self, index: int, data: RawDataBlob):
+        """write a raw media data to a specified stream (backend)"""
+
+        try:
+            info = self._input_info[index]
+            assert "media_type" in self._input_info[index]
+        except AttributeError as e:
+            raise FFmpegioError(f"FFmpeg is not running yet.") from e
+        except (KeyError, AssertionError) as e:
+            raise ValueError(f"Input Stream #{index} is not a raw stream.") from e
+
+        b = info["data2bytes"](obj=data)
+        if not len(b):
+            return
+
+        self._input_pipes[index]["writer"].write(data)
+
 
 ################################################################################
 
@@ -117,21 +134,56 @@ class BaseRawInputsMixin:
 class BaseRawOutputsMixin(metaclass=ABCMeta):
 
     _init_kws: configure.MediaReadKwsDict | configure.MediaFilterKwsDict
-
     _status: FFmpegStatus
     _output_info: list[RawOutputInfoDict]
     _output_pipes: list[OutputPipeInfoDict]
 
+    _primary_output: int | str | None = None
     _read_size_in: int | None = None
     _read_size: int = 1
 
-    def __init__(self, blocksize: int | None = None, **kwargs):
+    def __init__(
+        self,
+        primary_output: int | str | None = None,
+        blocksize: int | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
+
+        self._primary_output = primary_output
 
         # set the default read block size for the reference stream
         self._read_size_in = blocksize
         if blocksize is not None:
             self._read_size = blocksize
+
+    @property
+    def primary_output_label(self) -> str | None:
+        """primary raw media stream label (None if FFmpeg not started or no output raw stream)"""
+
+        st = self.primary_output_index
+        return st and self._output_info and self._output_info[st].get("user_map")
+
+    @property
+    def primary_output_index(self) -> int | None:
+        """primary raw media stream index (None if FFmpeg not started or no output raw stream)"""
+
+        return configure.find_primary_output_index(
+            self._output_info, self._primary_output
+        )
+
+    @property
+    def primary_output_rate(self) -> int | Fraction | None:
+        """sample/frame rate of the primary raw media stream (None if FFmpeg not started or no output raw stream)"""
+        st = self.primary_output_index
+        try:
+            return self._output_info[st]["raw_info"][-1]
+        except (AttributeError, IndexError):
+            return None
+
+    @property
+    def _output_rate(self) -> int | Fraction | None:
+        return self.primary_output_rate
 
     def _try_config_ffmpeg(
         self, stream: int = -1, data: bytes | RawDataBlob | None = None
@@ -165,39 +217,37 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
         return ready
 
     @property
-    def output_rates(self) -> dict[int | Fraction | None] | None:
+    def output_rates(self) -> list[int | Fraction] | None:
         """sample or frame rates associated with the output streams (key)"""
 
-        if self._output_info is None:
+        if self._args_not_ready:
             if not self._all_output_streams_defined:
                 return None
 
+            kws = self._init_kws
+
             if "output_streams" not in kws:  # raw output streams (+extra encoded)
-                return {}
+                return []  # shouldn't get here
 
             kw = self._init_kws["output_streams"]
-            rates = {}
-            for i, mtype in self.output_types.items():
-                if mtype == "encoded":
-                    # skip encoded output stream
-                    continue
+            rates = [
+                kw[i][1].pop("r" if mtype == "video" else "ar", None)
+                for i, mtype in self.output_types.items()
+                if mtype != "encoded"
+            ]
 
-                rates[i] = kw[i][1].pop("r" if mtype == "video" else "ar", None)
-
-                return rates
+            return rates
 
         else:
-            return {
-                i: v["raw_info"][2]
-                for i, v in self._iter_piped_output_info()
-                if "raw_info" in v
-            }
+            return [
+                v["raw_info"][2] if "raw_info" in v else None for v in self._output_info
+            ]
 
     @property
-    def output_dtypes(self) -> dict[int, DTypeString | None]:
+    def output_dtypes(self) -> dict[int, DTypeString] | None:
         """frame/sample data type associated with the output streams (key)"""
 
-        if self._output_info is None:
+        if self._args_not_ready:
             if not self._all_output_streams_defined:
                 return None
 
@@ -205,7 +255,7 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
                 return {}
 
             kw = self._init_kws["output_streams"]
-            dtypes = {}
+            dtypes = []
             for i, mtype in self.output_types.items():
                 if mtype == "encoded":
                     # skip encoded output stream
@@ -229,17 +279,13 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
             return dtypes
 
         else:
-            return {
-                i: v["raw_info"][0]
-                for i, v in self._iter_piped_output_info()
-                if "raw_info" in v
-            }
+            return [v["raw_info"][0] for v in self._iter_piped_output_info()]
 
     @property
     def output_shapes(self) -> list[ShapeTuple | None]:
         """frame/sample shape associated with the output streams (key)"""
 
-        if self._output_info is None:
+        if self._args_not_ready:
             if not self._all_output_streams_defined:
                 return None
 
@@ -277,11 +323,16 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
             return shapes
 
         else:
-            return {
-                i: v["raw_info"][1]
+            return [
+                v["raw_info"][1] if "raw_info" in v else None
                 for i, v in self._iter_piped_output_info()
-                if "raw_info" in v
-            }
+            ]
+
+    def output_sample_sizes(self) -> list[int] | None:
+        if self._args_not_ready:
+            return None
+
+        return []
 
     def __iter__(self):
         return self
@@ -291,28 +342,6 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
         if self._output_info[self.primary_output_index]["data_is_empty"](obj=F):
             raise StopIteration
         return F
-
-    @property
-    def primary_output_label(self) -> str | None:
-        """primary raw media stream label (None if FFmpeg not started or no output raw stream)"""
-
-        st = self.primary_output_index
-        return st and self._output_info and self._output_info[st].get("user_map")
-
-    @property
-    def primary_output_index(self) -> int | None:
-        """primary raw media stream index (None if FFmpeg not started or no output raw stream)"""
-
-
-        return configure.find_primary_output_index(
-            self._output_info, self._primary_output
-        )
-
-    @property
-    def primary_output_rate(self) -> int | Fraction | None:
-        """sample/frame rate of the primary raw media stream (None if FFmpeg not started or no output raw stream)"""
-        st = self.primary_output_index
-        return st and self._output_info and self._output_info[st]["raw_info"][-1]
 
     @abstractmethod
     def read(self, n: int) -> RawDataBlob | dict[int | str, RawDataBlob]:
@@ -348,3 +377,29 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
     # def output_bytesizes(self) -> list[int | None]:
     #     """number of bytes per output sample/pixel"""
     #     return [get_bytesize(self.output_shape, self.output_dtype)]
+
+    def _read_raw(self, index: int, n: int) -> RawDataBlob:
+        """read selected output stream (shared backend)"""
+
+        try:
+            info = self._output_info[index]
+            assert "media_type" in self._output_info[index]
+        except AttributeError as e:
+            raise FFmpegioError(f"FFmpeg is not running yet.") from e
+        except (KeyError, AssertionError) as e:
+            raise ValueError(f"Input Stream #{index} is not a raw stream.") from e
+
+        (dtype, shape, _) = info["raw_info"]
+        b = self._output_pipes[index]["reader"].read(
+            n * self.output_samplesizes[index] if n > 0 else n
+        )
+
+        data = info["bytes2data"](
+            b=b, dtype=dtype, shape=shape, squeeze=info["squeeze"]
+        )
+
+        # update the frame/sample counter
+        # n = counter(obj=data)  # actual number read
+        # self._n0[stream_id] += n
+
+        return data

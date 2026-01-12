@@ -217,7 +217,6 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     _args: dict[str, Any]
     _input_info: list[InputInfoDict]
     _output_info: list[OutputInfoDict]
-    _primary_output: int | str | None = None
     _use_std_pipes: bool = False
 
     # ffmpeg subprocess and associated objects
@@ -231,7 +230,6 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         self,
         init_func: Callable,
         init_kws: dict,
-        primary_output: int | str | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
@@ -249,7 +247,6 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         self._init_func = staticmethod(init_func)
         self._init_kws = InitMediaKeywordsWithInputBuffer(init_kws)
-        self._primary_output = primary_output
 
         self._stack: ExitStack = ExitStack()
 
@@ -326,6 +323,10 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             self._stack.close()
             self._status = self._status.STOPPED
 
+    @property
+    def _output_rate(self) -> int | Fraction | None:
+        return None
+
     def _run_ffmpeg(self):
 
         # set up and activate standard pipes and read/write threads
@@ -360,7 +361,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             output_pipes,
             self._input_info,
             self._output_info,
-            update_rate=self.primary_output_rate,
+            update_rate=self._output_rate,
             **self._pipe_kws,
         )
 
@@ -413,22 +414,9 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         except (KeyError, AssertionError) as e:
             raise ValueError(f"Input Stream #{index} is not an encoded stream.") from e
 
+    @abstractmethod
     def _write_raw(self, index: int, data: RawDataBlob):
-        """write a raw media data to a specified stream (backend)"""
-
-        try:
-            info = self._input_info[index]
-            assert "media_type" in self._input_info[index]
-        except AttributeError as e:
-            raise FFmpegioError(f"FFmpeg is not running yet.") from e
-        except (KeyError, AssertionError) as e:
-            raise ValueError(f"Input Stream #{index} is not a raw stream.") from e
-
-        b = info["data2bytes"](obj=data)
-        if not len(b):
-            return
-
-        self._input_pipes[index]["writer"].write(data)
+        """write a raw media data to a specified stream (abstract)"""
 
     def _read_encoded(self, index: int, n: int) -> bytes:
         """read selected output stream (shared backend)"""
@@ -441,30 +429,6 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             raise FFmpegioError(f"FFmpeg is not running yet.") from e
         except (KeyError, AssertionError) as e:
             raise ValueError(f"Output Stream #{index} is not an encoded stream.") from e
-
-    def _read_raw(self, index: int, n: int) -> RawDataBlob:
-        """read selected output stream (shared backend)"""
-
-        try:
-            info = self._output_info[index]
-            assert "media_type" in self._output_info[index]
-        except AttributeError as e:
-            raise FFmpegioError(f"FFmpeg is not running yet.") from e
-        except (KeyError, AssertionError) as e:
-            raise ValueError(f"Input Stream #{index} is not a raw stream.") from e
-
-        (dtype, shape, _) = info["raw_info"]
-        b = self._output_pipes[index]["reader"].read(n)
-
-        data = info["bytes2data"](
-            b=b, dtype=dtype, shape=shape, squeeze=info["squeeze"]
-        )
-
-        # update the frame/sample counter
-        # n = counter(obj=data)  # actual number read
-        # self._n0[stream_id] += n
-
-        return data
 
     def _terminate(self):
         """Kill FFmpeg process and close the streams"""
@@ -581,12 +545,60 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         return rc
 
     @property
-    def _args_ready(self):
+    def _args_not_ready(self):
         return self._status < self._status.ARGUMENTS_SET
 
     ##########################################################
     ### INPUT PROPERTIES
     ##########################################################
+
+    @cached_property
+    def _piped_input_stream_indices(self) -> list[int]:
+
+        if self._status < self._status.ARGUMENTS_SET:
+
+            kws = self._init_kws
+
+            if "input_stream_types" in kws:  # raw output streams (+extra encoded)
+                kw = kws["input_stream_types"]
+                assert kw is not None
+                streams = list(range(len(kws["input_stream_types"])))
+
+                if "extra_inputs" in kws:
+                    nin = len(streams)
+                    streams.extend(
+                        [
+                            nin + i
+                            for i, (url, _) in enumerate(kws["extra_inputs"])
+                            if utils.is_pipe(url)
+                        ]
+                    )
+            else:  # encoded output streams
+                streams = [
+                    i
+                    for i, (url, _) in enumerate(kws["input_urls"])
+                    if utils.is_pipe(url)
+                ]
+
+        else:
+            # FFmpeg already configured
+            streams = [
+                i
+                for i, info in enumerate(self._output_info)
+                if info["dst_type"] == "buffer" and "buffer" not in info
+            ]
+
+        return streams
+
+    def _iter_piped_input_info(
+        self, encoded: bool | None = None
+    ) -> Iterator[tuple[int, InputInfoDict]]:
+
+        assert self._status >= self._status.ARGUMENTS_SET
+        for i in self._piped_input_stream_indices:
+            info = self._input_info[i]
+            if encoded is None or (encoded == ("media_type" not in info)):
+                yield i, info
 
     @property
     def input_types(self) -> dict[int, MediaType | Literal["encoded"]]:
@@ -703,10 +715,15 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         return streams
 
-    def _iter_piped_output_info(self) -> Iterator[tuple[int, OutputInfoDict]]:
+    def _iter_piped_output_info(
+        self, encoded: bool | None = None
+    ) -> Iterator[tuple[int, OutputInfoDict]]:
+
         assert self._status >= self._status.ARGUMENTS_SET
         for i in self._piped_output_stream_indices:
-            yield i, self._output_info[i]
+            info = self._output_info[i]
+            if encoded is None or (encoded == ("media_type" not in info)):
+                yield i, info
 
     @property
     def output_types(self) -> dict[int, MediaType | Literal["encoded"] | None] | None:
