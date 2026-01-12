@@ -213,31 +213,31 @@ class MediaReadKwsDict(TypedDict):
     input_urls: list[FFmpegInputOptionTuple]
     output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
     options: FFmpegOptionDict
-    extra_outputs: list[FFmpegOutputOptionTuple]
     squeeze: bool
+    extra_outputs: list[FFmpegOutputOptionTuple] | None
 
 
 class MediaWriteKwsDict(TypedDict):
     output_urls: list[FFmpegOutputOptionTuple]
     input_stream_types: list[Literal["a", "v"]]
     input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]]
-    extra_inputs: list[FFmpegInputOptionTuple]
     options: dict[str, Any]
     input_dtypes: NotRequired[list[DTypeString | None] | None]
     input_shapes: NotRequired[list[ShapeTuple | None] | None]
+    extra_inputs: list[FFmpegInputOptionTuple]
 
 
 class MediaFilterKwsDict(TypedDict):
     expr: str | FilterGraphObject | list[str | FilterGraphObject] | None
     input_stream_types: list[Literal["a", "v"]]
     input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]]
-    extra_inputs: list[FFmpegInputOptionTuple]
     output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
-    extra_outputs: list[FFmpegOutputOptionTuple]
     options: FFmpegOptionDict
-    squeeze: bool
     input_dtypes: NotRequired[list[DTypeString] | None]
     input_shapes: NotRequired[list[ShapeTuple] | None]
+    squeeze: bool
+    extra_inputs: list[FFmpegInputOptionTuple]
+    extra_outputs: list[FFmpegOutputOptionTuple]
 
 
 class MediaTranscoderKwsDict(TypedDict):
@@ -813,7 +813,8 @@ def gather_video_read_opts(
                  None to skip the analysis
     :param input_info: list of input information, only required if `args` is given
     :param get_fg_info: function to retrieve filtergraph output info if available.
-    :return raw_info: video shape tuple (height, width, nb_components)
+    :return raw_info: tuple of (dtype, shape, r) where shape is a video shape
+                      tuple (height, width, nb_components)
     :return additional_options: additional output options or None if `raw_info`
                                 is not complete
 
@@ -980,7 +981,7 @@ def gather_audio_read_opts(
     :param get_fg_info: function to retrieve filtergraph output info if available.
     :param default_sample_fmt: if the input sample format is incompatible,
                                force this format, defaults to 'dbl'
-    :return raw_info: video shape tuple (height, width, nb_components)
+    :return raw_info: audio shape tuple (nb_channels,)
     :return additional_options: additional output options or None if `raw_info`
                                 is not complete
 
@@ -1855,7 +1856,7 @@ def process_url_inputs(
     inopts_default: FFmpegOptionDict,
     no_pipe: bool = False,
 ) -> list[EncodedInputInfoDict]:
-    """analyze and process heterogeneous input url argument
+    """analyze and process heterogeneous (encoded) input url argument
 
     :param args: FFmpeg argument dict, `args['inputs']` receives all the new inputs.
                  If input is a buffer, a fileobj, or an FFconcat, the first element
@@ -2632,7 +2633,7 @@ def init_std_pipes(
 
 
 def find_primary_output_index(
-    output_pipes: dict[int, OutputPipeInfoDict],
+    # output_pipes: dict[int, OutputPipeInfoDict],
     output_info: list[OutputInfoDict],
     primary_output: int | str | None = None,
 ) -> int | None:
@@ -2647,25 +2648,33 @@ def find_primary_output_index(
 
     if primary_output is None:
         # use first raw stream
-        try:
-            st = next(i for i in output_pipes if "media_type" in output_info[i])
-        except StopIteration:
-            return None  # no output raw stream present
+        return next(
+            (i for i, info in enumerate(output_info) if "buffer" in info["dst_type"]),
+            None,
+        )
     else:
         # validate the specified stream (convert to int idx if str label given)
         st_ = primary_output
         if isinstance(st_, str):
             try:
                 st = next(
-                    i for i in output_pipes if output_info[i].get("user_map") == st_
+                    i
+                    for i, info in enumerate(output_info)
+                    if "buffer" in info["dst_type"] and info["user_map"] == st_
                 )
-            except StopIteration:
-                return None
+            except StopIteration as e:
+                raise ValueError(
+                    f'Primary media output stream "{st_}" is not found.'
+                ) from e
         else:
             st = st_
 
-        # if invalid output stream index, return None
-        if st < 0 or st >= len(output_info):
-            return None
+            # if invalid output stream index, return None
+            try:
+                assert "media_type" not in output_info[st]
+            except AssertionError as e:
+                raise ValueError(
+                    f"Primary media output stream {st} is not found."
+                ) from e
 
     return st

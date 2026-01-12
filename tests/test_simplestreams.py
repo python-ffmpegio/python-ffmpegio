@@ -15,12 +15,14 @@ def test_read_video():
     w = 420
     h = 360
     with streams.SimpleReader(
-        url, vf="transpose", pix_fmt="gray", s=(w, h), show_log=True, r=30
+        [(url, {})],
+        {"map": "0:V:0", "vf": "transpose", "pix_fmt": "gray", "s": (w, h), "r": 30},
+        show_log=True,
     ) as f:
         F = f.read(10)
         assert f.output_rate == 30
-        assert f.output_shape == (h, w, 1)
-        assert F["shape"] == (10, h, w, 1)
+        assert f.output_shape == (h, w)
+        assert F["shape"] == (10, h, w)
         assert F["dtype"] == f.output_dtype
 
 
@@ -45,7 +47,7 @@ def test_read_write_video():
             f.write(F1)
             f.wait()
         fs, F = ffmpegio.video.read(out_url)
-        assert len(F['buffer'])
+        assert len(F["buffer"])
 
 
 def test_read_audio(caplog):
@@ -116,12 +118,17 @@ def test_write_extra_inputs():
         "shape": F["shape"],
         "dtype": F["dtype"],
     }
-    print(len(F['buffer']))
+    print(len(F["buffer"]))
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with streams.SimpleWriter(
-            out_url, fs, extra_inputs=[url_aud], map=["0:v", "1:a"], show_log=True,loglevel='debug'
+            out_url,
+            fs,
+            extra_inputs=[url_aud],
+            map=["0:v", "1:a"],
+            show_log=True,
+            loglevel="debug",
         ) as f:
             f.write(F)
             f.wait()

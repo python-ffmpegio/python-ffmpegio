@@ -384,7 +384,7 @@ class UrlOrPipedEncodedOutputInfoDict(TypedDict):
     """url/filtergraph encoded input source info"""
 
     dst_type: Literal["url", "buffer"]
-    """output data goes to either a url/file or a pipe"""
+    """output data goes to either a url/filepath or a pipe"""
 
 
 class FileObjEncodedOutputInfoDict(TypedDict):

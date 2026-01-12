@@ -32,8 +32,6 @@ from .BaseFFmpegRunner import BaseFFmpegRunner as _BaseFFmpegRunner
 from .mixins import (
     BaseRawInputsMixin as _BaseRawInputsMixin,
     BaseRawOutputsMixin as _BaseRawOutputsMixin,
-    BaseEncodedInputsMixin as _BaseEncodedInputsMixin,
-    BaseEncodedOutputsMixin as _BaseEncodedOutputsMixin,
 )
 
 logger = (logging.getLogger("ffmpegio"),)
@@ -235,7 +233,7 @@ class _RawInputsMixin(_BaseRawInputsMixin):
             )
 
 
-class _EncodedInputsMixin(_BaseEncodedInputsMixin):
+class _EncodedInputsMixin:
 
     def write_encoded_stream(
         self, stream_id: int, data: bytes, timeout: float | None = None
@@ -433,7 +431,7 @@ class _RawOutputsMixin(_BaseRawOutputsMixin):
         return data
 
 
-class _EncodedOutputsMixin(_BaseEncodedOutputsMixin):
+class _EncodedOutputsMixin:
 
     def read_encoded(
         self, n: int, stream_id: int = 0, timeout: float | None = None
