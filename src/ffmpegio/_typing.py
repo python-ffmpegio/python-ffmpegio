@@ -216,6 +216,7 @@ class RawInputInfoDict(TypedDict):
     `'src_type'`    always `'buffer'`
     `'media_type'`  media stream identifier: `'audio'` or '`video'`
     `'raw_info'`    tuple of (rate, shape, dtype)
+    `'item_size`        size of each frame/sample in bytes
     `'data2bytes'`  conversion function
     `'buffer'`      (optional) known media data blobs to be input (typically for
                     a batch operation)
@@ -230,6 +231,8 @@ class RawInputInfoDict(TypedDict):
     """media type if input pipe"""
     raw_info: RawStreamInfoTuple
     """tuple of (rate, shape, dtype)"""
+    item_size: int
+    '''size of each frame/sample in bytes'''
     data2bytes: ToBytesCallable
     """converts a Python data blob to raw media bytes"""
     buffer: NotRequired[object]
@@ -308,6 +311,7 @@ class RawDirectOutputInfoDict(TypedDict):
     `'dst_type'`        `'buffer'`
     `'media_type'`      media stream identifier: `'audio'` or '`video'`
     `'raw_info'`        tuple of (dtype, shape, rate)
+    `'item_size`        size of each frame/sample in bytes
     `'bytes2data'`      function to convert bytes to raw data blob
     `'data_is_empty'`   function to check empty data frame
     `'data_count'`      function to count number of frames/samples in a blob
@@ -322,6 +326,7 @@ class RawDirectOutputInfoDict(TypedDict):
     media_type: MediaType  #
     raw_info: RawStreamInfoTuple
     bytes2data: FromBytesCallable
+    item_size: int,
     data_is_empty: IsEmptyCallable
     data_count: CountDataCallable
     user_map: str  # user specified map option
@@ -339,6 +344,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     `'dst_type'`        `'buffer'`
     `'media_type'`      media stream identifier: `'audio'` or '`video'`
     `'raw_info'`        tuple of (dtype, shape, rate)
+    `'item_size`        size of each frame/sample in bytes
     `'bytes2data'`      function to convert bytes to raw data blob
     `'data_is_empty'`   function to check empty data frame
     `'data_count'`      function to count number of frames/samples in a blob
@@ -351,6 +357,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     dst_type: Literal["buffer"]  # True if file path/url
     media_type: MediaType  #
     raw_info: RawStreamInfoTuple
+    item_size: int,
     bytes2data: FromBytesCallable
     data_is_empty: IsEmptyCallable
     data_count: CountDataCallable

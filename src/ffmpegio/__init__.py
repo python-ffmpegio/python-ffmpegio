@@ -61,7 +61,7 @@ from .filtergraph import Graph as FilterGraph
 from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
 from .transcode import transcode
 from .utils.parser import FLAG
-from ._open import open
+from .streams.open import open
 
 # check if ffmpegio-core is installed, if it is warn its deprecation
 from ._utils import deprecate_core

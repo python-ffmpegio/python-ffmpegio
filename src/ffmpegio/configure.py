@@ -2041,6 +2041,8 @@ def process_raw_outputs(
 
         info["dst_type"] = "buffer"
         info["raw_info"] = raw_info
+        info["item_size"] = utils.get_samplesize(*raw_info[1::-1])
+
         info["squeeze"] = squeeze
         info.update(get_callables(info["media_type"]))
 
@@ -2164,6 +2166,7 @@ def process_raw_inputs(
             "src_type": "buffer",
             "media_type": media_type,
             "raw_info": (*raw_info, opts[ropt]),
+            "item_size": utils.get_samplesize(*raw_info[1::-1]),
             **get_callables(media_type),
         }
 
@@ -2552,14 +2555,11 @@ def init_named_pipes(
             assert dst_type == "buffer"
             kws = {**wr_kws}
             if "raw_info" in info:
-                dtype, shape, rate = info["raw_info"]
-                kws["itemsize"] = utils.get_samplesize(shape, dtype)
                 if update_rate is not None:
                     # set the number of frames/samples to enqueue at a time
                     kws["nmin"] = round(rate / update_rate) or 1
             else:
                 # assume encoded output
-                kws["itemsize"] = 1
                 kws["nmin"] = blocksize or 2**16
             reader = ReaderThread(pipe, **kws)
 

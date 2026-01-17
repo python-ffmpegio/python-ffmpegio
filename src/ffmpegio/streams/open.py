@@ -53,21 +53,21 @@ import logging
 logger = logging.getLogger("ffmpegio")
 
 from typing_extensions import overload, Literal, Sequence, Unpack, LiteralString
-from ._typing import DTypeString, ShapeTuple
+from .._typing import DTypeString, ShapeTuple
 from fractions import Fraction
 import re
 
-from ._typing import ProgressCallable, Literal, FFmpegOptionDict, FFmpegUrlType
-from .configure import (
+from .._typing import ProgressCallable, Literal, FFmpegOptionDict, FFmpegUrlType
+from ..configure import (
     IO,
     Buffer,
     FFmpegInputUrlComposite,
     FFmpegOutputUrlComposite,
     FFConcat,
 )
-from .filtergraph.abc import FilterGraphObject
+from ..filtergraph.abc import FilterGraphObject
 
-from . import streams, utils
+from .. import streams, utils
 
 
 @overload

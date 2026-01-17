@@ -46,69 +46,6 @@ class BaseRawInputsMixin:
     _input_info: list[RawInputInfoDict]
     _input_pipes: list[InputPipeInfoDict]
 
-    @property
-    def input_rates(self) -> dict[int, int | Fraction | None]:
-        """audio sample or video frame rates associated with the input media streams"""
-        kws = self._init_kws
-        return {
-            i: kws["input_stream_args"][i][1][
-                {"a": "ar", "v": "r"}[kws["input_stream_types"][i]]
-            ]
-            for i, kw in self._piped_inputs.items()
-            if kw == "input_stream_args"
-        }
-
-    @property
-    def input_dtypes(self) -> dict[int, DTypeString | None]:
-        """frame/sample data type associated with the output streams (key)"""
-        kws = self._init_kws
-        if self._args_not_ready:
-            return {
-                i: v["raw_info"][0]
-                for i, v in enumerate(self._input_info)
-                if "raw_info" in v
-            }
-        elif "input_dtypes" in kws:  # dtypes maybe given
-            dtypes = kws["input_dtypes"]
-            return {
-                i: dtypes[i]
-                for i, kw in self._piped_inputs.items()
-                if kw == "input_stream_args"
-            }
-        else:
-            # not known yet
-            return {
-                i: None
-                for i, kw in self._piped_inputs.items()
-                if kw == "input_stream_args"
-            }
-
-    @property
-    def input_shapes(self) -> dict[int, ShapeTuple | None]:
-        """frame/sample shape associated with the output streams (key)"""
-        kws = self._init_kws
-        if self._args_not_ready:
-            # ffmpeg configured
-            return {
-                i: v["raw_info"][1]
-                for i, v in enumerate(self._input_info)
-                if "raw_info" in v
-            }
-        elif "input_shapes" in kws:  # dtypes maybe given
-            # pre-configure, given by user
-            dtypes = kws["input_shapes"]
-            return {
-                i: dtypes[i]
-                for i, kw in self._piped_inputs.items()
-                if kw == "input_stream_args"
-            }
-        else:
-            # pre-configure, not given by user
-            return {
-                i: None
-                for i, kw in self._piped_inputs.items()
-                if kw == "input_stream_args"
-            }
 
     def _write_raw(self, index: int, data: RawDataBlob):
         """write a raw media data to a specified stream (backend)"""
@@ -157,33 +94,6 @@ class BaseRawOutputsMixin(metaclass=ABCMeta):
         if blocksize is not None:
             self._read_size = blocksize
 
-    @property
-    def primary_output_label(self) -> str | None:
-        """primary raw media stream label (None if FFmpeg not started or no output raw stream)"""
-
-        st = self.primary_output_index
-        return st and self._output_info and self._output_info[st].get("user_map")
-
-    @property
-    def primary_output_index(self) -> int | None:
-        """primary raw media stream index (None if FFmpeg not started or no output raw stream)"""
-
-        return configure.find_primary_output_index(
-            self._output_info, self._primary_output
-        )
-
-    @property
-    def primary_output_rate(self) -> int | Fraction | None:
-        """sample/frame rate of the primary raw media stream (None if FFmpeg not started or no output raw stream)"""
-        st = self.primary_output_index
-        try:
-            return self._output_info[st]["raw_info"][-1]
-        except (AttributeError, IndexError):
-            return None
-
-    @property
-    def _output_rate(self) -> int | Fraction | None:
-        return self.primary_output_rate
 
     def _try_config_ffmpeg(
         self, stream: int = -1, data: bytes | RawDataBlob | None = None
