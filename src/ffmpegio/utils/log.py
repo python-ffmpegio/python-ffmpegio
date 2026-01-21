@@ -1,10 +1,10 @@
 import re
 from fractions import Fraction
 
-from . import layout_to_channels
-from ..caps import sample_fmts
-from .._typing import RawStreamInfoTuple, Sequence
 from .. import utils
+from .._typing import RawStreamInfoTuple, Sequence
+from ..caps import sample_fmts
+from . import layout_to_channels
 
 _re_audio = re.compile(r"(?:(\d+) Hz, )?(.+)")
 

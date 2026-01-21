@@ -19,21 +19,22 @@ PIPE:    Special value that indicates a pipe should be created
 
 """
 
-from collections import abc
-from os import path, name as os_name
-from threading import Thread
-import subprocess as sp
-from copy import deepcopy
-from tempfile import TemporaryDirectory
 import logging
 import signal
+import subprocess as sp
+from collections import abc
+from copy import deepcopy
+from os import name as os_name
+from os import path
+from tempfile import TemporaryDirectory
+from threading import Thread
 
 logger = logging.getLogger("ffmpegio")
 
-from .utils.parser import parse, compose, FLAG
-from .threading import ProgressMonitorThread
 from .configure import move_global_options
-from .path import ffmpeg, DEVNULL, PIPE, devnull
+from .path import DEVNULL, PIPE, devnull, ffmpeg
+from .threading import ProgressMonitorThread
+from .utils.parser import FLAG, compose, parse
 
 __all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
 

@@ -4,16 +4,12 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from ._typing import Sequence, ProgressCallable, Unpack, FFmpegOptionDict
-from .configure import (
-    FFmpegOutputUrlComposite,
-    FFmpegInputUrlComposite,
-    FFmpegInputOptionTuple,
-    FFmpegOutputOptionTuple,
-)
-
-
-from . import ffmpegprocess as fp, configure, utils, FFmpegError
+from . import FFmpegError, configure
+from . import ffmpegprocess as fp
+from . import utils
+from ._typing import FFmpegOptionDict, ProgressCallable, Sequence, Unpack
+from .configure import (FFmpegInputOptionTuple, FFmpegInputUrlComposite,
+                        FFmpegOutputOptionTuple, FFmpegOutputUrlComposite)
 from .path import check_version
 
 __all__ = ["transcode"]

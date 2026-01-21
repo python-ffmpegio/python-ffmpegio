@@ -1,21 +1,19 @@
-import warnings
 import logging
 from fractions import Fraction
 
-from . import configure, plugins, analyze, FFmpegioError, utils
-from .std_runners import run_and_return_raw, run_and_return_encoded
-
-from ._typing import Any, ProgressCallable, RawDataBlob, FFmpegOptionDict
-
+from . import configure, utils
+from . import filtergraph as fgb
+from ._typing import Any, ProgressCallable, RawDataBlob
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
     FFmpegInputUrlNoPipe,
     FFmpegNoPipeInputOptionTuple,
-    FFmpegOutputUrlNoPipe,
     FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputUrlNoPipe,
 )
-from . import filtergraph as fgb
+from .errors import FFmpegioError
+from .std_runners import run_and_return_encoded, run_and_return_raw
 
 __all__ = ["create", "read", "write", "filter", "detect"]
 

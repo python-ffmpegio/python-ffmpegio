@@ -1,11 +1,13 @@
-from io import SEEK_CUR
-import fractions, re
-from struct import Struct
+import fractions
+import re
 from collections import namedtuple
+from io import SEEK_CUR
 from itertools import accumulate
+from struct import Struct
 
-from ..utils import get_video_format, get_audio_format, stream_spec, get_samplesize
 from .. import plugins
+from ..utils import (get_audio_format, get_samplesize, get_video_format,
+                     stream_spec)
 
 # https://docs.microsoft.com/en-us/previous-versions//dd183376(v=vs.85)?redirectedfrom=MSDN
 

@@ -102,19 +102,14 @@ Both input and output filter pads can be specified in a number of ways:
 from .. import path
 from ..caps import filters as list_filters
 from . import abc
-from .Filter import Filter
+from .build import attach, concatenate, connect, join, stack
 from .Chain import Chain
-from .Graph import Graph
-from .build import connect, join, attach, stack, concatenate
-from .convert import (
-    as_filter,
-    as_filterchain,
-    as_filtergraph,
-    as_filtergraph_object,
-    as_filtergraph_object_like,
-    atleast_filterchain,
-)
+from .convert import (as_filter, as_filterchain, as_filtergraph,
+                      as_filtergraph_object, as_filtergraph_object_like,
+                      atleast_filterchain)
 from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
+from .Filter import Filter
+from .Graph import Graph
 
 # chain | filter | pad
 

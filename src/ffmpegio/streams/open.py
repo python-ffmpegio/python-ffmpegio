@@ -52,22 +52,28 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from typing_extensions import overload, Literal, Sequence, Unpack, LiteralString
-from .._typing import DTypeString, ShapeTuple
-from fractions import Fraction
 import re
+from fractions import Fraction
 
-from .._typing import ProgressCallable, Literal, FFmpegOptionDict, FFmpegUrlType
+from typing_extensions import Literal, LiteralString, Sequence, Unpack, overload
+
+from .. import utils
+from .._typing import (
+    DTypeString,
+    FFmpegOptionDict,
+    FFmpegUrlType,
+    Literal,
+    ProgressCallable,
+    ShapeTuple,
+)
 from ..configure import (
-    IO,
     Buffer,
+    FFConcat,
     FFmpegInputUrlComposite,
     FFmpegOutputUrlComposite,
-    FFConcat,
 )
 from ..filtergraph.abc import FilterGraphObject
-
-from .. import streams, utils
+from .BaseFFmpegRunner import PipedFFmpegRunner, SimpleFFmpegFilter, StdFFmpegRunner
 
 
 @overload
@@ -81,7 +87,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleReader:
+) -> StdFFmpegRunner:
     """open a single-stream video reader
 
     :param urls_fgs: URL of the file or format/device object to obtain a video stream from.
@@ -117,7 +123,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleReader:
+) -> StdFFmpegRunner:
     """open a single-source audio reader
 
     :param urls_fgs: URL of the file or format/device object to obtain a media stream from.
@@ -158,7 +164,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleReader:
+) -> StdFFmpegRunner:
     """open a single-destination video writer
 
     :param urls_fgs: URL of the file or format/device object to write media stream to. The output
@@ -205,7 +211,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.SimpleWriter:
+) -> StdFFmpegRunner:
     """open a single-destination audio writer
 
     :param urls_fgs: URL of the file or format/device object to write media stream to. The output
@@ -238,8 +244,12 @@ def open(
 
 @overload
 def open(
-    urls_fgs: FFmpegInputUrlComposite | Literal["pipe", "-"] | Sequence[FFmpegOutputUrlComposite | Literal["pipe", "-"]],
-    mode: LiteralString, # r(v|a){2,} or '(v|a)+->e+
+    urls_fgs: (
+        FFmpegInputUrlComposite
+        | Literal["pipe", "-"]
+        | Sequence[FFmpegOutputUrlComposite | Literal["pipe", "-"]]
+    ),
+    mode: LiteralString,  # r(v|a){2,} or '(v|a)+->e+
     *,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
@@ -248,7 +258,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaReader:
+) -> PipedFFmpegRunner:
     """open a piped single-source reader (`mode = "rv" | "ra" | "e->v" | "e->a"`)
 
     :param urls_fgs: A pipe path or `None` to indicate input is provided by `write_encoded()`.
@@ -274,8 +284,12 @@ def open(
 
 @overload
 def open(
-    urls_fgs: FFmpegOutputUrlComposite | Literal["-", "pipe"] | Sequence[FFmpegOutputUrlComposite | Literal["-", "pipe"]],
-    mode: LiteralString, # ["w(v|a)+", "(v|a)+->e+"],
+    urls_fgs: (
+        FFmpegOutputUrlComposite
+        | Literal["-", "pipe"]
+        | Sequence[FFmpegOutputUrlComposite | Literal["-", "pipe"]]
+    ),
+    mode: LiteralString,  # ["w(v|a)+", "(v|a)+->e+"],
     input_rate: Sequence[int | Fraction],
     *,
     input_shape: ShapeTuple | None = None,
@@ -289,7 +303,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaWriter:
+) -> PipedFFmpegRunner:
     """open a piped single-destination writer (`mode = "wv" | "wa" | "v->e" | "a->e"`)
 
     :param urls_fgs: A pipe path or `None` to indicate input is provided by `write_encoded()`.
@@ -324,7 +338,7 @@ def open(
 @overload
 def open(
     urls_fgs: Literal[None],
-    mode: Literal['e->e']|LiteralString, # 'e+->e+'
+    mode: Literal["e->e"] | LiteralString,  # 'e+->e+'
     *,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
@@ -335,7 +349,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaTranscoder:
+) -> PipedFFmpegRunner:
     """open a single-input, single-output streamed transcoder
 
     :param urls_fgs: set to `None` as the primary I/O is conducted via `write()`
@@ -363,21 +377,22 @@ def open(
     :return: transcoder stream object
     """
 
+
 @overload
 def open(
     urls_fgs: str | FilterGraphObject | Sequence[str | FilterGraphObject],
-    mode: LiteralString, #["f(v|a)+", "(v|a)+->(v|a)+"],
+    mode: LiteralString,  # ["f(v|a)+", "(v|a)+->(v|a)+"],
     input_rate: int | Fraction,
     *,
-    input_shape: ShapeTuple|None = None,
-    input_dtype: DTypeString|None = None,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     queuesize: int | None = None,
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MIMOMediaFilter|streams.MISOMediaFilter|streams.SIMOMediaFilter|streams.SISOMediaFilter:
+) -> PipedFFmpegRunner | SimpleFFmpegFilter:
     """open media stream filter
 
     :param urls_fgs: a filtergraph expression
@@ -405,11 +420,10 @@ def open(
     """
 
 
-
 @overload
 def open(
     urls_fgs: str | FilterGraphObject,
-    mode: LiteralString, #["f(v|a)+", "fa", "v->v", "a->a"],
+    mode: LiteralString,  # ["f(v|a)+", "fa", "v->v", "a->a"],
     input_rate: int | Fraction,
     *,
     input_shape: ShapeTuple = None,
@@ -420,7 +434,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MIMOMediaFilter:
+) -> PipedFFmpegRunner:
     """open a single-input, single-output (SISO) filter
 
     :param urls_fgs: a filtergraph expression
@@ -447,6 +461,7 @@ def open(
     :return: filter stream object
     """
 
+
 @overload
 def open(
     urls_fgs: Sequence[
@@ -463,7 +478,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaReader:
+) -> PipedFFmpegRunner:
     """open a multi-stream reader
 
     :param urls_fgs: a list of input sources
@@ -520,7 +535,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaWriter:
+) -> PipedFFmpegRunner:
     """open a multi-stream writer
 
     :param urls_fgs: a list of output encoded streams. Specific FFmpeg output options could be specified for
@@ -575,7 +590,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaFilter:
+) -> PipedFFmpegRunner:
     """open a multi-stream filter
 
     :param urls_fgs: _description_
@@ -623,7 +638,7 @@ def open(
     timeout: float | None = None,
     sp_kwargs: dict = None,
     **options: Unpack[FFmpegOptionDict],
-) -> streams.MediaTranscoder:
+) -> PipedFFmpegRunner:
     """open a streamed transcoder
 
     :param urls_fgs: set to `None` as the primary I/O is conducted via `write()`
@@ -667,7 +682,7 @@ def open(
     mode: LiteralString,
     *args,
     **kwargs,
-):
+) -> PipedFFmpegRunner | SimpleFFmpegFilter | StdFFmpegRunner:
     """Open a multimedia file/stream for read/write
 
     :param url_fg: URL of the media source/destination for file read/write or filtergraph definition
@@ -755,7 +770,6 @@ def open(
 
 
 def _parse_mode(mode: str) -> tuple[str, str, str]:
-
     it = re.finditer(r"([rwft])|(-\>)", mode)
     try:
         m = next(it)
@@ -768,7 +782,7 @@ def _parse_mode(mode: str) -> tuple[str, str, str]:
         raise ValueError(
             f'{mode=} specifies multiple the operation specifiers ("r", "w", "f", "t", or "->")'
         )
-    except StopIteration as e:
+    except StopIteration:
         pass
 
     inputs = mode[: m.start()]
@@ -822,17 +836,10 @@ def _create_reader(
     urls: FFmpegInputUrlComposite | Sequence[FFmpegInputUrlComposite],
     args: tuple,
     kwargs: dict,
-) -> (
-    streams.MediaReader
-    | streams.StdAudioDecoder
-    | streams.StdVideoDecoder
-    | streams.SimpleReader
-    | streams.SimpleReader
-):
-
+) -> StdFFmpegRunner | PipedFFmpegRunner:
     if len(args):
         raise TypeError(
-            f"ffmpegio.open() takes two arguments ({2+len(args)} given) to open a reader"
+            f"ffmpegio.open() takes two arguments ({2 + len(args)} given) to open a reader"
         )
 
     single_url = utils.is_valid_input_url(urls)  # else a sequence of urls
@@ -849,14 +856,10 @@ def _create_reader(
     is_siso = single_url and len(map_option) == 1
 
     if is_siso and utils.is_pipe(urls[0]):
-        StreamClass = streams.StdAudioDecoder if is_audio else streams.StdVideoDecoder
+        StreamClass = PipedFFmpegRunner
         reader = StreamClass(**kwargs)
     else:
-        StreamClass = (
-            streams.MediaReader
-            if not is_siso
-            else streams.SimpleReader if is_audio else streams.SimpleReader
-        )
+        StreamClass = PipedFFmpegRunner if not is_siso else StdFFmpegRunner
         reader = StreamClass(*urls, **kwargs)
 
     return reader
@@ -867,17 +870,10 @@ def _create_writer(
     urls: FFmpegInputUrlComposite | Sequence[FFmpegInputUrlComposite],
     args: tuple,
     kwargs: dict,
-) -> (
-    streams.MediaWriter
-    | streams.StdAudioEncoder
-    | streams.StdVideoEncoder
-    | streams.SimpleWriter
-    | streams.SimpleWriter
-):
-
+) -> PipedFFmpegRunner | StdFFmpegRunner:
     if len(args) > 1:
         raise TypeError(
-            f"ffmpegio.open() takes two arguments ({2+len(args)} given) to open a writer"
+            f"ffmpegio.open() takes two arguments ({2 + len(args)} given) to open a writer"
         )
 
     single_output = utils.is_valid_output_url(urls)  # else a sequence of urls
@@ -893,14 +889,12 @@ def _create_writer(
 
     if not is_siso:
         rates = args[0] if len(args) else kwargs.pop("input_rates_or_opts")
-        writer = streams.MediaWriter(urls, in_types, *rates, **kwargs)
+        writer = PipedFFmpegRunner.create_media_writer(urls, in_types, *rates, **kwargs)
     elif utils.is_pipe(urls[0]):
         StreamClass = streams.StdAudioEncoder if is_audio else streams.StdVideoEncoder
         writer = StreamClass(*args, **kwargs)
     else:
-        StreamClass = (
-            streams.SimpleWriter if is_audio else streams.SimpleWriter
-        )
+        StreamClass = streams.SimpleWriter if is_audio else streams.SimpleWriter
         writer = StreamClass(*urls, *args, **kwargs)
     return writer
 
@@ -911,11 +905,10 @@ def _create_filter(
     fgs: str | FilterGraphObject | Sequence[str | FilterGraphObject],
     args: tuple,
     kwargs: dict,
-) -> streams.MediaFilter | streams.StdAudioFilter | streams.StdVideoFilter:
-
+) -> SimpleFFmpegFilter:
     if len(args) > 1:
         raise TypeError(
-            f"ffmpegio.open() takes two arguments ({2+len(args)} given) to open a writer"
+            f"ffmpegio.open() takes two arguments ({2 + len(args)} given) to open a writer"
         )
 
     single_input = len(in_types) > 1
@@ -935,23 +928,14 @@ def _create_filter(
     return filter
 
 
-def _create_transcoder(
-    urls: None, args: tuple, kwargs: dict
-) -> streams.MediaTranscoder | streams.StdMediaTranscoder:
-
+def _create_transcoder(urls: None, args: tuple, kwargs: dict) -> PipedFFmpegRunner:
     if urls is not None:
         raise TypeError("urls_fgs argument for a filter must be None.")
 
     nargs = len(args)
     if nargs not in (0, 2) or (nargs == 3 and "output_options" in kwargs):
         raise TypeError(
-            f"ffmpegio.open() takes two or four arguments ({2+len(args)} given) to open a filter."
+            f"ffmpegio.open() takes two or four arguments ({2 + len(args)} given) to open a filter."
         )
 
-    use_piped = args[0] if nargs else kwargs.get("input_options", None)
-
-    return (
-        streams.MediaTranscoder(*args, **kwargs)
-        if use_piped
-        else streams.StdMediaTranscoder(*args, **kwargs)
-    )
+    return PipedFFmpegRunner.create_media_transcoder(*args, **kwargs)

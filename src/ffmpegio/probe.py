@@ -1,22 +1,23 @@
 from __future__ import annotations
 
-from typing import BinaryIO, Any, Literal, Union, Tuple, Dict
-from numbers import Number
+import json
+import logging
+import re
 from collections.abc import Sequence
-from typing_extensions import Buffer, IO
-from io import IOBase
-
-import json, re
 from fractions import Fraction
 from functools import lru_cache
+from io import IOBase
+from numbers import Number
+from typing import Any, BinaryIO, Dict, Literal, Tuple, Union
 
-import logging
+from typing_extensions import IO, Buffer
 
 logger = logging.getLogger("ffmpegio")
 
-from .path import ffprobe, PIPE
 from .errors import FFmpegError
-from .stream_spec import StreamSpecDict, stream_spec as compose_stream_spec
+from .path import PIPE, ffprobe
+from .stream_spec import StreamSpecDict
+from .stream_spec import stream_spec as compose_stream_spec
 
 # fmt:off
 __all__ = ['full_details', 'format_basic', 'streams_basic',

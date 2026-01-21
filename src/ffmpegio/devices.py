@@ -19,10 +19,12 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-from ffmpegio.path import ffmpeg
-from subprocess import PIPE, DEVNULL
-from . import plugins
 import re
+from subprocess import DEVNULL, PIPE
+
+from ffmpegio.path import ffmpeg
+
+from . import plugins
 
 SOURCES = {}
 SINKS = {}

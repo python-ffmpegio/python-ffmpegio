@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import pluggy
 from typing import Callable
+
+import pluggy
+
 from .._typing import DTypeString, ShapeTuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")

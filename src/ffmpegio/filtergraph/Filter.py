@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from collections.abc import Generator, Sequence
 import re
+from collections.abc import Generator, Sequence
 from functools import partial
 from itertools import chain
 
-from ..caps import filters as list_filters, filter_info, layouts, FilterInfo
-from . import utils as filter_utils
-
 from .. import filtergraph as fgb
+from ..caps import FilterInfo, filter_info
+from ..caps import filters as list_filters
+from ..caps import layouts
 from ..stream_spec import parse_stream_spec
-
-from .typing import PAD_INDEX, Literal
+from . import utils as filter_utils
 from .exceptions import *
+from .typing import PAD_INDEX, Literal
 
 __all__ = ["Filter"]
 

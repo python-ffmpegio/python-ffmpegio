@@ -1,10 +1,9 @@
 """ffmpegio plugin to find ffmpeg and ffprobe on system path"""
 
 import logging
+from shutil import which
 
 from pluggy import HookimplMarker
-
-from shutil import which
 
 hookimpl = HookimplMarker("ffmpegio")
 

@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from typing_extensions import *
-
 from fractions import Fraction
 from pathlib import Path
 from urllib.parse import ParseResult as UrlParseResult
 
+from typing_extensions import *
 
 if TYPE_CHECKING:
     from namedpipe import NPopen
-    from .threading import WriterThread, ReaderThread, CopyFileObjThread
+
+    from .threading import CopyFileObjThread, ReaderThread, WriterThread
 
 # from typing_extensions import *
 
@@ -326,7 +326,7 @@ class RawDirectOutputInfoDict(TypedDict):
     media_type: MediaType  #
     raw_info: RawStreamInfoTuple
     bytes2data: FromBytesCallable
-    item_size: int,
+    item_size: int
     data_is_empty: IsEmptyCallable
     data_count: CountDataCallable
     user_map: str  # user specified map option
@@ -357,7 +357,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     dst_type: Literal["buffer"]  # True if file path/url
     media_type: MediaType  #
     raw_info: RawStreamInfoTuple
-    item_size: int,
+    item_size: int
     bytes2data: FromBytesCallable
     data_is_empty: IsEmptyCallable
     data_count: CountDataCallable

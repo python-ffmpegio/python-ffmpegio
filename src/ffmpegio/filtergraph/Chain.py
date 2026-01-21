@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from collections import UserList
 from collections.abc import Callable, Generator, Sequence
-
 from itertools import chain
 
-from . import utils as filter_utils
 from .. import filtergraph as fgb
-
-from .typing import PAD_INDEX, Literal
+from . import utils as filter_utils
 from .exceptions import *
-
+from .typing import PAD_INDEX, Literal
 
 __all__ = ["Chain"]
 

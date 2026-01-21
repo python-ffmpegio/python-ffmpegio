@@ -1,11 +1,12 @@
 """ffmpegio plugin to use `numpy.ndarray` objects for media data I/O"""
 
 from __future__ import annotations
-import numpy as np
-from pluggy import HookimplMarker
-from .._typing import DTypeString, ShapeTuple
 
+import numpy as np
 from numpy.typing import ArrayLike
+from pluggy import HookimplMarker
+
+from .._typing import DTypeString, ShapeTuple
 
 hookimpl = HookimplMarker("ffmpegio")
 

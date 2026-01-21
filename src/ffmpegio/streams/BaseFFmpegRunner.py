@@ -1,33 +1,45 @@
 from __future__ import annotations
 
 import logging
-import sys
+from abc import ABCMeta
 from contextlib import ExitStack
 from enum import IntEnum
 from fractions import Fraction
 from functools import cached_property
-from abc import ABCMeta, abstractmethod
 
-from .. import ffmpegprocess, configure, utils, stream_spec
-
+from .. import configure, ffmpegprocess, stream_spec, utils
 from .._typing import (
     Any,
-    Literal,
     Callable,
-    Iterator,
-    ShapeTuple,
     DTypeString,
-    MediaType,
-    RawDataBlob,
-    ProgressCallable,
+    FFmpegOptionDict,
     InputInfoDict,
-    OutputInfoDict,
     InputPipeInfoDict,
+    Iterator,
+    Literal,
+    MediaType,
+    OutputInfoDict,
     OutputPipeInfoDict,
+    ProgressCallable,
+    RawDataBlob,
+    Sequence,
+    ShapeTuple,
+    override,
 )
-
-from ..threading import LoggerThread
+from ..configure import (
+    FFmpegInputOptionTuple,
+    FFmpegInputUrlComposite,
+    FFmpegMediaKwsDict,
+    FFmpegOutputOptionTuple,
+    FFmpegOutputUrlComposite,
+    MediaFilterKwsDict,
+    MediaReadKwsDict,
+    MediaTranscoderKwsDict,
+    MediaWriteKwsDict,
+)
 from ..errors import FFmpegError, FFmpegioError, FFmpegioInsufficientInputData
+from ..filtergraph.abc import FilterGraphObject
+from ..threading import LoggerThread
 
 logger = logging.getLogger("ffmpegio")
 
@@ -35,12 +47,30 @@ __all__ = ["BaseFFmpegRunner"]
 
 
 class FFmpegStatus(IntEnum):
-    NOTHING_SET = 0
+    """FFmpeg runner status enum
+
+    FFmpeg runners are in one of the following 5 states:
+
+    =============  =====  ======================================================
+    member         value  description
+    =============  =====  ======================================================
+    PREOPEN          0    Runner is not opened yet
+    BUFFERING        1    Runner was opened but requires buffering input to
+                          complete analysis before running FFmpeg
+    ANALYSIS_DONE    2    Runner has completed analyzing the input, starting
+                          FFmpeg subprocess
+    RUNNING          3    FFmpeg subprocess is running
+    STOPPED          4    FFmpeg subprocess has stopped
+    =============  =====  ======================================================
+
+
+    """
+
+    PREOPEN = 0
     BUFFERING = 1
-    ARGUMENTS_SET = 2
-    PIPES_SET = 3
-    RUNNING = 4
-    STOPPED = 5
+    ANALYSIS_DONE = 2
+    RUNNING = 3
+    STOPPED = 4
 
 
 class InitMediaKeywordsWithInputBuffer(dict):
@@ -66,7 +96,7 @@ class InitMediaKeywordsWithInputBuffer(dict):
             self._nraw = len(self["input_stream_args"])
             self._raw_pipe_buffer = [None] * self._nraw
 
-            if "extra_inputs" in self:
+            if "extra_inputs" in self and self["extra_inputs"] is not None:
                 # encoded:list[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]]
                 self["extra_inputs"] = [*self["extra_inputs"]]
 
@@ -100,7 +130,6 @@ class InitMediaKeywordsWithInputBuffer(dict):
         """
 
         if self._raw_pipe_buffer is None:  # encoded input
-
             buf = self._enc_pipe_buffer[stream]
             if buf is None:  # first write
                 buf = data
@@ -126,17 +155,18 @@ class InitMediaKeywordsWithInputBuffer(dict):
                 urls = self["extra_inputs"]
                 urls[stream] = (buf, urls[stream][1])
             else:
-                if self._raw_pipe_buffer[stream] is None:  # first write
+                buffer = self._raw_pipe_buffer[stream]
+                if buffer is None:  # first write
                     self._raw_pipe_buffer[stream] = [data]
                     kw = self["input_stream_args"]
                     kw[stream] = (data, kw[stream][1])
                 else:
-                    self._raw_pipe_buffer[stream].append(data)
+                    buffer.append(data)
                     return False
         return True
 
     def clear_keywords(self):
-        # remove all the buffered data from the keywords
+        """remove all the buffered data from the keywords"""
 
         if self._raw_pipe_buffer is not None:
             kw = self["input_stream_args"]
@@ -155,6 +185,14 @@ class InitMediaKeywordsWithInputBuffer(dict):
                     kw[i] = ("-", kw[i][1])
 
     def iter_raw_data(self) -> Iterator[tuple[int, RawDataBlob]]:
+        """iterate over all items in the raw media pipe buffer
+
+        :yield index: raw stream index
+        :yield data: buffered data blob
+
+        If multiple blobs are buffered for a stream, iterator yields one blob at
+        a time.
+        """
 
         if self._raw_pipe_buffer is None:
             return
@@ -165,63 +203,71 @@ class InitMediaKeywordsWithInputBuffer(dict):
                     yield i, blob
 
     def iter_enc_data(self) -> Iterator[tuple[int, bytes]]:
+        """iterate over all items in the encoded pipe buffer
 
-        n0 = self._nraw
+        :yield index: encoded stream index
+        :yield data: buffered data
+        """
         for i, buf in self._enc_pipe_buffer.items():
             if buf is not None:
-                yield i + n0, buf
+                yield i, buf
 
     def clear_data(self):
-
         if self._raw_pipe_buffer is not None:
             self._raw_pipe_buffer = [None] * self._nraw
         self._enc_pipe_buffer = {i: None for i in self._enc_pipe_buffer}
 
     @property
     def encoded_inputs_only(self) -> bool:
+        """True if no raw stream"""
         return self._raw_pipe_buffer is None
 
     @property
     def num_encoded_inputs(self) -> int:
+        """Number of encoded streams"""
         return len(self._enc_pipe_buffer)
 
     @property
     def num_raw_inputs(self) -> int:
+        """Number of raw streams"""
         return self._nraw
 
     def iter_encoded_input_pipes(self) -> Iterator[int]:
+        """iterates over encoded input pipes
 
+        :yield: index of an encoded input pipe
+        """
         n0 = self._nraw
         return (i + n0 for i in self._enc_pipe_buffer)
 
     @cached_property
     def input_pipes(self) -> list[int]:
-
+        """list of the indices of all input pipes"""
         return [*range(self._nraw), *self.iter_encoded_input_pipes()]
 
 
 class BaseFFmpegRunner(metaclass=ABCMeta):
-    """Base class to run FFmpeg and manage its multiple I/O's"""
-
     Status = FFmpegStatus
+
+    _probesize: int = 32
+    _dynamic_output: bool = False
+    _use_std_pipes: bool = False
+    _use_named_pipes: bool = False
+
+    # object status enum
+    _status: Status = Status.PREOPEN
 
     # configure.init_media_xxx function & its keyword arguments
     _init_func: Callable
     _init_kws: InitMediaKeywordsWithInputBuffer
-
-    # object status enum
-    _status: Status = Status.NOTHING_SET
-
-    # pre-analysis/buffering variables
-    _nb_inputs: tuple[int, int] = (0, 0)  # (raw, raw+encoded)
+    _pipe_kws: dict[str, Any]
+    _primary_output: int | None = None
+    _blocksize: int | None  # read/queue blocksize in primary output's
 
     # ffmpeg arguments and associated input/output information
     _args: dict[str, Any]
     _input_info: list[InputInfoDict]
     _output_info: list[OutputInfoDict]
-
-    _dynamic_output: bool = False
-    _use_std_pipes: bool = False
 
     # ffmpeg subprocess and associated objects
     _proc: ffmpegprocess.Popen | None = None
@@ -233,17 +279,42 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def __init__(
         self,
         init_func: Callable,
-        init_kws: dict,
+        init_kws: FFmpegMediaKwsDict,
+        *,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
     ):
-        """Base FFmpeg runner
+        """Streaming FFmpeg runner using std pipes and/or named pipes
 
-        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param init_func: FFmpeg initialization function from :py:module:`configure`
+        :param init_kws: keyword arguments to call the FFmpeg initialization function
+        :param primary_output: (only for multi-stream readable) index of a raw
+                               media output stream which serves as a frame count
+                               reference , defaults to ``0``.
+        :param blocksize: (only for readable) iterator block size in frames/samples
+                          to read raw media streams. If multiple output streams,
+                          this size specifies the size for the ``primary_output``
+                          stream. If named pipes are used, this size is also the
+                          size of queue items of the primary stream, defaults to
+                          use ``1`` for a video stream and ``1024`` for audio stream.
+        :param enc_blocksize: (only for decodable with named pipes) the queue item
+                              size of encoded output stream in bytes, defaults to
+                              1 MB (1024**2 bytes).
+        :param queuesize: the depth of named pipe queues, defaults to None (unlimited)
+        :param timeout: Default queue read timeout in seconds, defaults to `None` to
+                        wait indefinitely. Note this timeout does not apply to
+                        stdout pipe operation.
         :param progress: progress callback function, defaults to None
-        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param show_log: True to show FFmpeg log messages on the console,
+                         defaults to None (no show/capture)
+        :param overwrite: _description_, defaults to None
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
@@ -251,6 +322,13 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         self._init_func = staticmethod(init_func)
         self._init_kws = InitMediaKeywordsWithInputBuffer(init_kws)
+        self._pipe_kws = {
+            "queue_size": queuesize,
+            "timeout": timeout,
+            "enc_blocksize": enc_blocksize,
+        }
+        self._primary_output = primary_output
+        self._blocksize = blocksize
 
         self._stack: ExitStack = ExitStack()
 
@@ -265,6 +343,11 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         }
         if overwrite is not None:
             self._args["overwrite"] = overwrite
+
+    @property
+    def status(self) -> FFmpegStatus:
+        """current status of the object"""
+        return self._status
 
     def _try_config_ffmpeg(
         self, stream: int = -1, data: bytes | RawDataBlob | None = None
@@ -285,7 +368,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         """
 
-        if self._status > self._status.BUFFERING:
+        if self._status > FFmpegStatus.BUFFERING:
             raise FFmpegioError("FFmpeg options have already been configured.")
 
         kws = self._init_kws
@@ -315,15 +398,22 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         self._input_info = input_info
         self._output_info = output_info
 
+        # add probesize option to the input streams if not user specified
+        input_args = ffmpeg_args["inputs"]
+        for st in kws.input_pipes:
+            opts = input_args[st][1]
+            if "probesize" not in opts:
+                opts["probesize"] = self._probesize
+
         # ready to run
-        self._status = self._status.ARGUMENTS_SET
+        self._status = FFmpegStatus.ANALYSIS_DONE
 
         return True
 
     def _on_exit(self, rc):
-        if self._status.RUNNING:
+        if self._status == FFmpegStatus.RUNNING:
             self._stack.close()
-            self._status = self._status.STOPPED
+            self._status = FFmpegStatus.STOPPED
 
     @property
     def _output_rate(self) -> int | Fraction | None:
@@ -336,68 +426,22 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         in ``_init_kws``.
         """
 
-        if self._status != self._status.ARGUMENTS_SET:
-            if self._status < self._status.ARGUMENTS_SET:
+        if self._status != FFmpegStatus.ANALYSIS_DONE:
+            if self._status < FFmpegStatus.ANALYSIS_DONE:
                 raise FFmpegioError(
                     "FFmpeg configuration not set. Run `config_ffmpeg()` first."
                 )
             raise FFmpegioError("FFmpeg pipes have already configured.")
 
+        args = self._args["ffmpeg_args"]
+
         # set up and activate standard pipes and read/write threads
         # configure named pipes
-
-        self._input_pipes, self._output_pipes, more_args = self._configure_pipes()
-        self._args.update(more_args)
-
-        # run the FFmpeg
-        try:
-            self._status = self._status.RUNNING
-            self._proc = ffmpegprocess.Popen(**self._args, on_exit=self._on_exit)
-        except:
-            if self._stack is not None:
-                self._stack.close()
-            raise
-
-        # set the log source and start the logger
-        self._logger.stderr = self._proc.stderr
-        self._logger.start()
-
-        # # if stdin/stdout is used, attach StdWriter/StdReader object to each
-        # configure.init_std_pipes(self._input_pipes, self._output_pipes, self._proc)
-
-        # # write pre-buffered data
-        # for st, data in self._init_kws.iter_raw_data():
-        #     self._write_raw(st, data)
-        # for st, data in self._init_kws.iter_enc_data():
-        #     self._write_encoded(st, data)
-
-        # # clear pre-buffered data
-        # self._init_kws.clear_data()
-
-    def _configure_pipes(
-        self,
-    ) -> tuple[dict[int, InputPipeInfoDict], dict[int, OutputPipeInfoDict], dict]:
-        """configure pipes (both std and named)
-
-        :return input_pipes: input pipes and their writer thread, keyed by input
-                             index (i.e., index for the ``_input_info`` list)
-        :return output_pipes: output pipes and their reader thread, keyed by output
-                             index (i.e., index for the ``_output_info`` list)
-        :return more_fp_kwargs: additional keyword arguments for ``Popen`` call
-                                ``_run_ffmpeg()`` to configure std pipes
-
-        The base implementation here only configures the pipes, opening named pipes.
-
-        To use named pipes, this method must be extended to call
-        ``configure.init_named_pipes()`` at the end.
-
-        """
-
-        args = self._args["ffmpeg_args"]
         more_args = {}
         input_pipes = {}
         output_pipes = {}
 
+        # configure the pipes
         if len(self._input_info):
             input_pipes, more_args = configure.assign_input_pipes(
                 args, self._input_info, self._use_std_pipes
@@ -409,16 +453,51 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             )
             more_args.update(sp_kwargs)
 
-        return input_pipes, output_pipes, more_args
+        self._args.update(more_args)
 
-    def _write_prebuffer_to_pipes(self):
-        """write pre-buffered data to FFmpeg pipes
+        # find the primary output stream's rate
+        if self._use_named_pipes:
+            configure.init_named_pipes(
+                input_pipes,
+                output_pipes,
+                self._input_info,
+                self._output_info,
+                ref_stream=self.primary_output,
+                ref_blocksize=self.primary_output_blocksize,
+                stack=self._stack,
+                **self._pipe_kws,
+            )
 
-        By default this function does nothing (suitable for readers)
-        a derived writer class should reimplement this function to write
-        data buffered in self._init_kws.
-        """
-        pass
+        # run the FFmpeg
+        try:
+            self._status = FFmpegStatus.RUNNING
+            self._proc = ffmpegprocess.Popen(**self._args, on_exit=self._on_exit)
+        except:
+            if self._stack is not None:
+                self._stack.close()
+            raise
+
+        # set the log source and start the logger
+        self._logger.stderr = self._proc.stderr
+        self._logger.start()
+
+        # # if stdin/stdout is used, attach StdWriter/StdReader object to each
+        if self._use_std_pipes:
+            configure.init_std_pipes(
+                input_pipes, output_pipes, self._output_info, self._proc
+            )
+
+        self._input_pipes = input_pipes
+        self._output_pipes = output_pipes
+
+        # write pre-buffered data
+        for st, data in self._init_kws.iter_raw_data():
+            self.write(data, st)
+        for st, data in self._init_kws.iter_enc_data():
+            self.write_encoded(data, st)
+
+        # clear pre-buffered data
+        self._init_kws.clear_data()
 
     def _terminate(self):
         """Kill FFmpeg process and close the streams"""
@@ -443,7 +522,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         """
 
-        if self._status != self._status.NOTHING_SET:
+        if self._status != FFmpegStatus.PREOPEN:
             raise FFmpegioError("Already opened once.")
 
         # try configure FFmpeg arguments without any pre-buffered data
@@ -456,26 +535,33 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         else:
             # need input data to start ffmpeg
-            self._status = self._status.BUFFERING
+            self._status = FFmpegStatus.BUFFERING
 
     def close(self):
         """Kill FFmpeg process and close the streams"""
 
-        if self._status != self._status.RUNNING:
-            raise FFmpegioError("FFmpeg is not running.")
-
-        self._terminate()
+        if self._status != FFmpegStatus.RUNNING:
+            self._status = FFmpegStatus.STOPPED
+        else:
+            self._terminate()
 
     @property
     def closed(self) -> bool:
         """True if the stream is closed."""
         return self._proc is None or self._proc.poll() is not None
 
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
     @property
     def lasterror(self) -> FFmpegError | None:
         """Last error FFmpeg posted"""
         if self._proc and self._proc.poll():
-            return self._logger and self._logger.Exception
+            return self._logger.Exception
         else:
             return None
 
@@ -501,7 +587,6 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         """
 
         if self._proc:
-
             # write the sentinel to each input queue
             for pinfo in self._input_pipes.values():
                 pinfo["writer"].write(None)
@@ -518,7 +603,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def _args_not_ready(self):
-        return self._status < self._status.ARGUMENTS_SET
+        return self._status < FFmpegStatus.ANALYSIS_DONE
 
     ##########################################################
     ### RAW MEDIA INPUT STREAM PROPERTIES/METHODS
@@ -558,15 +643,20 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         try:
             data2bytes = self._input_info[stream]["data2bytes"]
-        except AttributeError:
-            # _input_info wouldn't exist if FFmpeg is not running, write to prebuffer
-            self._init_kws.put_data(stream, data)
+        except AttributeError as e:
+            if self._status == FFmpegStatus.BUFFERING:
+                if self._try_config_ffmpeg(stream, data):
+                    self._run_ffmpeg()
+            else:
+                raise FFmpegioError(
+                    "unknown error occurred (_input_info missing)"
+                ) from e
         except KeyError as e:
             raise FFmpegioError(f"Specified {stream=} is not a raw stream.") from e
         else:
             b = data2bytes(obj=data)
             if len(b):
-                self._input_pipes[stream].write(b)
+                self._input_pipes[stream]["writer"].write(b)
 
     @property
     def input_types(self) -> list[MediaType]:
@@ -620,7 +710,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             )
 
     @property
-    def input_shapes(self) -> dict[int, ShapeTuple] | None:
+    def input_shapes(self) -> list[ShapeTuple] | None:
         """frame/sample shape associated with the input raw media streams
 
         ``None`` is returned if input stream is expected but FFmpeg is not running yet
@@ -651,7 +741,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def decodable(self) -> bool:
-        """Return ``True`` if there is at least one encoded stream to write.
+        """Return ``True`` if there is at least one encoded stream to write to.
         If ``False``, ``write_encoded()`` will raise ``FFmpegioError``."""
 
         return self.num_encoded_input_streams > 0
@@ -673,7 +763,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         return (
             []
             if url_kw_or_none is None
-            else [i for i, url in enumerate(kws[url_kw_or_none]) if utils.is_pipe(url)]
+            else [i for i, (url, _) in enumerate(url_kw_or_none) if utils.is_pipe(url)]
         )
 
     def write_encoded(self, data: bytes, stream: int = 0):
@@ -696,10 +786,16 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         st = stream + self.num_input_streams
         try:
-            self._input_pipes[st].write(data)
-        except AttributeError:
+            self._input_pipes[st]["writer"].write(data)
+        except AttributeError as e:
             # _input_info wouldn't exist if FFmpeg is not running, write to prebuffer
-            self._init_kws.put_data(st, data)
+            if self._status == FFmpegStatus.BUFFERING:
+                if self._try_config_ffmpeg(st, data):
+                    self._run_ffmpeg()
+            else:
+                raise FFmpegioError(
+                    "unknown error occurred (_input_info missing)"
+                ) from e
 
     ##########################################################
     ### OUTPUT PROPERTIES
@@ -723,46 +819,26 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         except KeyError:
             return 0
 
-    def read(self, n: int, stream: int=0) -> RawDataBlob:
+    def read(self, n: int, stream: int = 0) -> RawDataBlob:
         """read selected output stream (shared backend)"""
 
         try:
             info = self._output_info[stream]
             assert "media_type" in self._output_info[stream]
         except AttributeError as e:
-            raise FFmpegioError(f"FFmpeg is not running yet.") from e
+            raise FFmpegioError("FFmpeg is not running yet.") from e
         except (KeyError, AssertionError) as e:
             raise ValueError(f"Input Stream #{stream} is not a raw stream.") from e
 
         (dtype, shape, _) = info["raw_info"]
-        b = self._output_pipes[stream]["reader"].read(
-            n * info['item_size'] if n > 0 else n
-        )
+        b = self._output_pipes[stream]["reader"].read(n)
 
         data = info["bytes2data"](
             b=b, dtype=dtype, shape=shape, squeeze=info["squeeze"]
         )
 
-        # update the frame/sample counter
-        # n = counter(obj=data)  # actual number read
-        # self._n0[stream_id] += n
-
         return data
 
-
-    def __iter__(self):
-        if not self.readable:
-            raise FFmpegioError('No output stream to create a frame iterator')
-
-        return self
-
-    def __next__(self):
-        # read all streams
-        F = self.read(self._read_size)
-        if self._output_info[self.primary_output_index]["data_is_empty"](obj=F):
-            raise StopIteration
-        return F
-    
     @property
     def output_types(self) -> list[MediaType] | None:
         """media types of the raw media output pipes.
@@ -795,7 +871,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
                 out[i] = media_type
             return out
         else:
-            return [info.get("media_type", "encoded") for info in stream_info[:nout]]
+            return [info["media_type"] for info in stream_info[:nout]]
 
     @property
     def output_labels(self) -> list[str] | None:
@@ -900,28 +976,116 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             return [v["raw_info"][1] for v in stream_info[:nout]]
 
     @property
+    def output_itemsizes(self) -> list[int] | None:
+        """frame/sample item sizes in bytes or ``None`` if accessed before ffmpeg
+        is configured.
+        """
+
+        nout = self.num_output_streams
+        if nout == 0:
+            return []
+        try:
+            stream_info = self._output_info
+        except AttributeError:
+            # ffmpeg not configured yet
+            return None
+        else:
+            return [v["item_size"] for v in stream_info[:nout]]
+
+    ### PRIMARY OUTPUT SETTING
+
+    @property
+    def primary_output(self) -> int:
+        """index of the primary output stream or ``-1`` if no output raw media stream"""
+
+        _user_val = self._primary_output
+        if _user_val is None:
+            return 0 if self.readable else -1
+        nout = self.num_output_streams
+        if _user_val < 0 or _user_val >= nout:
+            raise FFmpegioError(
+                f"FFmpeg runner object was created with an invalid primary stream ({_user_val})"
+            )
+
+        return _user_val
+
+    @property
+    def primary_output_blocksize(self) -> int | None:
+        """blocksize for iterator-based read and if queued-stream size of block in queue"""
+
+        if not self.readable:
+            return None
+
+        bsize = self._blocksize
+        if bsize is None:
+            media_types = self.output_types
+            if media_types is not None:
+                mtype = media_types[self.primary_output]
+                bsize = {"audio": 1024, "video": 1}[mtype]
+
+        return bsize
+
+    @property
     def primary_output_label(self) -> str | None:
         """primary raw media stream label (None if FFmpeg not started or no output raw stream)"""
 
-        st = self.primary_output_index
-        return st and self._output_info and self._output_info[st].get("user_map")
-
-    @property
-    def primary_output_index(self) -> int | None:
-        """primary raw media stream index (None if FFmpeg not started or no output raw stream)"""
-
-        return configure.find_primary_output_index(
-            self._output_info, self._primary_output
-        )
+        st = self.primary_output
+        if st < 0 or self._output_info is None:
+            return None
+        return self._output_info[st].get("user_map", None)
 
     @property
     def primary_output_rate(self) -> int | Fraction | None:
         """sample/frame rate of the primary raw media stream (None if FFmpeg not started or no output raw stream)"""
-        st = self.primary_output_index
+        st = self.primary_output
         try:
             return self._output_info[st]["raw_info"][-1]
         except (AttributeError, IndexError):
             return None
+
+    def __iter__(self) -> Iterator[list[RawDataBlob]]:
+        """iterator to read raw media data
+
+        :yield: a list of raw data blobs, one for each output raw media stream,
+                containing at most ``primary_output_blocksize`` frames of
+                the primary stream given by ``primary_output``. The frame sizes
+                of other streams are proportional to their ``output_rates`` wrt
+                the primary output.
+        """
+        nout = self.num_output_streams
+        if nout == 0:
+            raise FFmpegioError("No output stream to create a frame iterator")
+
+        if self.decodable or self.encodable or self.writable:
+            raise FFmpegioError("Frame iterator is only supported for a pure reader")
+
+        ref_st = self.primary_output
+        ref_sz = self.primary_output_blocksize / self.primary_output_rate
+
+        rates = self.output_rates
+        nperread = [ref_sz * r for r in rates]
+        count = [self._output_info[i]["data_count"] for i in range(nout)]
+        nf = nperread.copy()
+
+        # read the first block of the reference stream
+        out = [self.read(round(ni), st) for st, ni in zip(range(nout), nf)]
+        nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
+
+        # loop until all reference frames are read
+        while nread[ref_st] > 0:
+            # yield the last read frames
+            yield out
+
+            # calculate how many frames to read next (fractional)
+            nf = [nfi - nr + nnext for nfi, nr, nnext in zip(nf, nread, nperread)]
+
+            # read the next block of the reference stream
+            out = [self.read(round(ni), st) for st, ni in zip(range(nout), nf)]
+            nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
+
+        # if there is any secondary streams with leftover frames, do the last yield
+        if any(n > 0 for n in nread):
+            yield out
 
     ##########################################################
     ### ENCODED INPUT STREAM PROPERTIES/METHODS
@@ -951,7 +1115,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         return (
             []
             if url_kw_or_none is None
-            else [i for i, url in enumerate(kws[url_kw_or_none]) if utils.is_pipe(url)]
+            else [i for i, (url, _) in enumerate(url_kw_or_none) if utils.is_pipe(url)]
         )
 
     def read_encoded(self, n: int, stream: int = 0) -> bytes:
@@ -973,33 +1137,102 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             )
 
         st = stream + self.num_output_streams
-        self._output_pipes[st].read(n)
+        return self._output_pipes[st].read(n)
 
 
-class StdFFmpegRunner(BaseFFmpegRunner):
+class SISOMixin:
+    input_rates: list[int | Fraction]
+    output_rates: list[int | Fraction]
+    input_dtypes: list[DTypeString] | None
+    output_dtypes: list[DTypeString] | None
+    input_shapes: list[ShapeTuple] | None
+    output_shapes: list[ShapeTuple] | None
 
+    @property
+    def rate_in(self) -> int | Fraction | None:
+        """frame/sample rate input raw stream (``None`` if no input)"""
+        rates = self.input_rates
+        return None if rates is None else rates[0]
+
+    @property
+    def rate(self) -> int | Fraction | None:
+        """frame/sample rate output raw stream (``None`` if no output)"""
+        rates = self.output_rates
+        return None if rates is None else rates[0]
+
+    @property
+    def dtype_in(self) -> DTypeString | None:
+        """NumPy-style data type string of the input raw stream (``None`` if no input)"""
+        dtypes = self.input_dtypes
+        return None if dtypes is None else dtypes[0]
+
+    @property
+    def dtype(self) -> DTypeString | None:
+        """NumPy-style data type string of the output raw stream (``None`` if no output)"""
+        dtypes = self.output_dtypes
+        return None if dtypes is None else dtypes[0]
+
+    @property
+    def shape_in(self) -> ShapeTuple | None:
+        """shape tuple of input data frame (``None`` if no input)
+
+        - audio frame: ``(channels,)``
+        - video frame: ``(height, width, components)``
+        """
+        shapes = self.input_shapes
+        return None if shapes is None else shapes[0]
+
+    @property
+    def shape(self) -> ShapeTuple | None:
+        """shape tuple of output data frame (``None`` if no output)
+
+        - audio frame: ``(channels,)``
+        - video frame: ``(height, width, components)``
+        """
+        shapes = self.output_shapes
+        return None if shapes is None else shapes[0]
+
+
+class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
+    _dynamic_output: bool = False
     _use_std_pipes: bool = True
+    _use_named_pipes: bool = False
 
     def __init__(
         self,
         init_func: Callable,
-        init_kws: dict,
+        init_kws: MediaReadKwsDict | MediaWriteKwsDict,
+        blocksize: int | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
     ):
-        """Base FFmpeg runner for reading/writing with only 1 std pipe, no piped encoded I/O
+        """FFmpeg runner with only 1 buffered std pipe
 
-        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param init_func: FFmpeg initialization function from :py:module:`configure`
+        :param init_kws: keyword arguments to call the FFmpeg initialization function
+        :param blocksize: (only for readable) iterator block size in frames/samples
+                          to read raw media streams, defaults to use ``1`` (frame)
+                          for a video stream and ``1024`` (samples) for audio stream.
         :param progress: progress callback function, defaults to None
-        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param show_log: True to show FFmpeg log messages on the console, defaults
+                         to None (no show/capture)
+        :param overwrite: True to overwrite existing file, defaults to False to
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
-        """
 
-        super().__init__(init_func, init_kws, progress, show_log, overwrite, sp_kwargs)
+        """
+        super().__init__(
+            init_func,
+            init_kws,
+            blocksize=blocksize,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
 
     def _try_config_ffmpeg(
         self, stream: int = -1, data: bytes | RawDataBlob | None = None
@@ -1009,65 +1242,97 @@ class StdFFmpegRunner(BaseFFmpegRunner):
         :param stream: optional new stream written since last try
         :param data: optional newly written stream data
         :return: ``True`` if FFmpeg arguments are successfully configured
-                 and `_input_info` and `_output_info` lists are fully
-                 populated. Excludes the pipe information.
+                 and ``_input_info`` and ``_output_info`` lists are fully
+                 populated.
 
-
-        If this function returns ``True``, the class object is ready to call
-        `_run_ffmpeg() and input and output stream information (``_input_info``
-        and ``_output_info``) are successfully lists are fully populated, except
-        for the pipe assignments.
+        This subclass overloading adds additional validation for having only one
+        pipe to guarantee a simple operation with one buffered std pipe.
 
         """
 
         ok = super()._try_config_ffmpeg(stream, data)
         if ok:
             # validate
-            nin = len(self._input_pipes)
-            nout = len(self._output_pipes)
-            if nin + nout != 1:
-                raise FFmpegioError(
-                    "StdFFmpegRunner can only use either stdin or stdout"
-                )
+            nin = self.num_input_streams
+            nout = self.num_output_streams
+            nein = self.num_encoded_input_streams
+            neout = self.num_encoded_output_streams
+            if nin + nout + nein + neout != 1:
+                if max(nin, nein) > 1:
+                    raise FFmpegioError(
+                        "More than one input stream assigned to use stdin"
+                    )
+                if max(nout, neout) > 1:
+                    raise FFmpegioError(
+                        "More than one output stream assigned to use stdout"
+                    )
+                else:
+                    raise FFmpegioError(
+                        "StdFFmpegRunner can only use either stdin or stdout"
+                    )
 
-    def _run_ffmpeg(self):
+        return ok
 
-        super()._run_ffmpeg()
+    @override
+    def __iter__(self) -> Iterator[RawDataBlob]:
+        """iterator to read raw media data
 
-        # if stdin/stdout is used, attach StdWriter/StdReader object to each
-        configure.init_std_pipes(self._input_pipes, self._output_pipes, self._proc)
+        :yield: data blob containing at most ``primary_output_blocksize``
+                frames/samples of the output stream.
 
-        # write pre-buffered data
-        for st, data in self._init_kws.iter_raw_data():
-            self.write(data, st)
+        Note: The iterator of :py:class:`streams.StdFFmpegRunner` is not compatible with
+        :py:class:`streams.BaseFFmpegRunner` and :py:class:`streams.PipedFFmpegRunner`.
+        The other classes yield a list of data blobs as they allow multiple output
+        raw output streams.
+        """
 
-        # clear pre-buffered data
-        self._init_kws.clear_data()
+        nout = self.num_output_streams
+        if nout == 0:
+            raise FFmpegioError("No output stream to create a frame iterator")
 
-    @property
-    def _args_not_ready(self):
-        return self._status < self._status.ARGUMENTS_SET
+        if self.decodable or self.encodable or self.writable:
+            raise FFmpegioError("Frame iterator is only supported for a pure reader")
 
+        ref_st = self.primary_output
+        ref_sz = self.primary_output_blocksize
 
-class BasePipedFFmpegRunner(BaseFFmpegRunner):
-    """Base class to run FFmpeg and manage its multiple I/O's"""
+        isempty = self._output_info[ref_st]["data_is_empty"]
 
-    _use_std_pipes: bool = False
+        F = self.read(ref_sz, ref_st)
+        while not isempty(obj=F):
+            yield F
+            F = self.read(ref_sz, ref_st)
 
-    _pipe_kws: dict
-
-    def __init__(
-        self,
-        init_func: Callable,
-        init_kws: dict,
+    @staticmethod
+    def create_simple_reader(
+        input_urls: list[FFmpegInputOptionTuple],
+        output_options: FFmpegOptionDict,
+        squeeze: bool = True,
+        extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
+        | None = None,
+        blocksize: int | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-    ):
-        """Base FFmpeg runner for reading/writing with only 1 std pipe, no piped encoded I/O
+        **options: FFmpegOptionDict,
+    ) -> StdFFmpegRunner:
+        """create a single-pipe media reader
 
-        :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
+        :param input_urls: list of input urls
+        :param output_options: dict of FFmpeg output options. One of it items must
+                                be the ``'map'`` option to uniquely specify a stream.
+        :param options: optional ffmpeg option dict including input, output, and
+                        global options. For input options, append '_in' to the
+                        end of ffmpeg option names.
+        :param squeeze: ``True`` (default) to eliminate raw output's singleton
+                        dimensions. Use ``False`` to always return 2D array for
+                        audio and 4D array for video.
+        :param extra_outputs: extra encoded output urls, Each element is a tuple
+                                pair of url and output option dict. The url must be
+                                a url and not pipes or pipe objects.
+        :param blocksize: read block size (in frames for video or samples
+                            in audio) when the reader object is used as an iterator
         :param progress: progress callback function, defaults to None
         :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
@@ -1075,24 +1340,485 @@ class BasePipedFFmpegRunner(BaseFFmpegRunner):
                         to None
         """
 
-        super().__init__(init_func, init_kws, progress, show_log, overwrite, sp_kwargs)
-
-        self._pipe_kws = {}
-
-    def _configure_pipes(
-        self,
-    ) -> tuple[dict[int, InputPipeInfoDict], dict[int, OutputPipeInfoDict], dict]:
-
-        input_pipes, output_pipes, more_args = super()._configure_pipes()
-
-        # find the primary output stream's rate
-        configure.init_named_pipes(
-            input_pipes,
-            output_pipes,
-            self._input_info,
-            self._output_info,
-            update_rate=self._output_rate,
-            **self._pipe_kws,
+        init_kws: MediaReadKwsDict = {
+            "input_urls": input_urls,
+            "output_streams": [output_options],
+            "options": options,
+            "extra_outputs": extra_outputs,
+            "squeeze": squeeze,
+        }
+        return StdFFmpegRunner(
+            init_func=configure.init_media_read,
+            init_kws=init_kws,
+            blocksize=blocksize,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
         )
 
-        return input_pipes, output_pipes, more_args
+    @staticmethod
+    def create_simple_writer(
+        input_stream_type: Literal["a", "v"],
+        input_stream_options: FFmpegOptionDict,
+        output_urls: FFmpegOutputUrlComposite
+        | list[
+            FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
+        ],
+        input_dtype: DTypeString | None = None,
+        input_shape: ShapeTuple | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> StdFFmpegRunner:
+        """single-pipe media writer
+
+        :param input_stream_type: specify raw media input type
+        :param input_stream_options: ffmpeg input options for the raw media input
+                                        must contain a rate option (``r`` or ``ar``).
+        :param output_urls: pairs of output url and options
+        :param options: optional ffmpeg option dict including input, output, and
+                        global options. For input options, append ``'_in'`` to the
+                        end of ffmpeg option names.
+        :param input_dtype: input media data type as a numpy dtype string,
+                            defaults to ``None`` to autodetect
+        :param input_shape: input media shape (height x width x components) for
+                            video or (channels,) for audio, defaults to ``None``
+                            to autodetect
+        :param extra_inputs: extra encoded input urls, Each element is a tuple
+                                pair of url and input option dict. The url must be
+                                a url and not pipes or pipe objects.
+        :param progress: progress callback function, defaults to ``None``
+        :param show_log: ``True`` to show FFmpeg log messages on the console,
+                            defaults to ``None`` (no show/capture)
+        :param overwrite: True to overwrite output_urls if they exist, defaults to ``False``
+        :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
+                        `subprocess.Popen()` call used to run the FFmpeg, defaults
+                        to None
+        """
+
+        init_kws: MediaWriteKwsDict = {
+            "input_stream_types": [input_stream_type],
+            "input_stream_args": [(None, input_stream_options)],
+            "output_urls": output_urls,
+            "extra_inputs": extra_inputs,
+            "options": options,
+            "input_dtypes": None if input_dtype is None else [input_dtype],
+            "input_shapes": None if input_shape is None else [input_shape],
+        }
+        return StdFFmpegRunner(
+            init_func=configure.init_media_write,
+            init_kws=init_kws,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+
+class PipedFFmpegRunner(BaseFFmpegRunner):
+    """Streaming FFmpeg runner using named pipes"""
+
+    _dynamic_output: bool = False
+    _use_std_pipes: bool = False
+    _use_named_pipes: bool = True
+
+    def read_nowait(self, n: int, stream: int = 0) -> RawDataBlob:
+        """read selected output stream (shared backend)"""
+
+        try:
+            info = self._output_info[stream]
+            assert "media_type" in self._output_info[stream]
+        except AttributeError as e:
+            raise FFmpegioError("FFmpeg is not running yet.") from e
+        except (KeyError, AssertionError) as e:
+            raise ValueError(f"Input Stream #{stream} is not a raw stream.") from e
+
+        (dtype, shape, _) = info["raw_info"]
+        b = self._output_pipes[stream]["reader"].read_nowait(
+            n * info["item_size"] if n > 0 else n
+        )
+
+        data = info["bytes2data"](
+            b=b, dtype=dtype, shape=shape, squeeze=info["squeeze"]
+        )
+
+        return data
+
+    @staticmethod
+    def create_media_reader(
+        input_urls: list[FFmpegInputOptionTuple],
+        output_streams: list[FFmpegOptionDict]
+        | dict[str, FFmpegOptionDict]
+        | None = None,
+        squeeze: bool = True,
+        extra_outputs: list[FFmpegOutputOptionTuple]
+        | dict[str, FFmpegOptionDict]
+        | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> PipedFFmpegRunner:
+        output_streams = utils.expand_raw_output_streams(
+            output_streams, input_urls, options
+        )
+        init_kws: MediaReadKwsDict = {
+            "input_urls": input_urls,
+            "output_streams": output_streams,
+            "options": options,
+            "squeeze": squeeze,
+            "extra_outputs": extra_outputs,
+        }
+        return PipedFFmpegRunner(
+            configure.init_media_read,
+            init_kws,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+    @staticmethod
+    def create_media_writer(
+        output_urls: list[FFmpegOutputOptionTuple],
+        input_stream_types: list[Literal["a", "v"]],
+        input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
+        extra_inputs: list[FFmpegInputOptionTuple] | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> PipedFFmpegRunner:
+        init_kws: MediaWriteKwsDict = {
+            "output_urls": output_urls,
+            "input_stream_types": input_stream_types,
+            "input_stream_args": input_stream_args,
+            "options": options,
+            "input_dtypes": input_dtypes,
+            "input_shapes": input_shapes,
+            "extra_inputs": extra_inputs,
+        }
+        return PipedFFmpegRunner(
+            configure.init_media_read,
+            init_kws,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+    @staticmethod
+    def create_media_filter(
+        expr: str | FilterGraphObject | list[str | FilterGraphObject] | None,
+        input_stream_types: list[Literal["a", "v"]],
+        input_stream_opts: list[FFmpegOptionDict],
+        output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
+        squeeze: bool = True,
+        extra_inputs: list[FFmpegInputOptionTuple] | None = None,
+        extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> PipedFFmpegRunner:
+        init_kws: MediaFilterKwsDict = {
+            "expr": expr,  # str | FilterGraphObject | Sequence[str | FilterGraphObject] | None
+            "input_stream_types": input_stream_types,
+            "input_stream_args": [(None, opts) for opts in input_stream_opts],
+            "output_streams": output_streams,
+            "options": options,
+            "extra_inputs": extra_inputs,
+            "extra_outputs": extra_outputs,
+            "squeeze": squeeze,
+            "input_dtypes": input_dtypes,
+            "input_shapes": input_shapes,
+        }
+        return PipedFFmpegRunner(
+            configure.init_media_filter,
+            init_kws,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+    @staticmethod
+    def create_media_encoder(
+        input_stream_types: list[Literal["a", "v"]],
+        input_stream_opts: list[FFmpegOptionDict],
+        output_options: list[FFmpegOptionDict],
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
+        extra_inputs: list[FFmpegInputOptionTuple] | None = None,
+        extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> PipedFFmpegRunner:
+        output_urls: list[FFmpegOutputOptionTuple] = [
+            ("-", opts) for opts in output_options
+        ]
+        if extra_outputs is not None:
+            output_urls.extend(extra_outputs)
+
+        init_kws: MediaWriteKwsDict = {
+            "output_urls": output_urls,
+            "input_stream_types": input_stream_types,
+            "input_stream_args": [(None, opts) for opts in input_stream_opts],
+            "options": options,
+            "input_dtypes": input_dtypes,
+            "input_shapes": input_shapes,
+            "extra_inputs": extra_inputs,
+        }
+        return PipedFFmpegRunner(
+            configure.init_media_read,
+            init_kws,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+    @staticmethod
+    def create_media_decoder(
+        input_options: Sequence[FFmpegOptionDict],
+        output_streams: Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict],
+        squeeze: bool = True,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        extra_outputs: Sequence[FFmpegOutputOptionTuple] | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> PipedFFmpegRunner:
+        input_urls: list[FFmpegInputOptionTuple] = [
+            ("-", opts) for opts in input_options
+        ]
+        if extra_inputs is not None:
+            input_urls.extend(extra_inputs)
+
+        init_kws: MediaReadKwsDict = {
+            "input_urls": input_urls,
+            "output_streams": output_streams,
+            "options": options,
+            "squeeze": squeeze,
+            "extra_outputs": extra_outputs,
+        }
+        return PipedFFmpegRunner(
+            configure.init_media_read,
+            init_kws,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+    @staticmethod
+    def create_media_transcoder(
+        input_urls: list[FFmpegInputOptionTuple],
+        output_urls: list[FFmpegOutputOptionTuple],
+        extra_inputs: list[FFmpegInputOptionTuple] | None = None,
+        extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: ProgressCallable | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options: FFmpegOptionDict,
+    ) -> PipedFFmpegRunner:
+        init_kws: MediaTranscoderKwsDict = {
+            "input_urls": input_urls,
+            "output_urls": output_urls,
+            "options": options,
+            "extra_inputs": extra_inputs,
+            "extra_outputs": extra_outputs,
+        }
+        return PipedFFmpegRunner(
+            configure.init_media_transcode,
+            init_kws,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+
+class SimpleFFmpegFilter(SISOMixin, PipedFFmpegRunner):
+    """Streaming FFmpeg runner for a SISO filtering using named pipes.
+
+    This class mixes in the single input convenience properties to
+    the py::class`PipedFFmpegRunner`.
+    """
+
+    def __init__(
+        self,
+        expr: str | FilterGraphObject | None,
+        input_stream_type: Literal["a", "v"],
+        input_stream_opt: FFmpegOptionDict,
+        output_stream: str | FFmpegOptionDict | None,
+        *,
+        extra_inputs: (
+            list[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
+        ) = None,
+        extra_outputs: (
+            list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
+        ) = None,
+        squeeze: bool = True,
+        input_dtype: DTypeString | None = None,
+        input_shape: ShapeTuple | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: Callable[[dict[str, Any], bool], bool] | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options,
+    ):
+        init_func = configure.init_media_filter
+        init_kws: MediaFilterKwsDict = {
+            "expr": expr,  # str | FilterGraphObject | Sequence[str | FilterGraphObject] | None
+            "input_stream_types": [input_stream_type],
+            "input_stream_args": [(None, input_stream_opt)],
+            "output_streams": [output_stream],
+            "options": options,
+            "extra_inputs": extra_inputs,
+            "extra_outputs": extra_outputs,
+            "squeeze": squeeze,
+            "input_dtypes": None if input_dtype is None else [input_dtype],
+            "input_shapes": None if input_shape is None else [input_shape],
+        }
+        super().__init__(
+            init_func,
+            init_kws,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+        )
+
+    def _try_config_ffmpeg(
+        self, stream: int = -1, data: bytes | RawDataBlob | None = None
+    ) -> bool:
+        """Configure FFmpeg options and populate stream information
+
+        :param stream: optional new stream written since last try
+        :param data: optional newly written stream data
+        :return: ``True`` if FFmpeg arguments are successfully configured
+                 and ``_input_info`` and ``_output_info`` lists are fully
+                 populated.
+
+        This subclass overloading adds additional validation for having only one
+        pipe to guarantee a simple operation with one buffered std pipe.
+
+        """
+
+        ok = super()._try_config_ffmpeg(stream, data)
+        if ok:
+            # validate
+            nin = self.num_input_streams
+            nout = self.num_output_streams
+            if nin + nout != 1:
+                raise FFmpegioError(
+                    "SimpleFFmpegFilter takes only one each of raw input and output "
+                )
+
+        return ok
+
+    def filter(self, data: RawDataBlob) -> RawDataBlob:
+        """filter a raw media data blob to the specified stream
+
+        :param data: raw media data blob, which is supported by one of loaded
+                     plugins (e.g., a NumPy array if numpy is importable in the
+                     Python workspace). The shape and dtype of the data must be
+                     compatible with the stream's shape and pix_fmt/sample_fmt.
+        :returns: filter output blob.
+
+        This method shall be used with caution especially if the input and output
+        rates are not the same. It is recommended to set a timeout.
+        """
+
+        if self.rate_in is None or self.rate is None:
+            raise FFmpegioError("FFmpeg is not running yet.")
+
+        n = self._output_info[0]["data_count"](obj=data)
+        nout = int((n / self.rate_in * self.rate))
+
+        self.write(data)
+        return self.read(nout)

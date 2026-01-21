@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-from .._typing import TYPE_CHECKING, Any, Sequence, Literal
-from ..stream_spec import StreamSpecDict
-from .abc import FilterGraphObject
-from ..path import check_version
-
-from functools import reduce
 from fractions import Fraction
+from functools import reduce
 
 from .. import filtergraph as fgb
+from .._typing import TYPE_CHECKING, Any, Literal, Sequence
+from ..path import check_version
+from ..stream_spec import StreamSpecDict
+from .abc import FilterGraphObject
 
 if TYPE_CHECKING:
-    from .Graph import Graph
     from .Chain import Chain
+    from .Graph import Graph
 
 
 def remove_alpha(

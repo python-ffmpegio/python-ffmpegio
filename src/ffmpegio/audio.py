@@ -5,22 +5,20 @@ from __future__ import annotations
 import logging
 import warnings
 
-from . import configure, plugins, analyze, FFmpegioError, utils
-
-from ._typing import TYPE_CHECKING, Any, ProgressCallable, RawDataBlob
-
+from . import analyze, configure, utils
+from . import filtergraph as fgb
+from ._typing import Any, ProgressCallable, RawDataBlob
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
     FFmpegInputUrlNoPipe,
     FFmpegNoPipeInputOptionTuple,
-    FFmpegOutputUrlNoPipe,
     FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputUrlNoPipe,
 )
+from .errors import FFmpegioError
 from .filtergraph.abc import FilterGraphObject
-from . import filtergraph as fgb
-
-from .std_runners import run_and_return_raw, run_and_return_encoded
+from .std_runners import run_and_return_encoded, run_and_return_raw
 
 logger = logging.getLogger("ffmpegio")
 

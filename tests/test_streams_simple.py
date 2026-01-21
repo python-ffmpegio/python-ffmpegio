@@ -2,10 +2,13 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-import ffmpegio
-import tempfile, re
+import re
+import tempfile
 from os import path
-from ffmpegio import streams, utils
+
+import ffmpegio
+from ffmpegio import utils
+from ffmpegio.streams import StdFFmpegRunner
 
 url = "tests/assets/testmulti-1m.mp4"
 outext = ".mp4"
@@ -14,16 +17,16 @@ outext = ".mp4"
 def test_read_video():
     w = 420
     h = 360
-    with streams.SimpleReader(
+    with StdFFmpegRunner.create_simple_reader(
         [(url, {})],
         {"map": "0:V:0", "vf": "transpose", "pix_fmt": "gray", "s": (w, h), "r": 30},
         show_log=True,
     ) as f:
         F = f.read(10)
-        assert f.output_rate == 30
-        assert f.output_shape == (h, w)
+        assert f.output_rates[0] == 30
+        assert f.output_shapes[0] == (h, w, 1)
         assert F["shape"] == (10, h, w)
-        assert F["dtype"] == f.output_dtype
+        assert F["dtype"] == f.output_dtypes[0]
 
 
 def test_read_write_video():
@@ -42,7 +45,7 @@ def test_read_write_video():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with streams.SimpleWriter(out_url, fs) as f:
+        with StdFFmpegRunner.create_simple_writer("v", {"r": fs}, [(out_url, {})]) as f:
             f.write(F0)
             f.write(F1)
             f.wait()
@@ -50,32 +53,36 @@ def test_read_write_video():
         assert len(F["buffer"])
 
 
-def test_read_audio(caplog):
-    # caplog.set_level(logging.DEBUG)
-
+def test_read_audio():
     fs, x = ffmpegio.audio.read(url)
     bps = utils.get_samplesize(x["shape"][-1:], x["dtype"])
 
-    with streams.SimpleReader(url, show_log=True, blocksize=1024**2) as f:
+    # validate read iterator obtains all the samples
+    with StdFFmpegRunner.create_simple_reader(
+        [(url, {})], {"map": "0:a:0"}, show_log=True, blocksize=1024**2
+    ) as f:
         # x = f.read(1024)
         # assert x['shape'] == (1024, f.ac)
         blks = [blk["buffer"] for blk in f]
     x1 = b"".join(blks)
     assert x["buffer"] == x1
 
+    # validate starting
     n0 = int(0.5 * fs)
     n1 = int(1.2 * fs)
     t0 = n0 / fs
     t1 = n1 / fs
 
-    with streams.SimpleReader(
-        url, ss_in=t0, to_in=t1, show_log=True, blocksize=1024**2
+    with StdFFmpegRunner.create_simple_reader(
+        [(url, {})],
+        {"map": "0:a:0"},
+        show_log=True,
+        blocksize=1024**2,
+        ss_in=t0,
+        to_in=t1,
     ) as f:
         blks, shapes = zip(*[(blk["buffer"], blk["shape"][0]) for blk in f])
-        log = f.readlog(-1)
         shape = sum(shapes)
-
-    print(log)
 
     x2 = b"".join(blks)
     #     # print("# of blks: ", len(blks), x1['shape'])
@@ -89,12 +96,12 @@ def test_read_audio(caplog):
 def test_read_write_audio():
     outext = ".flac"
 
-    with streams.SimpleReader(url) as f:
+    with StdFFmpegRunner.create_simple_reader([(url, {})], {"map": "0:a:0"}) as f:
         F = b"".join((f.read(100)["buffer"], f.read(-1)["buffer"]))
-        fs = f.output_rate
-        shape = f.output_shape
-        dtype = f.output_dtype
-        bps = f.output_bytesize
+        fs = f.output_rates[0]
+        shape = f.output_shapes[0]
+        dtype = f.output_dtypes[0]
+        bps = f.output_itemsizes[0]
 
     out = {"dtype": dtype, "shape": shape}
 
@@ -102,7 +109,9 @@ def test_read_write_audio():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with streams.SimpleWriter(out_url, fs, show_log=True) as f:
+        with StdFFmpegRunner.create_simple_writer(
+            "a", {"ar": fs}, [(out_url, {})], show_log=True
+        ) as f:
             f.write({**out, "buffer": F[: 100 * bps]})
             f.write({**out, "buffer": F[100 * bps :]})
             f.wait()
@@ -122,13 +131,13 @@ def test_write_extra_inputs():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with streams.SimpleWriter(
-            out_url,
-            fs,
-            extra_inputs=[url_aud],
-            map=["0:v", "1:a"],
+        with StdFFmpegRunner.create_simple_writer(
+            "v",
+            {"r": fs},
+            [(out_url, {})],
+            extra_inputs=[(url_aud, {})],
             show_log=True,
-            loglevel="debug",
+            **{"map": ["0:v", "1:a"], "loglevel": "debug"},
         ) as f:
             f.write(F)
             f.wait()
@@ -137,14 +146,14 @@ def test_write_extra_inputs():
         info = ffmpegio.probe.streams_basic(out_url)
         assert len(info) == 2
 
-        with streams.SimpleWriter(
-            out_url,
-            fs,
+        with StdFFmpegRunner.create_simple_writer(
+            "v",
+            {"r": fs},
+            [(out_url, {})],
             extra_inputs=[("anoisesrc", {"f": "lavfi"})],
-            map=["0:v", "1:a"],
-            shortest=None,
             show_log=True,
             overwrite=True,
+            **{"map": ["0:v", "1:a"], "shortest": None},
         ) as f:
             f.write(F)
             f.wait()

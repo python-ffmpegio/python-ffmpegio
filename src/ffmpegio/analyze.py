@@ -3,22 +3,23 @@
 """
 
 from __future__ import annotations
-from collections import namedtuple
-from abc import ABC
+
 import logging
+from abc import ABC
+from collections import namedtuple
 
 logger = logging.getLogger("ffmpegio")
 
-from . import configure
-from .filtergraph import Graph, Filter, Chain, as_filtergraph
-from .filtergraph.utils import compose_filter
-from .errors import FFmpegError
-from .path import devnull
-from . import ffmpegprocess as fp
 import re
 from json import loads
+from typing import Any, List, NamedTuple, Optional, Tuple
 
-from typing import Any, Tuple, NamedTuple, List, Optional
+from . import configure
+from . import ffmpegprocess as fp
+from .errors import FFmpegError
+from .filtergraph import Chain, Filter, Graph, as_filtergraph
+from .filtergraph.utils import compose_filter
+from .path import devnull
 
 try:
     from typing import Literal

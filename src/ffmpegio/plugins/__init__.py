@@ -5,12 +5,12 @@ import logging
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-from typing import Literal, Any
-
+import os
+import re
 from importlib import import_module
-import re, os
-import pluggy
+from typing import Any, Literal
 
+import pluggy
 
 from . import hookspecs
 

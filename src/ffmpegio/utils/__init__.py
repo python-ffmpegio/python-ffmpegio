@@ -2,40 +2,51 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence, Callable
+import logging
+import re
+from collections import defaultdict
+from collections.abc import Callable, Sequence
+from fractions import Fraction
+from math import cos, radians, sin
 from numbers import Number
 
-import logging
+from .. import caps, plugins, probe, stream_spec
+from .. import filtergraph as fgb
+from .._typing import (
+    IO,
+    Any,
+    Buffer,
+    DTypeString,
+    FFmpegOptionDict,
+    FFmpegUrlType,
+    FilterGraphInfoDict,
+    InputInfoDict,
+    Literal,
+    MediaType,
+    OutputInfoDict,
+    RawDataBlob,
+    ShapeTuple,
+)
+from .._utils import (
+    escape,
+    get_samplesize,
+    is_fileobj,
+    is_namedpipe,
+    is_non_str_sequence,
+    is_pipe,
+    is_url,
+    prod,
+)
+from ..errors import FFmpegioError
+from ..filtergraph.abc import FilterGraphObject
+from ..filtergraph.presets import temp_audio_src, temp_video_src
+from ..stream_spec import is_unique_stream, parse_map_option
+from .concat import FFConcat
+
+# from .._utils import *
 
 logger = logging.getLogger("ffmpegio")
 
-
-from math import cos, radians, sin
-import re
-from fractions import Fraction
-
-from .. import caps, plugins, probe
-from .._utils import *
-from ..stream_spec import *
-from ..errors import FFmpegError, FFmpegioError
-from .._typing import (
-    Any,
-    MediaType,
-    InputInfoDict,
-    RawDataBlob,
-    OutputInfoDict,
-    FFmpegUrlType,
-    IO,
-    Buffer,
-    FFmpegOptionDict,
-    ShapeTuple,
-    DTypeString,
-    FilterGraphInfoDict,
-)
-from ..filtergraph.abc import FilterGraphObject
-from .. import filtergraph as fgb
-from ..filtergraph.presets import temp_video_src, temp_audio_src
-from .concat import FFConcat
 
 FFmpegInputUrlComposite = FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
 """all input types supported by ffmpegio"""
@@ -212,7 +223,7 @@ def guess_video_format(
     ndim = len(shape)
     if ndim < 2 or ndim > 4:
         raise ValueError(
-            f"invalid video data dimension: data shape must be must be 2d, 3d or 4d"
+            "invalid video data dimension: data shape must be must be 2d, 3d or 4d"
         )
 
     has_comp = ndim != 2 and (ndim != 3 or shape[-1] < 5)
@@ -269,8 +280,8 @@ def get_audio_codec(fmt: str) -> tuple[str, str]:
     """
     try:
         return audio_codecs[fmt]
-    except:
-        raise ValueError(f"{fmt} is not a valid raw audio sample_fmt")
+    except KeyError as e:
+        raise ValueError(f"{fmt} is not a valid raw audio sample_fmt") from e
 
 
 def get_audio_format(fmt: str, ac: int | None = None) -> tuple[DTypeString, ShapeTuple]:
@@ -312,7 +323,7 @@ def guess_audio_format(shape: ShapeTuple, dtype: DTypeString) -> tuple[int, str]
     ndim = len(shape)
     if ndim < 1 or ndim > 2:
         raise ValueError(
-            f"invalid audio data dimension: data shape must be must be 1d or 2d"
+            "invalid audio data dimension: data shape must be must be 1d or 2d"
         )
 
     try:
@@ -331,7 +342,6 @@ def guess_audio_format(shape: ShapeTuple, dtype: DTypeString) -> tuple[int, str]
 
 
 def parse_video_size(expr: str | tuple[int, int]) -> tuple[int, int]:
-
     if isinstance(expr, str):
         m = re.match(r"(\d+)x(\d+)", expr)
         if m:
@@ -378,7 +388,6 @@ def parse_color(expr) -> tuple[int, int, int, int | None]:
 
 
 def compose_color(r: str | Sequence[Number], *args: tuple[Number]) -> str:
-
     if isinstance(r, str):
         colors = caps.colors()
         name = next((k for k in colors.keys() if k.lower() == r.lower()), None)
@@ -534,7 +543,7 @@ def array_to_audio_options(
         return ({}, info)
     sample_fmt, ac = guess_audio_format(shape, dtype)
     codec, f = get_audio_codec(sample_fmt)
-    return ({"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}, info)
+    return ({"f": f, "c:a": codec, "ac": ac, "sample_fmt": sample_fmt}, info)
 
 
 def array_to_video_options(
@@ -552,9 +561,9 @@ def array_to_video_options(
     s, pix_fmt = guess_video_format(shape, dtype)
     return (
         (
-            {"f": "rawvideo", f"c:v": "rawvideo"}
+            {"f": "rawvideo", "c:v": "rawvideo"}
             if s is None
-            else {"f": "rawvideo", f"c:v": "rawvideo", f"s": s, f"pix_fmt": pix_fmt}
+            else {"f": "rawvideo", "c:v": "rawvideo", "s": s, "pix_fmt": pix_fmt}
         ),
         info,
     )
@@ -793,7 +802,6 @@ def analyze_complex_filtergraphs(
     for i, (padidx, filt, _) in enumerate(
         fg.iter_input_pads(full_pad_index=True, exclude_stream_specs=False)
     ):
-
         label = fg.get_label(inpad=padidx)
         media_type = filt.get_pad_media_type("input", padidx[-1])
 
@@ -802,7 +810,7 @@ def analyze_complex_filtergraphs(
             sspec = None
             if i > 0:
                 raise FFmpegioError(
-                    f"All the input pads of a filtergraph with more than one inputs must have them labeled."
+                    "All the input pads of a filtergraph with more than one inputs must have them labeled."
                 )
         else:
             map_option = parse_map_option(label)
@@ -823,7 +831,7 @@ def analyze_complex_filtergraphs(
                 )
             )
         else:
-            raise FFmpegioError(f"unknown media type of a filter")
+            raise FFmpegioError("unknown media type of a filter")
 
         sources.append((src, (0, len(src) - 1, 0), padidx))
 
@@ -1012,14 +1020,13 @@ def get_output_stream_id(output_info: list[OutputInfoDict], stream: str | int) -
             )
     elif stream < 0 or stream >= len(output_info):
         raise FFmpegioError(
-            f'"{stream=}") is not a valid output index (0-{len(output_info)-1})'
+            f'"{stream=}") is not a valid output index (0-{len(output_info) - 1})'
         )
 
     return stream
 
 
 def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option dict
-
     # check url (must be url and not fileobj)
     valid = isinstance(url, (str, FilterGraphObject, FFConcat))
     if not valid:
@@ -1028,7 +1035,7 @@ def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option 
     if not valid:
         try:
             memoryview(url)
-        except TypeError as e:
+        except TypeError:
             pass
         else:
             valid = True
@@ -1037,7 +1044,6 @@ def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option 
 
 
 def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
-
     valid = isinstance(url, str)
 
     # check url (must be url and not fileobj)
@@ -1093,7 +1099,9 @@ def find_filter_simple_option(
     return next((o for o in optnames if o in options), None)
 
 
-def find_filter_complex_option(options: FFmpegOptionDict) -> (
+def find_filter_complex_option(
+    options: FFmpegOptionDict,
+) -> (
     Literal[
         "filter_complex",
         "/filter_complex",
@@ -1103,9 +1111,9 @@ def find_filter_complex_option(options: FFmpegOptionDict) -> (
     ]
     | None
 ):
-    """True if FFmpeg arguments specify a complex filter graph
+    """Return FFmpeg option name, which specifies a complex filter graph
 
-    :param options: FFmpeg argument dict
+    :param options: FFmpeg option argument dict
     :return: FFmpeg option name if filter graph is specified else None
     """
 
@@ -1118,3 +1126,193 @@ def find_filter_complex_option(options: FFmpegOptionDict) -> (
     )
 
     return next((o for o in optnames if o in options), None)
+
+
+def format_raw_output_stream_defs(
+    streams: Sequence[str | FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
+    options: FFmpegOptionDict | None,
+) -> tuple[list[FFmpegOptionDict], dict[int, str]]:
+    """convert user-supplied streams arguments to the standard form
+
+    :param streams: output stream mappings:
+                - `None` to include all input streams OR all filtergraph outputs
+                - a sequence of str to specify stream specifiers with file id's
+                - a sequence of output option dict with `'map'` item to output-specific
+                  options
+                - a dict with map specifier or user keys to specify output options,
+                  again to specify output-specific options. The keys will be used
+                  as the keys of the raw data output, and can be different from
+                  the `'map'` option so long as the `'map'` option is given in the
+                  dict.
+                - None to select all available streams
+    :param options: default output options
+    :return stream_options: list of stream options
+    :return stream_alias: list of pairs of stream map options and user-supplied stream labels
+    """
+
+    # depending on user's streams input, label output streams differently
+    # to converge the conventions: convert streams input argument to stream_aliases and streams_ lists
+    streams_: list[FFmpegOptionDict]
+    stream_names: dict[
+        int, str
+    ] = {}  # dict of user-specified stream name (only via dict streams input)
+
+    if isinstance(streams, dict):  # dict[str,FFmpegOptionDict]
+        # dict key is used as both stream names (labels) and map option.
+        # * If FFmpegOptionDict in the dict value contains 'map' option, the key
+        # would only be used as the stream name
+        # * Note that if the map option is not unique the stream name will
+        #   be renamed with an appended index.
+        streams_ = []
+        for i, (k, v) in enumerate(streams.items()):
+            if "map" in v:  # user provided non-map stream name
+                stream_names[i] = k
+            streams_.append({**options, "map": k, **v})
+    elif "map" in options:
+        streams_ = [options]
+    else:  # isinstance(stream,list[str|FFmpegOptionDict])
+        # if an item is a str, it is the map option value
+        # if FFmpegOptionDict, it must contain a 'map' option
+
+        streams_ = [
+            {**options, **({"map": v} if isinstance(v, str) else v)} for v in streams
+        ]
+
+    return streams_, stream_names
+
+
+def are_output_streams_unique(
+    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
+) -> bool:
+    """True if output raw stream specification uniquely defines all streams
+
+    :param output_streams: a list of FFmpeg output stream options, or the options
+                           dict keyed by user-specified stream name, or ``None``
+                           to autodetect all streams in input sources
+    """
+
+    if output_streams is None:
+        return False
+
+    for opts in (
+        output_streams.values() if isinstance(output_streams, dict) else output_streams
+    ):
+        map_opt = parse_map_option(opts["map"], input_file_id=0, parse_stream=True)
+        if "linklabel" in map_opt or not is_unique_stream(map_opt["stream_specifier"]):
+            return False
+    return True
+
+
+def input_file_stream_specs(url: str, stream_spec: str | None = None) -> dict[int, str]:
+    """probe a url and return stream index to stream spec mapping
+
+    :param url: media file url
+    :return: mapping of audio or video stream indices to stream specs.
+    """
+    streams = [
+        st
+        for st in analyze_input_file(
+            ["index", "codec_type"], url, {}, {"src_type": "url"}, stream=stream_spec
+        )
+        if st["codec_type"] in ("audio", "video")
+    ]
+
+    specs = {}
+    counts = defaultdict(int)
+    for st in streams:
+        media_type = st["codec_type"]
+        specs[st["index"]] = f"{media_type[0]}:{counts[media_type]}"
+        counts[media_type] += 1
+    return specs
+
+
+def expand_raw_output_streams(
+    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
+    input_urls: list[FFmpegInputOptionTuple],
+    options: FFmpegOptionDict,
+) -> list[FFmpegOptionDict] | dict[str, FFmpegOptionDict]:
+    """resolve the raw output streams from given sequence of map options
+
+    :param stream_opts: output raw stream options
+    :param stream_names: user-specified names of output streams keyed by the index of `stream_opts`
+    :param args: FFmpeg argument dict
+    :param input_info: FFmpeg inputs' additional information, its length must match that of `args['inputs']`
+    :return: list of individual output streams. Each item is a tuple of
+             (stream_index, output_opts, partial_RawOutputInfoDict)
+
+             -stream_index - index of streams
+             -map_spec - final output option
+             -partial_RawOutputInfoDict - to-be-completed output_info entry
+
+    Since a map option value may yield multiple media streams (e.g., '0' or '0:v'),
+    the length of returned outputs may be longer than the number of streams given.
+    The user specified map value is returned in the 'user_label' field of the returned
+    dicts while the
+
+    simpler version of configure.resolve_raw_output_streams()
+
+    """
+
+    if output_streams is not None and len(output_streams) == 0:
+        output_streams = None
+
+    # if no complex filtergraph
+    fg_opt = find_filter_complex_option(options)
+    if fg_opt is None:
+        if output_streams is None:
+            # nothing specified, use all streams
+            input_streams = {}
+            for i, (url, opts) in enumerate(input_urls):
+                if not is_url(url):
+                    raise ValueError(
+                        "output_streams cannot be autoassigned for a non-url input."
+                    )
+
+                input_streams |= {
+                    (i, j): f"{i}:{spec}"
+                    for j, spec in input_file_stream_specs(url).items()
+                }
+            return [{"map": v} for v in input_streams.values()]
+
+        # parse all mapping option values
+        input_file_id = None if len(input_urls) > 1 else 0
+
+        if isinstance(output_streams, dict):
+            stream_names = list[output_streams]
+            output_streams = list[output_streams.values()]
+        else:
+            stream_names = [None] * len(output_streams)
+
+        # expand
+        new_streams = []
+        new_names = []
+        for name, opts in zip(stream_names, output_streams):
+            map_opt = stream_spec.parse_map_option(
+                opts["map"], input_file_id=input_file_id
+            )
+            if "linklabel" in map_opt:
+                raise FFmpegioError(
+                    f"linklabel {map_opt['linklabel']} is mapped but no complex filter defined."
+                )
+
+            file_id = map_opt["input_file_id"]
+            url = input_urls[file_id]
+            stream_info = input_file_stream_specs(url, map_opt["stream_specifier"])
+            for st_map in stream_info.values():
+                new_streams.append(opts | {"map": "{file_id}:{st_map}"})
+                new_names.append(name)
+
+        return (
+            new_streams
+            if new_names[0] is None
+            else {k: v for k, v in zip(new_names, new_streams)}
+        )
+
+    else:
+        if output_streams is None:
+            # assign all the output linklabels
+            fg = fgb.as_filtergraph(options[fg_opt])
+            return [{"map": f"[{label}]"} for label in fg.iter_output_labels()]
+        else:
+            # filtergraph output label must be uniquely mapped
+            return output_streams

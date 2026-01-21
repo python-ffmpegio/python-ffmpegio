@@ -2,9 +2,6 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-from os import path
-import pytest
-from tempfile import TemporaryDirectory
 
 import ffmpegio as ff
 from ffmpegio import streams
@@ -16,30 +13,32 @@ outext = ".mp4"
 
 
 def test_MediaReader():
-    with streams.MediaReader(mult_url, t=1) as reader:
+    with streams.PipedFFmpegRunner.create_media_reader(
+        [(mult_url, {})], None, t=1, queuesize=4
+    ) as reader:
         # data = reader.read(2)
         for data in reader:
             for k, v in data.items():
                 print(f"{k}: {len(v['buffer'])}")
+                break
 
 
 def test_MediaWriter_audio():
-
     ff.use("read_numpy")
 
     rates, data = ff.media.read(audio_url, t=1, ar=8000, sample_fmt="s16")
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
-    with streams.MediaWriter(
-        "pipe",
-        stream_types,
+    with streams.PipedFFmpegRunner.create_media_encoder(
+        ["a"],
+        [(None, {"ar": rates[0]})],
         *rates.values(),
         show_log=True,
         f="matroska",
         # loglevel="debug",
     ) as writer:
         for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
-            writer.write_stream(i, frame)
+            writer.write(frame, i)
 
         # close the input and wait for FFmpeg to finish encoding and terminate
         writer.wait(10)
@@ -49,14 +48,17 @@ def test_MediaWriter_audio():
 
 
 def test_MediaWriter():
-
     ff.use("read_numpy")
 
     rates, data = ff.media.read(mult_url, t=1)
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
     with streams.MediaWriter(
-        "pipe", stream_types, *rates.values(), show_log=True, f="matroska",
+        "pipe",
+        stream_types,
+        *rates.values(),
+        show_log=True,
+        f="matroska",
     ) as writer:
         # write full audio streams
         video_frames = {}
@@ -68,7 +70,9 @@ def test_MediaWriter():
 
         # write video stream one frame at a time
         frame_count = {k: 0 for k in video_frames}
-        while any(n < nall for n, nall in zip(frame_count.values(), video_frames.values())):
+        while any(
+            n < nall for n, nall in zip(frame_count.values(), video_frames.values())
+        ):
             for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
                 if i in frame_count:
                     j = frame_count[i]
@@ -82,7 +86,6 @@ def test_MediaWriter():
 
 
 def test_MediaFilter():
-
     ff.use("read_bytes")
 
     fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3", to=1)

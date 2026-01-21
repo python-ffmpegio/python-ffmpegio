@@ -1,12 +1,13 @@
 """FFConcat class to build/use ffconcat list file for concat demuxer
 """
 
-from glob import glob
-import io, re
-import os
-from tempfile import NamedTemporaryFile
-from functools import partial
+import io
 import logging
+import os
+import re
+from functools import partial
+from glob import glob
+from tempfile import NamedTemporaryFile
 
 logger = logging.getLogger("ffmpegio")
 

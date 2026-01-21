@@ -2,30 +2,29 @@
 
 from __future__ import annotations
 
-from typing import BinaryIO
-
-from copy import deepcopy
-import re, os
-from threading import Thread, Condition, Lock, Event
-from io import TextIOBase, TextIOWrapper
-from time import sleep, time
-from tempfile import TemporaryDirectory
-from queue import Empty, Full, Queue
-from math import ceil
-from shutil import copyfileobj
 import logging
+import os
+import re
+from io import TextIOBase, TextIOWrapper
+from queue import Empty, Full, Queue
+from shutil import copyfileobj
+from tempfile import TemporaryDirectory
+from threading import Condition, Event, Lock, Thread
+from time import sleep, time
+from typing import BinaryIO
 
 from namedpipe import NPopen
 
-logger = logging.getLogger("ffmpegio")
-
+from .errors import FFmpegError
 from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream
-from .errors import FFmpegError
+
+logger = logging.getLogger("ffmpegio")
+
 
 # fmt:off
 __all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',
- 'LoggerThread', 'ReaderThread', 'WriterThread', 'AviReaderThread', 'Empty', 'Full']
+ 'LoggerThread', 'ReaderThread', 'WriterThread', 'Empty', 'Full']
 # fmt:on
 
 
@@ -273,7 +272,7 @@ class LoggerThread(Thread):
             raise e
         except TimeoutError:
             raise TimeoutError("Specified output stream not found")
-        except Exception as e:
+        except Exception:
             raise ValueError("Specified output stream not found")
 
         with self._newline_mutex:
@@ -317,11 +316,13 @@ class ReaderThread(Thread):
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
         self.itemsize = itemsize or 2**20  #:int: number of bytes per time sample
         self._queue = Queue(queuesize or 0)  # inter-thread data I/O
-        self._carryover = None  # extra data that was not previously read by user
+        self._carryover: bytes | None = (
+            None  #:bytes: extra data that was not previously read by user
+        )
         self._halt = Event()
         self._running = Event()
         self._retry_delay = 0.001 if retry_delay is None else retry_delay
-        self._timeout = float(timeout)
+        self._timeout = float(timeout) if timeout else None
 
     def start(self):
         if self.itemsize is None:
@@ -336,7 +337,6 @@ class ReaderThread(Thread):
         self._halt.set()
 
     def join(self, timeout=None):
-
         if timeout is None:
             timeout = self._timeout
 
@@ -491,6 +491,55 @@ class ReaderThread(Thread):
     def read_all(self, timeout: float | None = None) -> bytes:
         return self.read(-1, timeout)
 
+    def read_nowait(self, n: int = -1) -> bytes:
+        """read at most n samples
+
+        :param n: number of samples/frames to read, if non-positive, read all
+                  in the queue, defaults to -1
+        :return: <= n*itemsize bytes
+        """
+
+        # no sample requested, return empty bytes object
+        if n == 0:
+            return b""
+
+        read_all = n < 0
+
+        # wait till matching line is read by the thread
+        arrays = []
+        m = n * self.itemsize  # bytes needed
+        mread = 0  # bytes read
+
+        # grab any leftover data from previous read
+        if self._carryover:
+            mread = len(self._carryover)
+            arrays = [self._carryover]
+            m -= mread
+            self._carryover = None
+
+        # loop till enough data are collected
+        while read_all or m > 0:
+            try:
+                b = self._queue.get_nowait()
+                assert b is not None  # encountered sentinel
+            except (Empty, AssertionError):
+                break
+
+        # combine all the data and return requested amount
+        all_data = b"".join(arrays)
+
+        nread = mread // self.itemsize  # number of frames read
+        if n >= 0:
+            nread = min(nread, n)  # adjust to number of frames needed
+
+        mbytes = nread * self.itemsize  # number of bytes needed
+
+        # update carryover buffer
+        self._carryover = all_data[mbytes:] if mbytes < mread else None
+
+        # return retrieved bytes array
+        return all_data[:mbytes]
+
     def qsize(self) -> int:
         """Return the approximate size of the queue.
 
@@ -539,10 +588,9 @@ class WriterThread(Thread):
         self._empty_cond = Condition()
         self._empty = True
         self._no_more = False  # true if sentinel has been written to the queue
-        self._timeout = float(timeout)
+        self._timeout = float(timeout) if timeout else None
 
     def join(self, timeout: float | None = None):
-
         if self.stdin is None:
             # pipe not yet connected, open it to release the runner
             with open(self.pipe.path, "rb"):
@@ -564,7 +612,6 @@ class WriterThread(Thread):
         return False
 
     def run(self):
-
         if self.stdin is None:
             self.stdin = self.pipe.wait()
 
@@ -633,7 +680,6 @@ class WriterThread(Thread):
 
     def write(self, data, timeout=None):
         with self._empty_cond:
-
             if self._no_more:
                 if data is None:
                     return

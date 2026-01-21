@@ -4,13 +4,15 @@ import logging
 
 logger = logging.getLogger("ffmpegio")
 
-import re, fractions, subprocess as sp
+import fractions
+import re
+import subprocess as sp
 from collections import namedtuple
 from fractions import Fraction
 from functools import partial
 
-from .path import ffmpeg as _ffmpeg
 from .errors import FFmpegError
+from .path import ffmpeg as _ffmpeg
 
 # fmt:off
 __all__ = ["options", "filters", "codecs", "coders", "formats", "devices",

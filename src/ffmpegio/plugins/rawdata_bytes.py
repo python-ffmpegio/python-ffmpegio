@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from .._utils import get_samplesize
-from pluggy import HookimplMarker
 from typing import Tuple, TypedDict
 
+from pluggy import HookimplMarker
+
 from .._typing import DTypeString, ShapeTuple
+from .._utils import get_samplesize
 
 __all__ = [
     "BytesRawDataBlob",

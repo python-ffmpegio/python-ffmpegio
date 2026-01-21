@@ -34,87 +34,73 @@ The above functions do not initialize the pipes and IO threads.
 
 from __future__ import annotations
 
-from functools import cache
-from itertools import count
+import logging
+import re
+import subprocess as fp
 from collections import Counter
-
-from ._typing import (
-    IO,
-    Literal,
-    LiteralString,
-    get_args,
-    cast,
-    Any,
-    TypedDict,
-    NotRequired,
-    Unpack,
-    Callable,
-    DTypeString,
-    ShapeTuple,
-    RawStreamInfoTuple,
-    Buffer,
-    MediaType,
-    FFmpegUrlType,
-    FromBytesCallable,
-    ToBytesCallable,
-    IsEmptyCallable,
-    CountDataCallable,
-    RawInputInfoDict,
-    RawInputInfoDict,
-    EncodedInputInfoDict,
-    InputInfoDict,
-    InputPipeInfoDict,
-    OutputInfoDict,
-    RawOutputInfoDict,
-    EncodedOutputInfoDict,
-    OutputPipeInfoDict,
-    RawStreamDef,
-    RawDataBlob,
-    FFmpegOptionDict,
-    FilterGraphInfoDict,
-)
 from collections.abc import Sequence
-from .utils import FFmpegInputUrlComposite, FFmpegOutputUrlComposite
-
-
+from contextlib import ExitStack
 from fractions import Fraction
-import re, logging
-
-logger = logging.getLogger("ffmpegio")
-
+from functools import cache
 from io import IOBase
+from itertools import count
 
 from namedpipe import NPopen
-from contextlib import ExitStack
 
-from . import ffmpegprocess as fp
-from . import utils, probe, plugins
 from . import filtergraph as fgb
-from .filtergraph.abc import FilterGraphObject
-from .utils.concat import FFConcat  # for typing
+from . import plugins, probe, utils
+from ._typing import (
+    Any,
+    Buffer,
+    Callable,
+    CountDataCallable,
+    DTypeString,
+    EncodedInputInfoDict,
+    EncodedOutputInfoDict,
+    FFmpegOptionDict,
+    FFmpegUrlType,
+    FilterGraphInfoDict,
+    FromBytesCallable,
+    InputInfoDict,
+    InputPipeInfoDict,
+    IsEmptyCallable,
+    Literal,
+    MediaType,
+    NotRequired,
+    OutputInfoDict,
+    OutputPipeInfoDict,
+    RawDataBlob,
+    RawInputInfoDict,
+    RawOutputInfoDict,
+    RawStreamDef,
+    RawStreamInfoTuple,
+    ShapeTuple,
+    ToBytesCallable,
+    TypedDict,
+    Unpack,
+    cast,
+    get_args,
+)
 from ._utils import as_multi_option, is_non_str_sequence
+from .errors import (
+    FFmpegError,
+    FFmpegioError,
+    FFmpegioInsufficientInputData,
+    FFmpegioNoPipeAllowed,
+)
+from .filtergraph.abc import FilterGraphObject
+from .stream_spec import StreamSpecDict, parse_map_option, stream_type_to_media_type
+from .stream_spec import stream_spec as compose_stream_spec
+from .threading import CopyFileObjThread, ReaderThread, WriterThread
 from .utils import (
     FFmpegInputUrlComposite,
-    FFmpegOutputUrlComposite,
     FFmpegInputUrlNoPipe,
+    FFmpegOutputUrlComposite,
     FFmpegOutputUrlNoPipe,
 )
+from .utils.concat import FFConcat  # for typing
 
-from .stream_spec import (
-    stream_spec as compose_stream_spec,
-    StreamSpecDict,
-    stream_type_to_media_type,
-    is_unique_stream,
-    parse_map_option,
-    map_option as compose_map_option,
-)
-from .errors import (
-    FFmpegioError,
-    FFmpegioNoPipeAllowed,
-    FFmpegioInsufficientInputData,
-    FFmpegError,
-)
-from .threading import ReaderThread, WriterThread, CopyFileObjThread
+logger = logging.getLogger("ffmpegio")
 
 #################################
 ## module types
@@ -210,38 +196,44 @@ InitMediaOutputsCallable = Callable[
 
 
 class MediaReadKwsDict(TypedDict):
-    input_urls: list[FFmpegInputOptionTuple]
-    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
+    input_urls: Sequence[
+        FFmpegInputUrlComposite
+        | tuple[FFmpegInputUrlComposite, FFmpegOptionDict | None]
+    ]
+    output_streams: Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
     options: FFmpegOptionDict
     squeeze: bool
-    extra_outputs: list[FFmpegOutputOptionTuple] | None
+    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
 
 
 class MediaWriteKwsDict(TypedDict):
-    output_urls: list[FFmpegOutputOptionTuple]
-    input_stream_types: list[Literal["a", "v"]]
-    input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]]
-    options: dict[str, Any]
-    input_dtypes: NotRequired[list[DTypeString | None] | None]
-    input_shapes: NotRequired[list[ShapeTuple | None] | None]
-    extra_inputs: list[FFmpegInputOptionTuple]
+    output_urls: Sequence[FFmpegOutputOptionTuple]
+    input_stream_types: Sequence[Literal["a", "v"]]
+    input_stream_args: Sequence[tuple[RawDataBlob | None, FFmpegOptionDict]]
+    options: FFmpegOptionDict
+    input_dtypes: NotRequired[Sequence[DTypeString | None] | None]
+    input_shapes: NotRequired[Sequence[ShapeTuple | None] | None]
+    extra_inputs: Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
 
 
 class MediaFilterKwsDict(TypedDict):
     expr: str | FilterGraphObject | list[str | FilterGraphObject] | None
-    input_stream_types: list[Literal["a", "v"]]
-    input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]]
-    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
+    input_stream_types: Sequence[Literal["a", "v"]]
+    input_stream_args: Sequence[tuple[RawDataBlob | None, FFmpegOptionDict]]
+    output_streams: Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
     options: FFmpegOptionDict
-    input_dtypes: NotRequired[list[DTypeString] | None]
-    input_shapes: NotRequired[list[ShapeTuple] | None]
+    input_dtypes: NotRequired[Sequence[DTypeString] | None]
+    input_shapes: NotRequired[Sequence[ShapeTuple] | None]
     squeeze: bool
-    extra_inputs: list[FFmpegInputOptionTuple]
-    extra_outputs: list[FFmpegOutputOptionTuple]
+    extra_inputs: Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
+    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
 
 
 class MediaTranscoderKwsDict(TypedDict):
-    input_urls: list[FFmpegInputOptionTuple]
+    input_urls: Sequence[
+        FFmpegInputUrlComposite
+        | tuple[FFmpegInputUrlComposite, FFmpegOptionDict | None]
+    ]
     output_urls: list[FFmpegOutputOptionTuple]
     options: FFmpegOptionDict
 
@@ -523,7 +515,7 @@ def init_media_filter(
     if extra_inputs is not None:
         try:
             input_info.extend(process_url_inputs(args, extra_inputs, {}, no_pipe=True))
-        except FFmpegioNoPipeAllowed as e:
+        except FFmpegioNoPipeAllowed:
             raise FFmpegioError("extra_inputs cannot be piped in.")
 
     # analyze and assign outputs
@@ -620,7 +612,7 @@ def array_to_video_input(
 
     return (
         pipe_id or "-",
-        {**utils.array_to_video_options(data)[0], f"r": rate, **opts},
+        {**utils.array_to_video_options(data)[0], "r": rate, **opts},
     )
 
 
@@ -643,7 +635,7 @@ def array_to_audio_input(
 
     return (
         pipe_id or "-",
-        {**utils.array_to_audio_options(data)[0], f"ar": rate, **opts},
+        {**utils.array_to_audio_options(data)[0], "ar": rate, **opts},
     )
 
 
@@ -854,7 +846,6 @@ def gather_video_read_opts(
     if (
         scaled_s or not all(opt_vals[:-1] if skip_rate else opt_vals)
     ) and args is not None:
-
         # run input analysis
         try:
             map_spec = options["map"]
@@ -1015,7 +1006,6 @@ def gather_audio_read_opts(
         or (not skip_rate and ar is None)
         and args is not None
     ):
-
         # run input analysis
         try:
             map_spec = options["map"]
@@ -1271,7 +1261,7 @@ def finalize_avi_read_opts(args):
 
     # add audio codec
     for k in utils.find_stream_options(options, "sample_fmt"):
-        options[f"c:a" + k[10:]] = utils.get_audio_codec(options[k])[0]
+        options["c:a" + k[10:]] = utils.get_audio_codec(options[k])[0]
 
     return ya8 > 0
 
@@ -1298,7 +1288,7 @@ def config_input_fg(
         # multi-filter input filtergraph, cannot take arguments
         if len(args):
             raise FFmpegioError(
-                f"filtergraph input expresion cannot take ordered options."
+                "filtergraph input expresion cannot take ordered options."
             )
         return fg, dopt, kwargs
 
@@ -1439,7 +1429,6 @@ def add_filtergraph(
         args["outputs"][ofile] = (args["outputs"][ofile][0], {"map": map})
     else:
         if append_map and "map" in outopts:
-
             existing_map = outopts["map"]
 
             # remove merged streams from output map & append the output stream of the filter
@@ -1517,7 +1506,6 @@ def resolve_raw_output_streams(
     output_opts = []
     output_info = []
     for i, opts in enumerate(stream_opts):
-
         spec = opts["map"]
         user_map = stream_names.get(i, spec)
 
@@ -1547,7 +1535,6 @@ def resolve_raw_output_streams(
                 }
             )
         else:
-
             if "negative" in opt:
                 raise ValueError("negative map is not supported.")
 
@@ -1637,59 +1624,6 @@ def resolve_raw_output_streams(
             name_counter[user_map] += 1
 
     return output_opts, output_info
-
-
-def format_raw_output_stream_defs(
-    streams: Sequence[str | FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
-    options: FFmpegOptionDict | None,
-) -> tuple[list[FFmpegOptionDict], dict[int, str]]:
-    """convert user-supplied streams arguments to the standard form
-
-    :param streams: output stream mappings:
-                - `None` to include all input streams OR all filtergraph outputs
-                - a sequence of str to specify stream specifiers with file id's
-                - a sequence of output option dict with `'map'` item to output-specific
-                  options
-                - a dict with map specifier or user keys to specify output options,
-                  again to specify output-specific options. The keys will be used
-                  as the keys of the raw data output, and can be different from
-                  the `'map'` option so long as the `'map'` option is given in the
-                  dict.
-                - None to select all available streams
-    :param options: default output options
-    :return stream_options: list of stream options
-    :return stream_alias: list of pairs of stream map options and user-supplied stream labels
-    """
-
-    # depending on user's streams input, label output streams differently
-    # to converge the conventions: convert streams input argument to stream_aliases and streams_ lists
-    streams_: list[FFmpegOptionDict]
-    stream_names: dict[int, str] = (
-        {}
-    )  # dict of user-specified stream name (only via dict streams input)
-
-    if isinstance(streams, dict):  # dict[str,FFmpegOptionDict]
-        # dict key is used as both stream names (labels) and map option.
-        # * If FFmpegOptionDict in the dict value contains 'map' option, the key
-        # would only be used as the stream name
-        # * Note that if the map option is not unique the stream name will
-        #   be renamed with an appended index.
-        streams_ = []
-        for i, (k, v) in enumerate(streams.items()):
-            if "map" in v:  # user provided non-map stream name
-                stream_names[i] = k
-            streams_.append({**options, "map": k, **v})
-    elif "map" in options:
-        streams_ = [options]
-    else:  # isinstance(stream,list[str|FFmpegOptionDict])
-        # if an item is a str, it is the map option value
-        # if FFmpegOptionDict, it must contain a 'map' option
-
-        streams_ = [
-            {**options, **({"map": v} if isinstance(v, str) else v)} for v in streams
-        ]
-
-    return streams_, stream_names
 
 
 def auto_map(
@@ -1999,7 +1933,9 @@ def process_raw_outputs(
         # gather all available streams keyed by their map specifier
         stream_opts, stream_info = auto_map(args, options, input_info, get_fg_info())
     else:
-        stream_opts, stream_names = format_raw_output_stream_defs(streams, options)
+        stream_opts, stream_names = utils.format_raw_output_stream_defs(
+            streams, options
+        )
 
         # expand all streams (targetting )
         stream_opts, stream_info = resolve_raw_output_streams(
@@ -2013,12 +1949,10 @@ def process_raw_outputs(
         return get_raw_output_plugin_callables(media_type)
 
     for opts, info in zip(stream_opts, stream_info):
-
         media_type = info.get("media_type", None)
 
         # if media_type is unknown (must be a linklabel not yet analyzed)
         if media_type is None:
-
             fg_info = get_fg_info()
             pad_info = fg_info[info["linklabel"]]
             info["media_type"] = media_type = pad_info["media_type"]
@@ -2123,29 +2057,28 @@ def process_raw_inputs(
 
         opts = {**inopts_default, **opts}
         more_opts = None
-        raw_info = None
+        shape_dtype = None
         if mtype == "a":  # audio
             media_type = "audio"
-            opts[ropt] = round(opts[ropt])  # force int sampling rate
+            opts[ropt] = rate = round(opts[ropt])  # force int sampling rate
             if data is not None:
-                more_opts, raw_info = utils.array_to_audio_options(data)
+                more_opts, shape_dtype = utils.array_to_audio_options(data)
                 data = plugins.get_hook().audio_bytes(obj=data)
 
             elif dtypes and shapes and shapes[i] is not None and dtypes[i] is not None:
-                raw_info = (shapes[i], dtypes[i])
+                shape_dtype = (shapes[i], dtypes[i])
                 sample_fmt, ac = utils.guess_audio_format(shapes[i], dtypes[i])
                 acodec, f = utils.get_audio_codec(sample_fmt)
                 more_opts = {"sample_fmt": sample_fmt, "ac": ac, "c:a": acodec, "f": f}
 
-            raw_info = (*raw_info, opts["ar"]) if raw_info else (None, None, opts["ar"])
-
         else:  # video
             media_type = "video"
+            opts[ropt] = rate = opts[ropt]  # force int sampling rate
             if data is not None:
-                more_opts, raw_info = utils.array_to_video_options(data)
+                more_opts, shape_dtype = utils.array_to_video_options(data)
                 data = plugins.get_hook().video_bytes(obj=data)
             elif dtype and shape:
-                raw_info = shape, dtype
+                shape_dtype = (shape, dtype)
                 pix_fmt, s = utils.guess_video_format(*raw_info)
                 more_opts = {
                     "f": "rawvideo",
@@ -2154,10 +2087,12 @@ def process_raw_inputs(
                     "s": s,
                 }
 
-        if raw_info is None:
+        if shape_dtype is None:
             raise FFmpegioInsufficientInputData(
-                "Failed to resolve raw input data format."
+                "Both input_dtypes and input_shapes must be defined for all raw input streams."
             )
+
+        raw_info = (*shape_dtype, rate)
 
         if more_opts is not None:
             opts.update(more_opts)
@@ -2166,7 +2101,7 @@ def process_raw_inputs(
             "src_type": "buffer",
             "media_type": media_type,
             "raw_info": (*raw_info, opts[ropt]),
-            "item_size": utils.get_samplesize(*raw_info[1::-1]),
+            "item_size": utils.get_samplesize(*raw_info[:-1]),
             **get_callables(media_type),
         }
 
@@ -2274,7 +2209,6 @@ def process_url_outputs(
             missing_map = True
 
     if missing_map and not skip_automapping:
-
         # some output file is missing `map` option
         # add all input streams or all complex filter outputs
 
@@ -2397,7 +2331,7 @@ def assign_output_pipes(
                         and there is at least one piped output
     """
 
-    pipe_info = {}
+    pipe_info: dict[int, OutputPipeInfoDict] = {}
     sp_kwargs = {}
 
     if output_info is None:
@@ -2406,10 +2340,8 @@ def assign_output_pipes(
     # configure output pipes
     use_stdout = False
     has_pipeout = False
-    pipe_info = {}
 
     for i, (info, arg) in enumerate(zip(output_info, args["outputs"])):
-
         if arg[0]:
             # url already configured
             continue
@@ -2470,7 +2402,6 @@ def assign_input_pipes(
 
     # configure input pipes (if needed)
     for i, (info, arg) in enumerate(zip(input_info, args["inputs"])):
-
         if arg[0]:
             # url already configured
             continue
@@ -2504,8 +2435,9 @@ def init_named_pipes(
     outpipe_info: dict[int, OutputPipeInfoDict],
     input_info: list[InputInfoDict],
     output_info: list[OutputInfoDict],
-    update_rate: int | Fraction | None = None,
-    blocksize: int | None = None,
+    ref_stream: int | Fraction | None = None,
+    ref_blocksize: int | None = None,
+    enc_blocksize: int | None = None,
     queue_size: int | None = None,
     timeout: float | None = None,
     stack: ExitStack | None = None,
@@ -2515,9 +2447,10 @@ def init_named_pipes(
     :param args: FFmpeg option arguments (modified)
     :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
     :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
-    :param update_rate: target rate at which queue transactions will occur for raw data output,
-                        defaults to None (1 video frame or 1024 audio sample at a time)
-    :param blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
+    :param ref_stream: index of reference raw media output stream, defaults to 0
+    :param ref_blocksize: block size of the reference stream, defaults to 1 if video
+                          and 1024 for audio
+    :param encoded_blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
     :param stack: ExitStack context manager object to handle __exit__() of NOpen and Thread objects
     :returns: a list of indices of the FFmpeg outputs that are raw data streams
 
@@ -2537,6 +2470,7 @@ def init_named_pipes(
     wr_kws = {"queuesize": queue_size, "timeout": timeout} if queue_size else {}
 
     # configure output pipes
+    ref_rate = None if ref_stream is None else output_info[ref_stream]["raw_info"][-1]
     for i, pinfo in outpipe_info.items():
         info = output_info[i]
 
@@ -2555,12 +2489,20 @@ def init_named_pipes(
             assert dst_type == "buffer"
             kws = {**wr_kws}
             if "raw_info" in info:
-                if update_rate is not None:
-                    # set the number of frames/samples to enqueue at a time
-                    kws["nmin"] = round(rate / update_rate) or 1
+                kws["itemsize"] = info["item_size"]
+                if ref_rate is None:
+                    ref_stream = i
+                    ref_rate = info["raw_info"][-1]
+                    kws["nmin"] = ref_blocksize
+                elif i == ref_stream:
+                    kws["nmin"] = ref_blocksize
+                else:
+                    rate = info["raw_info"][-1]
+                    kws["nmin"] = round(rate / ref_rate) or 1
             else:
-                # assume encoded output
-                kws["nmin"] = blocksize or 2**16
+                # encoded output in bytes
+                kws["itemsize"] = 1
+                kws["nmin"] = enc_blocksize or 2**16
             reader = ReaderThread(pipe, **kws)
 
         pinfo["reader"] = reader
@@ -2610,71 +2552,33 @@ class StdWriter:
 
 
 class StdReader:
-    def __init__(self, proc: fp.Popen) -> None:
+    def __init__(self, proc: fp.Popen, itemsize: int) -> None:
         self._proc = proc
+        self._itemsize = itemsize
 
     def read(self, n: int = -1) -> bytes:
-        return self._proc.stdout.read(n)
+        return self._proc.stdout.read(n if n <= 0 else n * self._itemsize)
 
 
 def init_std_pipes(
     input_pipes: dict[int, InputPipeInfoDict],
     output_pipes: dict[int, OutputPipeInfoDict],
+    output_info: list[OutputInfoDict],
     proc: fp.Popen,
 ):
+    """initialize std pipe reader or writer
 
+    :param input_pipes: _description_
+    :param output_pipes: _description_
+    :param output_info: FFmpeg output information, its length matches that of `args['outputs']`
+    :param proc: _description_
+    """
     stdin = next((st for st, p in input_pipes.items() if p["pipe"] == "stdin"), None)
     if stdin is not None:
         input_pipes[stdin]["writer"] = StdWriter(proc)
 
     stdout = next((st for st, p in output_pipes.items() if p["pipe"] == "stdout"), None)
     if stdout is not None:
-        output_pipes[stdout]["reader"] = StdReader(proc)
-
-
-def find_primary_output_index(
-    # output_pipes: dict[int, OutputPipeInfoDict],
-    output_info: list[OutputInfoDict],
-    primary_output: int | str | None = None,
-) -> int | None:
-    """find index of the primary raw media output stream
-
-    :param output_pipes: output pipe information dicts, keyed by output stream index
-    :param output_info: output stream information list
-    :param primary_output: primary output index or label, defaults to the first
-                           output media stream
-    :return: primary output index or None if not found
-    """
-
-    if primary_output is None:
-        # use first raw stream
-        return next(
-            (i for i, info in enumerate(output_info) if "buffer" in info["dst_type"]),
-            None,
+        output_pipes[stdout]["reader"] = StdReader(
+            proc, output_info[stdout]["item_size"]
         )
-    else:
-        # validate the specified stream (convert to int idx if str label given)
-        st_ = primary_output
-        if isinstance(st_, str):
-            try:
-                st = next(
-                    i
-                    for i, info in enumerate(output_info)
-                    if "buffer" in info["dst_type"] and info["user_map"] == st_
-                )
-            except StopIteration as e:
-                raise ValueError(
-                    f'Primary media output stream "{st_}" is not found.'
-                ) from e
-        else:
-            st = st_
-
-            # if invalid output stream index, return None
-            try:
-                assert "media_type" not in output_info[st]
-            except AssertionError as e:
-                raise ValueError(
-                    f"Primary media output stream {st} is not found."
-                ) from e
-
-    return st

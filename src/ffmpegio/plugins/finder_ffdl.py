@@ -1,9 +1,9 @@
 """ffmpegio plugin to find ffmpeg and ffprobe installed by ffmpeg-downloader (ffdl) package"""
 
 import logging
-from pluggy import HookimplMarker
 
 import ffmpeg_downloader as ffdl
+from pluggy import HookimplMarker
 
 hookimpl = HookimplMarker("ffmpegio")
 

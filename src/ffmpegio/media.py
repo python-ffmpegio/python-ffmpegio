@@ -1,43 +1,37 @@
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger("ffmpegio")
-
 from collections.abc import Sequence
+from fractions import Fraction
+
+from . import configure, ffmpegprocess
 from ._typing import (
+    FFmpegOptionDict,
+    InputInfoDict,
+    InputPipeInfoDict,
     Literal,
-    RawStreamDef,
+    OutputInfoDict,
+    OutputPipeInfoDict,
     ProgressCallable,
     RawDataBlob,
-    Unpack,
-    FFmpegUrlType,
-    InputInfoDict,
-    RawInputInfoDict,
-    OutputInfoDict,
     RawOutputInfoDict,
-    OutputPipeInfoDict,
-    FFmpegOptionDict,
-    DTypeString,
-    ShapeTuple,
-    InputPipeInfoDict,
+    RawStreamDef,
+    Unpack,
 )
 from .configure import (
     FFmpegArgs,
-    FFmpegOutputUrlComposite,
     FFmpegInputUrlComposite,
-    FFmpegOutputUrlNoPipe,
-    FFmpegNoPipeOutputOptionTuple,
     FFmpegInputUrlNoPipe,
     FFmpegNoPipeInputOptionTuple,
+    FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputOptionTuple,
+    FFmpegOutputUrlComposite,
+    FFmpegOutputUrlNoPipe,
 )
-
-from fractions import Fraction
-
-from . import ffmpegprocess, utils, configure, FFmpegError, plugins
-from .utils import log
-from .errors import FFmpegioError
+from .errors import FFmpegError
 from .filtergraph.abc import FilterGraphObject
+
+logger = logging.getLogger("ffmpegio")
 
 __all__ = ["read", "write"]
 
@@ -53,12 +47,12 @@ def _runner(
 ) -> tuple[
     ffmpegprocess.Popen, dict[int, InputPipeInfoDict], dict[int, OutputPipeInfoDict]
 ]:
-
     # convert show_log to capture_log
     capture_log = None if show_log else True
 
     # configure named pipes
-    input_pipes = output_pipes = {}
+    input_pipes: dict[int, InputPipeInfoDict] = {}
+    output_pipes: dict[int, OutputPipeInfoDict] = {}
     if len(input_info):
         input_pipes, sp_kwargs = configure.assign_input_pipes(args, input_info, False)
     if len(output_info):
@@ -101,14 +95,15 @@ def _gather_outputs(
     output_info: list[RawOutputInfoDict],
     pipe_info: dict[int, OutputPipeInfoDict],
 ) -> tuple[dict[str, int | Fraction], dict[str, RawDataBlob]]:
-
     rates = {}
     data = {}
     for i, pinfo in pipe_info.items():
         info = output_info[i]
+        if "media_type" not in info:
+            continue
 
         spec = info["user_map"]
-        b = pinfo["reader"].read_all()
+        b = pinfo["reader"].read()
         dtype, shape, rate = info["raw_info"]
 
         data[spec] = info["bytes2data"](
@@ -131,7 +126,7 @@ def read(
         | None
     ) = None,
     extra_outputs: (
-        Sequence[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
     show_log: bool | None = None,

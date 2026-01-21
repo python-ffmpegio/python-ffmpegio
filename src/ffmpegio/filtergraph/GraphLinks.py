@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import re
 from collections import UserDict
-from collections.abc import Generator, Mapping, Sequence, Callable
+from collections.abc import Callable, Generator, Mapping, Sequence
 
-
-from ..stream_spec import is_map_option
 from ..errors import FFmpegioError
+from ..stream_spec import is_map_option
 from .typing import PAD_INDEX, PAD_PAIR, Literal
 
 """
