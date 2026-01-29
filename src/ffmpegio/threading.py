@@ -315,13 +315,13 @@ class ReaderThread(Thread):
         self.stdout = None if is_pipe else stdout_or_pipe  #:readable stream
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
         self.itemsize = itemsize or 2**20  #:int: number of bytes per time sample
-        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
+        self._queue = Queue(4 if queuesize is None else queuesize)
         self._carryover: bytes | None = (
             None  #:bytes: extra data that was not previously read by user
         )
         self._halt = Event()
         self._running = Event()
-        self._retry_delay = 0.001 if retry_delay is None else retry_delay
+        self._retry_delay = 0.01 if retry_delay is None else retry_delay
         self._timeout = float(timeout) if timeout else None
 
     def start(self):
@@ -349,15 +349,18 @@ class ReaderThread(Thread):
                     ...
             self.pipe.close()
 
+        # set flag to terminate the thread loop
         self._halt.set()
-        if self._queue.full():
-            if timeout:
-                self._queue.not_full.wait(timeout)
-                if self._queue.full():
-                    return
-            else:
-                with self._queue.mutex:
-                    self._queue.queue.clear()
+
+        # if queue is full, the thread loop is likely stuck.
+        is_full = self._queue.full()
+        if is_full and timeout:
+            # if timeout is set, wait to see if dequeued by another thread
+            self._queue.not_full.wait(timeout)
+            is_full = self._queue.full()
+
+        if is_full:
+            raise Full("Cannot join reader thread because the queue is full.")
 
         # if queue is full,
         super().join(timeout)
@@ -394,28 +397,27 @@ class ReaderThread(Thread):
         while not self._halt.is_set():
             try:
                 data = stream.read(blocksize)
-                logger.debug("read %d bytes", len(data))
+                # logger.debug("read %d bytes", len(data))
             except:
                 # stdout stream closed/FFmpeg terminated, end the thread as well
                 data = None
 
             # print(f"reader thread: read {len(data)} bytes")
-            if not data:
-                if stream.closed:  # just in case
-                    logger.info("ReaderThread no data, stream is closed, exiting")
-                    self._halt.set()
-                    break
-                else:
-                    # pause a bit then try again
-                    sleep(self._retry_delay)
-                    continue
-
-            if not self._halt.is_set():  # True until self.cooloff
+            if data:
+                logger.debug("ReaderThread putting data into the queue")
                 queue.put(data)
-                # print(f"reader thread: queued samples")
+                logger.debug("ReaderThread data in the reader queue")
+
+            elif stream.closed:  # just in case
+                logger.info("ReaderThread no data, stream is closed, exiting")
+                self._halt.set()
+                break
+            else:
+                # pause a bit then try again
+                # logger.info("ReaderThread no data, reader thread pausing")
+                sleep(self._retry_delay)
 
         logger.debug("stopping to read")
-
         logger.info("ReaderThread sending the sentinel")
         queue.put(None)  # sentinel for eos
 
@@ -427,7 +429,7 @@ class ReaderThread(Thread):
 
         :param n: number of samples/frames to read, if non-positive, read all
                   (until the pipe is broken), defaults to -1
-        :param timeout: timeout in seconds, defaults to None
+        :param timeout: timeout in seconds, defaults to wait indefinitely
         :return: n*itemsize bytes
         """
 
@@ -457,8 +459,7 @@ class ReaderThread(Thread):
         # loop till enough data are collected
         while read_all or m > 0:
             tout = timeout and max(timeout - time(), 0)
-            block = self._running.is_set() and tout != 0
-
+            block = self.is_alive() and timeout is None
             try:
                 b = self._queue.get(block, tout)
                 assert b is not None  # encountered sentinel
@@ -521,8 +522,17 @@ class ReaderThread(Thread):
         while read_all or m > 0:
             try:
                 b = self._queue.get_nowait()
-                assert b is not None  # encountered sentinel
-            except (Empty, AssertionError):
+                self._queue.task_done()
+                if b is None:
+                    # sentinel
+                    break
+                mr = len(b)
+                assert mr > 0  # just in case
+
+                arrays.append(b)
+                m -= mr
+                mread += mr
+            except Empty:
                 break
 
         # combine all the data and return requested amount
@@ -584,7 +594,7 @@ class WriterThread(Thread):
         is_pipe = isinstance(stdin_or_pipe, NPopen)
         self.pipe = stdin_or_pipe if is_pipe else None
         self.stdin = None if is_pipe else stdin_or_pipe  #:writable stream: data sink
-        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
+        self._queue = Queue(4 if queuesize is None else queuesize)
         self._empty_cond = Condition()
         self._empty = True
         self._no_more = False  # true if sentinel has been written to the queue
@@ -620,6 +630,7 @@ class WriterThread(Thread):
 
         while True:
             # get next data block
+            logger.info("WriterThread getting data to the queue")
             try:
                 data = queue.get_nowait()
             except Empty:
@@ -628,24 +639,25 @@ class WriterThread(Thread):
                     self._empty = True
                     self._empty_cond.notify_all()
                 data = queue.get()
+            logger.info("WriterThread getting data to the queue")
 
             queue.task_done()
             if data is None:
-                logger.info("writer thread: received a sentinel to stop the writer")
+                logger.info("WriterThread: received a sentinel to stop the writer")
                 break
             else:
-                logger.info("writer thread: received %d bytes to write", len(data))
+                logger.info("WriterThread: writing %d bytes", len(data))
 
             try:
                 nwritten = 0
                 nwritten = stream.write(data)
-                logger.info("writer thread: written %d written", nwritten)
+                logger.info("WriterThread: written %d written", nwritten)
             except Exception as e:
                 # stdout stream closed/FFmpeg terminated, end the thread as well
-                logger.info("writer thread exception: %s", e)
+                logger.info("WriterThread exception: %s", e)
                 break
             if not nwritten and stream.closed:  # just in case
-                logger.info("writer thread: somethin' else happened")
+                logger.info("WriterThread: somethin' else happened")
                 break
 
         # set flag to prevent any more writes
@@ -676,7 +688,7 @@ class WriterThread(Thread):
                 self._empty = True
                 self._empty_cond.notify_all()
 
-        logger.info("writer thread exiting")
+        logger.info("WriterThread exiting")
 
     def write(self, data, timeout=None):
         with self._empty_cond:

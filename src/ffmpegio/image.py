@@ -240,11 +240,13 @@ def filter(
 
     """
 
-    if expr and extra_inputs is None and extra_outputs is None:
-        # guaranteed SISO filtering
-        options["filter:v"] = expr
-        options["map"] = "0:V:0"
-        expr = None
+    if expr is not None:
+        if extra_inputs is None and extra_outputs is None:
+            # guaranteed SISO filtering
+            options["filter:v"] = expr
+            options["map"] = "0:V:0"
+        else:
+            options["filter_complex"] = expr
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(

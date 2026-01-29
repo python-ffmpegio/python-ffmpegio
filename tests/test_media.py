@@ -1,10 +1,10 @@
-from tempfile import TemporaryDirectory
 from os import path
 from pprint import pprint
+from tempfile import TemporaryDirectory
+
 import pytest
 
 import ffmpegio as ff
-import ffmpegio.filtergraph as fgb
 
 url = "tests/assets/testmulti-1m.mp4"
 url1 = "tests/assets/testvideo-1m.mp4"
@@ -21,7 +21,7 @@ url2 = "tests/assets/testaudio-1m.mp3"
     ],
 )
 def test_media_read(urls, kwargs, nout):
-    rates, data = ff.media.read(*urls, **kwargs)
+    rates, data = ff.media.read(*urls, **kwargs, timeout=1.0)
     assert len(rates) == nout
     print(rates)
     print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
@@ -58,30 +58,6 @@ def test_media_write():
         pprint(ff.probe.format_basic(outfile))
         pprint(ff.probe.streams_basic(outfile))
 
-@pytest.mark.skip(reason='To be implemented - merge_audio preset filtergraph needs more work.')
-def test_media_write_audio_merge():
-    stream1 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=8000, sample_fmt="s16")
-    stream2 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=16000, sample_fmt="flt")
-    stream3 = ff.audio.read("tests/assets/testaudio-1m.mp3", ar=4000, sample_fmt="dbl")
-
-    outext = ".wav"
-
-    fg = fgb.presets.merge_audio(["0:a", "1:a", "2:a"])
-    with TemporaryDirectory() as tmpdirname:
-        outfile = path.join(tmpdirname, f"out{outext}")
-        ff.media.write(
-            outfile,
-            "aaa",
-            stream1,
-            stream2,
-            stream3,
-            filter_complex=fg,
-            show_log=True,
-            shortest=ff.FLAG,
-        )
-        pprint(ff.probe.format_basic(outfile))
-        pprint(ff.probe.audio_streams_basic(outfile))
-
 
 def test_media_filter():
     fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3")
@@ -97,7 +73,7 @@ def test_media_filter():
         (fps, F),
         (fs, x),
         (fs, x),
-        output_args={"[out0]": {},"out1":{}, "audio": {"map": "[out2]"}},
+        output_args={"[out0]": {}, "out1": {}, "audio": {"map": "[out2]"}},
         show_log=True,
         shortest=ff.FLAG,
     )

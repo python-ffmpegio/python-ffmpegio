@@ -33,7 +33,7 @@ from .filtergraph.abc import FilterGraphObject
 
 logger = logging.getLogger("ffmpegio")
 
-__all__ = ["read", "write"]
+__all__ = ["read", "write", "filter"]
 
 
 def _runner(
@@ -60,7 +60,7 @@ def _runner(
             args, output_info, False
         )
     stack = configure.init_named_pipes(
-        input_pipes, output_pipes, input_info, output_info
+        input_pipes, output_pipes, input_info, output_info, queue_size=0
     )
 
     def on_exit(rc):
@@ -288,9 +288,11 @@ def filter(
 
     """
 
+    if expr is not None:
+        options["filter_complex"] = expr
+
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
-        expr,
         input_types,
         input_args,
         extra_inputs,

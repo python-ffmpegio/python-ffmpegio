@@ -1,10 +1,9 @@
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
-
-
 import ffmpegio as ff
 from ffmpegio import streams
+
+logging.basicConfig(level=logging.DEBUG)
 
 mult_url = "tests/assets/testmulti-1m.mp4"
 video_url = "tests/assets/testvideo-1m.mp4"
@@ -14,13 +13,12 @@ outext = ".mp4"
 
 def test_MediaReader():
     with streams.PipedFFmpegRunner.create_media_reader(
-        [(mult_url, {})], None, t=1, queuesize=4
+        [(mult_url, {})], None, t=1
     ) as reader:
         # data = reader.read(2)
         for data in reader:
-            for k, v in data.items():
+            for k, v in enumerate(data):
                 print(f"{k}: {len(v['buffer'])}")
-                break
 
 
 def test_MediaWriter_audio():
@@ -30,21 +28,21 @@ def test_MediaWriter_audio():
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
     with streams.PipedFFmpegRunner.create_media_encoder(
-        ["a"],
-        [(None, {"ar": rates[0]})],
-        *rates.values(),
+        stream_types,
+        [{"ar": rates["0:a:0"]}],
+        [{"f": "matroska"}],
         show_log=True,
-        f="matroska",
-        # loglevel="debug",
     ) as writer:
-        for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
+        for i, frame in enumerate(data.values()):
             writer.write(frame, i)
+            # read the encoded bytes if any available
+            b = writer.read_encoded_nowait(0)
 
         # close the input and wait for FFmpeg to finish encoding and terminate
-        writer.wait(10)
+        writer.wait(timeout=10)
 
-        # read the encoded bytes
-        b = writer.readall_encoded()
+        # read the rest
+        b = writer.read_encoded(0)
 
 
 def test_MediaWriter():
@@ -53,18 +51,22 @@ def test_MediaWriter():
     rates, data = ff.media.read(mult_url, t=1)
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
-    with streams.MediaWriter(
-        "pipe",
+    rate_opt_name = {"a": "ar", "v": "r"}
+    stream_opts = [
+        {rate_opt_name[mtype]: r} for mtype, r in zip(stream_types, rates.values())
+    ]
+
+    with streams.PipedFFmpegRunner.create_media_encoder(
         stream_types,
-        *rates.values(),
+        stream_opts,
+        [{"f": "matroska", "map": range(len(stream_types))}],
         show_log=True,
-        f="matroska",
     ) as writer:
         # write full audio streams
         video_frames = {}
         for i, (mtype, frame) in enumerate(zip(stream_types, data.values())):
             if mtype == "a":
-                writer.write_stream(i, frame)
+                writer.write(frame, i)
             else:
                 video_frames[i] = frame.shape[0]
 
@@ -77,12 +79,32 @@ def test_MediaWriter():
                 if i in frame_count:
                     j = frame_count[i]
                     print(j)
-                    writer.write_stream(i, frame[j])
-                    frame_count[i] = j + 1
+                    try:
+                        writer.write(frame[j], i)
+                    except IndexError:
+                        pass
+                    else:
+                        b = writer.read_encoded_nowait(0)
+                        frame_count[i] = j + 1
 
         writer.wait(10)
-        b = writer.read_encoded(-1, 10)
+        b = writer.read_encoded(-1)
         assert isinstance(b, bytes) and len(b) > 0
+
+
+def test_SimpleMediaFilter():
+    ff.use("read_bytes")
+
+    fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3", to=1)
+
+    with ff.streams.SimpleFFmpegFilter(
+        "a", {"ar": fs}, {"map": "[out]"}, filter_complex="[0:a:0]showcqt[out]"
+    ) as f:
+        out = f.filter(x)
+        f.wait(1)
+        out1 = f.read_nowait(-1)
+
+    print(out.shape)
 
 
 def test_MediaFilter():
@@ -94,49 +116,78 @@ def test_MediaFilter():
 
     print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
 
-    with streams.MediaFilter(
-        ["[0:V:0][1:V:0]vstack,split", "[2:a:0][3:a:0]amerge"],
+    with ff.streams.PipedFFmpegRunner.create_media_filter(
         "vvaa",
-        fps,
-        fps,
-        fs,
-        fs,
-        output_options={"[out0]": {}, "audio": {"map": "[out2]"}},
+        [{"r": fps}, {"r": fps}, {"ar": fs}, {"ar": fs}],
+        output_streams={"[out0]": {}, "audio": {"map": "[out1]"}},
+        filter_complex=["[0:V:0][1:V:0]vstack", "[2:a:0][3:a:0]amerge"],
         show_log=True,
-        loglevel="debug",
+        # loglevel="debug",
         # queuesize=4,
     ) as f:
         # f.write([F, F])
-        f.write([F, F, x, x])
+        for i, frame in enumerate([F, F, x, x]):
+            f.write(frame, i, last=True)
         # sleep(1)
-        f.wait(10)
-        data = f.read(F["shape"][0], 10)
 
-        assert all(k in ("[out0]", "out1", "audio") for k in data)
-        n = f.output_counts
-        assert all(v["shape"][0] == n[k] for k, v in data.items())
+        assert ["[out0]", "audio"] == f.output_labels
+        assert f.num_output_streams == 2
+
+        frames_per_read = f.output_frames()
+        nnext = list(frames_per_read)
+
+        for i in range(F["shape"][0]):
+            for st in range(2):
+                n = int(nnext[st])
+                Fout = f.read(n, st)
+                print(Fout["shape"], n)
+                # assert Fout["shape"][0] == n
+                nnext[st] = nnext[st] - n + frames_per_read[st]
+
+        # just in case
+        f.wait(1)
 
 
 def test_MediaTranscoder():
-    url = "tests/assets/testmulti-1m.mp4"
+    url = "tests/assets/sample.mp4"
 
-    with streams.MediaTranscoder(
+    data = b""
+
+    # 1. transcode from a file to pipe
+    with streams.PipedFFmpegRunner.create_media_transcoder(
         [],
-        [{"f": "matroska", "codec": "copy", "to": 1}],
-        extra_inputs=[url],
-        show_log=False,
+        [{"f": "matroska", "to": 1}],
+        extra_inputs=[(url, {})],
+        show_log=True,
+        # loglevel="debug",
     ) as f:
-        if f.wait(timeout=10):
-            raise f.lasterror
-        data = f.read_encoded(-1, timeout=10)
+        while f:
+            b = f.read_encoded_nowait(-1)
+            data += b
+        b = f.read_encoded_nowait(-1)
+        data += b
 
-    with streams.MediaTranscoder(
-        [{"f": "matroska"}],
-        [{"f": "flac"}, {"f": "matroska", "codec": "copy"}],
-        show_log=False,
+        assert len(data) > 0
+
+    print(f"FIRST TRANCODING YIELDED {len(data)} bytes")
+
+    with streams.PipedFFmpegRunner.create_media_transcoder(
+        [{}],
+        [{"f": "flac", "vn": None}, {"f": "matroska", "codec": "copy"}],
+        show_log=True,
+        # loglevel="debug",
     ) as f:
-        f.write_encoded(data, timeout=10)
-        if f.wait(timeout=10):
-            raise f.lasterror
-        enc_data = f.readall_encoded(timeout=10)
-        assert len(enc_data) == 2
+        f.write_encoded(data, last=True)
+
+        out = [b"", b""]
+
+        while f:
+            for st in range(2):
+                out[st] += f.read_encoded_nowait(-1, stream=st)
+
+    assert len(out[0]) > 0
+    assert len(out[1]) > 0
+
+    print(
+        f"SECOND TRANCODING YIELDED {len(out[0])} bytes for flac and {len(out[1])} bytes for matroska"
+    )

@@ -5,7 +5,7 @@ import io
 import matplotlib as Figure
 from pluggy import HookimplMarker
 
-from .._typing import DTypeString, ShapeTuple
+from .._typing import DTypeString, Literal, ShapeTuple
 
 __all__ = ["video_info", "video_bytes"]
 
@@ -42,6 +42,7 @@ def video_bytes(obj: Figure) -> memoryview:
     except:
         None
 
+
 @hookimpl
 def is_empty(obj: Figure) -> bool:
     """True if data blob object has no data
@@ -49,3 +50,15 @@ def is_empty(obj: Figure) -> bool:
     :param obj: object containing media data
     """
     return False
+
+
+@hookimpl
+def video_frames(obj: Figure) -> Literal[1]:
+    """get number of video frames in obj (always 1)
+
+    :param obj: object containing video frame data with arbitrary number of frames
+    :return: number of video frames in obj
+
+    """
+
+    return 1

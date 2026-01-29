@@ -28,6 +28,7 @@ from .._typing import (
     ShapeTuple,
 )
 from .._utils import (
+    as_multi_option,
     escape,
     get_samplesize,
     is_fileobj,

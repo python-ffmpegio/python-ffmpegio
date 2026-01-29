@@ -14,15 +14,7 @@ There are four primary functions for the four operation types supported by
 `init_media_transcode()`  encoded data to encoded data
 ========================  ================================
 
-These functions call ffprobe to get raw media information best it could. However,
-read calls with a non-seekable input requires to defer setting the output shape
-and dtype until the necessary information is posted on the ffmpeg stderr log stream.
-Likewise, filter calls with unknown input shape and dtype requires the arrival
-of the first input raw data blob. In those cases, the following function must
-be called after the ffmpeg operation initiates:
-
-- `init_media_read_outputs()`
-- `init_media_filter_outputs()`
+These functions call ffprobe to get raw media information best it could.
 
 The above functions do not initialize the pipes and IO threads.
 
@@ -217,7 +209,6 @@ class MediaWriteKwsDict(TypedDict):
 
 
 class MediaFilterKwsDict(TypedDict):
-    expr: str | FilterGraphObject | list[str | FilterGraphObject] | None
     input_stream_types: Sequence[Literal["a", "v"]]
     input_stream_args: Sequence[tuple[RawDataBlob | None, FFmpegOptionDict]]
     output_streams: Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
@@ -305,6 +296,7 @@ def init_media_read(
         raise ValueError("Cannot have an `n` option set to output to named pipes.")
 
     # separate the options
+    options = {**options}
     inopts_default = utils.pop_extra_options(options, "_in")
 
     # create a new FFmpeg dict
@@ -397,6 +389,7 @@ def init_media_write(
         raise FFmpegioError("At least one URL must be given.")
 
     # separate the options
+    options = {**options}
     inopts_default = utils.pop_extra_options(options, "_in")
 
     # create a new FFmpeg dict
@@ -433,7 +426,6 @@ def init_media_write(
 
 
 def init_media_filter(
-    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
     input_stream_types: Sequence[Literal["a", "v"]],
     input_stream_args: Sequence[RawStreamDef],
     extra_inputs: Sequence[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None,
@@ -450,8 +442,6 @@ def init_media_filter(
 ) -> tuple[FFmpegArgs, list[RawInputInfoDict], list[RawOutputInfoDict]]:
     """Prepare FFmpeg arguments for media read
 
-    :param expr: filtergraph definition(s), may be None to perform implicit filtering
-                 via output options (e.g., rate or format changes)
     :param input_stream_types: list/string of 'a' or 'v', specifying the input raw streams' media types
     :param input_stream_args: list of input option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
@@ -484,23 +474,15 @@ def init_media_filter(
 
     if "n" in options:
         raise ValueError("Cannot have an `n` option set to output to named pipes.")
-    if "filter_complex" in options or "lavfi" in options:
-        raise ValueError(
-            "Cannot have a `filter_complex` or `lavfi` option already set."
-        )
 
     # separate the options
+    options = {**options}
     inopts_default = utils.pop_extra_options(options, "_in")
 
     # create a new FFmpeg dict
     args = empty(utils.pop_global_options(options))
     gopts = args["global_options"]  # global options dict
     gopts["y"] = None
-
-    # complex filtergraph may not be used
-    # (siso filtergraph or implicit filter like -s or -r)
-    if expr is not None:
-        gopts["filter_complex"] = expr
 
     # analyze and assign inputs
     input_info = process_raw_inputs(
@@ -569,6 +551,7 @@ def init_media_transcode(
         raise ValueError("Cannot have an `n` option set to output to named pipes.")
 
     # separate the options
+    options = {**options}
     inopts_default = utils.pop_extra_options(options, "_in")
 
     # create a new FFmpeg dict
@@ -2435,7 +2418,7 @@ def init_named_pipes(
     outpipe_info: dict[int, OutputPipeInfoDict],
     input_info: list[InputInfoDict],
     output_info: list[OutputInfoDict],
-    ref_stream: int | Fraction | None = None,
+    ref_stream: int | None = None,
     ref_blocksize: int | None = None,
     enc_blocksize: int | None = None,
     queue_size: int | None = None,
@@ -2448,9 +2431,15 @@ def init_named_pipes(
     :param input_info: FFmpeg input information, its length matches that of `args['inputs']`
     :param output_info: FFmpeg output information, its length matches that of `args['outputs']` (modified)
     :param ref_stream: index of reference raw media output stream, defaults to 0
+                       if raw media stream is present or -1 if only encoded
     :param ref_blocksize: block size of the reference stream, defaults to 1 if video
                           and 1024 for audio
     :param encoded_blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
+    :param queuesize: the depth of named pipe queues, defaults to None (4). For
+                      unlimited queue size, specify zero (0).
+    :param timeout: Default queue read timeout in seconds, defaults to `None` to
+                    wait indefinitely. Note this timeout does not apply to
+                    stdout pipe operation.
     :param stack: ExitStack context manager object to handle __exit__() of NOpen and Thread objects
     :returns: a list of indices of the FFmpeg outputs that are raw data streams
 
@@ -2467,10 +2456,17 @@ def init_named_pipes(
 
     if stack is None:
         stack = ExitStack()
-    wr_kws = {"queuesize": queue_size, "timeout": timeout} if queue_size else {}
+
+    wr_kws = {"queuesize": queue_size, "timeout": timeout}
 
     # configure output pipes
-    ref_rate = None if ref_stream is None else output_info[ref_stream]["raw_info"][-1]
+    if ref_stream is None and len(output_info):
+        ref_stream = 0 if "raw_info" in output_info[0] else -1
+
+    ref_rate = 1
+    if ref_stream is not None and ref_stream >= 0:
+        ref_rate = output_info[ref_stream]["raw_info"][-1]
+
     for i, pinfo in outpipe_info.items():
         info = output_info[i]
 

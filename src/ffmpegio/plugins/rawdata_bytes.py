@@ -45,9 +45,20 @@ def video_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
     """
 
     try:
-        return obj["shape"][-3:], obj["dtype"]
+        shape = obj["shape"]
+        dtype = obj["dtype"]
     except:
         return None
+
+    ndim = len(shape)
+    if ndim == 2:
+        shape = (*shape, 1)
+    elif ndim == 3 and shape[-1] > 4:
+        shape = (*shape[1:], 1)
+    else:
+        shape = shape[-3:]
+
+    return shape, dtype
 
 
 @hookimpl
@@ -98,12 +109,23 @@ def video_frames(obj: BytesRawDataBlob) -> int:
 
     :param obj: object containing video frame data with arbitrary number of frames
     :return: number of video frames in obj
+
+    Note: if blob is squeezed, the returned value may not be accurate.
     """
 
     try:
-        return obj["shape"][0]
-    except:
+        shape = obj["shape"]
+    except KeyError:
         return None
+
+    ndim = len(shape)
+    if ndim > 3:
+        return shape[0]
+    elif ndim < 3:
+        return 1
+    else:
+        # ndim==3, single frame if the last dim is likely number of components (1-4)
+        return shape[0] if shape[-1] > 4 else 1
 
 
 @hookimpl
@@ -112,12 +134,16 @@ def audio_samples(obj: BytesRawDataBlob) -> int:
 
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: number of samples in obj
+
+    Note: assumes a blob of audio samples always consists of more one time sample.
     """
 
     try:
-        return obj["shape"][0]
-    except:
+        shape = obj["shape"]
+    except KeyError:
         return None
+    else:
+        return shape[0]
 
 
 @hookimpl
@@ -139,7 +165,7 @@ def bytes_to_video(
         return {
             "buffer": b,
             "dtype": dtype,
-            "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
+            "shape": tuple((i for i in sh if i != 1)) if squeeze else sh,
         }
     except:
         return None
@@ -164,10 +190,11 @@ def bytes_to_audio(
         return {
             "buffer": b,
             "dtype": dtype,
-            "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
+            "shape": tuple((i for i in sh if i != 1)) if squeeze else sh,
         }
     except:
         return None
+
 
 @hookimpl
 def is_empty(obj: BytesRawDataBlob) -> bool:
@@ -175,4 +202,4 @@ def is_empty(obj: BytesRawDataBlob) -> bool:
 
     :param obj: object containing media data
     """
-    return not bool(obj['buffer'])
+    return not bool(obj["buffer"])
