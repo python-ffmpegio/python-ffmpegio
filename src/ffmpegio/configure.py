@@ -1426,6 +1426,8 @@ def add_filtergraph(
 
 class RawInputCallablesDict(TypedDict):
     data2bytes: ToBytesCallable
+    data_count: CountDataCallable
+    data_is_empty: IsEmptyCallable
 
 
 class RawOutputCallablesDict(TypedDict):
@@ -1997,9 +1999,17 @@ def process_raw_inputs(
     def get_callables(media_type: MediaType) -> RawInputCallablesDict:
         hook = plugins.pm.hook
         return (
-            {"data2bytes": cast(ToBytesCallable, hook.audio_bytes)}
+            {
+                "data2bytes": cast(ToBytesCallable, hook.audio_bytes),
+                "data_is_empty": cast(IsEmptyCallable, hook.is_empty),
+                "data_count": cast(CountDataCallable, hook.audio_samples),
+            }
             if media_type == "audio"
-            else {"data2bytes": cast(ToBytesCallable, hook.video_bytes)}
+            else {
+                "data2bytes": cast(ToBytesCallable, hook.video_bytes),
+                "data_is_empty": cast(IsEmptyCallable, hook.is_empty),
+                "data_count": cast(CountDataCallable, hook.video_frames),
+            }
         )
 
     for i, (mtype, arg, dtype, shape) in enumerate(
@@ -2435,7 +2445,7 @@ def init_named_pipes(
     :param ref_blocksize: block size of the reference stream, defaults to 1 if video
                           and 1024 for audio
     :param encoded_blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
-    :param queuesize: the depth of named pipe queues, defaults to None (4). For
+    :param queuesize: the depth of named pipe queues, defaults to 16. For
                       unlimited queue size, specify zero (0).
     :param timeout: Default queue read timeout in seconds, defaults to `None` to
                     wait indefinitely. Note this timeout does not apply to
@@ -2541,10 +2551,17 @@ class StdWriter:
 
     def write(self, data: bytes | None):
         if data is None:
-            self._proc.stdin.flush()
-            self._proc.stdin.close()
+            self.join()
         else:
             self._proc.stdin.write(data)
+
+    def join(self):
+        # no thread, just close the stdin
+        self._proc.stdin.flush()
+        self._proc.stdin.close()
+
+    def closed(self) -> bool:
+        return self._proc.stdin.closed
 
 
 class StdReader:
@@ -2554,6 +2571,12 @@ class StdReader:
 
     def read(self, n: int = -1) -> bytes:
         return self._proc.stdout.read(n if n <= 0 else n * self._itemsize)
+
+    def cool_down(self):
+        pass
+
+    def join(self):
+        pass
 
 
 def init_std_pipes(

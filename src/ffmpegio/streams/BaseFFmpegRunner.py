@@ -517,7 +517,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         # set the log source and start the logger
         self._logger.stderr = self._proc.stderr
-        self._logger.start()
+        self._stack.enter_context(self._logger)
 
         # # if stdin/stdout is used, attach StdWriter/StdReader object to each
         if self._use_std_pipes:
@@ -540,13 +540,25 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def _terminate(self):
         """Kill FFmpeg process and close the streams"""
 
-        if self._proc is not None and self._proc.poll() is None:
-            # kill the ffmpeg runtime
-            self._proc.terminate()
-            if self._proc.poll() is None:
-                self._proc.kill()
+        if self._proc is None or self._proc.poll() is not None:
+            return
 
-            self._logger.join()
+        writers = [pinfo["writer"] for pinfo in self._input_pipes.values()]
+        readers = [pinfo["reader"] for pinfo in self._output_pipes.values()]
+
+        # switch the readers to the cool-down (auto-flushing) mode
+        for reader in readers:
+            reader.cool_down()
+
+        # write the sentinel to each input queue (if not already closed)
+        for writer in writers:
+            if not writer.closed():
+                writer.write(None)
+
+        # kill the ffmpeg runtime
+        self._proc.terminate()
+        if self._proc.poll() is None:
+            self._proc.kill()
 
     def open(self):
         """start FFmpeg processing
@@ -1114,46 +1126,11 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         fr = Fraction(primary_frames, rate0)
         return [r * fr for r in rates]
 
-    def __iter__(self) -> Iterator[list[RawDataBlob]]:
-        """iterator to read raw media data
-
-        :yield: a list of raw data blobs, one for each output raw media stream,
-                containing at most ``primary_output_blocksize`` frames of
-                the primary stream given by ``primary_output``. The frame sizes
-                of other streams are proportional to their ``output_rates`` wrt
-                the primary output.
-        """
-        nout = self.num_output_streams
-        if nout == 0:
-            raise FFmpegioError("No output stream to create a frame iterator")
-
-        if self.decodable or self.encodable or self.writable:
-            raise FFmpegioError("Frame iterator is only supported for a pure reader")
-
-        ref_st = self.primary_output
-        nperread = self.output_frames()
-        count = [self._output_info[i]["data_count"] for i in range(nout)]
-        nf = nperread.copy()
-
-        # read the first block of the reference stream
-        out = [self.read(round(ni), st) for st, ni in zip(range(nout), nf)]
-        nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
-
-        # loop until all reference frames are read
-        while nread[ref_st] > 0:
-            # yield the last read frames
-            yield out
-
-            # calculate how many frames to read next (fractional)
-            nf = [nfi - nr + nnext for nfi, nr, nnext in zip(nf, nread, nperread)]
-
-            # read the next block of the reference stream
-            out = [self.read(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)]
-            nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
-
-        # if there is any secondary streams with leftover frames, do the last yield
-        if any(n > 0 for n in nread):
-            yield out
+    def output_pending(self) -> bool:
+        """True if FFmpeg is running or at least one output buffer has data"""
+        return bool(self) or any(
+            pipe["reader"].qsize() for pipe in self._output_pipes.values()
+        )
 
     ##########################################################
     ### ENCODED INPUT STREAM PROPERTIES/METHODS
@@ -1553,6 +1530,47 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
 
         return pipe["reader"].read_nowait(n)
 
+    def __iter__(self) -> Iterator[list[RawDataBlob]]:
+        """iterator to read raw media data
+
+        :yield: a list of raw data blobs, one for each output raw media stream,
+                containing at most ``primary_output_blocksize`` frames of
+                the primary stream given by ``primary_output``. The frame sizes
+                of other streams are proportional to their ``output_rates`` wrt
+                the primary output.
+        """
+        nout = self.num_output_streams
+        if nout == 0:
+            raise FFmpegioError("No output stream to create a frame iterator")
+
+        if self.decodable or self.encodable or self.writable:
+            raise FFmpegioError("Frame iterator is only supported for a pure reader")
+
+        ref_st = self.primary_output
+        nperread = self.output_frames()
+        count = [self._output_info[i]["data_count"] for i in range(nout)]
+        nf = nperread.copy()
+        nread = [1] * nout
+
+        # loop while FFmpeg is running
+        while self:
+            # read the next block of the reference stream
+            out = [
+                (self.read)(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)
+            ]
+            nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
+
+            # yield the last read frames
+            yield out
+
+            # calculate how many frames to read next (fractional)
+            nf = [nfi - nr + nnext for nfi, nr, nnext in zip(nf, nread, nperread)]
+
+        # if there is any secondary streams with leftover frames, do the last yield
+        if self.output_pending() and any(n > 0 for n in nread):
+            out = [self.read(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)]
+            yield out
+
     @staticmethod
     def create_media_reader(
         input_urls: list[FFmpegInputOptionTuple],
@@ -1832,7 +1850,7 @@ class SimpleFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         self,
         input_stream_type: Literal["a", "v"],
         input_stream_opt: FFmpegOptionDict,
-        output_stream: str | FFmpegOptionDict | None = None,
+        output_stream: FFmpegOptionDict | None = None,
         *,
         extra_inputs: (
             list[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
@@ -1907,30 +1925,36 @@ class SimpleFFmpegFilter(SISOMixin, PipedFFmpegRunner):
             nout = self.num_output_streams
             if nin != 1 or nout != 1:
                 raise FFmpegioError(
-                    "SimpleFFmpegFilter takes only one each of raw input and output "
+                    "SimpleFFmpegFilter takes only one each of raw input and output."
+                )
+            if self.num_encoded_input_streams or self.num_encoded_output_streams:
+                raise FFmpegioError(
+                    "SimpleFFmpegFilter does not accept any encoded input or output."
                 )
 
         return ok
 
-    def filter(self, data: RawDataBlob) -> RawDataBlob:
-        """filter a raw media data blob to the specified stream
+    # def filter(self, data: RawDataBlob, *, last: bool = False) -> RawDataBlob:
+    #     """filter a raw media data blob to the specified stream
 
-        :param data: raw media data blob, which is supported by one of loaded
-                     plugins (e.g., a NumPy array if numpy is importable in the
-                     Python workspace). The shape and dtype of the data must be
-                     compatible with the stream's shape and pix_fmt/sample_fmt.
-        :returns: filter output blob.
+    #     :param data: raw media data blob, which is supported by one of loaded
+    #                  plugins (e.g., a NumPy array if numpy is importable in the
+    #                  Python workspace). The shape and dtype of the data must be
+    #                  compatible with the stream's shape and pix_fmt/sample_fmt.
+    #     :param last: ``True`` to mark ``data`` the last input blob, defaults to
+    #                  ``False``
+    #     :returns: filter output blob.
 
-        This method shall be used with caution especially if the input and output
-        rates are not the same. It is recommended to set a timeout.
-        """
+    #     This method shall be used with caution especially if the input and output
+    #     rates are not the same. It is recommended to set a timeout.
+    #     """
 
-        self.write(data)
+    #     self.write(data, last=last)
 
-        if self.rate_in is None or self.rate is None:
-            raise FFmpegioError("FFmpeg is not running yet.")
+    #     if self.rate_in is None or self.rate is None:
+    #         raise FFmpegioError("FFmpeg is not running yet.")
 
-        n = self._output_info[0]["data_count"](obj=data)
-        nout = int((n / self.rate_in * self.rate))
+    #     n = self._input_info[0]["data_count"](obj=data)
+    #     nout = int((n * self.rate / self.rate_in))
 
-        return self.read_nowait(nout)
+    #     return self.read(nout)

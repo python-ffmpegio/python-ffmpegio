@@ -3,15 +3,13 @@
 from __future__ import annotations
 
 from fractions import Fraction
-from pathlib import Path
-from urllib.parse import ParseResult as UrlParseResult
 
 from typing_extensions import *
 
 if TYPE_CHECKING:
     from namedpipe import NPopen
 
-    from .threading import CopyFileObjThread, ReaderThread, WriterThread
+    from .threading import CopyFileObjThread
 
 # from typing_extensions import *
 
@@ -218,6 +216,8 @@ class RawInputInfoDict(TypedDict):
     `'raw_info'`    tuple of (rate, shape, dtype)
     `'item_size`        size of each frame/sample in bytes
     `'data2bytes'`  conversion function
+    `'data_is_empty'`   function to check empty data frame
+    `'data_count'`      function to count number of frames/samples in a blob
     `'buffer'`      (optional) known media data blobs to be input (typically for
                     a batch operation)
     `'pipe'`        (optional) named pipe assigned to this data stream
@@ -232,9 +232,13 @@ class RawInputInfoDict(TypedDict):
     raw_info: RawStreamInfoTuple
     """tuple of (rate, shape, dtype)"""
     item_size: int
-    '''size of each frame/sample in bytes'''
+    """size of each frame/sample in bytes"""
     data2bytes: ToBytesCallable
     """converts a Python data blob to raw media bytes"""
+    data_is_empty: IsEmptyCallable
+    """returns True if the data blob is empty"""
+    data_count: CountDataCallable
+    """returns number of frames in the data blob"""
     buffer: NotRequired[object]
     """stores data blob (typically for batch operation)"""
 
@@ -279,10 +283,14 @@ InputInfoDict = RawInputInfoDict | EncodedInputInfoDict
 
 class PipeWriter(Protocol):
     def write(self, data: bytes | None): ...
+    def join(self): ...
+    def closed(self) -> bool: ...
 
 
 class PipeReader(Protocol):
     def read(self, n: int = -1) -> bytes: ...
+    def join(self): ...
+    def cool_down(self): ...
 
 
 class InputPipeInfoDict(TypedDict):

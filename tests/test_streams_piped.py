@@ -1,5 +1,7 @@
 import logging
 
+import numpy as np
+
 import ffmpegio as ff
 from ffmpegio import streams
 
@@ -13,12 +15,13 @@ outext = ".mp4"
 
 def test_MediaReader():
     with streams.PipedFFmpegRunner.create_media_reader(
-        [(mult_url, {})], None, t=1
+        [(mult_url, {})], None, t_in=1, squeeze=False
     ) as reader:
-        # data = reader.read(2)
-        for data in reader:
-            for k, v in enumerate(data):
-                print(f"{k}: {len(v['buffer'])}")
+        nframes = [0] * reader.num_output_streams
+        for i, data in enumerate(reader):
+            nframes = [n0 + v["shape"][0] for n0, v in zip(nframes, data)]
+
+    assert nframes == [30, 44100, 25, 44100]
 
 
 def test_MediaWriter_audio():
@@ -93,18 +96,48 @@ def test_MediaWriter():
 
 
 def test_SimpleMediaFilter():
-    ff.use("read_bytes")
+    ff.use("read_numpy")
 
     fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3", to=1)
 
-    with ff.streams.SimpleFFmpegFilter(
-        "a", {"ar": fs}, {"map": "[out]"}, filter_complex="[0:a:0]showcqt[out]"
-    ) as f:
-        out = f.filter(x)
-        f.wait(1)
-        out1 = f.read_nowait(-1)
+    nin = 1024
+    nblocks = len(x) // nin
 
-    print(out.shape)
+    X = x[: nin * nblocks, ...].reshape(nblocks, nin, -1)
+
+    with ff.streams.SimpleFFmpegFilter(
+        "a",
+        {"ar": fs},
+        {"map": "[out]"},
+        filter_complex="[0:a:0]showcqt=s=vga[out]",
+        show_log=True,
+        squeeze=False,
+    ) as f:
+        # write the first frame (so the output rate is resolved)
+        f.write(X[0])
+
+        dt = nin / f.rate_in
+        ntotal = int(nin * nblocks * f.rate / f.rate_in)  # total # of frames
+        cumnout = np.astype(np.arange(1, nblocks) * dt * f.rate, int)
+        nread = 0
+
+        for i, (n, Xn) in enumerate(zip(cumnout, X[1:])):
+            assert bool(f)
+
+            ntry = n - nread
+            if ntry > 0:
+                out = f.read_nowait(n - nread)
+                nread += out.shape[0]
+                print(f"[{i:2}] expects {ntry} new frames, {out.shape[0]} frames read")
+            f.write(Xn, last=i == nblocks - 2)
+
+        ntry = ntotal - nread
+        if ntry > 0:
+            print(f"[last] reading the remaining {ntry} frames")
+            out = f.read(ntry)
+            nread += out.shape[0]
+            print(f"[last] final read obtained {out.shape[0]} frames")
+        assert nread == ntotal
 
 
 def test_MediaFilter():
