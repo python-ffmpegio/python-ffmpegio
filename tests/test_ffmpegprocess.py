@@ -100,13 +100,16 @@ def test_popen_progress():
 
     ffmpeg_args = configure.empty()
     configure.add_url(ffmpeg_args, "input", url)
-    configure.add_url(ffmpeg_args, "output", "-", {"map": "0:v:0"})
 
-    dtype, shape, r = configure.finalize_video_read_opts(
-        ffmpeg_args, input_info=[{"src_type": "url"}]
+    input_info = configure.process_url_inputs(ffmpeg_args, [url], {})
+
+    raw_info, more_opts = configure.gather_video_read_opts(
+        {"map": "0:v:0"}, False, ffmpeg_args, input_info, None
     )
 
-    samplesize = utils.get_samplesize(shape, dtype)
+    configure.add_url(ffmpeg_args, "output", "-", {"map": "0:v:0", **more_opts})
+
+    samplesize = utils.get_samplesize(*raw_info[1::-1])
 
     with ffmpegprocess.Popen(
         ffmpeg_args,

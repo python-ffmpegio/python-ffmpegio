@@ -42,7 +42,12 @@ from ..threading import LoggerThread
 
 logger = logging.getLogger("ffmpegio")
 
-__all__ = ["BaseFFmpegRunner"]
+__all__ = [
+    "BaseFFmpegRunner",
+    "StdFFmpegRunner",
+    "PipedFFmpegRunner",
+    "SISOFFmpegFilter",
+]
 
 
 class FFmpegStatus(IntEnum):
@@ -1363,8 +1368,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         input_urls: list[FFmpegInputOptionTuple],
         output_options: FFmpegOptionDict,
         squeeze: bool = True,
-        extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
-        | None = None,
+        extra_outputs: (
+            Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
+        ) = None,
         blocksize: int | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
@@ -1416,10 +1422,13 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
     def create_simple_writer(
         input_stream_type: Literal["a", "v"],
         input_stream_options: FFmpegOptionDict,
-        output_urls: FFmpegOutputUrlComposite
-        | list[
-            FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
-        ],
+        output_urls: (
+            FFmpegOutputUrlComposite
+            | list[
+                FFmpegOutputUrlComposite
+                | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
+            ]
+        ),
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
@@ -1574,13 +1583,13 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
     @staticmethod
     def create_media_reader(
         input_urls: list[FFmpegInputOptionTuple],
-        output_streams: list[FFmpegOptionDict]
-        | dict[str, FFmpegOptionDict]
-        | None = None,
+        output_streams: (
+            list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
+        ) = None,
         squeeze: bool = True,
-        extra_outputs: list[FFmpegOutputOptionTuple]
-        | dict[str, FFmpegOptionDict]
-        | None = None,
+        extra_outputs: (
+            list[FFmpegOutputOptionTuple] | dict[str, FFmpegOptionDict] | None
+        ) = None,
         primary_output: int | None = None,
         blocksize: int | None = None,
         enc_blocksize: int | None = None,
@@ -1839,7 +1848,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         )
 
 
-class SimpleFFmpegFilter(SISOMixin, PipedFFmpegRunner):
+class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
     """Streaming FFmpeg runner for a SISO filtering using named pipes.
 
     This class mixes in the single input convenience properties to
@@ -1925,11 +1934,11 @@ class SimpleFFmpegFilter(SISOMixin, PipedFFmpegRunner):
             nout = self.num_output_streams
             if nin != 1 or nout != 1:
                 raise FFmpegioError(
-                    "SimpleFFmpegFilter takes only one each of raw input and output."
+                    "SISOFFmpegFilter takes only one each of raw input and output."
                 )
             if self.num_encoded_input_streams or self.num_encoded_output_streams:
                 raise FFmpegioError(
-                    "SimpleFFmpegFilter does not accept any encoded input or output."
+                    "SISOFFmpegFilter does not accept any encoded input or output."
                 )
 
         return ok

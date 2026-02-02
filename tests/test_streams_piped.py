@@ -1,5 +1,6 @@
 import logging
 
+import pytest
 import numpy as np
 
 import ffmpegio as ff
@@ -13,6 +14,7 @@ audio_url = "tests/assets/testaudio-1m.mp3"
 outext = ".mp4"
 
 
+@pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaReader():
     with streams.PipedFFmpegRunner.create_media_reader(
         [(mult_url, {})], None, t_in=1, squeeze=False
@@ -24,6 +26,7 @@ def test_MediaReader():
     assert nframes == [30, 44100, 25, 44100]
 
 
+@pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaWriter_audio():
     ff.use("read_numpy")
 
@@ -48,6 +51,7 @@ def test_MediaWriter_audio():
         b = writer.read_encoded(0)
 
 
+@pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaWriter():
     ff.use("read_numpy")
 
@@ -95,6 +99,7 @@ def test_MediaWriter():
         assert isinstance(b, bytes) and len(b) > 0
 
 
+@pytest.mark.xdist_group(name="group_named_pipe")
 def test_SimpleMediaFilter():
     ff.use("read_numpy")
 
@@ -105,7 +110,7 @@ def test_SimpleMediaFilter():
 
     X = x[: nin * nblocks, ...].reshape(nblocks, nin, -1)
 
-    with ff.streams.SimpleFFmpegFilter(
+    with ff.streams.SISOFFmpegFilter(
         "a",
         {"ar": fs},
         {"map": "[out]"},
@@ -140,6 +145,7 @@ def test_SimpleMediaFilter():
         assert nread == ntotal
 
 
+@pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaFilter():
     ff.use("read_bytes")
 
@@ -181,6 +187,7 @@ def test_MediaFilter():
         f.wait(1)
 
 
+@pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaTranscoder():
     url = "tests/assets/sample.mp4"
 

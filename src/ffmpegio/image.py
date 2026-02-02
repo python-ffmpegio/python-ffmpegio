@@ -250,7 +250,7 @@ def filter(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
-        expr, ["v"], [(1.0, input)], extra_inputs, None, extra_outputs, options, True
+        ["v"], [(1.0, input)], extra_inputs, None, extra_outputs, options, True
     )
 
     if output_info is None:

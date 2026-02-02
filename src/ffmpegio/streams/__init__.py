@@ -19,7 +19,7 @@ MIMOMediaFilter multiple audio/video  multiple audio/video
 from .BaseFFmpegRunner import (
     BaseFFmpegRunner,
     PipedFFmpegRunner,
-    SimpleFFmpegFilter,
+    SISOFFmpegFilter,
     StdFFmpegRunner,
 )
 from .open import open
@@ -29,5 +29,5 @@ from .open import open
 
 # fmt: off
 __all__ = ['StdFFmpegRunner', 'PipedFFmpegRunner', 'BaseFFmpegRunner',
-           "SimpleFFmpegFilter", "open"]
+           "SISOFFmpegFilter", "open"]
 # fmt: on

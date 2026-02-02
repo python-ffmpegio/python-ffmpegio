@@ -30,6 +30,7 @@ from .._typing import (
 from .._utils import (
     as_multi_option,
     escape,
+    unescape,
     get_samplesize,
     is_fileobj,
     is_namedpipe,
@@ -1154,9 +1155,9 @@ def format_raw_output_stream_defs(
     # depending on user's streams input, label output streams differently
     # to converge the conventions: convert streams input argument to stream_aliases and streams_ lists
     streams_: list[FFmpegOptionDict]
-    stream_names: dict[
-        int, str
-    ] = {}  # dict of user-specified stream name (only via dict streams input)
+    stream_names: dict[int, str] = (
+        {}
+    )  # dict of user-specified stream name (only via dict streams input)
 
     if isinstance(streams, dict):  # dict[str,FFmpegOptionDict]
         # dict key is used as both stream names (labels) and map option.

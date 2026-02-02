@@ -193,51 +193,63 @@ def get_output_callables(media_type):
             [(mul_url, {})],
             [{"src_type": "url"}],
             None,
-            {
-                f"0:{mtype[0]}:{j}": {
-                    "media_type": mtype,
-                    "input_file_id": 0,
-                    "input_stream_id": i,
-                    **get_output_callables(mtype),
-                }
-                for (i, mtype), j in zip(mul_streams, [0, 0, 1, 1])
-            },
+            (
+                [
+                    {"map": f"0:{mtype[0]}:{j}"}
+                    for (i, mtype), j in zip(mul_streams, [0, 0, 1, 1])
+                ],
+                [
+                    {
+                        "user_map": f"0:{mtype[0]}:{j}",
+                        "media_type": mtype,
+                        "input_file_id": 0,
+                        "input_stream_id": i,
+                    }
+                    for (i, mtype), j in zip(mul_streams, [0, 0, 1, 1])
+                ],
+            ),
         ),
         (
             [(vid_url, None), (aud_url, {})],
             [{"src_type": "url"}, {"src_type": "url"}],
             None,
-            {
-                "0:v:0": {
-                    "media_type": "video",
-                    "input_file_id": 0,
-                    "input_stream_id": 0,
-                    **get_output_callables("video"),
-                },
-                "1:a:0": {
-                    "media_type": "audio",
-                    "input_file_id": 1,
-                    "input_stream_id": 0,
-                    **get_output_callables("audio"),
-                },
-            },
+            (
+                [{"map": "0:v:0"}, {"map": "1:a:0"}],
+                [
+                    {
+                        "user_map": "0:v:0",
+                        "media_type": "video",
+                        "input_file_id": 0,
+                        "input_stream_id": 0,
+                    },
+                    {
+                        "user_map": "1:a:0",
+                        "media_type": "audio",
+                        "input_file_id": 1,
+                        "input_stream_id": 0,
+                    },
+                ],
+            ),
         ),
         (
             [(mul_url, {})],
             [{"src_type": "url"}],
             ["split=outputs=2"],
-            {
-                "[out0]": {
-                    "media_type": "video",
-                    "linklabel": "[out0]",
-                    **get_output_callables("video"),
-                },
-                "[out1]": {
-                    "media_type": "video",
-                    "linklabel": "[out1]",
-                    **get_output_callables("video"),
-                },
-            },
+            (
+                [{"map": "[out0]"}, {"map": "[out1]"}],
+                [
+                    {
+                        "user_map": "out0",
+                        "media_type": "video",
+                        "linklabel": "[out0]",
+                    },
+                    {
+                        "user_map": "out1",
+                        "media_type": "video",
+                        "linklabel": "[out1]",
+                    },
+                ],
+            ),
         ),
     ],
 )
@@ -249,15 +261,8 @@ def test_auto_map(inputs, input_info, filters_complex, ret):
             fgb.as_filtergraph(filters_complex), args["inputs"], input_info
         )
         args["global_options"] = {"filter_complex": filters_complex}
-    out = configure.auto_map(args, input_info, filters_complex and fg_info)
-    assert out == {
-        spec: {
-            "dst_type": "buffer",
-            "user_map": spec[1:-1] if "linklabel" in info else spec,
-            **info,
-        }
-        for spec, info in ret.items()
-    }
+    out = configure.auto_map(args, {}, input_info, filters_complex and fg_info)
+    assert out == ret
 
 
 @pytest.mark.parametrize(
@@ -286,19 +291,20 @@ def ffmpeg_url_inputs_vid_aud():
 
 
 @pytest.mark.parametrize(
-    ("ffmpeg_url_inputs", "filters_complex", "streams"),
+    ("ffmpeg_url_inputs", "filters_complex", "stream_opts", "stream_names"),
     [
-        ("ffmpeg_url_inputs_mul", None, {"v": None}),
-        ("ffmpeg_url_inputs_vid_aud", None, {"0:v:0": None, "1:a:0": None}),
+        ("ffmpeg_url_inputs_mul", None, [{"map": "v"}], {}),
+        ("ffmpeg_url_inputs_vid_aud", None, [{"map": "0:v:0"}, {"map": "1:a:0"}], {}),
         (
             "ffmpeg_url_inputs_mul",
             ["split=2"],
-            {"[out0]": None, "[out1]": "out1", "a:0": None},
+            [{'map':"[out0]"}, {'map':"[out1]"}, {'map':"a:0"}],
+            {0:"out0", 1:"out1"},
         ),
     ],
 )
 def test_resolve_raw_output_streams(
-    ffmpeg_url_inputs, filters_complex, streams, request
+    ffmpeg_url_inputs, filters_complex, stream_opts, stream_names, request
 ):
 
     args, input_info = request.getfixturevalue(ffmpeg_url_inputs)
@@ -310,5 +316,7 @@ def test_resolve_raw_output_streams(
             fgb.as_filtergraph(filters_complex), args["inputs"], input_info
         )
         args["global_options"] = {"filter_complex": filters_complex}
-    out = configure.resolve_raw_output_streams(args, input_info, fg_info, streams)
+    out = configure.resolve_raw_output_streams(
+        stream_opts, stream_names, args, input_info
+    )
     pprint(out)
