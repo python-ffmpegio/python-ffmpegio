@@ -1,7 +1,7 @@
 import logging
 
-import pytest
 import numpy as np
+import pytest
 
 import ffmpegio as ff
 from ffmpegio import streams
@@ -16,7 +16,7 @@ outext = ".mp4"
 
 @pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaReader():
-    with streams.PipedFFmpegRunner.create_media_reader(
+    with streams.PipedFFmpegRunner.open_media_reader(
         [(mult_url, {})], None, t_in=1, squeeze=False
     ) as reader:
         nframes = [0] * reader.num_output_streams
@@ -33,7 +33,7 @@ def test_MediaWriter_audio():
     rates, data = ff.media.read(audio_url, t=1, ar=8000, sample_fmt="s16")
     stream_types = [spec.split(":", 2)[1] for spec in data]
 
-    with streams.PipedFFmpegRunner.create_media_encoder(
+    with streams.PipedFFmpegRunner.open_media_encoder(
         stream_types,
         [{"ar": rates["0:a:0"]}],
         [{"f": "matroska"}],
@@ -63,7 +63,7 @@ def test_MediaWriter():
         {rate_opt_name[mtype]: r} for mtype, r in zip(stream_types, rates.values())
     ]
 
-    with streams.PipedFFmpegRunner.create_media_encoder(
+    with streams.PipedFFmpegRunner.open_media_encoder(
         stream_types,
         stream_opts,
         [{"f": "matroska", "map": range(len(stream_types))}],
@@ -103,14 +103,14 @@ def test_MediaWriter():
 def test_SimpleMediaFilter():
     ff.use("read_numpy")
 
-    fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3", to=1)
+    fs, x = ff.audio.read("tests/assets/testaudio-1m.mp3", to=0.1)
 
     nin = 1024
     nblocks = len(x) // nin
 
     X = x[: nin * nblocks, ...].reshape(nblocks, nin, -1)
 
-    with ff.streams.SISOFFmpegFilter(
+    with ff.streams.SISOFFmpegFilter.create_and_open(
         "a",
         {"ar": fs},
         {"map": "[out]"},
@@ -155,7 +155,7 @@ def test_MediaFilter():
 
     print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
 
-    with ff.streams.PipedFFmpegRunner.create_media_filter(
+    with ff.streams.PipedFFmpegRunner.open_media_filter(
         "vvaa",
         [{"r": fps}, {"r": fps}, {"ar": fs}, {"ar": fs}],
         output_streams={"[out0]": {}, "audio": {"map": "[out1]"}},
@@ -194,7 +194,7 @@ def test_MediaTranscoder():
     data = b""
 
     # 1. transcode from a file to pipe
-    with streams.PipedFFmpegRunner.create_media_transcoder(
+    with streams.PipedFFmpegRunner.open_media_transcoder(
         [],
         [{"f": "matroska", "to": 1}],
         extra_inputs=[(url, {})],
@@ -211,7 +211,7 @@ def test_MediaTranscoder():
 
     print(f"FIRST TRANCODING YIELDED {len(data)} bytes")
 
-    with streams.PipedFFmpegRunner.create_media_transcoder(
+    with streams.PipedFFmpegRunner.open_media_transcoder(
         [{}],
         [{"f": "flac", "vn": None}, {"f": "matroska", "codec": "copy"}],
         show_log=True,

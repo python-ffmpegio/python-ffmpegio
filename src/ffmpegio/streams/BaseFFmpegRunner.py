@@ -606,7 +606,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         return self._proc is None or self._proc.poll() is not None
 
     def __enter__(self):
-        self.open()
+        if self._status == FFmpegStatus.PREOPEN:
+            self.open()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -1364,13 +1365,13 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             F = self.read(ref_sz, ref_st)
 
     @staticmethod
-    def create_simple_reader(
+    def open_simple_reader(
         input_urls: list[FFmpegInputOptionTuple],
         output_options: FFmpegOptionDict,
-        squeeze: bool = True,
         extra_outputs: (
             Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
         ) = None,
+        squeeze: bool = True,
         blocksize: int | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
@@ -1383,19 +1384,20 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         :param input_urls: list of input urls
         :param output_options: dict of FFmpeg output options. One of it items must
                                 be the ``'map'`` option to uniquely specify a stream.
-        :param options: optional ffmpeg option dict including input, output, and
-                        global options. For input options, append '_in' to the
-                        end of ffmpeg option names.
-        :param squeeze: ``True`` (default) to eliminate raw output's singleton
-                        dimensions. Use ``False`` to always return 2D array for
-                        audio and 4D array for video.
         :param extra_outputs: extra encoded output urls, Each element is a tuple
                                 pair of url and output option dict. The url must be
                                 a url and not pipes or pipe objects.
+        :param squeeze: ``True`` (default) to eliminate raw output's singleton
+                        dimensions. Use ``False`` to always return 2D array for
+                        audio and 4D array for video.
+        :param options: optional ffmpeg option dict including input, output, and
+                        global options. For input options, append '_in' to the
+                        end of ffmpeg option names.
         :param blocksize: read block size (in frames for video or samples
                             in audio) when the reader object is used as an iterator
         :param progress: progress callback function, defaults to None
-        :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param show_log: ``True`` to show FFmpeg log messages on the console, defaults to None (no show/capture)
+        :param overwrite: ``True`` to overwrite extra_outputs if they exist, defaults to ``False``
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
@@ -1408,7 +1410,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             "extra_outputs": extra_outputs,
             "squeeze": squeeze,
         }
-        return StdFFmpegRunner(
+        runner = StdFFmpegRunner(
             init_func=configure.init_media_read,
             init_kws=init_kws,
             blocksize=blocksize,
@@ -1417,9 +1419,11 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
     @staticmethod
-    def create_simple_writer(
+    def open_simple_writer(
         input_stream_type: Literal["a", "v"],
         input_stream_options: FFmpegOptionDict,
         output_urls: (
@@ -1473,7 +1477,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             "input_dtypes": None if input_dtype is None else [input_dtype],
             "input_shapes": None if input_shape is None else [input_shape],
         }
-        return StdFFmpegRunner(
+        runner = StdFFmpegRunner(
             init_func=configure.init_media_write,
             init_kws=init_kws,
             progress=progress,
@@ -1481,6 +1485,8 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
 
 class PipedFFmpegRunner(BaseFFmpegRunner):
@@ -1555,7 +1561,6 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         if self.decodable or self.encodable or self.writable:
             raise FFmpegioError("Frame iterator is only supported for a pure reader")
 
-        ref_st = self.primary_output
         nperread = self.output_frames()
         count = [self._output_info[i]["data_count"] for i in range(nout)]
         nf = nperread.copy()
@@ -1581,7 +1586,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             yield out
 
     @staticmethod
-    def create_media_reader(
+    def open_media_reader(
         input_urls: list[FFmpegInputOptionTuple],
         output_streams: (
             list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
@@ -1611,7 +1616,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             "squeeze": squeeze,
             "extra_outputs": extra_outputs,
         }
-        return PipedFFmpegRunner(
+        runner = PipedFFmpegRunner(
             configure.init_media_read,
             init_kws,
             primary_output=primary_output,
@@ -1624,9 +1629,11 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
     @staticmethod
-    def create_media_writer(
+    def open_media_writer(
         output_urls: list[FFmpegOutputOptionTuple],
         input_stream_types: list[Literal["a", "v"]],
         input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]],
@@ -1653,7 +1660,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             "input_shapes": input_shapes,
             "extra_inputs": extra_inputs,
         }
-        return PipedFFmpegRunner(
+        runner = PipedFFmpegRunner(
             configure.init_media_read,
             init_kws,
             primary_output=primary_output,
@@ -1666,9 +1673,11 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
     @staticmethod
-    def create_media_filter(
+    def open_media_filter(
         input_stream_types: list[Literal["a", "v"]],
         input_stream_opts: list[FFmpegOptionDict],
         output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict],
@@ -1699,7 +1708,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             "input_dtypes": input_dtypes,
             "input_shapes": input_shapes,
         }
-        return PipedFFmpegRunner(
+        runner = PipedFFmpegRunner(
             configure.init_media_filter,
             init_kws,
             primary_output=primary_output,
@@ -1712,9 +1721,11 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
     @staticmethod
-    def create_media_encoder(
+    def open_media_encoder(
         input_stream_types: list[Literal["a", "v"]],
         input_stream_opts: list[FFmpegOptionDict],
         output_options: list[FFmpegOptionDict],
@@ -1748,7 +1759,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             "input_shapes": input_shapes,
             "extra_inputs": extra_inputs,
         }
-        return PipedFFmpegRunner(
+        runner = PipedFFmpegRunner(
             configure.init_media_write,
             init_kws,
             primary_output=primary_output,
@@ -1761,9 +1772,11 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
     @staticmethod
-    def create_media_decoder(
+    def open_media_decoder(
         input_options: Sequence[FFmpegOptionDict],
         output_streams: Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict],
         squeeze: bool = True,
@@ -1793,7 +1806,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             "squeeze": squeeze,
             "extra_outputs": extra_outputs,
         }
-        return PipedFFmpegRunner(
+        runner = PipedFFmpegRunner(
             configure.init_media_read,
             init_kws,
             primary_output=primary_output,
@@ -1806,9 +1819,11 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
     @staticmethod
-    def create_media_transcoder(
+    def open_media_transcoder(
         input_options: list[FFmpegOptionDict],
         output_options: list[FFmpegOptionDict],
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
@@ -1835,7 +1850,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             "output_urls": output_urls,
             "options": options,
         }
-        return PipedFFmpegRunner(
+        runner = PipedFFmpegRunner(
             configure.init_media_transcode,
             init_kws,
             enc_blocksize=enc_blocksize,
@@ -1846,6 +1861,8 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
         )
+        runner.open()
+        return runner
 
 
 class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
@@ -1854,6 +1871,55 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
     This class mixes in the single input convenience properties to
     the py::class`PipedFFmpegRunner`.
     """
+
+    @staticmethod
+    def create_and_open(
+        input_stream_type: Literal["a", "v"],
+        input_stream_opt: FFmpegOptionDict,
+        output_stream: FFmpegOptionDict | None = None,
+        *,
+        extra_inputs: (
+            list[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
+        ) = None,
+        extra_outputs: (
+            list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
+        ) = None,
+        squeeze: bool = True,
+        input_dtype: DTypeString | None = None,
+        input_shape: ShapeTuple | None = None,
+        primary_output: int | None = None,
+        blocksize: int | None = None,
+        enc_blocksize: int | None = None,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+        progress: Callable[[dict[str, Any], bool], bool] | None = None,
+        show_log: bool | None = None,
+        overwrite: bool | None = None,
+        sp_kwargs: dict | None = None,
+        **options,
+    ) -> SISOFFmpegFilter:
+        runner = SISOFFmpegFilter(
+            input_stream_type,
+            input_stream_opt,
+            output_stream,
+            extra_inputs=extra_inputs,
+            extra_outputs=extra_outputs,
+            squeeze=squeeze,
+            input_dtype=input_dtype,
+            input_shape=input_shape,
+            primary_output=primary_output,
+            blocksize=blocksize,
+            enc_blocksize=enc_blocksize,
+            queuesize=queuesize,
+            timeout=timeout,
+            progress=progress,
+            show_log=show_log,
+            overwrite=overwrite,
+            sp_kwargs=sp_kwargs,
+            **options,
+        )
+        runner.open()
+        return runner
 
     def __init__(
         self,
