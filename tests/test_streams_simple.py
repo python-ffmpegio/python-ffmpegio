@@ -45,7 +45,7 @@ def test_read_write_video():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with StdFFmpegRunner.open_simple_writer("v", {"r": fs}, [(out_url, {})]) as f:
+        with StdFFmpegRunner.open_simple_writer({"r": fs}, [(out_url, {})]) as f:
             f.write(F0)
             f.write(F1)
             f.wait()
@@ -78,8 +78,7 @@ def test_read_audio():
         {"map": "0:a:0"},
         show_log=True,
         blocksize=1024**2,
-        ss_in=t0,
-        to_in=t1,
+        options={"ss_in": t0, "to_in": t1},
     ) as f:
         blks, shapes = zip(*[(blk["buffer"], blk["shape"][0]) for blk in f])
         shape = sum(shapes)
@@ -110,7 +109,7 @@ def test_read_write_audio():
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with StdFFmpegRunner.open_simple_writer(
-            "a", {"ar": fs}, [(out_url, {})], show_log=True
+            {"ar": fs}, [(out_url, {})], show_log=True
         ) as f:
             f.write({**out, "buffer": F[: 100 * bps]})
             f.write({**out, "buffer": F[100 * bps :]})
@@ -132,12 +131,11 @@ def test_write_extra_inputs():
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with StdFFmpegRunner.open_simple_writer(
-            "v",
             {"r": fs},
             [(out_url, {})],
             extra_inputs=[(url_aud, {})],
             show_log=True,
-            **{"map": ["0:v", "1:a"], "loglevel": "debug"},
+            options={"map": ["0:v", "1:a"], "loglevel": "debug"},
         ) as f:
             f.write(F)
             f.wait()
@@ -147,13 +145,12 @@ def test_write_extra_inputs():
         assert len(info) == 2
 
         with StdFFmpegRunner.open_simple_writer(
-            "v",
             {"r": fs},
             [(out_url, {})],
             extra_inputs=[("anoisesrc", {"f": "lavfi"})],
             show_log=True,
             overwrite=True,
-            **{"map": ["0:v", "1:a"], "shortest": None},
+            options={"map": ["0:v", "1:a"], "shortest": None},
         ) as f:
             f.write(F)
             f.wait()

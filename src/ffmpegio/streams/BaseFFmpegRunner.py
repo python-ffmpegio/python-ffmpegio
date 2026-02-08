@@ -16,7 +16,6 @@ from .._typing import (
     InputInfoDict,
     InputPipeInfoDict,
     Iterator,
-    Literal,
     MediaType,
     OutputInfoDict,
     OutputPipeInfoDict,
@@ -82,7 +81,7 @@ class InitMediaKeywordsWithInputBuffer(dict):
 
     # pre-analysis/buffering variables
     _nraw = 0
-    _raw_pipe_buffer: None | list[list[RawDataBlob] | None]  # for 'input_stream_args'
+    _raw_pipe_buffer: None | list[list[RawDataBlob] | None]  # for 'input_data'
     _enc_pipe_buffer: dict[int, bytes | None]  # for 'input_urls' or 'extra_inputs'
     # end-of-stream flags: True if buffer contains the entirety of the stream
     _raw_pipe_eos: list[bool]
@@ -91,7 +90,7 @@ class InitMediaKeywordsWithInputBuffer(dict):
     def __init__(self, init_kws: dict):
         """identify which input init_fun keyword arguments require data from pipe"""
         super().__init__(init_kws)
-        self._raw_input = "input_stream_args" in self
+        self._raw_input = "input_options" in self
         self._enc_pipe_buffer = {}
         self._raw_pipe_buffer = None
         self._enc_pipe_eos = {}
@@ -100,9 +99,10 @@ class InitMediaKeywordsWithInputBuffer(dict):
         # analyze the keywords and replace items to be tweaked
         if self._raw_input:
             # raw: list[tuple[RawDataBlob, FFmpegOptionDict]]
-            self["input_stream_args"] = [*self["input_stream_args"]]
+            self._nraw = nin = len(self["input_options"])
 
-            self._nraw = len(self["input_stream_args"])
+            self["input_data"] = [None for _ in range(nin)]
+
             self._raw_pipe_buffer = [None] * self._nraw
             self._raw_pipe_eos = [False] * self._nraw
 
@@ -183,8 +183,7 @@ class InitMediaKeywordsWithInputBuffer(dict):
                 buffer = self._raw_pipe_buffer[stream]
                 if buffer is None:  # first write
                     self._raw_pipe_buffer[stream] = [data]
-                    kw = self["input_stream_args"]
-                    kw[stream] = (data, kw[stream][1])
+                    self["input_data"][stream] = data
                 else:
                     buffer.append(data)
                     return False
@@ -196,10 +195,7 @@ class InitMediaKeywordsWithInputBuffer(dict):
         """remove all the buffered data from the keywords"""
 
         if self._raw_pipe_buffer is not None:
-            kw = self["input_stream_args"]
-            for i, buf in enumerate(self._raw_pipe_buffer):
-                if buf is not None:
-                    kw[i] = (None, kw[i][1])
+            del self["input_data"]
 
             kw = self["extra_inputs"]
             for i, buf in self._enc_pipe_buffer.items():
@@ -681,7 +677,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         If ``0``, ``write()`` will raise ``FFmpegioError``."""
 
         try:
-            return len(self._init_kws["input_stream_types"])
+            return len(self._init_kws["input_options"])
         except KeyError:
             return 0
 
@@ -692,7 +688,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
                      plugins (e.g., a NumPy array if numpy is importable in the
                      Python workspace). The shape and dtype of the data must be
                      compatible with the stream's shape and pix_fmt/sample_fmt.
-        :param stream: stream index in accordance to the ``input_stream_types``
+        :param stream: stream index in accordance to the ``input_options``
                        input array, defaults to 0 (write to the first stream).
         :param last: ``True`` to indicate ``data`` is the last frame of the stream.
                      Once called with ``last=True``, the input stream can no longer
@@ -724,10 +720,11 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def input_types(self) -> list[MediaType]:
         """media types (list of 'audio' or 'video') of raw input pipes"""
 
-        lut: dict[Literal["a", "v"], MediaType] = {"a": "audio", "v": "video"}
-
         try:
-            return [lut[av] for av in self._init_kws["input_stream_types"]]
+            return [
+                "video" if "r" in opts else "audio"
+                for opts in self._init_kws["input_options"]
+            ]
         except KeyError:
             return []
 
@@ -737,13 +734,11 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         kws = self._init_kws
         try:
-            stypes = kws["input_stream_types"]
-            sargs = kws["input_stream_args"]
+            sopts = kws["input_options"]
         except KeyError:
             return []  # no input streams
 
-        lut: dict[Literal["a", "v"], Literal["ar", "r"]] = {"a": "ar", "v": "r"}
-        return [args[1][lut[av]] for av, args in zip(stypes, sargs)]
+        return [opts["r"] if "r" in opts else opts["ar"] for opts in sopts]
 
     @property
     def input_dtypes(self) -> list[DTypeString] | None:
@@ -1366,24 +1361,26 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
 
     @staticmethod
     def open_simple_reader(
-        input_urls: list[FFmpegInputOptionTuple],
+        input_urls: FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
         output_options: FFmpegOptionDict,
+        options: FFmpegOptionDict | None = None,
+        squeeze: bool = True,
         extra_outputs: (
             Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
         ) = None,
-        squeeze: bool = True,
         blocksize: int | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> StdFFmpegRunner:
         """create a single-pipe media reader
 
         :param input_urls: list of input urls
         :param output_options: dict of FFmpeg output options. One of it items must
-                                be the ``'map'`` option to uniquely specify a stream.
+                               be the ``'map'`` option to uniquely specify a stream.
         :param extra_outputs: extra encoded output urls, Each element is a tuple
                                 pair of url and output option dict. The url must be
                                 a url and not pipes or pipe objects.
@@ -1424,29 +1421,25 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
 
     @staticmethod
     def open_simple_writer(
-        input_stream_type: Literal["a", "v"],
-        input_stream_options: FFmpegOptionDict,
+        input_options: FFmpegOptionDict,
         output_urls: (
             FFmpegOutputUrlComposite
-            | list[
-                FFmpegOutputUrlComposite
-                | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
-            ]
+            | FFmpegOutputOptionTuple
+            | list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
         ),
+        options: FFmpegOptionDict | None = None,
+        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
-        extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> StdFFmpegRunner:
         """single-pipe media writer
 
-        :param input_stream_type: specify raw media input type
-        :param input_stream_options: ffmpeg input options for the raw media input
-                                        must contain a rate option (``r`` or ``ar``).
+        :param input_options: ffmpeg input options for the raw media input
+                              must contain a rate option (``r`` or ``ar``).
         :param output_urls: pairs of output url and options
         :param options: optional ffmpeg option dict including input, output, and
                         global options. For input options, append ``'_in'`` to the
@@ -1469,8 +1462,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         """
 
         init_kws: MediaWriteKwsDict = {
-            "input_stream_types": [input_stream_type],
-            "input_stream_args": [(None, input_stream_options)],
+            "input_options": [input_options],
             "output_urls": output_urls,
             "extra_inputs": extra_inputs,
             "options": options,
@@ -1587,10 +1579,13 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
 
     @staticmethod
     def open_media_reader(
-        input_urls: list[FFmpegInputOptionTuple],
+        input_urls: FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
         output_streams: (
-            list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
+            Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None
         ) = None,
+        options: FFmpegOptionDict | None = None,
         squeeze: bool = True,
         extra_outputs: (
             list[FFmpegOutputOptionTuple] | dict[str, FFmpegOptionDict] | None
@@ -1604,7 +1599,6 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> PipedFFmpegRunner:
         output_streams = utils.expand_raw_output_streams(
             output_streams, input_urls, options
@@ -1634,12 +1628,16 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
 
     @staticmethod
     def open_media_writer(
-        output_urls: list[FFmpegOutputOptionTuple],
-        input_stream_types: list[Literal["a", "v"]],
-        input_stream_args: list[tuple[RawDataBlob | None, FFmpegOptionDict]],
+        output_urls: (
+            FFmpegOutputUrlComposite
+            | FFmpegOutputOptionTuple
+            | list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
+        ),
+        input_options: list[FFmpegOptionDict],
+        options: FFmpegOptionDict | None = None,
+        extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         input_dtypes: list[DTypeString] | None = None,
         input_shapes: list[ShapeTuple] | None = None,
-        extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         primary_output: int | None = None,
         blocksize: int | None = None,
         enc_blocksize: int | None = None,
@@ -1649,12 +1647,10 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> PipedFFmpegRunner:
         init_kws: MediaWriteKwsDict = {
             "output_urls": output_urls,
-            "input_stream_types": input_stream_types,
-            "input_stream_args": input_stream_args,
+            "input_options": input_options,
             "options": options,
             "input_dtypes": input_dtypes,
             "input_shapes": input_shapes,
@@ -1678,14 +1674,14 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
 
     @staticmethod
     def open_media_filter(
-        input_stream_types: list[Literal["a", "v"]],
-        input_stream_opts: list[FFmpegOptionDict],
+        input_options: list[FFmpegOptionDict],
         output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict],
-        input_dtypes: list[DTypeString] | None = None,
-        input_shapes: list[ShapeTuple] | None = None,
+        options: FFmpegOptionDict | None = None,
         squeeze: bool = True,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
         primary_output: int | None = None,
         blocksize: int | None = None,
         enc_blocksize: int | None = None,
@@ -1695,11 +1691,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> PipedFFmpegRunner:
         init_kws: MediaFilterKwsDict = {
-            "input_stream_types": input_stream_types,
-            "input_stream_args": [(None, opts) for opts in input_stream_opts],
+            "input_options": input_options,
             "output_streams": output_streams,
             "options": options,
             "extra_inputs": extra_inputs,
@@ -1726,13 +1720,13 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
 
     @staticmethod
     def open_media_encoder(
-        input_stream_types: list[Literal["a", "v"]],
-        input_stream_opts: list[FFmpegOptionDict],
+        input_options: list[FFmpegOptionDict],
         output_options: list[FFmpegOptionDict],
-        input_dtypes: list[DTypeString] | None = None,
-        input_shapes: list[ShapeTuple] | None = None,
+        options: FFmpegOptionDict | None = None,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        input_dtypes: list[DTypeString] | None = None,
+        input_shapes: list[ShapeTuple] | None = None,
         primary_output: int | None = None,
         blocksize: int | None = None,
         enc_blocksize: int | None = None,
@@ -1742,7 +1736,6 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> PipedFFmpegRunner:
         output_urls: list[FFmpegOutputOptionTuple] = [
             ("-", opts) for opts in output_options
@@ -1752,8 +1745,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
 
         init_kws: MediaWriteKwsDict = {
             "output_urls": output_urls,
-            "input_stream_types": input_stream_types,
-            "input_stream_args": [(None, opts) for opts in input_stream_opts],
+            "input_options": input_options,
             "options": options,
             "input_dtypes": input_dtypes,
             "input_shapes": input_shapes,
@@ -1779,6 +1771,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
     def open_media_decoder(
         input_options: Sequence[FFmpegOptionDict],
         output_streams: Sequence[FFmpegOptionDict] | dict[str, FFmpegOptionDict],
+        options: FFmpegOptionDict | None = None,
         squeeze: bool = True,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         extra_outputs: Sequence[FFmpegOutputOptionTuple] | None = None,
@@ -1791,7 +1784,6 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> PipedFFmpegRunner:
         input_urls: list[FFmpegInputOptionTuple] = [
             ("-", opts) for opts in input_options
@@ -1826,6 +1818,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
     def open_media_transcoder(
         input_options: list[FFmpegOptionDict],
         output_options: list[FFmpegOptionDict],
+        options: FFmpegOptionDict | None = None,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
         enc_blocksize: int | None = None,
@@ -1835,7 +1828,6 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options: FFmpegOptionDict,
     ) -> PipedFFmpegRunner:
         input_urls = [("pipe", opts) for opts in input_options]
         output_urls = [("pipe", opts) for opts in output_options]
@@ -1874,10 +1866,10 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
 
     @staticmethod
     def create_and_open(
-        input_stream_type: Literal["a", "v"],
-        input_stream_opt: FFmpegOptionDict,
+        input_options: FFmpegOptionDict,
         output_stream: FFmpegOptionDict | None = None,
         *,
+        options: FFmpegOptionDict | None = None,
         extra_inputs: (
             list[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
         ) = None,
@@ -1896,11 +1888,9 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options,
     ) -> SISOFFmpegFilter:
         runner = SISOFFmpegFilter(
-            input_stream_type,
-            input_stream_opt,
+            input_options,
             output_stream,
             extra_inputs=extra_inputs,
             extra_outputs=extra_outputs,
@@ -1916,24 +1906,24 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
             show_log=show_log,
             overwrite=overwrite,
             sp_kwargs=sp_kwargs,
-            **options,
+            options=options,
         )
         runner.open()
         return runner
 
     def __init__(
         self,
-        input_stream_type: Literal["a", "v"],
-        input_stream_opt: FFmpegOptionDict,
+        input_options: FFmpegOptionDict,
         output_stream: FFmpegOptionDict | None = None,
         *,
+        options: FFmpegOptionDict | None = None,
+        squeeze: bool = True,
         extra_inputs: (
             list[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
         ) = None,
         extra_outputs: (
             list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
         ) = None,
-        squeeze: bool = True,
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
         primary_output: int | None = None,
@@ -1945,12 +1935,10 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         show_log: bool | None = None,
         overwrite: bool | None = None,
         sp_kwargs: dict | None = None,
-        **options,
     ):
         init_func = configure.init_media_filter
         init_kws: MediaFilterKwsDict = {
-            "input_stream_types": [input_stream_type],
-            "input_stream_args": [(None, input_stream_opt)],
+            "input_options": [input_options],
             "output_streams": [{}] if output_stream is None else [output_stream],
             "options": options,
             "extra_inputs": extra_inputs,

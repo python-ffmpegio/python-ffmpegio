@@ -214,10 +214,6 @@ def write(
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
-    # single input, put it in a list
-    if utils.is_valid_output_url(url):
-        url = [url]
-
     # if filter_complex is not defined use '0:a:0' as default mapping
     if (
         not any(
@@ -236,7 +232,7 @@ def write(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_write(
-        url, ["a"], [(rate_in, data)], extra_inputs, options
+        url, [{"ar": rate_in}], extra_inputs, options, [data]
     )
 
     return run_and_return_encoded(
@@ -300,13 +296,13 @@ def filter(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
-        ["a"],
-        [(input_rate, input)],
+        [{"ar": input_rate}],
         extra_inputs,
         None,
         extra_outputs,
         options,
         squeeze,
+        [input],
     )
 
     if output_info is None:

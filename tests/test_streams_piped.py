@@ -17,7 +17,7 @@ outext = ".mp4"
 @pytest.mark.xdist_group(name="group_named_pipe")
 def test_MediaReader():
     with streams.PipedFFmpegRunner.open_media_reader(
-        [(mult_url, {})], None, t_in=1, squeeze=False
+        [(mult_url, {})], None, options={"t_in": 1}, squeeze=False
     ) as reader:
         nframes = [0] * reader.num_output_streams
         for i, data in enumerate(reader):
@@ -31,10 +31,8 @@ def test_MediaWriter_audio():
     ff.use("read_numpy")
 
     rates, data = ff.media.read(audio_url, t=1, ar=8000, sample_fmt="s16")
-    stream_types = [spec.split(":", 2)[1] for spec in data]
 
     with streams.PipedFFmpegRunner.open_media_encoder(
-        stream_types,
         [{"ar": rates["0:a:0"]}],
         [{"f": "matroska"}],
         show_log=True,
@@ -64,7 +62,6 @@ def test_MediaWriter():
     ]
 
     with streams.PipedFFmpegRunner.open_media_encoder(
-        stream_types,
         stream_opts,
         [{"f": "matroska", "map": range(len(stream_types))}],
         show_log=True,
@@ -111,10 +108,9 @@ def test_SimpleMediaFilter():
     X = x[: nin * nblocks, ...].reshape(nblocks, nin, -1)
 
     with ff.streams.SISOFFmpegFilter.create_and_open(
-        "a",
         {"ar": fs},
         {"map": "[out]"},
-        filter_complex="[0:a:0]showcqt=s=vga[out]",
+        options={"filter_complex": "[0:a:0]showcqt=s=vga[out]"},
         show_log=True,
         squeeze=False,
     ) as f:
@@ -156,10 +152,9 @@ def test_MediaFilter():
     print(f"video: {len(F['buffer'])} bytes | audio: {len(x['buffer'])} bytes")
 
     with ff.streams.PipedFFmpegRunner.open_media_filter(
-        "vvaa",
         [{"r": fps}, {"r": fps}, {"ar": fs}, {"ar": fs}],
         output_streams={"[out0]": {}, "audio": {"map": "[out1]"}},
-        filter_complex=["[0:V:0][1:V:0]vstack", "[2:a:0][3:a:0]amerge"],
+        options={"filter_complex": ["[0:V:0][1:V:0]vstack", "[2:a:0][3:a:0]amerge"]},
         show_log=True,
         # loglevel="debug",
         # queuesize=4,

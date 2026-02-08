@@ -4,7 +4,14 @@ from fractions import Fraction
 
 from . import analyze, configure, utils
 from . import filtergraph as fgb
-from ._typing import Any, FFmpegOptionDict, ProgressCallable, RawDataBlob
+from ._typing import (
+    Any,
+    DTypeString,
+    FFmpegOptionDict,
+    ProgressCallable,
+    RawDataBlob,
+    ShapeTuple,
+)
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
@@ -166,6 +173,8 @@ def write(
     extra_inputs: (
         list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
+    dtype: DTypeString | None = None,
+    shape: ShapeTuple | None = None,
     progress: ProgressCallable | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
@@ -196,9 +205,6 @@ def write(
     :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
-    if utils.is_valid_output_url(url):
-        url = [url]
-
     # if filter_complex is not defined use '0:V:0' as default mapping
     if (
         not any(
@@ -217,7 +223,7 @@ def write(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_write(
-        url, ["v"], [(rate_in, data)], extra_inputs, options
+        url, [{"r": rate_in}], extra_inputs, options, [data]
     )
 
     return run_and_return_encoded(
@@ -278,13 +284,13 @@ def filter(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
-        ["v"],
-        [(input_rate, input)],
+        [{"r": input_rate}],
         extra_inputs,
         None,
         extra_outputs,
         options,
         squeeze,
+        [input],
     )
 
     if output_info is None:

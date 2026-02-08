@@ -25,12 +25,12 @@ from .._typing import (
     MediaType,
     OutputInfoDict,
     RawDataBlob,
+    RawStreamDef,
     ShapeTuple,
 )
 from .._utils import (
     as_multi_option,
     escape,
-    unescape,
     get_samplesize,
     is_fileobj,
     is_namedpipe,
@@ -38,6 +38,7 @@ from .._utils import (
     is_pipe,
     is_url,
     prod,
+    unescape,
 )
 from ..errors import FFmpegioError
 from ..filtergraph.abc import FilterGraphObject
@@ -1131,7 +1132,9 @@ def find_filter_complex_option(
 
 
 def format_raw_output_stream_defs(
-    streams: Sequence[str | FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
+    streams: Sequence[str | FFmpegOptionDict]
+    | dict[str, str | FFmpegOptionDict]
+    | None,
     options: FFmpegOptionDict | None,
 ) -> tuple[list[FFmpegOptionDict], dict[int, str]]:
     """convert user-supplied streams arguments to the standard form
@@ -1155,9 +1158,9 @@ def format_raw_output_stream_defs(
     # depending on user's streams input, label output streams differently
     # to converge the conventions: convert streams input argument to stream_aliases and streams_ lists
     streams_: list[FFmpegOptionDict]
-    stream_names: dict[int, str] = (
-        {}
-    )  # dict of user-specified stream name (only via dict streams input)
+    stream_names: dict[
+        int, str
+    ] = {}  # dict of user-specified stream name (only via dict streams input)
 
     if isinstance(streams, dict):  # dict[str,FFmpegOptionDict]
         # dict key is used as both stream names (labels) and map option.
@@ -1167,6 +1170,8 @@ def format_raw_output_stream_defs(
         #   be renamed with an appended index.
         streams_ = []
         for i, (k, v) in enumerate(streams.items()):
+            if isinstance(v, str):
+                v = {"map": v}
             if "map" in v:  # user provided non-map stream name
                 stream_names[i] = k
             streams_.append({**options, "map": k, **v})
@@ -1318,3 +1323,48 @@ def expand_raw_output_streams(
         else:
             # filtergraph output label must be uniquely mapped
             return output_streams
+
+
+def raw_input_options(
+    stream_types: Sequence[Literal["a", "v"]],
+    stream_args: Sequence[RawStreamDef],
+) -> tuple[list[FFmpegOptionDict], list[RawDataBlob]]:
+    """convert raw input stream type+args specification to options+data format
+
+    :param input_stream_types: list/string of 'a' or 'v', specifying the media types
+    :param input_stream_args: list of a tuple pair of rate & data or data & options
+                              If option dict specified, it must include `'ar'`
+                              (audio) or `'r'` (video) to specify the stream rate.
+    :return options: list of input options dict
+    :return data: list of input data
+    """
+    opts = []
+    data = []
+    for mtype, arg in zip(stream_types, stream_args):
+        try:
+            ropt = {"v": "r", "a": "ar"}[mtype]  # rate option
+        except KeyError as e:
+            raise FFmpegioError(
+                "Invalid stream type specification (must be 'a' or 'v')"
+            ) from e
+
+        a1, a2 = arg
+        if isinstance(a1, (int, Fraction, float)):
+            # rate specified
+            if not isinstance(a1, (int, Fraction)):
+                try:
+                    a1 = Fraction.from_float(float(a1))
+                except ValueError as e:
+                    raise ValueError(
+                        "Stream rate must be given as an int or Fraction"
+                    ) from e
+            data.append(a2)
+            opts.append({ropt: a1})
+        else:
+            # options specified
+            if ropt not in a2:
+                raise ValueError(f"Missing the required rate option: {ropt}")
+            data.append(a1)
+            opts.append(a2)
+
+    return opts, data

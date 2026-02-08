@@ -4,8 +4,9 @@ import logging
 from collections.abc import Sequence
 from fractions import Fraction
 
-from . import configure, ffmpegprocess
+from . import configure, ffmpegprocess, utils
 from ._typing import (
+    DTypeString,
     FFmpegOptionDict,
     InputInfoDict,
     InputPipeInfoDict,
@@ -16,6 +17,7 @@ from ._typing import (
     RawDataBlob,
     RawOutputInfoDict,
     RawStreamDef,
+    ShapeTuple,
     Unpack,
 )
 from .configure import (
@@ -115,10 +117,7 @@ def _gather_outputs(
 
 
 def read(
-    *urls: *tuple[
-        FFmpegInputUrlComposite
-        | tuple[FFmpegInputUrlComposite, FFmpegOptionDict | None]
-    ],
+    *urls: *tuple[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]],
     streams: (
         Sequence[str]
         | Sequence[FFmpegOptionDict]
@@ -166,7 +165,7 @@ def read(
     """
 
     args, input_info, output_info = configure.init_media_read(
-        urls, streams, options, extra_outputs, squeeze
+        list(urls), streams, options, extra_outputs, squeeze
     )
 
     # run FFmpeg
@@ -188,6 +187,8 @@ def write(
     stream_types: Sequence[Literal["a", "v"]],
     *stream_args: *tuple[RawStreamDef, ...],
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    stream_dtypes: list[DTypeString | None] | None = None,
+    stream_shapes: list[ShapeTuple | None] | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
@@ -197,15 +198,22 @@ def write(
     """write multiple streams to a url/file
 
     :param url: output url
-    :param stream_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
-    :param stream_args: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
-                         or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                         string or a pair of a url string and an option dict.
-    :param merge_audio_streams: True to combine all input audio streams as a single multi-channel stream. Specify a list of the input stream id's
-                                (indices of `stream_types`) to combine only specified streams.
-    :param merge_audio_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first merging stream
-    :param merge_audio_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first merging stream
+    :param stream_types: list/string of input stream media types, each element
+                         is either 'a' (audio) or 'v' (video)
+    :param stream_args: raw input stream data arguments, each input stream is
+                        either a tuple of a sample rate (audio) or frame rate
+                        (video) followed by a data blob, or a tuple of a data
+                        blob and a dict of input options. The option dict must
+                        include `'ar'` (audio) or `'r'` (video) to specify the
+                        rate.
+    :param extra_inputs: list of additional input sources, defaults to None.
+                         Each source may be url string or a pair of a url string
+                         and an option dict.
+    :param stream_dtypes: list of numpy-style data type strings of input samples
+                          or frames of input media streams, defaults to `None`
+                          (auto-detect).
+    :param stream_shapes: list of shapes of input samples or frames of input
+                          media streams, defaults to `None` (auto-detect).
     :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param progress: progress callback function, defaults to None
@@ -225,11 +233,16 @@ def write(
 
     """
 
-    if not isinstance(urls, list):
-        urls = [urls]
+    input_options, input_data = utils.raw_input_options(stream_types, stream_args)
 
     args, input_info, output_info = configure.init_media_write(
-        urls, stream_types, stream_args, extra_inputs, options
+        urls,
+        input_options,
+        extra_inputs,
+        options,
+        input_data,
+        stream_dtypes,
+        stream_shapes,
     )
 
     # run FFmpeg
@@ -256,6 +269,8 @@ def filter(
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
+    input_dtypes: list[DTypeString | None] | None = None,
+    input_shapes: list[ShapeTuple | None] | None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
@@ -264,12 +279,22 @@ def filter(
     """write multiple streams to a url/file
 
     :param expr: complex filtergraph expression or a list of expressions
-    :param input_types: list/string of input stream media types, each element is either 'a' (audio) or 'v' (video)
-    :param input_args: raw input stream data arguments, each input stream is either a tuple of a sample rate (audio) or frame rate (video) followed by a data blob
-                         or a tuple of a data blob and a dict of input options. The option dict must include `'ar'` (audio) or `'r'` (video) to specify the rate.
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                         string or a pair of a url string and an option dict.
+    :param input_types: list/string of input stream media types, each element is
+                        either 'a' (audio) or 'v' (video)
+    :param input_args: raw input stream data arguments, each input stream is
+                       either a tuple of a sample rate (audio) or frame rate
+                       (video) followed by a data blob or a tuple of a data blob
+                       and a dict of input options. The option dict must include
+                       `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param extra_inputs: list of additional input sources, defaults to None.
+                         Each source may be url string or a pair of a url string
+                         and an option dict.
     :param output_options: specific options for keyed filtergraph output pads.
+    :param input_dtypes: list of numpy-style data type strings of input samples
+                          or frames of input media streams, defaults to `None`
+                          (auto-detect).
+    :param input_shapes: list of shapes of input samples or frames of input
+                          media streams, defaults to `None` (auto-detect).
     :param progress: progress callback function, defaults to None
     :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
@@ -291,15 +316,19 @@ def filter(
     if expr is not None:
         options["filter_complex"] = expr
 
+    input_options, input_data = utils.raw_input_options(input_types, input_args)
+
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
-        input_types,
-        input_args,
+        input_options,
         extra_inputs,
         output_args,
         extra_outputs,
         options,
         squeeze,
+        input_data,
+        input_dtypes,
+        input_shapes,
     )
 
     if output_info is None:
