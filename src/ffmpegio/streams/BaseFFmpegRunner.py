@@ -875,22 +875,26 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     ##########################################################
 
     @cached_property
-    def readable(self) -> bool:
+    def readable(self) -> bool | None:
         """Return ``True`` if there is at least one raw media stream to read from.
         If ``False``, ``read()`` will raise ``FFmpegioError``."""
-        return self.num_output_streams > 0
+        nout = self.num_output_streams
+        return nout and nout > 0
 
     @cached_property
-    def num_output_streams(self) -> int:
+    def num_output_streams(self) -> int | None:
         """Return the number of raw media stream to read from. If ``0``, ``read()``
         will raise ``FFmpegioError``."""
 
         # assuming that ``output_stream`` keyword only =specifies unique map
 
         try:
-            return len(self._init_kws["output_streams"])
-        except KeyError:
-            return 0
+            output_info = self._output_info
+        except AttributeError:
+            ostreams = self._init_kws["output_streams"]
+            return ostreams and len(ostreams)
+        else:
+            return sum("media_type" in info for info in output_info)
 
     def read(self, n: int, stream: int = 0) -> RawDataBlob:
         """read selected output stream (shared backend)"""
@@ -1377,6 +1381,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         extra_outputs: (
             Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
         ) = None,
+        *,
         blocksize: int | None = None,
         progress: ProgressCallable | None = None,
         show_log: bool | None = None,
@@ -1442,6 +1447,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         input_options: FFmpegOptionDict,
         options: FFmpegOptionDict | None = None,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+        *,
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
         progress: ProgressCallable | None = None,
@@ -1609,6 +1615,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         extra_outputs: (
             list[FFmpegOutputOptionTuple] | dict[str, FFmpegOptionDict] | None
         ) = None,
+        *,
         primary_output: int | None = None,
         blocksize: int | None = None,
         enc_blocksize: int | None = None,
@@ -1655,6 +1662,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         input_options: list[FFmpegOptionDict],
         options: FFmpegOptionDict | None = None,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
+        *,
         input_dtypes: list[DTypeString] | None = None,
         input_shapes: list[ShapeTuple] | None = None,
         enc_blocksize: int | None = None,
@@ -1695,6 +1703,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         squeeze: bool = True,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        *,
         input_dtypes: list[DTypeString] | None = None,
         input_shapes: list[ShapeTuple] | None = None,
         primary_output: int | None = None,
@@ -1740,6 +1749,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         options: FFmpegOptionDict | None = None,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        *,
         input_dtypes: list[DTypeString] | None = None,
         input_shapes: list[ShapeTuple] | None = None,
         primary_output: int | None = None,
@@ -1790,6 +1800,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         squeeze: bool = True,
         extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
         extra_outputs: Sequence[FFmpegOutputOptionTuple] | None = None,
+        *,
         primary_output: int | None = None,
         blocksize: int | None = None,
         enc_blocksize: int | None = None,
@@ -1836,6 +1847,7 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         options: FFmpegOptionDict | None = None,
         extra_inputs: list[FFmpegInputOptionTuple] | None = None,
         extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+        *,
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
@@ -1883,15 +1895,15 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
     def create_and_open(
         input_options: FFmpegOptionDict,
         output_stream: str | FFmpegOptionDict | None = None,
-        *,
         options: FFmpegOptionDict | None = None,
+        squeeze: bool = True,
         extra_inputs: (
             list[FFmpegInputUrlComposite | FFmpegInputOptionTuple] | None
         ) = None,
         extra_outputs: (
             list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
         ) = None,
-        squeeze: bool = True,
+        *,
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
         primary_output: int | None = None,
@@ -1907,9 +1919,9 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         runner = SISOFFmpegFilter(
             input_options,
             output_stream,
+            squeeze=squeeze,
             extra_inputs=extra_inputs,
             extra_outputs=extra_outputs,
-            squeeze=squeeze,
             input_dtype=input_dtype,
             input_shape=input_shape,
             primary_output=primary_output,
@@ -1930,7 +1942,6 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         self,
         input_options: FFmpegOptionDict,
         output_stream: str | FFmpegOptionDict | None = None,
-        *,
         options: FFmpegOptionDict | None = None,
         squeeze: bool = True,
         extra_inputs: (
@@ -1939,6 +1950,7 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         extra_outputs: (
             list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
         ) = None,
+        *,
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
         primary_output: int | None = None,
@@ -1954,7 +1966,7 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         init_func = configure.init_media_filter
         init_kws: MediaFilterKwsDict = {
             "input_options": [input_options],
-            "output_streams": output_stream,
+            "output_streams": output_stream and [output_stream],
             "options": options,
             "extra_inputs": extra_inputs,
             "extra_outputs": extra_outputs,

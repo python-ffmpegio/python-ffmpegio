@@ -119,6 +119,7 @@ In addition, `open()` accepts the standard FFmpeg option keyword arguments.
 import logging
 import re
 from fractions import Fraction
+from typing import overload
 
 from .. import utils
 from .._typing import (
@@ -130,7 +131,6 @@ from .._typing import (
     Sequence,
     ShapeTuple,
     Unpack,
-    overload,
 )
 from ..configure import (
     FFmpegInputOptionTuple,
@@ -1012,7 +1012,7 @@ def _parse_mode(mode: str) -> tuple[Literal["r", "w", "f", "d", "e", "t"], str, 
         outputs = m[4] or ""
         if op_mode == "t":
             inputs = outputs = "e"
-        elif op_mode in "ew":
+        elif op_mode in "efw":
             # writer & (single-output) decoder -> output media types
             inputs = inputs + outputs
             outputs = "e" if op_mode == "e" else ""
@@ -1112,7 +1112,7 @@ def _process_raw_input_args(
         if len(in_types) == 0:
             # expects input_options to define the rates
             if input_rates is not None and input_options is None:
-                raise ValueError("Cannot resolve the output streams (mode='w').")
+                raise ValueError("Cannot resolve the input streams.")
         elif input_options is None:
             input_options = [
                 {"ar" if mtype == "a" else "r": r}
@@ -1295,7 +1295,7 @@ def _open_filter(
     used_kws, single_output, output_streams, extra_outputs, squeeze = (
         _process_raw_output_args(out_types, kwargs, len(in_types))
     )
-    open_kws -= -used_kws
+    open_kws -= used_kws
 
     for k in open_kws:
         if k in kwargs:
@@ -1304,14 +1304,15 @@ def _open_filter(
     if "overwrite" in runner_kws and runner_kws["overwrite"] is not None:
         raise TypeError("'overwrite' keyword is not supported in the filter mode.")
 
-    single = single_input and single_output
+    single = single_input and (single_output or output_streams is None)
 
-    kwargs["filter_complex"] = fgs
+    if fgs is not None and fgs != "-":
+        kwargs["filter_complex"] = fgs
 
     return (
         SISOFFmpegFilter.create_and_open(
             input_options[0],
-            output_streams[0],
+            output_streams and output_streams[0],
             kwargs,
             squeeze,
             extra_inputs,

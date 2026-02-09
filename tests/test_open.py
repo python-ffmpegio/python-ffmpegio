@@ -1,15 +1,16 @@
 from os import path
 from tempfile import TemporaryDirectory
 
+import numpy as np
 import pytest
 
+import ffmpegio as ff
 from ffmpegio.streams.BaseFFmpegRunner import (
     PipedFFmpegRunner,
     SISOFFmpegFilter,
     StdFFmpegRunner,
 )
 
-# import ffmpegio as ff
 # import ffmpegio.streams as ff_streams
 from ffmpegio.streams.open import _parse_mode, open
 
@@ -28,6 +29,7 @@ from ffmpegio.streams.open import _parse_mode, open
         ("avra", ("r", "", "ava")),
         ("wva", ("w", "va", "")),
         ("awv", ("w", "av", "")),
+        ("fa", ("f", "a", "")),
         ("dav", ("d", "e", "av")),
         ("eav", ("e", "av", "e")),
         ("ea->ev", None),
@@ -116,7 +118,62 @@ def test_open_writer(mode, input_rates, cls):
             assert not runner.decodable
             assert not runner.encodable
 
-    SISOFFmpegFilter
+
+@pytest.mark.parametrize(
+    "mode,input_rates,data,cls",
+    [
+        ("fa", 8000, [np.zeros((128, 1), np.int16)], SISOFFmpegFilter),
+        (
+            "fva",
+            [30, 8000],
+            [np.zeros((100, 100, 1), np.uint8), np.zeros((128, 1), np.int16)],
+            PipedFFmpegRunner,
+        ),
+    ],
+)
+def test_open_filter(mode, input_rates, data, cls):
+
+    ff.use("read_numpy")
+
+    opts = (
+        {"input_shape": None, "input_dtype": None}
+        if cls == SISOFFmpegFilter
+        else {
+            "input_options": None,
+            "output_streams": None,
+            "input_shapes": None,
+            "input_dtypes": None,
+            "primary_output": None,
+        }
+    )
+
+    with open(
+        "-",
+        mode,
+        input_rates,
+        **opts,
+        squeeze=False,
+        extra_inputs=None,
+        extra_outputs=None,
+        blocksize=None,
+        enc_blocksize=None,
+        queuesize=None,
+        timeout=None,
+        progress=None,
+        show_log=False,
+        sp_kwargs=None,
+        to=1,
+        r=20,
+        ar=4000,
+    ) as runner:
+        for i, blob in enumerate(data):
+            runner.write(blob, stream=i)
+        assert isinstance(runner, cls)
+        assert runner.readable
+        assert runner.writable
+        assert not runner.decodable
+        assert not runner.encodable
+
     # siso filter
     # mimo filter
     # decoder
