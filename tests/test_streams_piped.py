@@ -153,7 +153,7 @@ def test_MediaFilter():
 
     with ff.streams.PipedFFmpegRunner.open_media_filter(
         [{"r": fps}, {"r": fps}, {"ar": fs}, {"ar": fs}],
-        output_streams={"[out0]": {}, "audio": {"map": "[out1]"}},
+        output_streams=["[out0]", {"map": "[out1]"}],
         options={"filter_complex": ["[0:V:0][1:V:0]vstack", "[2:a:0][3:a:0]amerge"]},
         show_log=True,
         # loglevel="debug",
@@ -164,7 +164,7 @@ def test_MediaFilter():
             f.write(frame, i, last=True)
         # sleep(1)
 
-        assert ["[out0]", "audio"] == f.output_labels
+        assert ["out0", "out1"] == f.output_labels
         assert f.num_output_streams == 2
 
         frames_per_read = f.output_frames()

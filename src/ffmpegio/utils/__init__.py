@@ -1131,63 +1131,6 @@ def find_filter_complex_option(
     return next((o for o in optnames if o in options), None)
 
 
-def format_raw_output_stream_defs(
-    streams: Sequence[str | FFmpegOptionDict]
-    | dict[str, str | FFmpegOptionDict]
-    | None,
-    options: FFmpegOptionDict | None,
-) -> tuple[list[FFmpegOptionDict], dict[int, str]]:
-    """convert user-supplied streams arguments to the standard form
-
-    :param streams: output stream mappings:
-                - `None` to include all input streams OR all filtergraph outputs
-                - a sequence of str to specify stream specifiers with file id's
-                - a sequence of output option dict with `'map'` item to output-specific
-                  options
-                - a dict with map specifier or user keys to specify output options,
-                  again to specify output-specific options. The keys will be used
-                  as the keys of the raw data output, and can be different from
-                  the `'map'` option so long as the `'map'` option is given in the
-                  dict.
-                - None to select all available streams
-    :param options: default output options
-    :return stream_options: list of stream options
-    :return stream_alias: list of pairs of stream map options and user-supplied stream labels
-    """
-
-    # depending on user's streams input, label output streams differently
-    # to converge the conventions: convert streams input argument to stream_aliases and streams_ lists
-    streams_: list[FFmpegOptionDict]
-    stream_names: dict[
-        int, str
-    ] = {}  # dict of user-specified stream name (only via dict streams input)
-
-    if isinstance(streams, dict):  # dict[str,FFmpegOptionDict]
-        # dict key is used as both stream names (labels) and map option.
-        # * If FFmpegOptionDict in the dict value contains 'map' option, the key
-        # would only be used as the stream name
-        # * Note that if the map option is not unique the stream name will
-        #   be renamed with an appended index.
-        streams_ = []
-        for i, (k, v) in enumerate(streams.items()):
-            if isinstance(v, str):
-                v = {"map": v}
-            if "map" in v:  # user provided non-map stream name
-                stream_names[i] = k
-            streams_.append({**options, "map": k, **v})
-    elif "map" in options:
-        streams_ = [options]
-    else:  # isinstance(stream,list[str|FFmpegOptionDict])
-        # if an item is a str, it is the map option value
-        # if FFmpegOptionDict, it must contain a 'map' option
-
-        streams_ = [
-            {**options, **({"map": v} if isinstance(v, str) else v)} for v in streams
-        ]
-
-    return streams_, stream_names
-
-
 def are_output_streams_unique(
     output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
 ) -> bool:
@@ -1210,19 +1153,43 @@ def are_output_streams_unique(
     return True
 
 
-def input_file_stream_specs(url: str, stream_spec: str | None = None) -> dict[int, str]:
+def input_file_stream_specs(
+    url: FFmpegUrlType | FilterGraphObject | None,
+    stream_spec: str | None = None,
+    stream_options: FFmpegOptionDict | None = None,
+    stream_info: InputInfoDict | None = None,
+) -> dict[int, str]:
     """probe a url and return stream index to stream spec mapping
 
     :param url: media file url
     :return: mapping of audio or video stream indices to stream specs.
     """
-    streams = [
-        st
-        for st in analyze_input_file(
-            ["index", "codec_type"], url, {}, {"src_type": "url"}, stream=stream_spec
-        )
-        if st["codec_type"] in ("audio", "video")
-    ]
+
+    info = stream_info or {"src_type": "url"}
+    opts = stream_options or {}
+
+    # check raw formats first
+    if "media_type" in info:
+        # raw input format, always single-stream
+        return {0: f"{info['media_type'][0]}:0"}
+
+    # file/network input - process only if seekable
+    # get ffprobe subprocess keywords
+    url, sp_kwargs, exit_fcn = set_sp_kwargs_stdin(url, info)
+    if sp_kwargs is None:
+        # something failed (warning logged)
+        return {}
+
+    try:
+        streams = [
+            st
+            for st in analyze_input_file(
+                ["index", "codec_type"], url, opts, {"src_type": "url"}, stream_spec
+            )
+            if st["codec_type"] in ("audio", "video")
+        ]
+    finally:
+        exit_fcn()
 
     specs = {}
     counts = defaultdict(int)
@@ -1306,7 +1273,7 @@ def expand_raw_output_streams(
             url = input_urls[file_id]
             stream_info = input_file_stream_specs(url, map_opt["stream_specifier"])
             for st_map in stream_info.values():
-                new_streams.append(opts | {"map": "{file_id}:{st_map}"})
+                new_streams.append(opts | {"map": f"{file_id}:{st_map}"})
                 new_names.append(name)
 
         return (

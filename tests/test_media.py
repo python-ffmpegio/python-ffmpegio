@@ -68,16 +68,16 @@ def test_media_filter():
 
     outrates, outdata = ff.media.filter(
         ["[0:V:0][1:V:0]vstack,split[out0]", "[2:a:0][3:a:0]amerge[out2]"],
-        "vvaa",
+        "vvaa",  # 4 inputs
         (fps, F),
         (fps, F),
         (fs, x),
         (fs, x),
-        output_args={"[out0]": {}, "out1": {}, "audio": {"map": "[out2]"}},
+        output_streams=["[out0]", "out1", {"map": "[out2]"}],
         show_log=True,
         shortest=ff.FLAG,
     )
 
-    assert all(k in ("[out0]", "out1", "audio") for k in outrates)
+    assert all(k in ("out0", "out1", "out2") for k in outrates)
 
     print(outrates)

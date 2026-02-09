@@ -122,10 +122,8 @@ from fractions import Fraction
 
 from .. import utils
 from .._typing import (
-    IO,
     DTypeString,
     FFmpegOptionDict,
-    FFmpegUrlType,
     Literal,
     LiteralString,
     ProgressCallable,
@@ -137,8 +135,6 @@ from .._typing import (
 from ..configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
-    FFmpegInputUrlNoPipe,
-    FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegOutputOptionTuple,
     FFmpegOutputUrlComposite,
@@ -254,98 +250,117 @@ mode (regexp)  description
 
 @overload
 def open(
-    urls_fgs: FFmpegInputUrlNoPipe
-    | IO
-    | list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple],
+    urls_fgs: FFmpegInputUrlComposite
+    | FFmpegInputOptionTuple
+    | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
     mode: Literal["rv", "ra"],
     /,
     *,
     map: str | None = None,
-    extra_outputs: list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
     squeeze: bool = False,
+    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
+    | None = None,
     blocksize: int | None = None,
     progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> StdFFmpegRunner:
     """open a single-stream reader
 
+    :param urls_fgs: Specify encoded input file(s)/devices/filters in one of the
+        following styles:
+
+            - an input file url or other input stream/device supported by FFmpeg
+            - a Python readable file object
+            - an ``ffmpegio`` input format/device class object
+              (e.g., ``FFConcat``)
+            - an FFmpeg input filtergraph expression or
+              ``ffmpegio.FilterGraphObject``
+            - a pair of the url/filtergraph and a dict of FFmpeg input options
+            - a sequence of the urls/filtergraphs or the pairs, or a mixture
+              thereof. Use multiple inputs only to supply the data to a complex
+              filtergraph combining multiple streams into one.
+
     :param urls_fgs: URL string of the file or format/device object. It can be
-                     an input filtergraph object or other input ffmpegio objects.
-                     The input could also be fed by a readable file object.
-                     Multiple input sources could be assigned to feed a complex
-                     filtergraph.
+        an input filtergraph object or other input ffmpegio objects. The input
+        could also be fed by a readable file object. Multiple input sources
+        could also be assigned to feed a complex filtergraph.
     :param mode: ``'rv'`` to read video data or ``'ra'`` to read audio
-    :param map: FFmpeg map output option, defaults to ``"0:V:0"`` for video and
-                ``"0:a:0"`` for audio. The map option is required if ``options``
-                contains the ``filter_complex`` option.
-    :param extra_outputs: extra encoded output urls, Each element is a tuple
-                          pair of url and output option dict. The url must be
-                          a url and not pipes or pipe objects.
+    :param map: FFmpeg map output option, defaults to ``"0:v:0"`` for video and
+        ``"0:a:0"`` for audio. The map option is required if ``options``
+        contains the ``filter_complex`` option.
     :param squeeze: ``True`` (default) to eliminate raw output's singleton
-                    dimensions. Use ``False`` to always return 2D array for
-                    audio and 4D array for video.
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param progress: progress callback function, defaults to None
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param overwrite: ``True`` to overwrite extra_outputs if they exist, defaults to ``False``
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
-    :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`).
-    :return: reader stream object
+        dimensions. Use ``False`` to always return 2D array for audio and 4D
+        array for video.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param blocksize: Read block size (in frames for video or samples in audio)
+        when the reader object is used as an iterator
+    :param progress: progress callback function, defaults to ``None``
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
+    :param options: optional FFmpeg options including input, output, and
+        global options. For input options, append ``'_in'`` to the end of
+        FFmpeg option names.
+    :return: a reader stream object
     """
 
 
 @overload
 def open(
-    urls: FFmpegOutputUrlNoPipe
+    urls_fgs: FFmpegOutputUrlNoPipe
+    | FFmpegNoPipeOutputOptionTuple
     | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
     mode: Literal["wv", "wa"],
     /,
     input_rate: int | Fraction,
     *,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     input_shape: ShapeTuple | None = None,
     input_dtype: DTypeString | None = None,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
+    show_log: bool = False,
     overwrite: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> StdFFmpegRunner:
     """open a single-stream media writer
 
-    :param urls_fgs: URL of the output file or format/device object. The output
-                     could also be written to a writable file object. Multiple
-                     files (and optionally their options) are specified, they
-                     are generated simultaneously.
-    :param mode: ``'wv'`` to create a video file or ``'wa'`` to create an audio
-                 file
-    :param input_rate: input frame rate (video) or sampling rate (audio)
-    :param input_shape: input video frame size (height, width) or number of input
-                        audio channel, defaults to auto-detect
+    :param urls_fgs: Specify encoded output file(s) in one of the following
+        styles:
+
+            - an output file url
+            - a pair of an output url and a dict of FFmpeg output options
+            - a sequence of the urls or the pairs or a mixture thereof. This
+                commands FFmpeg to generate multiple files simultaneously from
+                the same input streams.
+
+    :param mode: ``'wv'`` to create a media file from a raw video stream or
+        ``'wa'`` from a raw audio stream.
+    :param input_rate: input frame rate in frames/second (video) or sampling
+        rate in samples/second (audio)
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param input_shape: input video frame size (height, width) or number of
+        input audio channel, defaults to auto-detect
     :param input_dtype: input data format in a Numpy dtype string, defaults to
-                        auto-detect
-    :param extra_inputs: extra media source files/urls, defaults to None. A tuple
-                         of an url and input option dict may be assigned.
-    :param progress: progress callback function, defaults to None
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param overwrite: True to overwrite output URL, defaults to False.
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
-    :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+        auto-detect
+    :param progress: progress callback function, defaults to ``None``
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param overwrite: ``True`` to overwrite ``extra_outputs`` destination files,
+        defaults to ``False``
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
+    :param options: optional FFmpeg options including input, output, and
+        global options. For input options, append ``'_in'`` to the end of
+        FFmpeg option names.
     :return: writer stream object
 
     """
@@ -353,51 +368,73 @@ def open(
 
 @overload
 def open(
-    fg: str | FilterGraphObject | Literal["-"],
+    urls_fgs: str | FilterGraphObject | Literal["-"],
     mode: Literal["fv", "fa", "v->v", "a->a", "v->a", "a->v"],
     /,
     input_rate: int | Fraction,
     *,
-    input_shape: ShapeTuple | None = None,
-    input_dtype: DTypeString | None = None,
+    squeeze: bool = False,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     extra_outputs: (
         list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
     ) = None,
-    squeeze: bool = False,
-    overwrite: bool = False,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
     blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
     timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> SISOFFmpegFilter:
     """open a single-input single-output media filter
 
-    :param urls_fgs: URL of the file or format/device object to write media stream to. The output
-                     could also be written to a bytes object or a writable file object.
-    :param mode: `'wv'` or `'v->ev'` to create a video file, `'wa'` or `'a->e'` to create an audio file
+    :param urls_fgs: Specify the filtergraph to be used with an FFmpeg
+        filtergraph expression or an ``ffmpegio.FilterGraphObject`` object. Use
+        ``'-'`` if the filtering is implicitly specified via output options
+        (such as rate or format changes).
+    :param mode: Specify the SISO filter mode by one of the following:
+
+        - ``'fv'`` or ``'v->v'`` to take a video stream and produce a video stream
+        - ``'fa'`` or ``'a->a'`` to take an audio stream and produce an audio stream
+        - ``'v->a'`` to take a video stream and produce an audio stream
+        - ``'a->v'`` to take an audio stream and produce a video stream
+
+        Note that currently the output stream media types are not checked.
     :param input_rate: Input frame rate (video) or sampling rate (audio)
-    :param input_shape: input video frame size (height, width) or number of input audio channel, defaults
-                     to None (auto-detect)
-    :param input_dtype: input data format in a Numpy dtype string, defaults to None (auto-detect)
-    :param extra_inputs: extra media source files/urls, defaults to None
-    :param overwrite: True to overwrite output URL, defaults to False.
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
-    :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+    :param squeeze: ``True`` (default) to eliminate raw output's singleton
+        dimensions. Use ``False`` to always return 2D array for audio and 4D
+        array for video.
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param input_shape: input video frame size (height, width) or number of
+        input audio channels, defaults to None (auto-detect)
+    :param input_dtype: input data format as a Numpy dtype string, defaults to
+        None (auto-detect)
+    :param blocksize: Read queue item size of the in frames for video or samples
+        in audio Read block size. This size is also used when the reader object
+        is used as an iterator.
+    :param enc_blocksize: Queue item size of the extra encoded output stream
+        in bytes, defaults to 64 MB (2**16 bytes).
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero  (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
+    :param progress: progress callback function, defaults to ``None``
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
+    :param options: optional FFmpeg options including input, output, and
+        global options. For input options, append ``'_in'`` to the end of
+        FFmpeg option names.
     :return: audio writer stream object
 
     """
@@ -405,101 +442,165 @@ def open(
 
 @overload
 def open(
-    urls: FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, FFmpegOptionDict],
+    urls_fgs: FFmpegInputUrlComposite
+    | FFmpegInputOptionTuple
+    | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
     mode: MultiReaderModeLiteral,
     /,
     *,
-    output_options: Sequence[MapString | FFmpegOptionDict]
-    | dict[str, MapString | FFmpegOptionDict]
-    | None = None,
-    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
+    output_streams: Sequence[MapString | FFmpegOptionDict] | None = None,
     squeeze: bool = False,
+    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
     primary_output: int | None = None,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
     blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
     timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> PipedFFmpegRunner:
     """open a multi-stream reader
 
-    :param urls_fgs: URL of the file or format/device object to obtain a video stream from.
-                     It can also be an input filtergraph object or string. The input
-                     could also be fed by a buffered bytes-like data object or a readable file object.
-    :param mode: ``'rv'`` to read video data or ``'ra'`` to read audio
-    :param output_options: output stream options:
-                - `None` to include all input streams OR all filtergraph outputs
-                - a sequence of str to specify stream specifiers with file id's
-                - a sequence of output option dict with `'map'` item to output-specific
-                  options
-                - a dict with map specifier or user keys to specify output options,
-                  again to specify output-specific options. The keys will be used
-                  as the keys of the raw data output, and can be different from
-                  the `'map'` option so long as the `'map'` option is given in the
-                  dict.
-                - None to select all available streams
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
-    :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+    :param urls_fgs: Specify encoded input file(s)/devices/filters in one of the
+        following styles:
+
+            - an input file url or other input stream/device supported by FFmpeg
+            - a Python readable file object
+            - an ``ffmpegio`` input format/device class object
+              (e.g., ``FFConcat``)
+            - an FFmpeg input filtergraph expression or
+              ``ffmpegio.FilterGraphObject``
+            - a pair of the url/filtergraph and a dict of FFmpeg input options
+            - a sequence of the urls/filtergraphs or the pairs, or a mixture
+              thereof.
+
+    :param mode: Specify the multi-stream reader by one of the following:
+
+        - ``'r'`` to include all the streams in the input urls or all the
+          outputs of the complex filtergraphs.
+        - ``'r'`` followed by a mixture of ``'v'`` and ``'a'`` to specify the
+          number of streams to read and their media types, e.g., ``'rvva'``
+          reads two video streams and an audio stream.
+
+    :param output_streams: output stream options:
+
+        - `None` to auto-select. If ``mode='r'`` then all input streams (or
+          all filtergraph outputs) are selected. If ``mode`` specifies the
+          number of streams, then the streams are selected in their stream
+          indices if only one url is specified without any complex filtergraph.
+        - a sequence of str to specify map output option
+        - a sequence of output option dict with `'map'` item to output-specific
+            options
+        - a dict with map specifier or user keys to specify output options,
+            again to specify output-specific options. The keys will be used
+            as the keys of the raw data output, and can be different from
+            the `'map'` option so long as the `'map'` option is given in the
+            dict.
+
+    :param squeeze: ``True`` (default) to eliminate raw output's singleton
+        dimensions. Use ``False`` to always return 2D array for audio and 4D
+        array for video.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param primary_output: Index of a raw media output stream which serves as
+                           the reference frame to sync all output streams,
+                           defaults to ``0``.
+    :param blocksize: Read queue item size of the primary output stream in
+        frames for video or samples in audio Read block size. This size is also
+        used when the reader object is used as an iterator.
+    :param enc_blocksize: Queue item size of the extra encoded output stream
+        in bytes, defaults to 64 MB (2**16 bytes).
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero  (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
+    :param progress: progress callback function, defaults to ``None``
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param overwrite: ``True`` to overwrite ``extra_outputs`` destination files,
+        defaults to ``False``
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
+    :param options: optional FFmpeg options including input, output, and
+        global options. For input options, append ``'_in'`` to the end of
+        FFmpeg option names.
     :return: reader stream object
     """
 
 
 @overload
 def open(
-    urls_fgs: FFmpegUrlType,
+    urls_fgs: FFmpegOutputUrlNoPipe
+    | FFmpegNoPipeOutputOptionTuple
+    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
     mode: MultiWriterModeLiteral,
     /,
     input_rates: list[int | Fraction],
     *,
-    input_shapes: list[ShapeTuple] | None = None,
-    input_dtypes: list[DTypeString] | None = None,
+    input_options: Sequence[FFmpegOptionDict] | None = None,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    overwrite: bool = False,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
-    blocksize: int | None = None,
+    input_shapes: Sequence[ShapeTuple] | None = None,
+    input_dtypes: Sequence[DTypeString] | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
     timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    overwrite: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> PipedFFmpegRunner:
-    """open a single-stream media writer
+    """open a multi-stream media writer
 
-    :param urls_fgs: URL of the file or format/device object to write media stream to. The output
-                     could also be written to a bytes object or a writable file object.
-    :param mode: ``'wv'`` to create a video file or ``'wa'`` to create an audio file
-    :param input_rate: Input frame rate (video) or sampling rate (audio)
-    :param input_shape: input video frame size (height, width) or number of input audio channel, defaults
-                     to None (auto-detect)
-    :param input_dtype: input data format in a Numpy dtype string, defaults to None (auto-detect)
-    :param extra_inputs: extra media source files/urls, defaults to None
-    :param overwrite: True to overwrite output URL, defaults to False.
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
-    :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+    :param urls_fgs: Specify encoded output file(s) in one of the following
+        styles:
+
+            - an output file url
+            - a pair of an output url and a dict of FFmpeg output options
+            - a sequence of the urls or the pairs or a mixture thereof. This
+                commands FFmpeg to generate multiple files simultaneously from
+                the same input streams.
+
+    :param mode: Specify the multi-stream writer by one of the following:
+
+        - ``'w'`` to set the input streams solely by ``input_options`` argument
+        - ``'w'`` followed by a mixture of ``'v'`` and ``'a'`` to specify the
+          number of streams to write and their media types, e.g., ``'wvva'``
+          writes two video streams and an audio stream to the url.
+
+    :param input_rates: list of input frame rates (video) and sampling rates
+        (audio)
+    :param input_options: Specify per-stream FFmpeg options of the raw input
+        streams. These option values are added to the default input options
+        specified in ``options``. If ``input_rates`` is not provided, the frame/
+        sampling rate keys (i.e., ``'r'`` or ``'ar'``) must be present.
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param input_shapes: input video frame sizes (height, width) or a number of
+        input audio channels, defaults to auto-detect. 'input_dtypes' must also
+        be specified for this argument to be processed.
+    :param input_dtypes: input data format as a Numpy dtype string, defaults to
+        auto-detect. 'input_shapes' must also be specified for this argument to
+        be processed.
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero  (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
+    :param progress: progress callback function, defaults to ``None``
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param overwrite: ``True`` to overwrite ``extra_outputs`` destination files,
+        defaults to ``False``
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
+    :param options: optional FFmpeg options including input, output, and
+        global options. For input options, append ``'_in'`` to the end of
+        FFmpeg option names.
     :return: writer stream object
 
     """
@@ -507,52 +608,110 @@ def open(
 
 @overload
 def open(
-    urls_fgs: str | FilterGraphObject | list[str | FilterGraphObject],
+    urls_fgs: str | FilterGraphObject | list[str | FilterGraphObject] | Literal["-"],
     mode: MIMOFilterModeLiteral,
     /,
     input_rates: list[int | Fraction],
     *,
-    input_shapes: list[ShapeTuple] | None = None,
-    input_dtypes: list[DTypeString] | None = None,
-    output_options: Sequence[MapString | FFmpegOptionDict]
+    input_options: Sequence[FFmpegOptionDict] | None = None,
+    output_streams: Sequence[MapString | FFmpegOptionDict]
     | dict[str, MapString | FFmpegOptionDict]
     | None = None,
+    squeeze: bool = False,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    squeeze: bool = False,
+    input_shapes: list[ShapeTuple] | None = None,
+    input_dtypes: list[DTypeString] | None = None,
     primary_output: int | None = None,
-    overwrite: bool = False,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
     blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
     timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> PipedFFmpegRunner:
     """Open a multiple-input-multiple-output media filter
 
-    :param fg: Filtergraph expression or object.
-    :param mode: `'f'` with a combination of input media types (e.g., ``'rvva'``
-                 if two video input streams and one audio input stream. The output
-                 media types are automatically detected. Alternately, an arrow
-                 convention specifying input and output media types, e.g.,
-                 `'vva->v'` to output a video stream, which stacks the two input
-                 video streams and the spectrum of the audio input stream.
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param urls_fgs: Specify the filtergraph to be used with an FFmpeg
+        filtergraph expression or an ``ffmpegio.FilterGraphObject`` object. Use
+        ``'-'`` if the filtering is implicitly specified via output options
+        (such as rate or format changes). If multiple complex filtergraphs are
+        needed, provide them as a list.
+    :param mode: Specify MIMO filter mode by one of the following:
+
+        - ``'f'`` to auto-detect the numbers of input and output streams
+        - ``'f'`` followed by a mixture of ``'v'`` and ``'a'`` to specify the
+          number of input streams and their media types, e.g., ``'fvva'``
+          takes two video input streams and an audio input stream. The output
+          stream is auto-detected.
+        - an arrow notation (``'->'``) with its input and output each specified
+          by a mixture of ``'v'`` and ``'a'``. For example, ``'vva->v'`` takes
+          two video input streams and an audio input stream to produce one video
+          stream. Note the output designators are currently not checked.
+
+    :param input_rates: list of input frame rates (video) and sampling rates
+        (audio)
+    :param input_options: Specify per-stream FFmpeg options of the raw input
+        streams. These option values are added to the default input options
+        specified in ``options``. If ``input_rates`` is not provided, the frame/
+        sampling rate keys (i.e., ``'r'`` or ``'ar'``) must be present.
+    :param output_streams: output stream options:
+
+        - `None` to auto-select. If ``mode='r'`` then all input streams (or
+          all filtergraph outputs) are selected. If ``mode`` specifies the
+          number of streams, then the streams are selected in their stream
+          indices if only one url is specified without any complex filtergraph.
+        - a sequence of str to specify map output option
+        - a sequence of output option dict with `'map'` item to output-specific
+            options
+        - a dict with map specifier or user keys to specify output options,
+            again to specify output-specific options. The keys will be used
+            as the keys of the raw data output, and can be different from
+            the `'map'` option so long as the `'map'` option is given in the
+            dict.
+
+    :param squeeze: ``True`` (default) to eliminate raw output's singleton
+        dimensions. Use ``False`` to always return 2D array for audio and 4D
+        array for video.
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param input_shapes: input video frame sizes (height, width) or a number of
+        input audio channels, defaults to auto-detect. 'input_dtypes' must also
+        be specified for this argument to be processed.
+    :param input_dtypes: input data format as a Numpy dtype string, defaults to
+        auto-detect. 'input_shapes' must also be specified for this argument to
+        be processed.
+    :param primary_output: Index of a raw media output stream which serves as
+                           the reference frame to sync all output streams,
+                           defaults to ``0``.
+    :param blocksize: Read queue item size of the primary output stream in
+        frames for video or samples in audio Read block size. This size is also
+        used when the reader object is used as an iterator.
+    :param enc_blocksize: Queue item size of the extra encoded output stream
+        in bytes, defaults to 64 MB (2**16 bytes).
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero  (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
     :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
     :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+        use FFmpeg option names as is. For input options, append "_in" to the
+        option name. For example, r_in=2000 to force the input frame rate
+        to 2000 frames/s (see :doc:`options`). These input and output options
+        specified here are treated as default, common options, and the
+        url-specific duplicate options in the ``inputs`` or ``outputs``
+        sequence will overwrite those specified here.
     :return: reader stream object
     """
 
@@ -563,47 +722,80 @@ def open(
     mode: DecoderModeLiteral,  # r"e+-\>[av]+",
     /,
     *,
-    output_options: Sequence[MapString | FFmpegOptionDict]
+    output_streams: Sequence[MapString | FFmpegOptionDict]
     | dict[str, MapString | FFmpegOptionDict]
     | None = None,
-    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     squeeze: bool = False,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     primary_output: int | None = None,
-    overwrite: bool = False,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
     blocksize: int | None = None,
+    enc_blocksize: int | None = None,
     queuesize: int | None = None,
     timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> PipedFFmpegRunner:
     """open a media decoder (encoded streams in, raw streams out)
 
     :param urls_fgs: ``'-'`` to indicate pipe-in pipe-out operation
-    :param mode: `'wv'` or `'v->ev'` to create a video file, `'wa'` or `'a->e'` to create an audio file
-    :param f: FFmpeg format option for the output stream
-    :param input_rate: Input frame rate (video) or sampling rate (audio)
-    :param input_shape: input video frame size (height, width) or number of input audio channel, defaults
-                     to None (auto-detect)
-    :param input_dtype: input data format in a Numpy dtype string, defaults to None (auto-detect)
-    :param extra_inputs: _description_, defaults to None
-    :param overwrite: True to overwrite output URL, defaults to False.
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param mode: Specify the decoder mode by an arrow notation (``'->'``) with
+        its input by a repeated ``'e'`` and output by a mixture of ``'v'`` and
+        ``'a'``. For example, ``'ee->vva'`` takes two encoded media streams and
+        produces two video output streams and an audio output stream.
+    :param output_streams: output stream options:
+
+        - `None` to auto-select. If ``mode='r'`` then all input streams (or
+          all filtergraph outputs) are selected. If ``mode`` specifies the
+          number of streams, then the streams are selected in their stream
+          indices if only one url is specified without any complex filtergraph.
+        - a sequence of str to specify map output option
+        - a sequence of output option dict with `'map'` item to output-specific
+            options
+        - a dict with map specifier or user keys to specify output options,
+            again to specify output-specific options. The keys will be used
+            as the keys of the raw data output, and can be different from
+            the `'map'` option so long as the `'map'` option is given in the
+            dict.
+
+    :param squeeze: ``True`` (default) to eliminate raw output's singleton
+        dimensions. Use ``False`` to always return 2D array for audio and 4D
+        array for video.
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param primary_output: Index of a raw media output stream which serves as
+                           the reference frame to sync all output streams,
+                           defaults to ``0``.
+    :param blocksize: Read queue item size of the primary output stream in
+        frames for video or samples in audio Read block size. This size is also
+        used when the reader object is used as an iterator.
+    :param enc_blocksize: Queue item size of the extra encoded output stream
+        in bytes, defaults to 64 MB (2**16 bytes).
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
     :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param overwrite: ``True`` to overwrite ``extra_outputs`` destination files,
+        defaults to ``False``
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
     :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+        use FFmpeg option names as is. For input options, append "_in" to the
+        option name. For example, r_in=2000 to force the input frame rate
+        to 2000 frames/s (see :doc:`options`). These input and output options
+        specified here are treated as default, common options, and the
+        url-specific duplicate options in the ``inputs`` or ``outputs``
+        sequence will overwrite those specified here.
     :return: writer stream object
 
     """
@@ -616,41 +808,58 @@ def open(
     /,
     input_rates: list[int | Fraction],
     *,
-    output_options: list[FFmpegOptionDict],
     input_options: list[FFmpegOptionDict] | None = None,
-    input_dtypes: list[DTypeString] | None = None,
-    input_shapes: list[ShapeTuple] | None = None,
+    output_options: list[FFmpegOptionDict],
     extra_inputs: list[FFmpegInputOptionTuple] | None = None,
     extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
-    blocksize: int | None = None,
+    input_shapes: list[ShapeTuple] | None = None,
+    input_dtypes: list[DTypeString] | None = None,
     enc_blocksize: int | None = None,
     queuesize: int | None = None,
     timeout: float | None = None,
     progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    overwrite: bool | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: FFmpegOptionDict,
 ) -> PipedFFmpegRunner:
     """open a media encoder (raw streams in, encoded streams out)
 
     :param urls_fgs: ``'-'`` to indicate pipe-in pipe-out operation
-    :param mode: `'wv'` or `'v->ev'` to create a video file, `'wa'` or `'a->e'` to create an audio file
-    :param f: FFmpeg format option for the output stream
-    :param input_rates: Input frame rate (video) or sampling rate (audio)
-    :param input_shape: input video frame size (height, width) or number of input audio channel, defaults
-                     to None (auto-detect)
-    :param input_dtype: input data format in a Numpy dtype string, defaults to None (auto-detect)
-    :param extra_inputs: _description_, defaults to None
-    :param overwrite: True to overwrite output URL, defaults to False.
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param mode: Specify the encoder mode by an arrow notation (``'->'``) with
+        its input by a mixture of ``'v'`` and ``'a'`` and output by a repeated
+        ``'e'``. For example, ``'vva->ee'`` takes two video input streams and
+        an audio input stream to produce two encoded media streams.
+    :param input_rates: list of input frame rates (video) and sampling rates
+        (audio)
+    :param input_options: Specify per-stream FFmpeg options of the raw input
+        streams. These option values are added to the default input options
+        specified in ``options``. If ``input_rates`` is not provided, the frame/
+        sampling rate keys (i.e., ``'r'`` or ``'ar'``) must be present.
+    :param output_options: Specify per-stream FFmpeg options of the encoded
+        output streams. These option values are added to the default output
+        options specified in ``options``.
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param input_shapes: input video frame sizes (height, width) or a number of
+        input audio channels, defaults to auto-detect. 'input_dtypes' must also
+        be specified for this argument to be processed.
+    :param input_dtypes: input data format as a Numpy dtype string, defaults to
+        auto-detect. 'input_shapes' must also be specified for this argument to
+        be processed.
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
     :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
     :param options: global/default FFmpeg options. For output and global options,
                     use FFmpeg option names as is. For input options, append "_in" to the
                     option name. For example, r_in=2000 to force the input frame rate
@@ -673,37 +882,51 @@ def open(
     output_options: list[FFmpegOptionDict] | None = None,
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    overwrite: bool = False,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
-    blocksize: int | None = None,
+    enc_blocksize: int | None = None,
     queuesize: int | None = None,
     timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> PipedFFmpegRunner:
     """open a media transcoder (encoded streams in, encoded streams out)
 
     :param urls_fgs: ``'-'`` to indicate pipe-in pipe-out operation
-    :param mode: `'wv'` or `'v->ev'` to create a video file, `'wa'` or `'a->e'` to create an audio file
-    :param f: FFmpeg format option for the output stream
-    :param extra_inputs: _description_, defaults to None
-    :param overwrite: True to overwrite output URL, defaults to False.
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param mode: Specify the transcoder mode by an arrow notation (``'->'``)
+        with its inputs and outputs each by a repeated ``'e'``. For example,
+        ``'e->ee'`` transcodes one encoded stream to two encoded streams.
+    :param input_options: Specify per-stream FFmpeg options of the encoded input
+        streams. These option values are added to the default input options
+        specified in ``options``.
+    :param output_options: Specify per-stream FFmpeg options of the encoded
+        output streams. These option values are added to the default output
+        options specified in ``options``.
+    :param extra_inputs: extra encoded input urls, Each element is a tuple pair
+        of url and input option dict. The url must be a url and not pipes or
+        pipe objects.
+    :param extra_outputs: extra encoded output urls, Each element is a tuple
+        pair of url and output option dict. The url must be a url and not
+        pipes or pipe objects. Note: If output files will always be overwritten
+        if they exist.
+    :param enc_blocksize: Queue item size of the extra encoded output stream
+        in bytes, defaults to 64 MB (2**16 bytes).
+    :param queuesize: Background reader & writer threads queue size, defaults to
+        16. Use zero (0) to specify unlimited queue size.
+    :param timeout: Queue read timeout in seconds, defaults to ``None`` to
+        wait indefinitely.
     :param progress: progress callback function, defaults to None
-    :param blocksize: Background reader queue's item size in bytes, defaults to `None` (auto-set)
-    :param queuesize: Background reader & writer threads queue size, defaults to `None` (unlimited)
-    :param timeout: Default read timeout in seconds, defaults to `None` to wait indefinitely
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                    `subprocess.Popen()` call used to run the FFmpeg, defaults
-                    to None
+    :param show_log: ``True`` to show FFmpeg log messages on the console,
+        defaults to ``False``, hiding the logged messages
+    :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults to ``None``
     :param options: global/default FFmpeg options. For output and global options,
-                    use FFmpeg option names as is. For input options, append "_in" to the
-                    option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
-                    specified here are treated as default, common options, and the
-                    url-specific duplicate options in the ``inputs`` or ``outputs``
-                    sequence will overwrite those specified here.
+        use FFmpeg option names as is. For input options, append "_in" to the
+        option name. For example, r_in=2000 to force the input frame rate
+        to 2000 frames/s (see :doc:`options`). These input and output options
+        specified here are treated as default, common options, and the
+        url-specific duplicate options in the ``inputs`` or ``outputs``
+        sequence will overwrite those specified here.
     :return: writer stream object
 
     """
@@ -720,7 +943,7 @@ def open(
     # possible keywords, excluding FFmpeg options
     # 'input_shape', 'input_dtype', 'input_rate', 'input_rates',
     # 'input_options', 'input_dtypes', 'input_shapes', 'extra_inputs',
-    # 'output_options', 'extra_outputs', 'squeeze'
+    # 'output_streams', 'extra_outputs', 'squeeze'
 
     op_mode, in_types, out_types = _parse_mode(mode)
     if urls_fgs == "-" and op_mode in "rw":
@@ -729,8 +952,12 @@ def open(
         )
 
     runner_kws = {
-        k: kwargs[k]
+        k: kwargs.pop(k)
         for k in (
+            "input_shape",
+            "input_dtype",
+            "input_shapes",
+            "input_dtypes",
             "primary_output",
             "blocksize",
             "enc_blocksize",
@@ -819,81 +1046,184 @@ def _open_kws_set() -> list[str]:
             "input_dtypes",
             "input_shapes",
             "extra_inputs",
-            "output_options",
+            "output_streams",
             "extra_outputs",
             "squeeze",
         ]
     )
 
 
-def _open_reader(
-    out_types: str,
-    urls: FFmpegInputUrlComposite | Sequence[FFmpegInputUrlComposite],
-    kwargs: dict,
-    runner_kws: dict,
-) -> StdFFmpegRunner | PipedFFmpegRunner:
-    # # single reader
-    # urls_fgs,
-    # mode: Literal["rv", "ra"],
-    # /,
-    # *,
-    # map: str | None = None,
-    # extra_outputs: list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
-    # squeeze: bool = False,
-    # **options: Unpack[FFmpegOptionDict],
+def _process_raw_input_args(
+    in_types: str, args: tuple, kwargs: dict
+) -> tuple[
+    set[str],
+    bool,
+    list[FFmpegOptionDict],
+    Sequence[str | tuple[str, FFmpegOptionDict]] | None,
+]:
+    """process raw input arguments
 
-    # # multi reader
-    # urls: FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, FFmpegOptionDict],
-    # mode: MultiReaderModeLiteral,
-    # /,
-    # *,
-    # output_options: Sequence[FFmpegOptionDict]
-    # extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
-    # **options: Unpack[FFmpegOptionDict],
+    :param in_types: input media type sequence
+    :param args: positional arguments (3rd-)
+    :param kwargs: keyword arguments
+    :return used_kws: popped keyword arguments
+    :return signel_input: True if only one input stream
+    :return input_options: list of per-stream ffmpeg input options
+    :return extra_inputs: keyword arguemnt to define extra inputs
+    """
+    nargs = len(args)
+    if nargs > 1:
+        raise TypeError(
+            f"ffmpegio.open() takes two to three positional arguments ({2 + len(args)} given) to open a writer"
+        )
 
+    input_options = kwargs.pop("input_options", None)
+    extra_inputs = kwargs.pop("extra_inputs", None)
+    used_kws = {"extra_inputs"}
+    single_input = len(in_types) == 1  #
+
+    # establish input_options
+    if single_input:
+        input_rate = kwargs.pop("input_rate", None)
+        used_kws.add("input_rate")
+        if nargs:
+            if input_rate is None:
+                input_rate = args[0]
+            else:
+                raise TypeError("'input_rate' specified multiple times")
+
+        rate_opt = {"ar" if in_types[0] == "a" else "r": input_rate}
+        input_options = [
+            rate_opt if input_options is None else {**input_options, **rate_opt}
+        ]
+
+    else:
+        input_rates = kwargs.pop("input_rates", None)
+        used_kws.add("input_rates")
+        input_options = kwargs.pop("input_options", None)
+        used_kws.add("input_options")
+
+        if nargs:
+            if input_rates is None:
+                input_rates = args[0]
+            else:
+                raise TypeError("'input_rates' specified multiple times")
+
+        if len(in_types) == 0:
+            # expects input_options to define the rates
+            if input_rates is not None and input_options is None:
+                raise ValueError("Cannot resolve the output streams (mode='w').")
+        elif input_options is None:
+            input_options = [
+                {"ar" if mtype == "a" else "r": r}
+                for mtype, r in zip(in_types, input_rates)
+            ]
+        else:
+            input_options = [
+                {**opts, "ar" if mtype == "a" else "r": r}
+                for mtype, r, opts in zip(in_types, input_rates, input_options)
+            ]
+
+    return used_kws, single_input, input_options, extra_inputs
+
+
+def _process_raw_output_args(
+    out_types: Sequence[Literal["a", "v"]], kwargs: dict, nin: int
+) -> tuple[
+    set[str],
+    bool,
+    list[FFmpegOptionDict],
+    Sequence[FFmpegOutputOptionTuple] | None,
+    bool,
+]:
+    """process arguments for raw output options
+
+    :param out_types: output media sequence
+    :param kwargs: keyword arguments
+    :param nin: number of input urls
+    :return used_kws: set of keyword arguments consumed
+    :return single_output: True if single output
+    :return output_streams: ffmpeg output options
+    :return extra_outputs: extra output urls (+options)
+    :return squeeze: True to squeeze raw output blobs
+    """
     nout = len(out_types)
     single_output = nout == 1  # single encoded stream
 
-    urls = [urls] if utils.is_valid_input_url(urls) or isinstance(urls, tuple) else urls
-
-    output_options = [{}] if single_output else kwargs.pop("output_options", None)
+    output_streams = None
     extra_outputs = kwargs.pop("extra_outputs", None)
     squeeze = kwargs.pop("squeeze", None)
 
-    used_kws = set("extra_outputs", "squeeze")
+    used_kws = set(["extra_outputs", "squeeze"])
     if single_output:
-        used_kws.add("output_options")
-    open_kws = _open_kws_set() - used_kws
-    if len(open_kws):
-        raise TypeError("Invalid keyword inputs found")
-
-    if len(out_types) == 0:  # autodetect (unless map is specified)
-        single_output = single_output and "map" in kwargs
+        used_kws.add("output_streams")
     else:
-        if output_options is None:
-            output_options = [{} for _ in range(nout)]
-        elif nout != len(output_options):
+        output_streams = kwargs.pop("output_streams", None)
+
+    if isinstance(output_streams, (str, dict)):
+        output_streams = [output_streams]
+
+    if len(out_types) == 0:  # autodetect
+        single_output = False  # -> multi-output
+    else:
+        # resolve the output streams
+        nout = len(out_types)
+
+        if output_streams is None:
+            output_streams = [{} for _ in range(nout)]
+        elif nout != len(output_streams):
             raise ValueError(
                 "number of outputs in mode does not match the number of output options specified."
             )
+        else:
+            output_streams = [
+                {**s} if isinstance(s, dict) else s for s in output_streams
+            ]
 
-        # use default map options
         if (
             "map" not in kwargs
-            and len(urls) == 1
+            and nin == 1
             and not utils.find_filter_complex_option(kwargs)
         ):
             stream_counts = {"a": 0, "v": 0}
-            for mtype, opts in zip(out_types, output_options):
+            for mtype, opts in zip(out_types, output_streams):
                 st = stream_counts[mtype]
                 stream_counts[mtype] += 1
-                if "map" not in opts:
+
+                if isinstance(opts, dict) and "map" not in opts:
                     opts["map"] = f"0:{mtype}:{st}"
+    return used_kws, single_output, output_streams, extra_outputs, squeeze
+
+
+def _open_reader(
+    out_types: str,
+    urls: FFmpegInputUrlComposite
+    | FFmpegInputOptionTuple
+    | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
+    kwargs: dict,
+    runner_kws: dict,
+) -> StdFFmpegRunner | PipedFFmpegRunner:
+
+    # need to resolve if multiple input urls are given
+    urls = [urls] if utils.is_valid_input_url(urls) or isinstance(urls, tuple) else urls
+    nin = len(urls)
+
+    used_kws, single_output, output_streams, extra_outputs, squeeze = (
+        _process_raw_output_args(out_types, kwargs, nin)
+    )
+
+    open_kws = _open_kws_set() - used_kws
+    for k in open_kws:
+        if k in kwargs:
+            raise TypeError(f"Invalid keyword inputs found: {k}")
+
+    if "overwrite" in runner_kws and runner_kws["overwrite"] is not None:
+        raise TypeError("'overwrite' keyword is not supported in the reader mode.")
 
     return (
         StdFFmpegRunner.open_simple_reader(
             urls,
-            output_options[0],
+            output_streams[0],
             kwargs,
             squeeze,
             extra_outputs,
@@ -901,55 +1231,51 @@ def _open_reader(
         )
         if single_output
         else PipedFFmpegRunner.open_media_reader(
-            urls, output_options, kwargs, squeeze, extra_outputs, **runner_kws
+            urls, output_streams, kwargs, squeeze, extra_outputs, **runner_kws
         )
     )
 
 
 def _open_writer(
     in_types: str,
-    urls: FFmpegInputUrlComposite | Sequence[FFmpegInputUrlComposite],
+    urls: FFmpegOutputUrlComposite
+    | FFmpegOutputOptionTuple
+    | Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple],
     args: tuple,
     kwargs: dict,
     runner_kws: dict,
 ) -> PipedFFmpegRunner | StdFFmpegRunner:
-    # # single writer
-    # urls: FFmpegOutputUrlNoPipe
-    # | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
-    # mode: Literal["wv", "wa"],
-    # /,
-    # input_rate: int | Fraction,
-    # *,
-    # extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # options: Unpack[FFmpegOptionDict],
 
-    # # multi-writer
-    # urls_fgs: FFmpegUrlType,
-    # mode: MultiWriterModeLiteral,
-    # /,
-    # input_rates: list[int | Fraction],
-    # *,
-    # output_options: Sequence[MapString | FFmpegOptionDict]
-    # | dict[str, MapString | FFmpegOptionDict]
-    # | None = None,
-    # extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # options: Unpack[FFmpegOptionDict],
+    used_kws, single_input, input_options, extra_inputs = _process_raw_input_args(
+        in_types, args, kwargs
+    )
 
-    nargs = len(args)
-    if nargs > 1:
-        raise TypeError(
-            f"ffmpegio.open() takes two to three positional arguments ({2 + len(args)} given) to open a writer"
+    open_kws = _open_kws_set() - used_kws
+    for k in open_kws:
+        if k in kwargs:
+            raise TypeError(f"Invalid keyword inputs found: {k}")
+
+    # insert default output mapping
+    if "map" not in kwargs and utils.find_filter_complex_option(kwargs) is None:
+        kwargs["map"] = [f"{i}:{mtype}:0" for i, mtype in enumerate(in_types)]
+
+    return (
+        StdFFmpegRunner.open_simple_writer(
+            urls,
+            input_options[0],
+            kwargs,
+            extra_inputs,
+            **runner_kws,
         )
-
-    single_input = len(in_types) == 1  #
-
-    used_kws = ["output_options", "extra_inputs"]
-    output_options = kwargs.pop("output_options", None)
-    # extra_inputs
-
-    # if single_input:
-    # input_rate
-    # input_rates
+        if single_input
+        else PipedFFmpegRunner.open_media_writer(
+            urls,
+            input_options,
+            kwargs,
+            extra_inputs,
+            **runner_kws,
+        )
+    )
 
 
 def _open_filter(
@@ -960,65 +1286,49 @@ def _open_filter(
     kwargs: dict,
     runner_kws: dict,
 ) -> SISOFFmpegFilter:
-    # siso filter
-    # fg: str | FilterGraphObject | Literal['-'],
-    # mode: Literal["fv", "fa", "v->v", "a->a", "v->a", "a->v"],
-    # /,
-    # input_rate: int | Fraction,
-    # *,
-    # input_shape: ShapeTuple | None = None,
-    # input_dtype: DTypeString | None = None,
-    # extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # extra_outputs: (
-    #     list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
-    # ) = None,
-    # squeeze: bool = False,
-    # overwrite: bool = False,
-    # show_log: bool | None = None,
-    # progress: ProgressCallable | None = None,
-    # blocksize: int | None = None,
-    # timeout: float | None = None,
-    # sp_kwargs: dict | None = None,
-    # **options: Unpack[FFmpegOptionDict],
 
-    # mimo filter
-    # urls_fgs: str | FilterGraphObject | list[str | FilterGraphObject],
-    # mode: MIMOFilterModeLiteral,
-    # /,
-    # input_rates: list[int | Fraction],
-    # *,
-    # input_shapes: list[ShapeTuple] | None = None,
-    # input_dtypes: list[DTypeString] | None = None,
-    # extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # overwrite: bool = False,
-    # show_log: bool | None = None,
-    # progress: ProgressCallable | None = None,
-    # blocksize: int | None = None,
-    # timeout: float | None = None,
-    # sp_kwargs: dict | None = None,
-    # **options: Unpack[FFmpegOptionDict],
+    used_kws, single_input, input_options, extra_inputs = _process_raw_input_args(
+        in_types, args, kwargs
+    )
+    open_kws = _open_kws_set() - used_kws
 
-    if len(args) > 1:
-        raise TypeError(
-            f"ffmpegio.open() takes two arguments ({2 + len(args)} given) to open a writer"
+    used_kws, single_output, output_streams, extra_outputs, squeeze = (
+        _process_raw_output_args(out_types, kwargs, len(in_types))
+    )
+    open_kws -= -used_kws
+
+    for k in open_kws:
+        if k in kwargs:
+            raise TypeError(f"Invalid keyword inputs found: {k}")
+
+    if "overwrite" in runner_kws and runner_kws["overwrite"] is not None:
+        raise TypeError("'overwrite' keyword is not supported in the filter mode.")
+
+    single = single_input and single_output
+
+    kwargs["filter_complex"] = fgs
+
+    return (
+        SISOFFmpegFilter.create_and_open(
+            input_options[0],
+            output_streams[0],
+            kwargs,
+            squeeze,
+            extra_inputs,
+            extra_outputs,
+            **runner_kws,
         )
-
-    single_input = len(in_types) > 1
-    single_output = len(out_types) > 1
-    matched_io = in_types == out_types
-
-    is_siso = single_output and single_input and matched_io
-
-    if is_siso:
-        StreamClass = SISOFFmpegFilter
-        filter = StreamClass(fgs, *args, **kwargs)
-    else:
-        StreamClass = PipedFFmpegRunner
-        rates = args[0] if len(args) else kwargs.pop("input_rates_or_opts")
-        filter = StreamClass(fgs, in_types, *rates, **kwargs)
-
-    return filter
+        if single
+        else PipedFFmpegRunner.open_media_filter(
+            input_options,
+            output_streams,
+            kwargs,
+            squeeze,
+            extra_inputs,
+            extra_outputs,
+            **runner_kws,
+        )
+    )
 
 
 def _open_decoder(
@@ -1029,84 +1339,88 @@ def _open_decoder(
     kwargs: dict,
     runner_kws: dict,
 ) -> PipedFFmpegRunner:
-    # decoder
-    # urls_fgs: Literal["-"],
-    # mode: DecoderModeLiteral,  # r"e+-\>[av]+",
-    # /,
-    # *,
-    # output_options: list[MapString, FFmpegOptionDict] | None = None,
-    # extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # squeeze: bool = False,
-    # overwrite: bool = False,
-    # show_log: bool | None = None,
-    # progress: ProgressCallable | None = None,
-    # blocksize: int | None = None,
-    # queuesize: int | None = None,
-    # timeout: float | None = None,
-    # sp_kwargs: dict | None = None,
-    # **options: Unpack[FFmpegOptionDict],
 
-    if urls is not None:
-        raise TypeError("urls_fgs argument for a filter must be None.")
+    if urls != "-":
+        raise TypeError("urls_fgs argument for a decoder must be '-'.")
 
-    nargs = len(args)
-    if nargs not in (0, 2) or (nargs == 3 and "output_options" in kwargs):
+    if len(args):
         raise TypeError(
-            f"ffmpegio.open() takes two or four arguments ({2 + len(args)} given) to open a filter."
+            "ffmpegio.open() does not take more than 2 positional arguments for a decoder."
         )
 
-    return PipedFFmpegRunner.open_media_decoder(*args, **kwargs)
+    used_kws, _, output_streams, extra_outputs, squeeze = _process_raw_output_args(
+        out_types, kwargs, nb_in
+    )
+    open_kws = _open_kws_set() - used_kws
+
+    input_options = kwargs.pop("input_options", None)
+
+    if input_options is None:
+        input_options = [{} for i in range(nb_in)]
+    elif nb_in > 0 and len(input_options) != nb_in:
+        raise ValueError(
+            "the length of 'input_options' must match the number of encoded inputs"
+        )
+    extra_inputs = kwargs.pop("extra_inputs", None)
+
+    open_kws -= {"input_options", "extra_inputs"}
+
+    for k in open_kws:
+        if k in kwargs:
+            raise TypeError(f"Invalid keyword inputs found: {k}")
+
+    if "overwrite" in runner_kws and runner_kws["overwrite"] is not None:
+        raise TypeError("'overwrite' keyword is not supported in the decoder mode.")
+
+    return PipedFFmpegRunner.open_media_decoder(
+        input_options,
+        output_streams,
+        kwargs,
+        squeeze,
+        extra_inputs,
+        extra_outputs,
+        **runner_kws,
+    )
 
 
 def _open_encoder(
     in_types: str,
     nb_out: int,
-    urls: Litera["-"],
+    urls: Literal["-"],
     args: tuple,
     kwargs: dict,
     runner_kws: dict,
 ) -> PipedFFmpegRunner:
-    # input_rates: list[int|Fraction]|None = None,
-    # input_options: list[FFmpegOptionDict]|None=None,
-    # output_options: list[FFmpegOptionDict]|None=None,
-    # input_dtypes: list[DTypeString] | None = None,
-    # input_shapes: list[ShapeTuple] | None = None,
-    # extra_inputs: list[FFmpegInputOptionTuple] | None = None,
-    # extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
-    # primary_output: int | None = None,
-    # blocksize: int | None = None,
-    # enc_blocksize: int | None = None,
-    # queuesize: int | None = None,
-    # timeout: float | None = None,
-    # progress: ProgressCallable | None = None,
-    # show_log: bool | None = None,
-    # overwrite: bool | None = None,
-    # sp_kwargs: dict | None = None,
-    # **options: FFmpegOptionDict,
-    nargs = len(args)
-    if nargs == 1:
-        input_rates = args[0]
-    else:
-        input_rates = kwargs.pop("input_rates", None)
-        if nargs != 0:
-            raise TypeError(
-                "ffmpegio.open() takes only three positional arguments for encoder mode."
-            )
-    # check kwargs for unsupported keyword arguments
 
-    input_options = kwargs.pop("input_options", None) or []
+    if urls != "-":
+        raise TypeError("urls_fgs argument for an encoder must be '-'.")
 
-    output_options = kwargs.pop("output_options", None) or []
-    if len(output_options) == 0:
+    used_kws, _, input_options, extra_inputs = _process_raw_input_args(
+        in_types, args, kwargs
+    )
+    open_kws = _open_kws_set() - used_kws
+
+    output_options = kwargs.pop("output_options", None)
+
+    if output_options is None:
         output_options = [{} for i in range(nb_out)]
-    elif len(output_options) != nb_out:
+    elif nb_out > 0 and len(output_options) != nb_out:
         raise ValueError(
-            f"output_options argument must have {nb_out} elements to match the specified transcoder mode."
+            "the length of 'input_options' must match the number of encoded inputs"
         )
+    extra_outputs = kwargs.pop("extra_outputs", None)
 
-    # input_stream_types: list[Literal["a", "v"]],
-    # input_stream_opts: list[FFmpegOptionDict],
-    return PipedFFmpegRunner.open_media_encoder(*args, **kwargs)
+    open_kws -= {"output_options", "extra_outputs"}
+    for k in open_kws:
+        if k in kwargs:
+            raise TypeError(f"Invalid keyword inputs found: {k}")
+
+    if "overwrite" in runner_kws and runner_kws["overwrite"] is not None:
+        raise TypeError("'overwrite' keyword is not supported in the encoder mode.")
+
+    return PipedFFmpegRunner.open_media_encoder(
+        input_options, output_options, kwargs, extra_inputs, extra_outputs, **runner_kws
+    )
 
 
 def _open_transcoder(
@@ -1117,38 +1431,43 @@ def _open_transcoder(
     kwargs: dict,
     runner_kws: dict,
 ) -> PipedFFmpegRunner:
-    # input_options: list[FFmpegOptionDict] | None = None,
-    # output_options: list[FFmpegOptionDict] | None = None,
-    # extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    # overwrite: bool = False,
-    # show_log: bool | None = None,
-    # progress: ProgressCallable | None = None,
-    # blocksize: int | None = None,
-    # queuesize: int | None = None,
-    # timeout: float | None = None,
-    # sp_kwargs: dict | None = None,
-    # **options: Unpack[FFmpegOptionDict],
+
+    if urls != "-":
+        raise TypeError("urls_fgs argument for a decoder must be '-' for a transcoder.")
 
     if len(args):
-        raise TypeError("ffmpegio.open() takes only two positional arguments.")
+        raise TypeError(
+            "ffmpegio.open() takes only two positional arguments in a transcoder."
+        )
 
     input_options = kwargs.pop("input_options", None) or []
     if len(input_options) == 0:
         input_options = [{} for i in range(nb_in)]
-    elif len(input_options) != nb_in:
+    elif nb_in > 0 and len(input_options) != nb_in:
         raise ValueError(
             f"input_options argument must have {nb_in} elements to match the specified transcoder mode."
         )
 
-    output_options = kwargs.pop("output_options", None) or []
-    if len(output_options) == 0:
-        output_options = [{} for i in range(nb_out)]
-    elif len(output_options) != nb_out:
+    output_streams = kwargs.pop("output_streams", None) or []
+    if len(output_streams) == 0:
+        output_streams = [{} for i in range(nb_out)]
+    elif nb_out > 0 and len(output_streams) != nb_out:
         raise ValueError(
-            f"output_options argument must have {nb_out} elements to match the specified transcoder mode."
+            f"output_streams argument must have {nb_out} elements to match the specified transcoder mode."
         )
 
+    extra_inputs = kwargs.pop("extra_inputs", None)
+    extra_outputs = kwargs.pop("extra_outputs", None)
+
+    used_kws = {"input_options", "output_options", "extra_inputs", "extra_outputs"}
+    open_kws = _open_kws_set() - used_kws
+    for k in open_kws:
+        if k in kwargs:
+            raise TypeError(f"Invalid transcoder keyword inputs found: {k}")
+
+    if "overwrite" in runner_kws and runner_kws["overwrite"] is not None:
+        raise TypeError("'overwrite' keyword is not supported in the transcoder mode.")
+
     return PipedFFmpegRunner.open_media_transcoder(
-        input_options, output_options, **kwargs
+        input_options, output_streams, kwargs, extra_inputs, extra_outputs, **runner_kws
     )

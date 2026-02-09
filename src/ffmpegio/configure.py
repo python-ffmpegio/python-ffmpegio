@@ -40,7 +40,7 @@ from itertools import count
 from namedpipe import NPopen
 
 from . import filtergraph as fgb
-from . import plugins, probe, utils
+from . import plugins, utils
 from ._typing import (
     Any,
     Buffer,
@@ -70,7 +70,6 @@ from ._typing import (
     TypedDict,
     Unpack,
     cast,
-    get_args,
 )
 from ._utils import as_multi_option, is_non_str_sequence
 from .errors import (
@@ -80,8 +79,7 @@ from .errors import (
     FFmpegioNoPipeAllowed,
 )
 from .filtergraph.abc import FilterGraphObject
-from .stream_spec import StreamSpecDict, parse_map_option, stream_type_to_media_type
-from .stream_spec import stream_spec as compose_stream_spec
+from .stream_spec import parse_map_option, stream_type_to_media_type
 from .threading import CopyFileObjThread, ReaderThread, WriterThread
 from .utils import (
     FFmpegInputUrlComposite,
@@ -251,9 +249,7 @@ def init_media_read(
     | Sequence[
         FFmpegInputUrlComposite | tuple[FFmpegInputUrlComposite, FFmpegOptionDict]
     ],
-    output_streams: (
-        Sequence[str | FFmpegOptionDict] | dict[str, str | FFmpegOptionDict] | None
-    ),
+    output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
     options: FFmpegOptionDict | None,
     extra_outputs: (
         Sequence[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
@@ -263,17 +259,14 @@ def init_media_read(
     """Initialize FFmpeg arguments for media read
 
     :param urls: URLs of the media files to read.
-    :param output_streams: output stream mappings:
-                - `None` to include all input streams OR all filtergraph outputs
-                - a sequence of str to specify stream specifiers with file id's
-                - a sequence of output option dict with `'map'` item to output-specific
-                  options
-                - a dict with map specifier or user keys to specify output options,
-                  again to specify output-specific options. The keys will be used
-                  as the keys of the raw data output, and can be different from
-                  the `'map'` option so long as the `'map'` option is given in the
-                  dict.
-                - None to select all available streams
+    :param output_streams: output stream mappings and optional per-stream options:
+
+        - ``None`` to map all filtergraph outputs
+        - (str) output map option string
+        - (dict) output ffmpeg options with the required ``'map'`` option
+        - (Sequence) a sequence of output map option string or ffmpeg option
+          dict with a ``'map'`` key.
+
     :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                     input url or '_in' to be applied to all inputs. The url-specific option gets the
                     preference (see :doc:`options` for custom options)
@@ -432,9 +425,7 @@ def init_media_write(
 def init_media_filter(
     input_options: Sequence[FFmpegOptionDict],
     extra_inputs: Sequence[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None,
-    output_streams: (
-        Sequence[str | FFmpegOptionDict] | dict[str, FFmpegOptionDict | None] | None
-    ),
+    output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
     extra_outputs: (
         Sequence[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ),
@@ -452,15 +443,13 @@ def init_media_filter(
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
     :param output_streams: output stream mappings and optional per-stream options:
-                - `None` to map all filtergraph outputs
-                - a sequence of output option dict with `'map'` item to output-specific
-                  options
-                - a dict with map specifier or user keys to specify output options,
-                  again to specify output-specific options. The keys will be used
-                  as the keys of the raw data output, and can be different from
-                  the `'map'` option so long as the `'map'` option is given in the
-                  dict.
-                - None to select all available streams
+
+        - ``None`` to map all filtergraph outputs
+        - (str) output map option string
+        - (dict) output ffmpeg options with the required ``'map'`` option
+        - (Sequence) a sequence of output map option string or ffmpeg option
+          dict with a ``'map'`` key.
+
     :param extra_outputs: list of additional output destinations, defaults to None.
                           Each source may be url string or a pair of a url string
                           and an option dict.
@@ -1469,14 +1458,12 @@ def get_raw_output_plugin_callables(
 
 def resolve_raw_output_streams(
     stream_opts: list[FFmpegOptionDict],
-    stream_names: dict[int, str],
     args: FFmpegArgs,
     input_info: list[RawInputInfoDict | EncodedInputInfoDict],
 ) -> tuple[list[FFmpegOptionDict], list[dict]]:
     """resolve the raw output streams from given sequence of map options
 
     :param stream_opts: output raw stream options
-    :param stream_names: user-specified names of output streams keyed by the index of `stream_opts`
     :param args: FFmpeg argument dict
     :param input_info: FFmpeg inputs' additional information, its length must match that of `args['inputs']`
     :return: list of individual output streams. Each item is a tuple of
@@ -1502,7 +1489,6 @@ def resolve_raw_output_streams(
     output_info = []
     for i, opts in enumerate(stream_opts):
         spec = opts["map"]
-        user_map = stream_names.get(i, spec)
 
         try:
             opt = parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
@@ -1525,7 +1511,7 @@ def resolve_raw_output_streams(
             output_opts.append(opts)
             output_info.append(
                 {
-                    "user_map": user_map,
+                    "user_map": spec[1:-1],
                     "linklabel": opt["linklabel"],
                 }
             )
@@ -1542,7 +1528,7 @@ def resolve_raw_output_streams(
                 output_opts.append(opts)
                 output_info.append(
                     {
-                        "user_map": user_map,
+                        "user_map": spec,
                         "media_type": stream_type_to_media_type(
                             stream_spec["stream_type"]
                         ),
@@ -1552,23 +1538,23 @@ def resolve_raw_output_streams(
                 )
             else:
                 # case 3: generic stream spec, possibly resultsing in multiple output streams
-                stream_data = retrieve_input_stream_ids(
-                    input_info[file_index], *inputs[file_index], stream_spec=stream_spec
-                )
-
-                # append all streams
-                for stream_index, media_type in stream_data:
-                    output_opts.append({**opts, "map": f"{file_index}:{stream_index}"})
+                url, opts = inputs[file_index]
+                for stream_index, stream_spec in utils.input_file_stream_specs(
+                    url, stream_spec, opts or {}, input_info[file_index]
+                ).items():
+                    # append all streams
+                    spec = f"{file_index}:{stream_index}"
+                    output_opts.append({**opts, "map": spec})
                     output_info.append(
                         {
-                            "user_map": user_map,
-                            "media_type": media_type,
+                            "user_map": spec,
+                            "media_type": "audio" if stream_spec[0] == "a" else "video",
                             "input_file_id": file_index,
                             "input_stream_id": stream_index,
                         },
                     )
 
-    # resolve duplicate user_map names
+    # resolve duplicate user_map values
     name_counts = Counter((v["user_map"] for v in output_info))
 
     if any(v <= 1 for v in name_counts.values()):
@@ -1629,7 +1615,7 @@ def auto_map(
 ) -> tuple[list[FFmpegOptionDict], list[dict[str, Any]]]:
     """list all available streams from all FFmpeg input sources
 
-    This function complements `format_raw_output_stream_defs()`
+    This function complements `resolve_raw_output_streams()`
 
     :param args: FFmpeg argument dict. `filter_complex` argument may be modified.
     :param options: FFmpeg output options to be applied to every output
@@ -1653,25 +1639,17 @@ def auto_map(
     stream_info = []
 
     if fg_info is None:
-        counter = {"file": None, "audio": 0, "video": 0}
-
-        def next_map_option(i, media_type):
-            if i != counter["file"]:
-                counter["audio"] = counter["video"] = 0
-                counter["file"] = i
-            j = counter[media_type]
-            counter[media_type] = j + 1
-            return f"{i}:{media_type[0]}:{j}"
-
         # if no filtergraph, get all video & audio streams from all the input urls
         for i, ((url, opts), info) in enumerate(zip(args["inputs"], input_info)):
-            for j, media_type in retrieve_input_stream_ids(info, url, opts or {}):
-                spec = next_map_option(i, media_type)
+            for j, st_spec in utils.input_file_stream_specs(
+                url, None, opts or {}, info
+            ).items():
+                spec = f"{i}:{st_spec}"
                 stream_opts.append({**options, "map": spec})
                 stream_info.append(
                     {
                         "user_map": spec,
-                        "media_type": media_type,
+                        "media_type": "audio" if st_spec[0] == "a" else "video",
                         "input_file_id": i,
                         "input_stream_id": j,
                     }
@@ -1876,7 +1854,7 @@ def process_url_inputs(
 def process_raw_outputs(
     args: FFmpegArgs,
     input_info: list[RawInputInfoDict | EncodedInputInfoDict],
-    streams: Sequence[str | FFmpegOptionDict] | None,
+    streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
     options: FFmpegOptionDict,
     squeeze: bool,
 ) -> list[OutputInfoDict]:
@@ -1886,20 +1864,19 @@ def process_raw_outputs(
                  appended for each piped output. Output URLs are left `None`.
     :param input_info: list of input information (same length as `args['inputs'])
     :param streams: output stream mappings:
-                - `None` to include all input streams OR all filtergraph outputs
-                - a sequence of either a map option or an output ffmpeg option
-                  dict with `'map'` item
-                - a dict with map specifier or user keys to specify output options,
-                  again to specify output-specific options. The keys will be used
-                  as the keys of the raw data output, and can be different from
-                  the `'map'` option so long as the `'map'` option is given in the
-                  dict.
-                - None to select all available streams
+
+          - `None` to include all input streams OR all filtergraph outputs
+          - a sequence of either a map option or an output ffmpeg option
+            dict with `'map'` item
+
     :param options: default output options
     :param squeeze: True to remove shape dimensions with length 1
     :return output_info: list of output information
 
     """
+
+    if isinstance(streams, (str, dict)):
+        streams = [streams]
 
     gopts = args["global_options"]
 
@@ -1934,13 +1911,17 @@ def process_raw_outputs(
         # gather all available streams keyed by their map specifier
         stream_opts, stream_info = auto_map(args, options, input_info, get_fg_info())
     else:
-        stream_opts, stream_names = utils.format_raw_output_stream_defs(
-            streams, options
-        )
+        if streams is None:
+            stream_opts = [options]
+        else:
+            stream_opts = [
+                {**options, **({"map": v} if isinstance(v, str) else v)}
+                for v in streams
+            ]
 
         # expand all streams (targetting )
         stream_opts, stream_info = resolve_raw_output_streams(
-            stream_opts, stream_names, args, input_info
+            stream_opts, args, input_info
         )
 
     # finalize the output configuration
@@ -2242,70 +2223,6 @@ def assign_output_url(args: FFmpegArgs, ofile: int, url: str):
     :param url: new url
     """
     args["outputs"][ofile] = (url, args["outputs"][ofile][1])
-
-
-def retrieve_input_stream_ids(
-    info: RawInputInfoDict | EncodedInputInfoDict,
-    url: FFmpegUrlType | FilterGraphObject | None,
-    opts: FFmpegOptionDict,
-    stream_spec: str | StreamSpecDict | None = None,
-) -> list[tuple[int, MediaType]]:
-    """Retrieve ids and media types of streams in an input source
-
-    Note: The stream ids are unique ids among all streams in a container.
-
-    :param info: input file source information
-    :param url: URL or local file path of the input media file/device. None if data is provided via pipe
-                and data is in the `info` argument
-    :param opts: FFmpeg input options
-    :param stream_spec: Specify streams to return
-    :return: A list of stream indices and media types of the input streams. If
-             the stream_spec is uniquely specified and media type is known, the
-             index is not resolved. Maybe empty if failed to probe the media
-             (e.g., data inaccessible or in an ffprobe incompatible format, e.g.,
-             ffconcat)
-    """
-
-    # check raw formats first
-    if "media_type" in info:
-        # raw input format, single-stream
-        return [[0, info["media_type"]]]
-
-    # file/network input - process only if seekable
-    # get ffprobe subprocess keywords
-    url, sp_kwargs, exit_fcn = utils.set_sp_kwargs_stdin(url, info)
-    if sp_kwargs is None:
-        # something failed (warning logged)
-        return []
-
-    def get_spec(info, opts):
-        # run ffprobe
-        return probe.streams_basic(
-            url,
-            f=opts.get("f", None),
-            sp_kwargs=sp_kwargs,
-            stream_spec=(
-                compose_stream_spec(**stream_spec)
-                if isinstance(stream_spec, dict)
-                else stream_spec
-            ),
-        )
-
-    # get the stream list if ffprobe can
-    try:
-        stream_ids = [
-            (info["index"], info["codec_type"])
-            for info in get_spec(info, opts)
-            if info["codec_type"] in get_args(MediaType)
-        ]
-    except:
-        # if failed, return empty
-        logger.warning("ffprobe failed.")
-        stream_ids = []
-    finally:
-        # clean-up
-        exit_fcn()
-    return stream_ids
 
 
 ########################################

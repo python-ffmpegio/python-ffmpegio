@@ -45,7 +45,7 @@ def test_read_write_video():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        with StdFFmpegRunner.open_simple_writer({"r": fs}, [(out_url, {})]) as f:
+        with StdFFmpegRunner.open_simple_writer([(out_url, {})], {"r": fs}) as f:
             f.write(F0)
             f.write(F1)
             f.wait()
@@ -109,7 +109,7 @@ def test_read_write_audio():
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with StdFFmpegRunner.open_simple_writer(
-            {"ar": fs}, [(out_url, {})], show_log=True
+            [(out_url, {})], {"ar": fs}, show_log=True
         ) as f:
             f.write({**out, "buffer": F[: 100 * bps]})
             f.write({**out, "buffer": F[100 * bps :]})
@@ -131,8 +131,8 @@ def test_write_extra_inputs():
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         with StdFFmpegRunner.open_simple_writer(
-            {"r": fs},
             [(out_url, {})],
+            {"r": fs},
             extra_inputs=[(url_aud, {})],
             show_log=True,
             options={"map": ["0:v", "1:a"], "loglevel": "debug"},
@@ -145,8 +145,8 @@ def test_write_extra_inputs():
         assert len(info) == 2
 
         with StdFFmpegRunner.open_simple_writer(
-            {"r": fs},
             [(out_url, {})],
+            {"r": fs},
             extra_inputs=[("anoisesrc", {"f": "lavfi"})],
             show_log=True,
             overwrite=True,

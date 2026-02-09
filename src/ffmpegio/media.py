@@ -264,7 +264,7 @@ def filter(
     extra_inputs: (
         list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
-    output_args: Sequence[str] | dict[str, FFmpegOptionDict | None] | None,
+    output_streams: Sequence[str | FFmpegOptionDict] | None,
     extra_outputs: (
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
@@ -289,7 +289,7 @@ def filter(
     :param extra_inputs: list of additional input sources, defaults to None.
                          Each source may be url string or a pair of a url string
                          and an option dict.
-    :param output_options: specific options for keyed filtergraph output pads.
+    :param output_streams: specific options for keyed filtergraph output pads.
     :param input_dtypes: list of numpy-style data type strings of input samples
                           or frames of input media streams, defaults to `None`
                           (auto-detect).
@@ -322,7 +322,7 @@ def filter(
     args, input_info, output_info = configure.init_media_filter(
         input_options,
         extra_inputs,
-        output_args,
+        output_streams,
         extra_outputs,
         options,
         squeeze,
