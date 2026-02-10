@@ -190,13 +190,17 @@ def filters(type=None):
                 num_inputs=(
                     0
                     if intype == "none"
-                    else len(match[5]) if intype != "dynamic" else None
+                    else len(match[5])
+                    if intype != "dynamic"
+                    else None
                 ),
                 output=outtype,
                 num_outputs=(
                     0
                     if outtype == "none"
-                    else len(match[6]) if outtype != "dynamic" else None
+                    else len(match[6])
+                    if outtype != "dynamic"
+                    else None
                 ),
                 timeline_support=match[1] == "T",
                 slice_threading=match[2] == "S",
@@ -423,7 +427,7 @@ def devices(type=None):
         try:
             key = {"source": "can_demux", "sink": "can_mux"}[type]
         except:
-            raise ValueError(f'type must be either "source" or "sink"')
+            raise ValueError('type must be either "source" or "sink"')
         return {k: v for k, v in devs.items() if v[key]}
     return devs
 
@@ -474,7 +478,7 @@ def _getFormats(type, doCan):
     data = {}
     for match in _formatRegexp.finditer(stdout):
         for format in match[3].split(","):
-            if not (format in data):
+            if format not in data:
                 data[format] = {"description": match[4]}
             if doCan:
                 data[format]["can_demux"] = match[1] == "D"
@@ -679,6 +683,9 @@ def demuxer_info(name):
         stdout,
     )
 
+    if m is None:
+        raise FFmpegError(stdout)
+
     data = dict(
         names=m[1].split(","),
         long_name=m[2],
@@ -686,7 +693,7 @@ def demuxer_info(name):
         options=m[4],
     )
 
-    if not "demuxer" in _cache:
+    if "demuxer" not in _cache:
         _cache["demuxer"] = {}
     _cache["demuxer"][name] = data
     return data
@@ -725,6 +732,9 @@ def muxer_info(name):
         stdout,
     )
 
+    if m is None:
+        raise FFmpegError(stdout)
+
     data = {
         "names": m[1].split(","),
         "long_name": m[2],
@@ -735,7 +745,7 @@ def muxer_info(name):
         "subtitle_codecs": m[7].split(",") if m[7] else [],
         "options": m[8],
     }
-    if not "muxer" in _cache:
+    if "muxer" not in _cache:
         _cache["muxer"] = {}
     _cache["muxer"][name] = data
     return data
@@ -817,6 +827,9 @@ def _getCodecInfo(name, encoder):
         stdout,
     )
 
+    if m is None:
+        raise FFmpegError(stdout)
+
     def resolveFs(s):
         m = re.match(r"(\d+)\/(\d+)", s)
         return fractions.Fraction(int(m[1]), int(m[2]))
@@ -840,7 +853,7 @@ def _getCodecInfo(name, encoder):
         "options": m[11],
     }
 
-    if not "muxer" in _cache:
+    if "muxer" not in _cache:
         _cache["muxer"] = {}
     _cache["muxer"][name] = data
     return data
@@ -934,7 +947,9 @@ def _get_filter_option(str, name):
         else (
             partial(_conv_func, float)
             if otype in ("float", "double")
-            else partial(_conv_func, Fraction) if otype == "rational" else (lambda s: s)
+            else partial(_conv_func, Fraction)
+            if otype == "rational"
+            else (lambda s: s)
         )
     )
 
@@ -1084,6 +1099,10 @@ def filter_info(name):
         r"([\s\S]*)",
         blocks[0],
     )
+
+    if m is None:
+        raise FFmpegError(blocks[0])
+
     name = m[1]
     desc = m[2]
     threading = ["slice"] if m[3] else []
@@ -1135,7 +1154,7 @@ def filter_info(name):
         timeline,
     )
 
-    if not "filter" in _cache:
+    if "filter" not in _cache:
         _cache["filter"] = {}
     _cache["filter"][name] = data
     return data
@@ -1172,14 +1191,14 @@ def bsfilter_info(name):
     )
 
     if stdout.startswith("Unknown"):
-        raise Exception(stdout)
+        raise FFmpegError(stdout)
 
     data = {
         "name": m[1],
         "supported_codecs": m[2].split(" ") if m[2] else [],
         "options": m[3],
     }
-    if not "filter" in _cache:
+    if "filter" not in _cache:
         _cache["filter"] = {}
     _cache["filter"][name] = data
     return data
