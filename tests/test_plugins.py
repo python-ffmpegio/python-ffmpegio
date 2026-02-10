@@ -1,8 +1,11 @@
-from ffmpegio.utils import prod
 from ffmpegio import plugins
+from ffmpegio.utils import prod
 
 
 def test_rawdata_bytes():
+
+    plugins.use("read_bytes")
+
     hook = plugins.get_hook()
 
     dtype = "|u1"
@@ -27,6 +30,7 @@ def test_rawdata_bytes():
     assert data["shape"][1:] == shape
     assert hook.audio_info(obj=data) == (shape, dtype)
     assert hook.audio_bytes(obj=data) == b
+
 
 def test_use():
     import numpy as np
