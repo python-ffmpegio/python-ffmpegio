@@ -1,5 +1,6 @@
-import pytest
 from pprint import pprint
+
+import pytest
 
 from ffmpegio import configure
 from ffmpegio import filtergraph as fgb
@@ -9,42 +10,6 @@ vid_url = "tests/assets/testvideo-1m.mp4"
 img_url = "tests/assets/ffmpeg-logo.png"
 aud_url = "tests/assets/testaudio-1m.mp3"
 mul_url = "tests/assets/testmulti-1m.mp4"
-
-
-def test_array_to_audio_input():
-    fs = 44100
-    N = 44100
-    nchmax = 4
-    data = {"buffer": b"0" * N * nchmax * 2, "dtype": "<i2", "shape": (nchmax,)}
-
-    cfg = {"f": "s16le", "c:a": "pcm_s16le", "ac": 4, "ar": 44100, "sample_fmt": "s16"}
-    input = configure.array_to_audio_input(fs, data)
-    assert input[0] == "-" and input[1] == cfg
-
-
-def test_array_to_video_input():
-    fs = 30
-    dtype = "|u1"
-    h = 360
-    w = 480
-    ncomp = 3
-    nframes = 10
-    data = {
-        "buffer": b"0" * nframes * h * w * ncomp,
-        "dtype": dtype,
-        "shape": (nframes, h, w, ncomp),
-    }
-    cfg = {
-        "f": "rawvideo",
-        "c:v": "rawvideo",
-        "s": (w, h),
-        "r": fs,
-        "pix_fmt": "rgb24",
-    }
-
-    input = configure.array_to_video_input(fs, data)
-    print(input)
-    assert input[0] == "-" and input[1] == cfg
 
 
 def test_add_url():
@@ -72,74 +37,8 @@ def test_add_url():
     assert idx == 1 and entry == args_expected["inputs"][1] and args == args_expected
 
 
-def test_add_urls():
-
-    url = ["test.mp4", "test1.mp4", "test2.mp4", "test3.mp4", "test4.mp4"]
-    args = configure.empty()
-
-    # urls: str | tuple[str, dict | None] | Sequence[str | tuple[str, dict | None]],
-    assert configure.add_urls(args, "input", url[0]) == [(0, (url[0], {}))]
-    assert configure.add_urls(args, "input", (url[1], None)) == [(1, (url[1], {}))]
-    assert configure.add_urls(args, "input", (url[2], {})) == [(2, (url[2], {}))]
-    assert configure.add_urls(args, "input", [url[3], url[4]]) == [
-        (3, (url[3], {})),
-        (4, (url[4], {})),
-    ]
-
-
-def test_get_option():
-
-    assert configure.get_option(None, "input", "c") is None
-    assert configure.get_option({}, "input", "c") is None
-    assert configure.get_option({}, "global_options", "c") is None
-
-    args = {
-        "inputs": [("file1", None)],
-        "outputs": [("file2", {"c": 0, "c:v": 1, "c:v:0": 2}), ("file3", {"ac": 2})],
-        "global_options": {"y": True},
-    }
-    assert configure.get_option(args, "global", "y") is True
-    assert configure.get_option(args, "global", "n") is None
-    assert configure.get_option(args, "input", "c") is None
-    assert configure.get_option(args, "output", "c") == 0
-    assert configure.get_option(args, "output", "c", stream_type="v") == 1
-    assert configure.get_option(args, "output", "c", stream_id=0, stream_type="v") == 2
-    assert configure.get_option(args, "output", "ac", file_id=1) == 2
-
-
 mul_streams = [(0, "video"), (1, "audio"), (2, "video"), (3, "audio")]
 mul_vid_streams = [mul_streams[0], mul_streams[2]]
-
-
-@pytest.mark.parametrize(
-    ("info", "url", "opts", "stream_spec", "ret"),
-    [
-        ({"src_type": "url"}, mul_url, {}, None, mul_streams),
-        ({"src_type": "fileobj"}, mul_url, {}, "v", mul_vid_streams),
-        ({"src_type": "buffer"}, mul_url, {}, "v", mul_vid_streams),
-        (
-            {"src_type": "filtergraph"},
-            "color=c=pink [out0]",
-            {"f": "lavfi"},
-            None,
-            [(0, "video")],
-        ),
-    ],
-)
-def test_retrieve_input_stream_ids(info, url, opts, stream_spec, ret):
-
-    open_file = info["src_type"] in ("fileobj", "buffer")
-    try:
-        if open_file:
-            info["fileobj"] = open(url, "rb")
-            if info["src_type"] == "buffer":
-                info["buffer"] = info["fileobj"].read()
-        out = configure.retrieve_input_stream_ids(info, url, opts, stream_spec)
-    finally:
-        if open_file:
-            info["fileobj"].close()
-
-    assert out == ret
 
 
 @pytest.mark.parametrize(
@@ -298,8 +197,8 @@ def ffmpeg_url_inputs_vid_aud():
         (
             "ffmpeg_url_inputs_mul",
             ["split=2"],
-            [{'map':"[out0]"}, {'map':"[out1]"}, {'map':"a:0"}],
-            {0:"out0", 1:"out1"},
+            [{"map": "[out0]"}, {"map": "[out1]"}, {"map": "a:0"}],
+            {0: "out0", 1: "out1"},
         ),
     ],
 )
@@ -316,7 +215,5 @@ def test_resolve_raw_output_streams(
             fgb.as_filtergraph(filters_complex), args["inputs"], input_info
         )
         args["global_options"] = {"filter_complex": filters_complex}
-    out = configure.resolve_raw_output_streams(
-        stream_opts, stream_names, args, input_info
-    )
+    out = configure.resolve_raw_output_streams(stream_opts, args, input_info)
     pprint(out)

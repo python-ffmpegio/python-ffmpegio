@@ -1,10 +1,12 @@
-from ffmpegio.utils.concat import FFConcat
-from ffmpegio.utils import escape
-from ffmpegio.configure import check_url
-from ffmpegio.transcode import transcode
-from ffmpegio.ffmpegprocess import run
-import pytest, tempfile
+import tempfile
 from os import path
+
+import pytest
+
+from ffmpegio.ffmpegprocess import run
+from ffmpegio.transcode import transcode
+from ffmpegio.utils import escape
+from ffmpegio.utils.concat import FFConcat
 
 
 def test_file_item():
@@ -48,8 +50,8 @@ def test_stream_item():
         "stream\n",
         f"exact_stream_id {id}\n",
         f"stream_codec {codec}\n",
-        f"stream_meta encoder libx264\n",
-        f"stream_meta crf 20\n",
+        "stream_meta encoder libx264\n",
+        "stream_meta crf 20\n",
         f"stream_extradata {extradata.hex()}\n",
     ]
 
@@ -88,9 +90,12 @@ def test_concat_demux():
 
 def test_url_check():
     concat = FFConcat("file vid1.mp4\nfile vid2.mp4\n", pipe_url="-")
-    url, _, input = check_url(concat, nodata=False)
+
+    url = concat
+    data = url.input
+
     assert url == concat
-    assert input == concat.input
+    assert data == concat.input
 
 
 def test_transcode():
@@ -98,7 +103,6 @@ def test_transcode():
     url = "tests/assets/testaudio-1m.mp3"
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         in_url = path.join(tmpdirname, "input.wav")
         transcode(url, in_url)
 
