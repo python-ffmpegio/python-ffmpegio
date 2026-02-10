@@ -1,6 +1,6 @@
-import math
-from ffmpegio import utils, FFmpegioError
 import pytest
+
+from ffmpegio import utils
 
 
 def test_string_escaping():
@@ -71,15 +71,6 @@ def test_alpha_change():
             assert utils.alpha_change(input_pix_fmt, output_pix_fmt, -1) is False
 
 
-def test_get_rotated_shape():
-    w = 1000
-    h = 400
-    print(utils.get_rotated_shape(w, h, 30))
-    print(utils.get_rotated_shape(w, h, 45))
-    print(utils.get_rotated_shape(w, h, 60))
-    assert utils.get_rotated_shape(w, h, 90) == (h, w, math.pi / 2.0)
-
-
 def test_get_audio_codec():
     cfg = utils.get_audio_codec("s16")
     assert cfg[0] == "pcm_s16le" and cfg[1] == "s16le"
@@ -88,57 +79,6 @@ def test_get_audio_codec():
 def test_get_audio_format():
     cfg = utils.get_audio_format("s16", 2)
     assert cfg[0] == "<i2" and cfg[1] == (2,)
-
-
-def test_get_output_stream_id():
-    info = [{"user_map": "out0"}]
-    assert utils.get_output_stream_id(info, 0) == 0
-    assert utils.get_output_stream_id(info, "out0") == 0
-    with pytest.raises(FFmpegioError):
-        utils.get_output_stream_id(info, -1)
-    with pytest.raises(FFmpegioError):
-        utils.get_output_stream_id(info, 1)
-    with pytest.raises(FFmpegioError):
-        utils.get_output_stream_id(info, "in0")
-
-
-@pytest.mark.parametrize(
-    "inputs,input_info,must_probe,ret",
-    [
-        ([], [], False, []),
-        ([(None, {})], [{"src_type": "fileobj"}], False, [True]),
-        ([(None, {})], [{"src_type": "buffer", "buffer": b""}], False, [True]),
-        ([(None, {})], [{"src_type": "buffer", "buffer": b""}], True, [True]),
-        ([(None, {})], [{"src_type": "buffer"}], True, [False]),
-        (
-            [(None, {"ac": 1, "sample_fmt": "flt"})],
-            [{"src_type": "buffer", "media_type": "audio"}],
-            False,
-            [True],
-        ),
-        (
-            [(None, {"ac": 1, "sample_fmt": "flt"})],
-            [{"src_type": "buffer", "media_type": "audio"}],
-            True,
-            [False],
-        ),
-        (
-            [(None, {})],
-            [{"src_type": "buffer", "media_type": "audio"}],
-            False,
-            [False],
-        ),
-        (
-            [(None, {"s": (10, 10), "pix_fmt": "gray"})],
-            [{"src_type": "buffer", "media_type": "video"}],
-            False,
-            [True],
-        ),
-    ],
-)
-def test_are_input_pipes_ready(inputs, input_info, must_probe, ret):
-
-    assert utils.are_input_pipes_ready(inputs, input_info, must_probe) == ret
 
 
 def test_analyze_output_video_filter():
@@ -151,4 +91,4 @@ def test_analyze_output_video_filter():
             1080,
         ),
     )
-    assert res==(100,'yuv420p',(320,240))
+    assert res == (100, "yuv420p", (320, 240))

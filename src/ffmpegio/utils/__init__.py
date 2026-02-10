@@ -248,22 +248,6 @@ def guess_video_format(
     return size, pix_fmt
 
 
-def get_rotated_shape(w: int, h: int, deg: float) -> tuple[int, int]:
-    """compute the shape of rotated rectangle
-
-    :param w: rectangle width
-    :param h: rectangle height
-    :param deg: rotation angle in degrees, positive in clockwise direction
-    :return: the (width, height) after rotation
-    """
-    theta = radians(deg)
-    C = cos(theta)
-    S = sin(theta)
-    return int(round(abs(C * w - S * h))), int(round(abs(S * w + C * h))), theta
-    # X = [[C, -S], [S, C]], [[w, w, 0.0], [0.0, h, h]]
-    # return int(round(abs(X[0, 0] - X[0, 2]))), int(round(abs(X[1, 1]))), theta
-
-
 audio_codecs = dict(
     u8=("pcm_u8", "u8"),
     s16=("pcm_s16le", "s16le"),
@@ -355,61 +339,6 @@ def parse_video_size(expr: str | tuple[int, int]) -> tuple[int, int]:
         return expr
 
 
-def parse_frame_rate(expr) -> Fraction:
-    try:
-        return Fraction(expr)
-    except ValueError:
-        return caps.frame_rate_presets[expr]
-
-
-def parse_color(expr) -> tuple[int, int, int, int | None]:
-    m = re.match(
-        r"([^@]+)?(?:@(0x[\da-f]{2}|[0-1]\.[0-9]+))?$",
-        expr,
-        re.IGNORECASE,
-    )
-    expr = m[1]
-    alpha = m[2] and (int(m[2], 16) if m[2][1] == "x" else float(m[2]))
-
-    m = re.match(
-        r"(?:0x|#)?([\da-f]{6})([\da-f]{2})?$",
-        expr,
-        re.IGNORECASE,
-    )
-    if m:
-        rgb = m[1]
-        if m[2] and alpha is None:
-            alpha = int(m[2], 16)
-    else:
-        colors = caps.colors()
-        name = next((k for k in colors.keys() if k.lower() == expr.lower()), None)
-        if name is None:
-            raise Exception("invalid color expression")
-        rgb = colors[name][1:]
-
-    return int(rgb[:2], 16), int(rgb[2:4], 16), int(rgb[4:], 16), alpha
-
-
-def compose_color(r: str | Sequence[Number], *args: tuple[Number]) -> str:
-    if isinstance(r, str):
-        colors = caps.colors()
-        name = next((k for k in colors.keys() if k.lower() == r.lower()), None)
-        if name is None:
-            raise Exception("invalid predefined color name")
-        return name
-    else:
-
-        def conv(x):
-            if isinstance(x, float):
-                x = int(x * 255)
-            return f"{x:02X}"
-
-        if len(args) < 4:
-            args = (*args, *([255] * (3 - len(args))))
-
-        return "".join((conv(x) for x in (r, *args)))
-
-
 def layout_to_channels(layout: str) -> int:
     layouts = caps.layouts()["layouts"]
     names = caps.layouts()["channels"].keys()
@@ -460,18 +389,6 @@ def parse_time_duration(expr: str | float) -> float:
             return -s if m[1] else s
         raise Exception("invalid time duration")
     return expr
-
-
-def find_stream_options(options: dict[str, Any], name: str) -> dict[str, Any]:
-    """find option keys, which may be stream-specific
-
-    :param options: source option dict (content will be modified)
-    :param suffix: matching suffix
-    :return: popped options
-    """
-
-    re_opt = re.compile(rf"{name}(?=\:|$)")
-    return [k for k in options if re_opt.match(k)]
 
 
 def pop_extra_options(options: dict[str, Any], suffix: str) -> dict[str, Any]:
@@ -962,73 +879,6 @@ def analyze_output_audio_filter(
     return (*stream.values(),)
 
 
-def are_input_pipes_ready(
-    inputs: list[tuple[FFmpegUrlType, FFmpegOptionDict]],
-    input_info: list[InputInfoDict],
-    must_probe: bool = False,
-) -> list[bool]:
-    """Test if all the input information is provided for raw output initialization
-
-    :param inputs: url-option pairs of input sources
-    :param input_info: input source information
-    :param must_probe: True to skip required option check and fail if piped in,
-                       defaults to False
-    :return: If i-th element is True, it indicates that the i-th input is ready
-
-    What it checks
-    --------------
-
-    * OK if input is NOT buffered (e.g., given url or file object)
-    * buffered input is OK if its data is given in info[i]['buffer']
-    * buffered input without data is OK only if necessary information is provided
-      in the input options to deduce the raw output data type and shape:
-
-        video: `pix_fmt` and `s`
-        audio: `sample_fmt` and `ac`
-    """
-
-    required_options = {
-        "audio": ("sample_fmt", "ac"),
-        "video": ("pix_fmt", "s"),
-    }
-
-    return [
-        (
-            info["src_type"] != "buffer"
-            or "buffer" in info
-            or (
-                not must_probe
-                and all(o in opts for o in required_options[info["media_type"]])
-            )
-        )
-        for (_, opts), info in zip(inputs, input_info)
-    ]
-
-
-def get_output_stream_id(output_info: list[OutputInfoDict], stream: str | int) -> int:
-    """get output stream id
-
-    :param output_info: list of output stream information
-    :param stream: name or index of an output stream
-    :return: index of the output stream
-    """
-    if isinstance(stream, str):
-        try:
-            stream = next(
-                i for i, info in enumerate(output_info) if stream == info["user_map"]
-            )
-        except StopIteration:
-            raise FFmpegioError(
-                f'"{stream=}") does not match any of the output stream names {tuple(output_info)}'
-            )
-    elif stream < 0 or stream >= len(output_info):
-        raise FFmpegioError(
-            f'"{stream=}") is not a valid output index (0-{len(output_info) - 1})'
-        )
-
-    return stream
-
-
 def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option dict
     # check url (must be url and not fileobj)
     valid = isinstance(url, (str, FilterGraphObject, FFConcat))
@@ -1129,28 +979,6 @@ def find_filter_complex_option(
     )
 
     return next((o for o in optnames if o in options), None)
-
-
-def are_output_streams_unique(
-    output_streams: list[FFmpegOptionDict] | dict[str, FFmpegOptionDict] | None,
-) -> bool:
-    """True if output raw stream specification uniquely defines all streams
-
-    :param output_streams: a list of FFmpeg output stream options, or the options
-                           dict keyed by user-specified stream name, or ``None``
-                           to autodetect all streams in input sources
-    """
-
-    if output_streams is None:
-        return False
-
-    for opts in (
-        output_streams.values() if isinstance(output_streams, dict) else output_streams
-    ):
-        map_opt = parse_map_option(opts["map"], input_file_id=0, parse_stream=True)
-        if "linklabel" in map_opt or not is_unique_stream(map_opt["stream_specifier"]):
-            return False
-    return True
 
 
 def input_file_stream_specs(
