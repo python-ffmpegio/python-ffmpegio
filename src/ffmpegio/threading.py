@@ -16,14 +16,13 @@ from typing import BinaryIO
 from namedpipe import NPopen
 
 from .errors import FFmpegError
-from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream
 
 logger = logging.getLogger("ffmpegio")
 
 
 # fmt:off
-__all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',
+__all__ = ['FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',
  'LoggerThread', 'ReaderThread', 'WriterThread', 'Empty', 'Full']
 # fmt:on
 
