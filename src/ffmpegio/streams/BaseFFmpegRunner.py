@@ -891,7 +891,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         try:
             output_info = self._output_info
         except AttributeError:
-            ostreams = self._init_kws["output_streams"]
+            ostreams = self._init_kws.get("output_streams", None)
             return ostreams and len(ostreams)
         else:
             return sum("media_type" in info for info in output_info)
@@ -1554,6 +1554,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             raise FFmpegioError(
                 f"Specified {stream=} is not a valid output encoded stream."
             )
+
+        if self.status == FFmpegStatus.BUFFERING:
+            return b""
 
         st = stream + self.num_output_streams
 

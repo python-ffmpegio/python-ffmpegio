@@ -983,11 +983,17 @@ def open(
     elif op_mode == "f":
         runner = _open_filter(in_types, out_types, urls_fgs, args, kwargs, runner_kws)
     elif op_mode == "d":
-        runner = _open_decoder(len(in_types), out_types, kwargs, runner_kws)
+        runner = _open_decoder(
+            len(in_types), out_types, urls_fgs, args, kwargs, runner_kws
+        )
     elif op_mode == "e":
-        runner = _open_encoder(in_types, len(out_types), args, kwargs, runner_kws)
+        runner = _open_encoder(
+            in_types, len(out_types), urls_fgs, args, kwargs, runner_kws
+        )
     else:
-        runner = _open_transcoder(len(in_types), len(out_types), kwargs, runner_kws)
+        runner = _open_transcoder(
+            len(in_types), len(out_types), urls_fgs, args, kwargs, runner_kws
+        )
 
     return runner
 

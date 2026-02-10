@@ -1,3 +1,4 @@
+import builtins
 from os import path
 from tempfile import TemporaryDirectory
 
@@ -12,7 +13,10 @@ from ffmpegio.streams.BaseFFmpegRunner import (
 )
 
 # import ffmpegio.streams as ff_streams
-from ffmpegio.streams.open import _parse_mode, open
+from ffmpegio.streams.open import (
+    _parse_mode,
+    open,
+)
 
 
 @pytest.mark.parametrize(
@@ -174,8 +178,83 @@ def test_open_filter(mode, input_rates, data, cls):
         assert not runner.decodable
         assert not runner.encodable
 
-    # siso filter
-    # mimo filter
-    # decoder
-    # encoder
-    # transcoder
+
+def test_open_decoder():
+
+    with builtins.open(url, "rb") as f:
+        b = f.read(1024)
+
+    with open(
+        "-",
+        "e->a",
+        ouput_streams=None,
+        squeeze=False,
+        extra_inputs=None,
+        extra_outputs=None,
+        primary_output=None,
+        blocksize=None,
+        enc_blocksize=None,
+        queuesize=None,
+        timeout=None,
+        progress=None,
+        show_log=False,
+        sp_kwargs=None,
+        to=1,
+    ) as runner:
+        runner.write_encoded(b)
+        assert isinstance(runner, PipedFFmpegRunner)
+        assert runner.readable
+        assert not runner.writable
+        assert runner.decodable
+        assert not runner.encodable
+
+
+def test_open_encoder():
+
+    with open(
+        "-",
+        "a->e",
+        8000,
+        input_options=None,
+        output_options=None,
+        extra_inputs=None,
+        extra_outputs=None,
+        input_shapes=None,
+        input_dtypes=None,
+        enc_blocksize=None,
+        queuesize=None,
+        timeout=None,
+        progress=None,
+        show_log=False,
+        sp_kwargs=None,
+        to=1,
+    ) as runner:
+        assert isinstance(runner, PipedFFmpegRunner)
+        assert not runner.readable
+        assert runner.writable
+        assert not runner.decodable
+        assert runner.encodable
+
+
+def test_open_transcoder():
+
+    with open(
+        "-",
+        "e->e",
+        input_options=None,
+        output_options=None,
+        extra_inputs=None,
+        extra_outputs=None,
+        enc_blocksize=None,
+        queuesize=None,
+        timeout=None,
+        progress=None,
+        show_log=False,
+        sp_kwargs=None,
+        to=1,
+    ) as runner:
+        assert isinstance(runner, PipedFFmpegRunner)
+        assert not runner.readable
+        assert not runner.writable
+        assert runner.decodable
+        assert runner.encodable
