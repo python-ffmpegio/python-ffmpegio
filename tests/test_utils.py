@@ -55,22 +55,6 @@ def test_get_pixel_format():
     assert cfg[0] == "|u1" and cfg[1] == 3
 
 
-def test_alpha_change():
-
-    cases = (("rgb24", "rgba", 1), ("rgb24", "rgb24", 0), ("ya8", "gray", -1))
-
-    for input_pix_fmt, output_pix_fmt, dir in cases:
-        dout = utils.alpha_change(input_pix_fmt, output_pix_fmt)
-        assert dir == dout
-        assert utils.alpha_change(input_pix_fmt, output_pix_fmt, dir) is True
-        if dir:
-            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, -dir) is False
-            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, 0) is False
-        else:
-            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, 1) is False
-            assert utils.alpha_change(input_pix_fmt, output_pix_fmt, -1) is False
-
-
 def test_get_audio_codec():
     cfg = utils.get_audio_codec("s16")
     assert cfg[0] == "pcm_s16le" and cfg[1] == "s16le"

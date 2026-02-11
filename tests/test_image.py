@@ -49,10 +49,6 @@ def test_read_write():
     A = image.read(url)
     print(A["dtype"] == "|u1")
     B = image.read(url, pix_fmt="ya8")
-    with pytest.raises(FFmpegioError):
-        image.read(url, pix_fmt="rgb24")
-    with pytest.raises(FFmpegioError):
-        image.read(url, pix_fmt="gray")
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         image.write(out_url, B)

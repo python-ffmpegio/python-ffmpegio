@@ -762,7 +762,6 @@ def gather_video_read_opts(
                 )
 
         # pixel format must be specified
-        remove_alpha = False
         if pix_fmt is None:
             # use the analyzed value, falling back to 'rgb24'
             if pix_fmt_in == "unknown":
@@ -771,27 +770,17 @@ def gather_video_read_opts(
                 )
 
             # deduce output pixel format from the input pixel format
-            pix_fmt, ncomp, dtype, remove_alpha = utils.get_pixel_config(pix_fmt_in)
+            pix_fmt, ncomp, dtype, _ = utils.get_pixel_config(pix_fmt_in)
             outopts["pix_fmt"] = pix_fmt
 
-        else:
-            # make sure assigned pix_fmt is valid
-            if pix_fmt_in is None:
-                # shouldn't get here
-                try:
-                    dtype, ncomp = utils.get_pixel_format(pix_fmt)
-                except Exception as e:
-                    raise FFmpegioError(
-                        "could not resolve output pixel format. Please specify output `'pix_fmt'` option"
-                    ) from e
-            else:
-                remove_alpha = utils.alpha_change(pix_fmt_in, pix_fmt, -1)
-
-        if remove_alpha:
-            raise FFmpegioError(
-                "The output pix_fmt does not have a transparency while its input does. "
-                "Additional filtering is necessary to remove the alpha channel properly. See ffmpegio.filtergraph.presets.remove_alpha()."
-            )
+        elif pix_fmt_in is None:
+            # make sure assigned pix_fmt is valid (shouldn't get here)
+            try:
+                dtype, ncomp = utils.get_pixel_format(pix_fmt)
+            except Exception as e:
+                raise FFmpegioError(
+                    "could not resolve output pixel format. Please specify output `'pix_fmt'` option"
+                ) from e
 
         if s is None:
             s = s_in

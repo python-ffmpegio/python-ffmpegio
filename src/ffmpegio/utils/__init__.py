@@ -130,26 +130,6 @@ def get_pixel_config(input_pix_fmt: str) -> tuple[str, int, DTypeString, bool]:
     )
 
 
-def alpha_change(
-    input_pix_fmt: str, output_pix_fmt: str | None, dir: int | None = None
-) -> bool | int | None:
-    """get best pixel configuration to read video data in specified pixel format
-
-    :param input_pix_fmt: input pixel format
-    :param output_pix_fmt: output pixel format
-    :param dir: specify the change direction for boolean answer, defaults to None
-    :return: dir None: 0 if no change, 1 if alpha added, -1 if alpha removed, None if indeterminable
-             dir int: True if changes in the specified direction or False
-
-    """
-    if input_pix_fmt is None or output_pix_fmt is None:
-        return None if dir is None else False
-    n_in = caps.pix_fmts()[input_pix_fmt]["nb_components"]
-    n_out = caps.pix_fmts()[output_pix_fmt]["nb_components"]
-    d = (n_in % 2) - (n_out % 2)
-    return d if dir is None else d > 0 if dir > 0 else d < 0 if dir < 0 else d == 0
-
-
 def get_pixel_format(fmt: str) -> tuple[DTypeString, int]:
     """get data format and number of components associated with video pixel format
 
