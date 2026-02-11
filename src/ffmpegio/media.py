@@ -150,7 +150,7 @@ def read(
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
-    :param **options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
+    :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                         input url or '_in' to be applied to all inputs. The url-specific option gets the
                         preference (see :doc:`options` for custom options)
     :return: frame/sampling rates and raw data for each requested stream
@@ -219,7 +219,7 @@ def write(
     :param progress: progress callback function, defaults to None
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                       used to run the FFmpeg, defaults to None
-    :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
                       will be applied to all input streams unless the option has been already defined in `stream_data`
 
     TIPS
@@ -300,7 +300,7 @@ def filter(
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
                       used to run the FFmpeg, defaults to None
-    :param **options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
                       will be applied to all input streams unless the option has been already defined in `stream_data`
 
     TIPS

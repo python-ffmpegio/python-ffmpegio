@@ -31,7 +31,7 @@ def create(
     """Create an image using a source video filter
 
     :param name: name of the source filter
-    :param \\*args: sequential filter option arguments. Only valid for
+    :param args: sequential filter option arguments. Only valid for
                     a single-filter expr, and they will overwrite the
                     options set by expr.
     :param progress: progress callback function, defaults to None
@@ -41,7 +41,7 @@ def create(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: Named filter options or FFmpeg options. Items are
+    :param options: Named filter options or FFmpeg options. Items are
                         only considered as the filter options if expr is a
                         single-filter graph, and take the precedents over
                         general FFmpeg options. Append '_in' for input
@@ -97,7 +97,7 @@ def read(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :return data: video data object specified by selected `bytes_to_video` plugin hook.
                   The output shape is 3D (row x column x comp) if colored/transparent.
                   or 2D (row x column) if it is a grayscale image.
@@ -170,7 +170,7 @@ def write(
                       to None
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
     # if filter_complex is not defined use '0:V:0' as default mapping
@@ -232,7 +232,7 @@ def filter(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :return data: video data object specified by selected `bytes_to_video` plugin hook.
                   The output shape is 3D (row x column x comp) if colored/transparent.
                   or 2D (row x column) if it is a grayscale image.

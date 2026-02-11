@@ -81,7 +81,7 @@ deprecate_core()
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
     "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
     "open", "streams", "ffmpegprocess", "FFmpegError", "FFmpegioError", "FilterGraph", 
-    "FFConcat", "use", "FLAG"]
+    "FFConcat", "use", "FLAG", "stream_spec"]
 # fmt:on
 
 __version__ = "0.11.1"

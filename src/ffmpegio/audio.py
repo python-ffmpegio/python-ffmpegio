@@ -37,31 +37,31 @@ def create(
     """Create audio data using an audio source filter
 
     :param expr: name of the source filter or full filter expression
-    :param \\*args: sequential filter option arguments. Only valid for
-                    a single-filter expr, and they will overwrite the
-                    options set by expr.
+    :param args: sequential filter option arguments. Only valid for
+        a single-filter expr, and they will overwrite the
+        options set by expr.
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
-                    channels, defaults to True to reduce monaural data to 1D,
-                    eliminating the singular audio channel dimension.
+        channels, defaults to True to reduce monaural data to 1D,
+        eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
+        defaults to None (no show/capture)
+        Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
-    :param \\**options: Named filter options or FFmpeg options. Items are
-                        only considered as the filter options if expr is a
-                        single-filter graph, and take the precedents over
-                        general FFmpeg options. Append '_in' for input
-                        option names (see :doc:`options`), and '_out' for
-                        output option names if they conflict with the filter
-                        options.
+        `subprocess.Popen()` call used to run the FFmpeg, defaults
+        to None
+    :param options: Named filter options or FFmpeg options. Items are
+        only considered as the filter options if expr is a
+        single-filter graph, and take the precedents over
+        general FFmpeg options. Append '_in' for input
+        option names (see :doc:`options`), and '_out' for
+        output option names if they conflict with the filter
+        options.
     :return rate: sample rate in samples/second
-    :return data: audio data object specified by selected `bytes_to_audio` plugin hook.
-                  (pre v0.12.0) the output shape is always 2D with the time axis in the
-                  first dimension. (since v0.12.0) The shape is default to 1D if
-                  data is monaural. To match the shape
+    :return data: audio data object specified by the selected ``bytes_to_audio``
+        plugin hook (set by :py:func:`ffmpegio.use`). (pre v0.12.0) the output shape is always 2D with the time
+        axis in the first dimension. (since v0.12.0) The shape is default to 1D
+        if data is monaural.
 
     .. seealso::
         https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources for available
@@ -116,29 +116,29 @@ def read(
     """Read audio samples.
 
     :param url: URL of the audio file to read or a list of URLs to be used by
-                complex filtergraph. Each url may be accompanied by its own input
-                options (a tuple pair of url and its option dict). These options
-                supersede the input options given with keyword arguments with `'_in'`
-                suffix.
+        complex filtergraph. Each url may be accompanied by its own input
+        options (a tuple pair of url and its option dict). These options
+        supersede the input options given with keyword arguments with `'_in'`
+        suffix.
     :param extra_outputs: list of additional encoded output sources, defaults to
-                          None. Each destination may be url string or a pair of
-                          a url string and an option dict.
+        None. Each destination may be url string or a pair of a url string and
+        an option dict.
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
-                    channels, defaults to True to reduce monaural data to 1D,
-                    eliminating the singular audio channel dimension.
+        channels, defaults to True to reduce monaural data to 1D, eliminating
+        the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
-    :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
+    :param show_log: True to show FFmpeg log messages on the console, defaults
+        to None (no show/capture). Ignored if stream format must be retrieved
+        automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
+    :param options: FFmpeg options, append '_in' for input option names
+        (see :doc:`options`)
     :return rate: sample rate in samples/second
-    :return data: audio data object specified by selected `bytes_to_audio` plugin hook.
-                  (pre v0.12.0) the output shape is always 2D with the time axis in the
-                  first dimension. (since v0.12.0) The shape is default to 1D if
-                  data is monaural. To match the shape
+    :return data: audio data object specified by selected `bytes_to_audio`
+        plugin hook. (pre v0.12.0) the output shape is always 2D with the time
+        axis in the first dimension. (since v0.12.0) The shape is default to 1D
+        data is monaural.
 
     .. note:: Even if :code:`start_time` option is set, all the prior samples will be read.
         The retrieved data will be truncated before returning it to the caller.
@@ -211,7 +211,7 @@ def write(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
     # if filter_complex is not defined use '0:a:0' as default mapping
@@ -277,7 +277,7 @@ def filter(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :return rate: sample rate in samples/second
     :return data: audio data object specified by selected `bytes_to_audio` plugin hook.
                   (pre v0.12.0) the output shape is always 2D with the time axis in the

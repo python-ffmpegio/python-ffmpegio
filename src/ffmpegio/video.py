@@ -40,7 +40,7 @@ def create(
     """Create a video using a source video filter
 
     :param expr: source filter graph
-    :param \\*args: sequential filter option arguments. Only valid for
+    :param args: sequential filter option arguments. Only valid for
                     a single-filter expr, and they will overwrite the
                     options set by expr.
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
@@ -53,7 +53,7 @@ def create(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: Named filter options or FFmpeg options. Items are
+    :param options: Named filter options or FFmpeg options. Items are
                         only considered as the filter options if expr is a
                         single-filter graph, and take the precedents over
                         general FFmpeg options. Append '_in' for input
@@ -127,7 +127,7 @@ def read(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
 
     :return: frame rate and video frame data, created by `bytes_to_video` plugin hook
     """
@@ -202,7 +202,7 @@ def write(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
     # if filter_complex is not defined use '0:V:0' as default mapping
@@ -268,7 +268,7 @@ def filter(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :return: output frame rate and video frame data, created by `bytes_to_video` plugin hook
 
     """

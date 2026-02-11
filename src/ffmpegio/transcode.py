@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("ffmpegio")
-
-from . import FFmpegError, configure
+from . import FFmpegError, configure, utils
 from . import ffmpegprocess as fp
-from . import utils
 from ._typing import FFmpegOptionDict, ProgressCallable, Sequence, Unpack
-from .configure import (FFmpegInputOptionTuple, FFmpegInputUrlComposite,
-                        FFmpegOutputOptionTuple, FFmpegOutputUrlComposite)
+from .configure import (
+    FFmpegInputOptionTuple,
+    FFmpegInputUrlComposite,
+    FFmpegOutputOptionTuple,
+    FFmpegOutputUrlComposite,
+)
 from .path import check_version
+
+logger = logging.getLogger("ffmpegio")
 
 __all__ = ["transcode"]
 
@@ -43,36 +46,35 @@ def transcode(
 ) -> bytes | None:
     """Transcode media files to another format/encoding
 
-    :param inputs: url/path of the input media file or a sequence of tuples, each
-                   containing an input url and its options dict
-    :param outputs: url/path of the output media file or a sequence of tuples, each
-                    containing an output url and its options dict
-    :param progress: progress callback function, defaults to None
-    :param overwrite: True to overwrite if output url exists, defaults to None
-                      (auto-select)
-    :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
+    :param inputs: url/path of the input media file or a sequence of tuples,
+        each containing an input url and its options dict
+    :param outputs: url/path of the output media file or a sequence of tuples,
+        each containing an output url and its options dict
+    :param progress: progress callback function, defaults to ``None``
+    :param overwrite: True to overwrite if output url exists, defaults to auto-
+        select
+    :param show_log: True to show FFmpeg log messages on the console, defaults
+        to ``None`` (no show/capture) Ignored if stream format must be retrieved
+        automatically.
     :param two_pass: True to encode in 2-pass
-    :param pass1_omits: list of output arguments to ignore in pass 1, defaults to
-                        None (removes 'c:a' or 'acodec'). For multiple outputs,
-                        specify use list of the list of arguments, matching the
-                        length of outputs, for per-output omission.
-    :param pass1_extras: list of additional output arguments to include in pass 1,
-                         defaults to None (add 'an' if `pass1_omits` also None)
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
-    :param **options: FFmpeg options. For output and global options, use FFmpeg
-                        option names as is. For input options, append "_in" to the
-                        option name. For example, r_in=2000 to force the input frame
-                        rate to 2000 frames/s (see :doc:`options`).
+    :param pass1_omits: list of output arguments to ignore in pass 1, defaults
+        to ``None`` (removes ``'c:a'`` or ``'acodec'``). For multiple outputs,
+        specify use list of the list of arguments, matching the length of
+        outputs, for per-output omission.
+    :param pass1_extras: list of additional output arguments to include in pass
+        1, defaults to ``None`` (add 'an' if ``pass1_omits`` also ``None``)
+    :param sp_kwargs: dictionary with keywords passed to ``subprocess.run()`` or
+        ``subprocess.Popen()`` call used to run the FFmpeg, defaults
+        to None
+    :param options: FFmpeg options. For output and global options, use FFmpeg
+        option names as is. For input options, append ``"_in"`` to the option
+        name. For example, ``r_in=2000`` to force the input frame rate to 2000
+        frames/s (see :doc:`options`).
 
-                        If multiple inputs or outputs are specified, these input
-                        or output options specified here are treated as common
-                        options, and the url-specific duplicate options in the
-                        ``inputs`` or ``outputs`` sequence will overwrite those
-                        specified here.
+        If multiple inputs or outputs are specified, these input or output
+        options specified here are treated as common options, and the url-
+        specific duplicate options in the ``inputs`` or ``outputs`` sequence
+        will overwrite those specified here.
     :returns: if any of the outputs is stdout, returns output bytes
 
     """
@@ -118,8 +120,8 @@ def transcode(
         }
     )
     if two_pass:
-        if len(output_info)>1:
-            raise ValueError('transcode() only supports two_pass mode for one output.')
+        if len(output_info) > 1:
+            raise ValueError("transcode() only supports two_pass mode for one output.")
         kwargs["pass1_omits"] = pass1_omits
         kwargs["pass1_extras"] = pass1_extras
 

@@ -30,9 +30,9 @@ These functions are served by three classes:
    :nosignatures:
    :recursive:
 
-   ffmpegio.filtergraph.Filter
-   ffmpegio.filtergraph.Chain
-   ffmpegio.filtergraph.Graph
+   Filter
+   Chain
+   Graph
 
 See :ref:`api` section below for the full documentation of these classes
 and other helper functions.

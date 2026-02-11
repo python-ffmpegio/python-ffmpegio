@@ -1,9 +1,11 @@
-import pytest
-from ffmpegio import image, probe, transcode, FFmpegError, FFmpegioError
-import tempfile, re
+import re
+import tempfile
 from os import path
 
+import pytest
+
 from ffmpegio import filtergraph as fgb
+from ffmpegio import image, transcode
 
 outext = ".png"
 
@@ -80,16 +82,18 @@ def test_read_basic_filter():
     )
     image.read(url, show_log=True, vf=vf)
 
+
 def test_filter():
 
     url = "tests/assets/ffmpeg-logo.png"
-    I = image.read(url,vf=fgb.presets.remove_alpha('red','rgb24'))
+    I = image.read(url, vf=fgb.presets.remove_alpha("red", "rgb24"))
     vf = fgb.presets.filter_video_basic(
         crop=(10, 50),
         flip="horizontal",
         transpose="clock",
     )
     J = image.filter(vf, I, show_log=True)
+
 
 @pytest.mark.parametrize(
     "fill_color,pix_fmt,ncomp",
@@ -103,26 +107,27 @@ def test_remove_alpha_filter(fill_color, pix_fmt, ncomp):
     I = image.read(url, show_log=True, vf=vf)
     assert I["shape"] == ((100, 396, ncomp) if ncomp else (100, 396))
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def nonsquarepix_url():
     url = "tests/assets/testvideo-1m.mp4"
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, path.basename(url))
-        transcode(url, out_url, show_log=True, vf="setsar=11/13", t=0.5, pix_fmt='gray')
+        transcode(url, out_url, show_log=True, vf="setsar=11/13", t=0.5, pix_fmt="gray")
         yield out_url
 
-@pytest.mark.parametrize('mode',['upscale','downscale','upscale_even','downscale_even'])
+
+@pytest.mark.parametrize(
+    "mode", ["upscale", "downscale", "upscale_even", "downscale_even"]
+)
 def test_square_pixels(nonsquarepix_url, mode):
 
-        vf = fgb.presets.square_pixels(mode)
-        image.read(nonsquarepix_url, vf=vf,show_log=None)
+    vf = fgb.presets.square_pixels(mode)
+    image.read(nonsquarepix_url, vf=vf, show_log=None)
 
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
-    import logging
-    from ffmpegio import utils, ffmpegprocess
-    from ffmpegio.utils import log as log_utils
 
     # logging.basicConfig(level=logging.DEBUG)
 

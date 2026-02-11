@@ -9,7 +9,7 @@ from __future__ import annotations
    :widths: 15 10 30
    :header-rows: 1
 
-   ---------------------------------  ------------------------------------------------------------
+   ------------------------------  ------------------------------------------------------------
    Operation                       Description  Related Methods
    ------------------------------  ------------------------------------------------------------
    `+` operator                    Chaining/join operator, supports scalar expansion
@@ -63,16 +63,17 @@ from __future__ import annotations
 Filter Pad Labeling
 ===================
 
-`str >> Filter/Chain/Graph` and `Filter/Chain/Graph >> str` operations can be used to set input
-and output labels, respectively. The labels must be specified in square brackets as in the same
-manner as FFmpeg filtergraph specification.
+`str >> Filter/Chain/Graph` and `Filter/Chain/Graph >> str` operations can be 
+used to set input and output labels, respectively. The labels must be specified 
+in square brackets as in the same manner as FFmpeg filtergraph specification.
 
 .. code-block::python
 
     fg = '[in]' >> Filter('scale',0.5,-1) >> '[out]'
 
-The brackets are required to distinguish labels from str expressions of filter, chain, and graph.
-For example, the following expression chains `scale` and `setsar` filters:
+The brackets are required to distinguish labels from str expressions of filter, 
+chain, and graph. For example, the following expression chains `scale` and 
+`setsar` filters:
 
 .. code-block::python
 
@@ -104,9 +105,14 @@ from ..caps import filters as list_filters
 from . import abc
 from .build import attach, concatenate, connect, join, stack
 from .Chain import Chain
-from .convert import (as_filter, as_filterchain, as_filtergraph,
-                      as_filtergraph_object, as_filtergraph_object_like,
-                      atleast_filterchain)
+from .convert import (
+    as_filter,
+    as_filterchain,
+    as_filtergraph,
+    as_filtergraph_object,
+    as_filtergraph_object_like,
+    atleast_filterchain,
+)
 from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
 from .Filter import Filter
 from .Graph import Graph
@@ -164,6 +170,7 @@ def __getattr__(name):
         _filters[name] = func
 
     return func
+
 
 # TODO
 # def validate_input_filtergraph(fg):
