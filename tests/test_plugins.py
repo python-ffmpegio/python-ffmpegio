@@ -7,6 +7,9 @@ logging.basicConfig(level=logging.INFO)
 
 
 def test_rawdata_bytes():
+
+    plugins.use("read_bytes")
+
     hook = plugins.get_hook()
 
     dtype = "|u1"
