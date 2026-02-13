@@ -528,7 +528,7 @@ temporary script file. The previous example can also run as follows:
    with fg.as_script_file() as script_path:
       ffmpegio.ffmpegprocess.run(
          {
-               'inputs':  [('input.mp4', None)]
+               'inputs':  [('input.mp4', None)],
                'outputs': [('output.mp4', {'filter_script:v': script_path})]
          })
 

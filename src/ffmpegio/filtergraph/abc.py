@@ -6,12 +6,22 @@ from collections.abc import Generator, Sequence
 from .. import filtergraph as fgb
 from .._utils import zip  # pre-py310 compatibility
 from .exceptions import *
+from .GraphLinks import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX, Literal
 
 __all__ = ["FilterGraphObject"]
 
 
 class FilterGraphObject(ABC):
+    @staticmethod
+    def relabel_duplicates(*fgs: tuple[FilterGraphObject]): ...
+
+    def relabel(self, labels: dict[str | int, str | int]): ...
+
+    @property
+    def links(self) -> GraphLinks | None:
+        """filtergraph link definition only if filtergraph"""
+        return None
 
     def get_num_pads(self, input: bool) -> int:
         """get the number of available pads at input or output
@@ -759,7 +769,6 @@ class FilterGraphObject(ABC):
 
         # if output is a list
         if isinstance(other, list):
-
             if len(other) == 0:
                 raise ValueError("At least one `other` filtergraph must be specified.")
 
@@ -813,7 +822,6 @@ class FilterGraphObject(ABC):
 
         # if output is a list
         if isinstance(other, list):
-
             if len(other) == 0:
                 raise ValueError("At least one `other` filtergraph must be specified.")
 
@@ -994,7 +1002,6 @@ class FilterGraphObject(ABC):
         ]
 
         if resolve_omitted:
-
             # assign unknown pad indices in the order of the following ranking:
             # indices ranking
             # - int, int, int    = 3*6 = 18

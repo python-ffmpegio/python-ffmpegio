@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from copy import copy
-from itertools import islice
 
 from .. import filtergraph as fgb
 from .._utils import zip  # pre-py310 compatibility
 from .exceptions import FFmpegioError, FiltergraphInvalidExpression
+from .GraphLinks import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX, Literal, get_args
 
 __all__ = ["connect", "join", "attach", "stack", "concatenate"]
@@ -204,12 +204,8 @@ def join(
             links = [None] * nleft
             for c in range(nleft):
                 # get the first available pad to join
-                left_pad, *_ = next(
-                    left.iter_output_pads(chain=c, **iter_kws)
-                )
-                right_pad, *_ = next(
-                    right.iter_input_pads(chain=c, **iter_kws)
-                )
+                left_pad, *_ = next(left.iter_output_pads(chain=c, **iter_kws))
+                right_pad, *_ = next(right.iter_input_pads(chain=c, **iter_kws))
                 links[c] = (left_pad, right_pad)
         except:
             if how == "auto":
@@ -218,7 +214,6 @@ def join(
                 raise
 
     if how in ("all", "chainable") or nright != nleft:
-
         left_pads = [out[0] for out in left.iter_output_pads(**iter_kws)]
         right_pads = [out[0] for out in right.iter_input_pads(**iter_kws)]
 
@@ -301,7 +296,6 @@ def attach(
     right_objs_labels, attach_right = analyze_fgobj(right)
 
     if not (attach_left or attach_right):
-
         if not len(right_objs_labels):
             return left_objs_labels
         if not len(left_objs_labels):
@@ -415,6 +409,11 @@ def stack(
         return fgb.Graph()
     if len(fgs) == 1:
         return fgb.as_filtergraph_object(fgs[0], copy=True)
+
+    # re-label the links
+    for fg, links in zip(fgs, GraphLinks.relabel_duplicates([fg.links for fg in fgs])):
+        if links is not None:
+            fg._links = links
 
     fg = fgb.as_filtergraph(fgs[0], copy=not inplace)
 

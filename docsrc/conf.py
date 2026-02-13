@@ -20,7 +20,7 @@ import ffmpegio
 
 project = "python-ffmpegio"
 copyright = (
-    "2021-2025, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
+    "2021-2026, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
 )
 author = "Takeshi (Kesh) Ikuma"
 release = ffmpegio.__version__
@@ -36,8 +36,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
-    "sphinx.ext.graphviz",
-    "sphinxcontrib.repl",
+    # "sphinx.ext.graphviz",
+    # "sphinxcontrib.repl",
     "matplotlib.sphinxext.plot_directive",
 ]
 # Looks for objects in external projects
@@ -48,7 +48,7 @@ autodoc_member_order = "groupwise"
 autodoc_type_aliases = {
     "ArrayLike": "~numpy.typing.ArrayLike",
     "NDArray": "~numpy.typing.NDArray",
-    "ff": "ffmpegio"
+    "ff": "ffmpegio",
 }
 autodoc_mock_imports = ["builtins"]
 autodoc_typehints_format = "short"
@@ -56,7 +56,7 @@ autodoc_typehints_format = "short"
 autodoc_default_options = {"exclude-members": "__new__", "class-doc-from": "init"}
 autodoc_typehints = "description"
 
-overloads_location = 'signature'
+overloads_location = "signature"
 
 # Intersphinx configuration
 intersphinx_mapping = {
@@ -67,7 +67,7 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
 }
 
-autodoc_typehints = 'description'
+autodoc_typehints = "description"
 # autodoc_type_aliases = {'AgentAssignment': 'AgentAssignment'}
 
 # Add any paths that contain templates here, relative to this directory.
@@ -83,7 +83,7 @@ pygments_style = "sphinx"
 
 copybutton_selector = "div:not(.output_area) > div.highlight > pre"
 
-graphviz_output_format = 'svg'
+graphviz_output_format = "svg"
 
 # -- Options for HTML output -------------------------------------------------
 

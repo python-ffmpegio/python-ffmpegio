@@ -26,11 +26,7 @@ GraphLinks class design:
 """
 
 
-class GraphLinks: ...
-
-
 class GraphLinks(UserDict):
-
     class Error(FFmpegioError):
         pass
 
@@ -83,7 +79,7 @@ class GraphLinks(UserDict):
         if id is None:
             if none_ok:
                 return
-            raise GraphLinks.Error(f"pad index cannot be None")
+            raise GraphLinks.Error("pad index cannot be None")
 
         if not (
             isinstance(id, (tuple))
@@ -101,7 +97,7 @@ class GraphLinks(UserDict):
             assert len(ids) == 2
         except:
             raise GraphLinks.Error(
-                f"Link value must be a 2-element tuple with inpad and outpad pad ids"
+                "Link value must be a 2-element tuple with inpad and outpad pad ids"
             )
 
         (inpad, outpad) = ids
@@ -109,12 +105,12 @@ class GraphLinks(UserDict):
 
         inpad_is_none = inpad is None
         if inpad_is_none and outpad is None:
-            raise GraphLinks.Error(f"Both input and output pads cannot be None.")
+            raise GraphLinks.Error("Both input and output pads cannot be None.")
 
         i = -1
         for i, d in enumerate(GraphLinks.iter_inpad_ids(inpad, True)):
             if d is None and not inpad_is_none:
-                raise GraphLinks.Error(f"multi-id input label item cannot be None.")
+                raise GraphLinks.Error("multi-id input label item cannot be None.")
             GraphLinks.validate_pad_idx(d)
 
     @staticmethod
@@ -136,7 +132,6 @@ class GraphLinks(UserDict):
 
         # validate each link
         for label, pads in data.items():
-
             if (
                 not is_map_option(label, allow_missing_file_id=True)
                 and pads[0] is not None
@@ -343,7 +338,7 @@ class GraphLinks(UserDict):
             if not auto_index:
                 raise GraphLinks.Error(f"{label=} is already in use.")
             i = 0
-            label_ = f'{label}{auto_index_sep}'
+            label_ = f"{label}{auto_index_sep}"
             while label in self:
                 i += 1
                 label = f"{label_}{i}"
@@ -351,6 +346,94 @@ class GraphLinks(UserDict):
         self.validate_label(label)
 
         return label
+
+    @staticmethod
+    def duplicates(
+        *link_objs: tuple[GraphLinks | None, ...],
+    ) -> dict[str | int, list[tuple[int, str]]]:
+        """re-label the duplicate label names of multiple ``GraphLink`` objects
+
+        :param link_objs: ``GraphLink``s objects to be re-labeled. ``None`` elements
+            are ignored
+        :return: copies of ``link_objs`` with relabeled ``GraphLink``s
+        """
+
+        # accumulate all the labels (remove trailing numbers if exist to match)
+        labels: dict[str | int, list[tuple[int, str]]] = {}
+        regexp = re.compile(r"\d+$")
+        for i, obj in enumerate(link_objs):
+            if obj is None:
+                continue
+            for label in obj:
+                key = label
+                if isinstance(key, str):
+                    m = regexp.search(key)
+                    if m:
+                        key = key[: m.start()]
+
+                if key in labels:
+                    labels[key].append((i, label))
+                else:
+                    labels[key] = [(i, label)]
+
+        return {k: v for k, v in labels.items() if len(v) > 1}
+
+    @staticmethod
+    def relabel_duplicates(
+        *link_objs: tuple[GraphLinks | None, ...],
+    ) -> tuple[GraphLinks | None, ...]:
+        """re-label the duplicate label names of multiple ``GraphLink`` objects
+
+        :param link_objs: ``GraphLink``s objects to be re-labeled. ``None`` elements
+            are ignored
+        :return: copies of ``link_objs`` with relabeled ``GraphLink``s
+        """
+
+        # accumulate all the labels (remove trailing numbers if exist to match)
+        labels: dict[str | int, list[tuple[int, str]]] = {}
+        regexp = re.compile(r"\d+$")
+        for i, obj in enumerate(link_objs):
+            if obj is None:
+                continue
+            for label in obj:
+                key = label
+                if isinstance(key, str):
+                    m = regexp.search(key)
+                    if m:
+                        key = key[: m.start()]
+
+                if key in labels:
+                    labels[key].append((i, label))
+                else:
+                    labels[key] = [(i, label)]
+
+        # copy the link objects
+        new_links = [obj or GraphLinks(obj) for obj in link_objs]
+
+        # generate new labels for duplicated labels
+        int_counter = 0
+        for key, matches in labels.items():
+            if isinstance(key, int):
+                # integer label (auto-labels)
+                for i, old_label in matches:
+                    new_label = int_counter
+                    int_counter += 1
+                    if new_label != old_label:
+                        obj = new_links[i]
+                        obj[new_label] = obj.pop(old_label)
+            else:
+                # user label's
+                if len(matches) == 1:
+                    # unique, keep
+                    continue
+
+                for j, (i, old_label) in enumerate(matches):
+                    new_label = f"{key}{j}"
+                    if new_label != old_label:
+                        obj = new_links[i]
+                        obj[new_label] = obj.pop(old_label)
+
+        return new_links
 
     def __getitem__(self, key: str | int) -> PAD_PAIR:
         """get link item by label or by inpad pad id tuple
@@ -604,7 +687,7 @@ class GraphLinks(UserDict):
             )
         else:
             if inpad is None and outpad is None:
-                raise ValueError(f"At least one of inpad or outpad must be specified.")
+                raise ValueError("At least one of inpad or outpad must be specified.")
 
             # check internal links first
             it_links = self.iter_links()
@@ -810,8 +893,8 @@ class GraphLinks(UserDict):
         if not isinstance(other, GraphLinks) and validate:
             try:
                 assert isinstance(other, Mapping)
-            except Exception as e:
-                raise GraphLinks.Error(f"Other must be a dict-like mapping object")
+            except Exception:
+                raise GraphLinks.Error("Other must be a dict-like mapping object")
             self.validate(other)
 
         # set aside labels
@@ -887,8 +970,8 @@ class GraphLinks(UserDict):
         :param len: number of chains to be inserted (if positive) or removed (if negative)
         """
 
-        select = (
-            lambda pid: pid[0] == chain_id and pid[1] >= pos
+        select = lambda pid: (
+            pid[0] == chain_id and pid[1] >= pos
         )  # select all chains at or above pos
         adjust = lambda pid: (pid[0], pid[1] + len, pid[2])
         self._modify_pad_ids(select, adjust)
