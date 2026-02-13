@@ -204,7 +204,21 @@ class LoggerThread(Thread):
             self.newline.notify_all()
         logger.debug("[logger] exiting")
 
-    def index(self, prefix, start=None, block=True, timeout=None):
+    def index(
+        self,
+        prefix: str,
+        start: int = 0,
+        block: bool = True,
+        timeout: float | None = None,
+    ) -> int | None:
+        """Return an index of the first log line which starts with the specified prefix
+
+        :param prefix: look for log lines starting with this string
+        :param start: log line index to start searching, defaults to 0
+        :param block: True to block until the specified log line appears, default is True
+        :param timeout: blocking timeout, defaults to None (wait indefinitely)
+        :return: index of the matching line of the LoggerThread.logs or None if none found
+        """
         start = int(start or 0)
         with self.newline:
             logs = self.logs[start:] if start else self.logs
@@ -409,7 +423,7 @@ class ReaderThread(Thread):
 
         :param n: number of samples/frames to read, if non-positive, read all
                   (until the pipe is broken), defaults to -1
-        :param timeout: timeout in seconds, defaults to None
+        :param timeout: timeout in seconds, defaults to wait indefinitely
         :return: n*itemsize bytes
         """
 
@@ -555,24 +569,25 @@ class WriterThread(Thread):
                     self._empty = True
                     self._empty_cond.notify_all()
                 data = queue.get()
+            logger.debug("WriterThread getting data from the queue")
 
             queue.task_done()
             if data is None:
-                logger.info("writer thread: received a sentinel to stop the writer")
+                logger.debug("WriterThread: received a sentinel to stop the writer")
                 break
             else:
-                logger.info(f"writer thread: received {len(data)} bytes to write")
+                logger.debug("WriterThread: writing %d bytes", len(data))
 
             try:
                 nwritten = 0
                 nwritten = stream.write(data)
-                logger.info(f"writer thread: written {nwritten} written")
+                logger.debug("WriterThread: written %d written", nwritten)
             except Exception as e:
                 # stdout stream closed/FFmpeg terminated, end the thread as well
-                logger.info(f"writer thread exception: {e}")
+                logger.debug("WriterThread exception: %s", e)
                 break
             if not nwritten and stream.closed:  # just in case
-                logger.info("writer thread: somethin' else happened")
+                logger.debug("WriterThread: somethin' else happened")
                 break
 
         # set flag to prevent any more writes
@@ -603,7 +618,7 @@ class WriterThread(Thread):
                 self._empty = True
                 self._empty_cond.notify_all()
 
-        logger.info("writer thread exiting")
+        logger.info("WriterThread exiting")
 
     def write(self, data, timeout=None):
         with self._empty_cond:
