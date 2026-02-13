@@ -45,9 +45,20 @@ def video_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
     """
 
     try:
-        return obj["shape"][-3:], obj["dtype"]
+        shape = obj["shape"]
+        dtype = obj["dtype"]
     except:
         return None
+
+    ndim = len(shape)
+    if ndim == 2:
+        shape = (*shape, 1)
+    elif ndim == 3 and shape[-1] > 4:
+        shape = (*shape[1:], 1)
+    else:
+        shape = shape[-3:]
+
+    return shape, dtype
 
 
 @hookimpl
@@ -103,9 +114,18 @@ def video_frames(obj: BytesRawDataBlob) -> int:
     """
 
     try:
-        return obj["shape"][0]
-    except:
+        shape = obj["shape"]
+    except KeyError:
         return None
+
+    ndim = len(shape)
+    if ndim > 3:
+        return shape[0]
+    elif ndim < 3:
+        return 1
+    else:
+        # ndim==3, single frame if the last dim is likely number of components (1-4)
+        return shape[0] if shape[-1] > 4 else 1
 
 
 @hookimpl
@@ -119,9 +139,11 @@ def audio_samples(obj: BytesRawDataBlob) -> int:
     """
 
     try:
-        return obj["shape"][0]
-    except:
+        shape = obj["shape"]
+    except KeyError:
         return None
+    else:
+        return shape[0]
 
 
 @hookimpl
