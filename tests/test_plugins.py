@@ -3,6 +3,9 @@ from ffmpegio.utils import prod
 
 
 def test_rawdata_bytes():
+
+    plugins.use("read_bytes")
+
     hook = plugins.get_hook()
 
     dtype = "|u1"
