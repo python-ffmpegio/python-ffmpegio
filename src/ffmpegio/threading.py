@@ -228,7 +228,7 @@ class LoggerThread(Thread):
                     next((i for i, log in enumerate(logs) if log.startswith(prefix)))
                     + start
                 )
-            except:
+            except StopIteration:
                 if not self.is_alive():
                     raise ThreadNotActive("LoggerThread is not running")
 
@@ -262,7 +262,7 @@ class LoggerThread(Thread):
                             )
                             + start
                         )
-                    except:
+                    except StopIteration:
                         # still no match, update the starting position
                         start = len(self.logs)
 
