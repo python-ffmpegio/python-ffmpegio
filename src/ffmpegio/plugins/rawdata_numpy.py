@@ -31,7 +31,14 @@ def video_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     :return dtype: data type in numpy dtype str expression
     """
     try:
-        return obj.shape[-3:] if obj.ndim != 2 else [*obj.shape, 1], obj.dtype.str
+        a = np.asarray(obj)
+        if a.ndim == 2:
+            shape = (*a.shape, 1)
+        elif a.ndim == 3 and a.shape[-1] > 4:
+            shape = (*a.shape[1:], 1)
+        else:
+            shape = a.shape[-3:]
+        return shape, a.dtype.str
     except:
         return None
 
@@ -45,7 +52,8 @@ def audio_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     :return dtype: sample data type in numpy dtype str expression
     """
     try:
-        return obj.shape[-1:] if obj.ndim > 1 else [1], obj.dtype.str
+        a = np.asarray(obj)
+        return a.shape[-1:] if a.ndim > 1 else [1], a.dtype.str
     except:
         return None
 
@@ -60,7 +68,15 @@ def video_frames(obj: ArrayLike) -> int:
     """
 
     try:
-        return obj.shape[0]
+        a = np.asarray(obj)
+        shape = a.shape
+        ndim = a.ndim
+        if ndim > 3:
+            return shape[0]
+        elif ndim < 3:
+            return 1
+        else:
+            return shape[0] if shape[-1] > 4 else 1
     except:
         return None
 
@@ -76,7 +92,7 @@ def audio_samples(obj: ArrayLike) -> int:
     """
 
     try:
-        return obj.shape[0]
+        return np.asarray(obj).shape[0]
     except:
         return None
 
@@ -90,7 +106,7 @@ def video_bytes(obj: ArrayLike) -> memoryview:
     """
 
     try:
-        return np.ascontiguousarray(obj).view("b")
+        return np.ascontiguousarray(obj).reshape(-1).view("b")
     except:
         return None
 
@@ -104,7 +120,7 @@ def audio_bytes(obj: ArrayLike) -> memoryview:
     """
 
     try:
-        return np.ascontiguousarray(obj).view("b")
+        return np.ascontiguousarray(obj).reshape(-1).view("b")
     except:
         return None
 
