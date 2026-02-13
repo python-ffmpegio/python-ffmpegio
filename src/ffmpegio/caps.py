@@ -682,6 +682,9 @@ def demuxer_info(name):
         stdout,
     )
 
+    if m is None:
+        raise FFmpegError(stdout)
+
     data = dict(
         names=m[1].split(","),
         long_name=m[2],
@@ -727,6 +730,9 @@ def muxer_info(name):
         r"Muxer (\S+) \[([^\]]+)\]:\s*?\n(?:    Common extensions: ([^.]+)\.\s*?\n)?(?:    Mime type: ([^.]+)\.\s*?\n)?(?:    Default video codec: ([^.]+)\.\s*?\n)?(?:    Default audio codec: ([^.]+)\.\s*?\n)?(?:    Default subtitle codec: ([^.]+).\s*?\n)?([\s\S]*)",
         stdout,
     )
+
+    if m is None:
+        raise FFmpegError(stdout)
 
     data = {
         "names": m[1].split(","),
@@ -819,6 +825,9 @@ def _getCodecInfo(name, encoder):
         + r"([\s\S]*)",
         stdout,
     )
+
+    if m is None:
+        raise FFmpegError(stdout)
 
     def resolveFs(s):
         m = re.match(r"(\d+)\/(\d+)", s)
@@ -1089,6 +1098,10 @@ def filter_info(name):
         r"([\s\S]*)",
         blocks[0],
     )
+
+    if m is None:
+        raise FFmpegError(blocks[0])
+
     name = m[1]
     desc = m[2]
     threading = ["slice"] if m[3] else []
@@ -1177,7 +1190,7 @@ def bsfilter_info(name):
     )
 
     if stdout.startswith("Unknown"):
-        raise Exception(stdout)
+        raise FFmpegError(stdout)
 
     data = {
         "name": m[1],
