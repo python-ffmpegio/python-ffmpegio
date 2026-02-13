@@ -52,3 +52,15 @@ def is_empty(obj: Figure) -> bool:
     :param obj: object containing media data
     """
     return False
+
+
+@hookimpl
+def video_frames(obj: Figure) -> Literal[1]:
+    """get number of video frames in obj (always 1)
+
+    :param obj: object containing video frame data with arbitrary number of frames
+    :return: number of video frames in obj
+
+    """
+
+    return 1
