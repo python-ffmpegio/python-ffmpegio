@@ -31,17 +31,20 @@ def test_found():
 def test_where():
     assert path.where() is not None  # assuming ffmpeg is found
 
+
 def test_versions():
     assert "version" in path.versions()
 
+
 def test_check_version():
     path.check_version("5.0")
-    path.check_version("5.0","==")
-    path.check_version("5.0","!=")
-    path.check_version("5.0","<")
-    path.check_version("5.0",">")
-    path.check_version("5.0","<=")
-    path.check_version("5.0",">=")
+    path.check_version("5.0", "==")
+    path.check_version("5.0", "!=")
+    path.check_version("5.0", "<")
+    path.check_version("5.0", ">")
+    path.check_version("5.0", "<=")
+    path.check_version("5.0", ">=")
+
 
 if __name__ == "__main__":
     test_find()

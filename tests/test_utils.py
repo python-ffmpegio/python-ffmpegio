@@ -116,7 +116,7 @@ def test_get_output_stream_id():
             [False],
         ),
         (
-            [(None, {"s": (10,10), "pix_fmt": "gray"})],
+            [(None, {"s": (10, 10), "pix_fmt": "gray"})],
             [{"src_type": "buffer", "media_type": "video"}],
             False,
             [True],

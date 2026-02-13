@@ -252,7 +252,7 @@ def list_source_options(device, enum):
     try:
         list_options = dev["list_options"]
     except:
-        raise ValueError(f"No options to list")
+        raise ValueError("No options to list")
     return list_options(dev["list"][enum])
 
 
@@ -271,7 +271,7 @@ def list_sink_options(device, enum):
     try:
         list_options = info["list_options"]
     except:
-        raise ValueError(f"No options to list")
+        raise ValueError("No options to list")
     return list_options("sink", enum)
 
 

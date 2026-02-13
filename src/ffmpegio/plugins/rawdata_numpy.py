@@ -86,7 +86,7 @@ def video_bytes(obj: ArrayLike) -> memoryview:
     """
 
     try:
-        return np.ascontiguousarray(obj).view('b')
+        return np.ascontiguousarray(obj).view("b")
     except:
         return None
 
@@ -100,7 +100,7 @@ def audio_bytes(obj: ArrayLike) -> memoryview:
     """
 
     try:
-        return np.ascontiguousarray(obj).view('b')
+        return np.ascontiguousarray(obj).view("b")
     except:
         return None
 
@@ -126,7 +126,9 @@ def bytes_to_video(
 
 
 @hookimpl
-def bytes_to_audio(b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool) -> ArrayLike:
+def bytes_to_audio(
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
+) -> ArrayLike:
     """convert bytes to rawaudio NumPy array
 
     :param b: byte data of arbitrary number of video frames

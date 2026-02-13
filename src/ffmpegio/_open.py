@@ -7,6 +7,7 @@ from . import streams as _streams
 
 from .filtergraph import Graph as FilterGraph
 
+
 def open(
     url_fg: str,
     mode: str,
@@ -24,7 +25,7 @@ def open(
     :type url_fg: str or seq(str)
     :param mode: specifies the mode in which the FFmpeg is used, see below
     :type mode: str
-    :param rate_in: (write and filter only, required) input frame rate (video) or sampling rate 
+    :param rate_in: (write and filter only, required) input frame rate (video) or sampling rate
                     (audio), defaults to None
     :type rate_in: Fraction, float, int, optional
     :param shape_in: (write and filter only) input video frame size (height x width [x ncomponents]),
@@ -61,11 +62,11 @@ def open(
     a corresponding stream object. If the file cannot be opened, an error is raised.
     See :ref:`quick-streamio` for more examples of how to use this function.
 
-    Just like built-in `open()`, it is good practice to use the with keyword when dealing with 
-    ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are 
-    properly closed after ffmpeg terminates, even if an exception is raised at some point. 
+    Just like built-in `open()`, it is good practice to use the with keyword when dealing with
+    ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are
+    properly closed after ffmpeg terminates, even if an exception is raised at some point.
     Using with is also much shorter than writing equivalent try-finally blocks.
-    
+
     :Examples:
 
     Open an MP4 file and process all the frames::

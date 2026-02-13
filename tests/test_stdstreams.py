@@ -3,8 +3,6 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 import ffmpegio as ff
-import tempfile, re
-from os import path
 from ffmpegio import streams, utils
 
 url = "tests/assets/testmulti-1m.mp4"

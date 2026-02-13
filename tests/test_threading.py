@@ -1,5 +1,4 @@
 from ffmpegio import threading
-from ffmpegio import ffmpegprocess
 from ffmpegio.ffmpegprocess import Popen
 from tempfile import TemporaryDirectory
 from os import path
@@ -33,13 +32,11 @@ def test_copyfileobj():
         open(path.join(tmpdir, "out.mp3"), "w+b") as fdst,
         threading.CopyFileObjThread(fsrc, fdst) as copier,
     ):
-
         copier.join()
 
         fsrc.seek(0)
         data = fsrc.read()
         fdst.seek(0)
         data_out = fdst.read()
-        
-    assert data == data_out
 
+    assert data == data_out

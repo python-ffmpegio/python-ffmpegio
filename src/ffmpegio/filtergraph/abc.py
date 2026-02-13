@@ -15,7 +15,6 @@ __all__ = ["FilterGraphObject"]
 
 
 class FilterGraphObject(ABC):
-
     def get_num_pads(self, input: bool) -> int:
         """get the number of available pads at input or output
 
@@ -351,7 +350,7 @@ class FilterGraphObject(ABC):
         """remove an input/output label
 
         :param label: linkn label
-        :param inpad: specify input pad if multiple pads receives the same input 
+        :param inpad: specify input pad if multiple pads receives the same input
                       stream, defaults to `None` to delete all input pads.
         """
 
@@ -740,7 +739,6 @@ class FilterGraphObject(ABC):
 
         # if output is a list
         if isinstance(other, list):
-
             if len(other) == 0:
                 raise ValueError("At least one `other` filtergraph must be specified.")
 
@@ -794,7 +792,6 @@ class FilterGraphObject(ABC):
 
         # if output is a list
         if isinstance(other, list):
-
             if len(other) == 0:
                 raise ValueError("At least one `other` filtergraph must be specified.")
 
@@ -975,7 +972,6 @@ class FilterGraphObject(ABC):
         ]
 
         if resolve_omitted:
-
             # assign unknown pad indices in the order of the following ranking:
             # indices ranking
             # - int, int, int    = 3*6 = 18

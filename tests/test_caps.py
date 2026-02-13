@@ -59,6 +59,7 @@ def test_bsf(name):
     assert isinstance(caps.bsfilter_info(name), caps.BSFInfo)
 
 
+
 def test_options():
     pprint(caps.options(name_only=True))
     pprint(caps.options("global"))

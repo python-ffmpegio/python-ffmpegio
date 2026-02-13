@@ -1,6 +1,4 @@
-"""media analysis tools module
-
-"""
+"""media analysis tools module"""
 
 from __future__ import annotations
 from collections import namedtuple

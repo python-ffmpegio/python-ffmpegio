@@ -2,9 +2,6 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG)
 
-from os import path
-import pytest
-from tempfile import TemporaryDirectory
 
 import ffmpegio as ff
 from ffmpegio import streams

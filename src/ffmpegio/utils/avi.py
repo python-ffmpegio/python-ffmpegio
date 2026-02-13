@@ -1,5 +1,6 @@
 from io import SEEK_CUR
-import fractions, re
+import fractions
+import re
 from struct import Struct
 from collections import namedtuple
 from itertools import accumulate
@@ -339,12 +340,12 @@ def read_header(f, pix_fmt=None):
     # read the RIFF header
     id, datasize, chunksize, list_type = read_chunk_header(f)
     if id != "RIFF" or list_type != "AVI ":
-        raise RuntimeError(f"File stream is not AVI")
+        raise RuntimeError("File stream is not AVI")
 
     # read the hdrl chunk
     id, datasize, chunksize, list_type = read_chunk_header(f)
     if id != "LIST" and list_type != "hdrl":
-        raise RuntimeError(f"AVI is missing header chunk")
+        raise RuntimeError("AVI is missing header chunk")
     b = f.read(datasize)
     if chunksize > datasize:
         _seek(f, 1)

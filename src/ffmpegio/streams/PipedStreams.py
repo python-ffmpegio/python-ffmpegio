@@ -241,7 +241,6 @@ class _PipedFFmpegRunner:
             timeout = self.default_timeout
 
         if self._proc:
-
             if timeout is not None:
                 timeout += time()
 
@@ -267,7 +266,6 @@ class _PipedFFmpegRunner:
 
 
 class _RawInputMixin:
-
     _media_bytes = {"video": "video_bytes", "audio": "audio_bytes"}
     _array_to_opts = {
         "video": utils.array_to_video_options,
@@ -325,7 +323,6 @@ class _RawInputMixin:
                 self._open(True)
 
         else:
-
             logger.debug("[writer main] writing...")
 
             try:
@@ -405,7 +402,6 @@ class _RawInputMixin:
 
 
 class _EncodedInputMixin:
-
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
@@ -448,7 +444,6 @@ class _EncodedInputMixin:
                 self._open(True)
 
         else:
-
             try:
                 info["writer"].write(data, timeout)
             except:
@@ -795,7 +790,6 @@ class _EncodedOutputMixin:
 
 
 class PipedMediaReader(_EncodedInputMixin, _RawOutputMixin, _PipedFFmpegRunner):
-
     def __init__(
         self,
         *urls: *tuple[FFmpegInputUrlComposite | tuple[FFmpegUrlType, FFmpegOptionDict]],
@@ -879,7 +873,6 @@ class PipedMediaReader(_EncodedInputMixin, _RawOutputMixin, _PipedFFmpegRunner):
 
 
 class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
-
     def __init__(
         self,
         urls: (
@@ -953,8 +946,7 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
             options["y"] = None
 
         stream_args = [
-            (None, v) if isinstance(v, dict) else (v, None)
-            for v in input_rates_or_opts
+            (None, v) if isinstance(v, dict) else (v, None) for v in input_rates_or_opts
         ]
         args, input_info, input_ready, output_info, output_args = (
             configure.init_media_write(
@@ -989,7 +981,6 @@ class PipedMediaWriter(_EncodedOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
 
 
 class PipedMediaFilter(_RawOutputMixin, _RawInputMixin, _PipedFFmpegRunner):
-
     def __init__(
         self,
         expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],

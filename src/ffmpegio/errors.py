@@ -5,8 +5,10 @@ from typing import Sequence, Union
 class FFmpegioError(Exception):
     pass
 
+
 class FFmpegioNoPipeAllowed(FFmpegioError):
     pass
+
 
 ERROR_MESSAGES = (
     # cmdutils.c::parse_optgroup()
@@ -285,7 +287,7 @@ def scan_stderr(logs: Union[str, Sequence[str], None]):
             msg = (
                 f"{logs[-2]}\n  {msg0}" if logs[-2].startswith("[lavfi ") else logs[-2]
             )  # ...
-        elif msg0.endswith('No such file or directory'):
+        elif msg0.endswith("No such file or directory"):
             msg = msg0
     return msg
 

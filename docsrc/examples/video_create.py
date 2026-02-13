@@ -10,6 +10,7 @@ n = A.shape[0]
 im = plt.imshow(A[0, ...])
 i = 0
 
+
 # initialization function: plot the background of each frame
 def init():
     im.set_data(A[i, ...])

@@ -4,9 +4,7 @@ from __future__ import annotations
 
 from .._typing import TYPE_CHECKING, Any, Sequence, Literal
 from ..stream_spec import StreamSpecDict
-from .abc import FilterGraphObject
 
-from functools import reduce
 from fractions import Fraction
 
 from .. import filtergraph as fgb

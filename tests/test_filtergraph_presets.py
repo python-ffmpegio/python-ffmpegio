@@ -1,5 +1,4 @@
 import pytest
-from pprint import pprint
 
 import ffmpegio.filtergraph.presets as presets
 

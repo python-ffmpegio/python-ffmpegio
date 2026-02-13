@@ -1,5 +1,7 @@
 from ffmpegio import audio, probe, FilterGraph
-import tempfile, re, logging
+import tempfile
+import re
+import logging
 from os import path
 import pytest
 
@@ -73,7 +75,6 @@ def test_read_write():
     fs, x = audio.read(url)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         print(probe.audio_streams_basic(url))
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
         print(out_url)
@@ -104,7 +105,9 @@ def test_filter():
         ],
     )
 
-    output_rate, output = audio.filter(expr, input_rate, input, show_log=True, loglevel ='verbose')
+    output_rate, output = audio.filter(
+        expr, input_rate, input, show_log=True, loglevel="verbose"
+    )
     assert output_rate == 22050
     assert output["shape"] == (22050, 2)
     assert output["dtype"] == input["dtype"]
@@ -125,7 +128,7 @@ def test_filter():
     output_rate, output = audio.filter(expr, input_rate, input)
     assert output_rate == 44100
     assert output["shape"] == (44100, 2)
-    assert output["dtype"] == '<f8'
+    assert output["dtype"] == "<f8"
 
     output_rate, output = audio.filter("[in]bandpass[out]", input_rate, input)
 

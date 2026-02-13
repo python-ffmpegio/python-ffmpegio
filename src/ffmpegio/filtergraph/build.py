@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import islice
 from copy import copy
 
 from .typing import PAD_INDEX, JOIN_HOW, Literal, get_args
@@ -216,7 +215,6 @@ def join(
                 raise
 
     if how in ("all", "chainable") or nright != nleft:
-
         left_pads = [out[0] for out in left.iter_output_pads(**iter_kws)]
         right_pads = [out[0] for out in right.iter_input_pads(**iter_kws)]
 
@@ -299,7 +297,6 @@ def attach(
     right_objs_labels, attach_right = analyze_fgobj(right)
 
     if not (attach_left or attach_right):
-
         if not len(right_objs_labels):
             return left_objs_labels
         if not len(left_objs_labels):
@@ -415,7 +412,7 @@ def stack(
         return fgb.as_filtergraph_object(fgs[0], copy=True)
 
     fg = fgb.as_filtergraph(fgs[0], copy=not inplace)
-    
+
     if n == 1:
         return fg
 

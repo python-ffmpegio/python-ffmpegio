@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import BinaryIO
 
 from copy import deepcopy
-import re, os
+import re
+import os
 from threading import Thread, Condition, Lock, Event
 from io import TextIOBase, TextIOWrapper
 from time import sleep, time
@@ -259,7 +260,7 @@ class LoggerThread(Thread):
             raise e
         except TimeoutError:
             raise TimeoutError("Specified output stream not found")
-        except Exception as e:
+        except Exception:
             raise ValueError("Specified output stream not found")
 
         with self._newline_mutex:
@@ -557,7 +558,7 @@ class WriterThread(Thread):
 
             queue.task_done()
             if data is None:
-                logger.info(f"writer thread: received a sentinel to stop the writer")
+                logger.info("writer thread: received a sentinel to stop the writer")
                 break
             else:
                 logger.info(f"writer thread: received {len(data)} bytes to write")
@@ -571,7 +572,7 @@ class WriterThread(Thread):
                 logger.info(f"writer thread exception: {e}")
                 break
             if not nwritten and stream.closed:  # just in case
-                logger.info(f"writer thread: somethin' else happened")
+                logger.info("writer thread: somethin' else happened")
                 break
 
         # set flag to prevent any more writes
@@ -602,11 +603,10 @@ class WriterThread(Thread):
                 self._empty = True
                 self._empty_cond.notify_all()
 
-        logger.info(f"writer thread exiting")
+        logger.info("writer thread exiting")
 
     def write(self, data, timeout=None):
         with self._empty_cond:
-
             if self._no_more:
                 if data is None:
                     return

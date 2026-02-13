@@ -1,9 +1,9 @@
 import pytest
-from ffmpegio import image, probe, transcode, FFmpegError
-import tempfile, re
+from ffmpegio import image, probe, transcode
+import tempfile
+import re
 from os import path
 
-from ffmpegio.filtergraph import utils as filter_utils
 
 outext = ".png"
 
@@ -117,9 +117,6 @@ def test_square_pixels():
 
 if __name__ == "__main__":
     from matplotlib import pyplot as plt
-    import logging
-    from ffmpegio import utils, ffmpegprocess
-    from ffmpegio.utils import log as log_utils
 
     # logging.basicConfig(level=logging.DEBUG)
 

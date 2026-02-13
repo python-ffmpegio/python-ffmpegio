@@ -252,7 +252,6 @@ class _StdFFmpegRunner:
             timeout = self.default_timeout
 
         if self._proc:
-
             if timeout is not None:
                 timeout += time()
 
@@ -281,7 +280,6 @@ from collections.abc import Callable
 
 
 class _RawInputBaseMixin:
-
     _get_num: Callable
     _input_info: InputSourceDict
     default_timeout: float | None
@@ -380,7 +378,6 @@ class _RawInputBaseMixin:
 
 
 class _AudioInputMixin(_RawInputBaseMixin):
-
     def __init__(self, **kwargs):
         super().__init__(
             plugins.get_hook().audio_bytes, utils.array_to_audio_options, **kwargs
@@ -388,7 +385,6 @@ class _AudioInputMixin(_RawInputBaseMixin):
 
 
 class _VideoInputMixin(_RawInputBaseMixin):
-
     def __init__(self, **kwargs):
         super().__init__(
             plugins.get_hook().video_bytes, utils.array_to_video_options, **kwargs
@@ -396,7 +392,6 @@ class _VideoInputMixin(_RawInputBaseMixin):
 
 
 class _EncodedInputMixin:
-
     def __init__(self, **kwargs):
 
         super().__init__(**kwargs)
@@ -422,7 +417,6 @@ class _EncodedInputMixin:
         info = self._input_info[0]
 
         if self._input_ready:
-
             try:
                 info["writer"].write(data, timeout)
             except:
@@ -548,13 +542,11 @@ class _RawOutputBaseMixin:
 
 
 class _AudioOutputMixin(_RawOutputBaseMixin):
-
     def __init__(self, **kwargs):
         super().__init__(plugins.get_hook().bytes_to_audio, **kwargs)
 
 
 class _VideoOutputMixin(_RawOutputBaseMixin):
-
     def __init__(self, **kwargs):
         super().__init__(plugins.get_hook().bytes_to_video, **kwargs)
 
@@ -603,7 +595,6 @@ class _EncodedOutputMixin:
 
 
 class StdAudioDecoder(_EncodedInputMixin, _AudioOutputMixin, _StdFFmpegRunner):
-
     def __init__(
         self,
         *,
@@ -666,7 +657,6 @@ class StdAudioDecoder(_EncodedInputMixin, _AudioOutputMixin, _StdFFmpegRunner):
 
 
 class StdVideoDecoder(_EncodedInputMixin, _VideoOutputMixin, _StdFFmpegRunner):
-
     def __init__(
         self,
         *,
@@ -729,7 +719,6 @@ class StdVideoDecoder(_EncodedInputMixin, _VideoOutputMixin, _StdFFmpegRunner):
 
 
 class StdAudioEncoder(_EncodedOutputMixin, _AudioInputMixin, _StdFFmpegRunner):
-
     def __init__(
         self,
         input_rate: int,
@@ -800,7 +789,6 @@ class StdAudioEncoder(_EncodedOutputMixin, _AudioInputMixin, _StdFFmpegRunner):
 
 
 class StdVideoEncoder(_EncodedOutputMixin, _VideoInputMixin, _StdFFmpegRunner):
-
     def __init__(
         self,
         input_rate: int,
@@ -871,7 +859,6 @@ class StdVideoEncoder(_EncodedOutputMixin, _VideoInputMixin, _StdFFmpegRunner):
 
 
 class StdAudioFilter(_AudioOutputMixin, _AudioInputMixin, _StdFFmpegRunner):
-
     def __init__(
         self,
         expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
@@ -970,7 +957,6 @@ class StdAudioFilter(_AudioOutputMixin, _AudioInputMixin, _StdFFmpegRunner):
 
 
 class StdVideoFilter(_VideoOutputMixin, _VideoInputMixin, _StdFFmpegRunner):
-
     def __init__(
         self,
         expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],

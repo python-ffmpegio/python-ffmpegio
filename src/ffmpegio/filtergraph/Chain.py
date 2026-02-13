@@ -80,10 +80,10 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     def __repr__(self):
         type_ = type(self)
         return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
-    FFmpeg expression: \"{self.compose(True,True)}\"
+    FFmpeg expression: \"{self.compose(True, True)}\"
     Number of filters: {len(self.data)}
-    Input pads ({self.get_num_inputs()}): {', '.join((str(id) for id,*_ in self.iter_input_pads()))}
-    Output pads: ({self.get_num_outputs()}): {', '.join((str(id) for id,*_ in self.iter_output_pads()))}
+    Input pads ({self.get_num_inputs()}): {", ".join((str(id) for id, *_ in self.iter_input_pads()))}
+    Output pads: ({self.get_num_outputs()}): {", ".join((str(id) for id, *_ in self.iter_output_pads()))}
 """
 
     def __getitem__(self, key: int | slice | tuple[int | slice, int | slice]):
@@ -104,7 +104,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number 
+        :param chain: id of the chain, defaults to None to get the total number
                       of filters across all chains
         """
 

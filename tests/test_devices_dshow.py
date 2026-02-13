@@ -1,8 +1,8 @@
-import logging, os
+import logging
+import os
 from ffmpegio.plugins.devices import dshow
 from ffmpegio.path import check_version
 from ffmpegio import devices
-from packaging.version import Version
 import pytest
 
 
@@ -27,7 +27,6 @@ def test_dshow():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
 
-    import ffmpegio
 
     # if ffmpegio.path.FFMPEG_VER!='5.0':
     #     v5 = r"C:\Users\tikuma\AppData\Local\Programs\ffmpeg-5.0\bin"

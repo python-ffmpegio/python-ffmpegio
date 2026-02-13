@@ -5,12 +5,12 @@ import logging
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
-from typing import Literal, Any
-
+import os
+import re
 from importlib import import_module
-import re, os
-import pluggy
+from typing import Any, Literal
 
+import pluggy
 
 from . import hookspecs
 
@@ -24,7 +24,7 @@ def _try_register_builtin(plugin_name: str, reregister: bool = False) -> str | N
     module_package, module_name = plugin_name.rsplit(".", 1)
     try:
         module = import_module(f".{module_name}", module_package)
-    except ModuleNotFoundError as e:
+    except ModuleNotFoundError:
         logger.info(
             "Skip importing %s builtin-plugin module, likely missing dependency",
             module_name,

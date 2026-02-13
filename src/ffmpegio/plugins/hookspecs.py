@@ -17,7 +17,7 @@ def video_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: object containing video frame data with arbitrary number of frames
-    :return shape: shape (height,width,components) 
+    :return shape: shape (height,width,components)
     :return dtype: data type in numpy dtype str expression
     """
 
@@ -27,7 +27,7 @@ def audio_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     """get audio sample info
 
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
-    :return ac: number of channels 
+    :return ac: number of channels
     :return dtype: sample data type in numpy dtype str expression
     """
 
@@ -49,6 +49,7 @@ def audio_bytes(obj: object) -> memoryview:
     :return: packed bytes of audio samples
     """
 
+
 @hookspec(firstresult=True)
 def video_frames(obj: object) -> int:
     """get number of video frames in obj
@@ -66,6 +67,7 @@ def audio_samples(obj: object) -> int:
     :return: number of samples in obj
     """
 
+
 @hookspec(firstresult=True)
 def bytes_to_video(
     b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
@@ -81,7 +83,9 @@ def bytes_to_video(
 
 
 @hookspec(firstresult=True)
-def bytes_to_audio(b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool) -> object:
+def bytes_to_audio(
+    b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
+) -> object:
     """convert bytes to rawaudio object
 
     :param b: byte data of arbitrary number of video frames

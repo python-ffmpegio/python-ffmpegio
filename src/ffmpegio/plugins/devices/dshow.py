@@ -1,4 +1,4 @@
-""" DirectShow device"""
+"""DirectShow device"""
 
 from subprocess import PIPE
 from ffmpegio import path
@@ -79,7 +79,7 @@ def _scan():
 
 def _resolve(infos):
     # TODO Verify if multiple videos/audios allowed (more than 1 each)
-    return ":".join([f'{dev["media_type"]}={dev["name"]}' for dev in infos])
+    return ":".join([f"{dev['media_type']}={dev['name']}" for dev in infos])
 
 
 def _list_options(dev):
@@ -88,7 +88,7 @@ def _list_options(dev):
 
     is_video = dev["media_type"] == "video"
 
-    url = f'{dev["media_type"]}={dev["name"]}'
+    url = f"{dev['media_type']}={dev['name']}"
     logs = path.ffmpeg(
         [
             "-hide_banner",
@@ -106,12 +106,12 @@ def _list_options(dev):
     ).stderr
 
     # read header
-    m = re.match(rf"\[(.+?)\] DirectShow .+? device options \(from .+? devices\)", logs)
+    m = re.match(r"\[(.+?)\] DirectShow .+? device options \(from .+? devices\)", logs)
     sign = re.escape(m[1])
     i0 = m.end()
 
     m = re.search(
-        rf"Error opening input: Immediate exit requested\n", logs
+        r"Error opening input: Immediate exit requested\n", logs
     ) or re.search(rf"{re.escape(url)}: Immediate exit requested\n", logs)
     i1 = m.start() if m else len(logs)
 
@@ -119,8 +119,8 @@ def _list_options(dev):
 
     re_video = re.compile(
         rf"\[{sign}\]   (?:unknown compression type 0x([0-9A-F]+?)|vcodec=(.+?)|pixel_format=(.+?))"
-        + rf"  min s=(\d+)x(\d+) fps=([\d.]+) max s=(\d+)x(\d+) fps=([\d.]+)"
-        + rf"(?: \((.+?), (.+?)/(.+?)/(.+?)(?:, (.+?))?\))?\n"
+        + r"  min s=(\d+)x(\d+) fps=([\d.]+) max s=(\d+)x(\d+) fps=([\d.]+)"
+        + r"(?: \((.+?), (.+?)/(.+?)/(.+?)(?:, (.+?))?\))?\n"
     )
 
     re_audio = re.compile(

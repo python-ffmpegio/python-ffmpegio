@@ -44,8 +44,7 @@ def _runner(
 
     # True if there is unknown datablob info
     need_stderr = any(
-        info["dst_type"] == "pipe" and info["raw_info"] is None
-        for info in output_info
+        info["dst_type"] == "pipe" and info["raw_info"] is None for info in output_info
     )
 
     # run FFmpeg

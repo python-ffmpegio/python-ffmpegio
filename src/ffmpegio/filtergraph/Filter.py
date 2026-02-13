@@ -152,9 +152,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
         """
 
         return (
-            fgb.Graph(self).compose(
-                show_unconnected_inputs, show_unconnected_outputs
-            )
+            fgb.Graph(self).compose(show_unconnected_inputs, show_unconnected_outputs)
             if show_unconnected_inputs or show_unconnected_outputs
             else filter_utils.compose_filter(*self)
         )
@@ -162,7 +160,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
     def __repr__(self):
         type_ = type(self)
         return f"""<{type_.__module__}.{type_.__qualname__} object at {hex(id(self))}>
-    FFmpeg expression: \"{self.compose(True,True)}\"
+    FFmpeg expression: \"{self.compose(True, True)}\"
     Number of inputs: {self.get_num_inputs()}
     Number of outputs: {self.get_num_outputs()}
 """
@@ -206,7 +204,9 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             port = (
                 "inputs"
                 if "inputs".startswith(port)
-                else "outputs" if "outputs".startswith(port) else None
+                else "outputs"
+                if "outputs".startswith(port)
+                else None
             )
             assert port is not None
         except:
@@ -433,7 +433,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             channels = self.get_option_value("channels")
             return len(
                 re.split(
-                    rf"\s*\+\s*",
+                    r"\s*\+\s*",
                     layouts()["layouts"][layout] if channels == "all" else channels,
                 )
             )
@@ -494,7 +494,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number 
+        :param chain: id of the chain, defaults to None to get the total number
                       of filters across all chains
         """
 

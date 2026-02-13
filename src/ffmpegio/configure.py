@@ -4,7 +4,6 @@ from typing_extensions import (
     IO,
     Literal,
     get_args,
-    LiteralString,
     Any,
     TypedDict,
     Unpack,
@@ -29,7 +28,8 @@ from .utils import FFmpegInputUrlComposite, FFmpegOutputUrlComposite
 
 
 from fractions import Fraction
-import re, logging
+import re
+import logging
 
 logger = logging.getLogger("ffmpegio")
 
@@ -138,7 +138,7 @@ def array_to_video_input(
 
     return (
         pipe_id or "-",
-        {**utils.array_to_video_options(data)[0], f"r": rate, **opts},
+        {**utils.array_to_video_options(data)[0], "r": rate, **opts},
     )
 
 
@@ -161,7 +161,7 @@ def array_to_audio_input(
 
     return (
         pipe_id or "-",
-        {**utils.array_to_audio_options(data)[0], f"ar": rate, **opts},
+        {**utils.array_to_audio_options(data)[0], "ar": rate, **opts},
     )
 
 
@@ -366,7 +366,6 @@ def finalize_video_read_opts(
 
         # directly from the input url (if not forced via input options)
         if has_simple_filter:
-
             # create a source chain with matching spec and attach it to the af graph
             vf = temp_video_src(*inopt_vals) + outopts.get(
                 "filter:v", outopts.get("vf", None)
@@ -385,7 +384,6 @@ def finalize_video_read_opts(
 
     # pixel format must be specified
     if pix_fmt is None:
-
         if pix_fmt_in == "unknown":
             raise FFmpegioError(
                 "input pixel format unknown. Please specify output pix_fmt (to be autoset)"
@@ -546,7 +544,6 @@ def finalize_audio_read_opts(
 
             # if a simple filter is present, use the stream specs of its output
             if "af" in outopts or "filter:a" in outopts:
-
                 # create a source chain with matching specs and attach it to the af graph
                 af = temp_audio_src(*inopt_vals)
                 af = af + outopts.get("filter:a", outopts.get("af", None))
@@ -766,7 +763,7 @@ def finalize_avi_read_opts(args):
 
     # add audio codec
     for k in utils.find_stream_options(options, "sample_fmt"):
-        options[f"c:a" + k[10:]] = utils.get_audio_codec(options[k])[0]
+        options["c:a" + k[10:]] = utils.get_audio_codec(options[k])[0]
 
     return ya8 > 0
 
@@ -794,7 +791,7 @@ def config_input_fg(expr, args, kwargs):
         # multi-filter input filtergraph, cannot take arguments
         if len(args):
             raise FFmpegioError(
-                f"filtergraph input expresion cannot take ordered options."
+                "filtergraph input expresion cannot take ordered options."
             )
         return expr, dopt, kwargs
 
@@ -935,7 +932,6 @@ def add_filtergraph(
         args["outputs"][ofile] = (args["outputs"][ofile][0], {"map": map})
     else:
         if append_map and "map" in outopts:
-
             existing_map = outopts["map"]
 
             # remove merged streams from output map & append the output stream of the filter
@@ -1329,7 +1325,6 @@ def process_raw_outputs(
         user_maps = {}
         stream_maps = {}
         for k, v in streams.items() if get_opts else ((s, None) for s in streams):
-
             if isinstance(k, tuple):
                 k = ":".join(str(s) for s in k)
 
@@ -1382,7 +1377,6 @@ def process_raw_inputs(
 
     input_info: list[InputSourceDict] = []
     for i, (mtype, arg) in enumerate(zip(stream_types, stream_args)):
-
         try:
             a1, a2 = arg
             if isinstance(a1, (int, float, Fraction)):
@@ -1403,7 +1397,7 @@ def process_raw_inputs(
                     elif "r" in opts:
                         mtype = "v"
                     else:
-                        raise FFmpegioError(f"unknown input stream media type")
+                        raise FFmpegioError("unknown input stream media type")
                 data, opts = a1, a2
         except FFmpegioError:
             raise
@@ -1440,7 +1434,7 @@ def process_raw_inputs(
                 pix_fmt, s = utils.guess_video_format(*raw_info)
                 more_opts = {
                     "f": "rawvideo",
-                    f"c:v": "rawvideo",
+                    "c:v": "rawvideo",
                     "pix_fmt": pix_fmt,
                     "s": s,
                 }
@@ -1558,7 +1552,6 @@ def process_url_outputs(
             missing_map = True
 
     if missing_map and not skip_automapping:
-
         # some output file is missing `map` option
         # add all input streams or all complex filter outputs
         map_opts = [*auto_map(args, input_info, None)]
@@ -1893,7 +1886,7 @@ def init_media_write_outputs(
             a_ids = [
                 i for i, info in enumerate(input_info) if info["media_type"] == "audio"
             ]
-        except KeyError as e:
+        except KeyError:
             raise NotImplementedError(
                 "audio merging mode is not currently implemented. Please use the `complex_filtergraph=ffmpegio.filtergraph.presets.merge_audio(...)` to assign a custom filtergraph."
             )
@@ -2012,7 +2005,7 @@ def init_media_filter(
     if extra_inputs is not None:
         try:
             input_info.extend(process_url_inputs(args, extra_inputs, {}, no_pipe=True))
-        except FFmpegioNoPipeAllowed as e:
+        except FFmpegioNoPipeAllowed:
             raise FFmpegioError("extra_inputs cannot be piped in.")
 
     # make sure all inputs are complete
@@ -2123,7 +2116,7 @@ def init_media_transcoder(
     if extra_inputs is not None:
         try:
             input_info.extend(process_url_inputs(args, extra_inputs, {}, no_pipe=True))
-        except FFmpegioNoPipeAllowed as e:
+        except FFmpegioNoPipeAllowed:
             raise FFmpegioError("extra_inputs cannot be piped in.")
 
     if not len(input_info):
@@ -2190,7 +2183,6 @@ def init_named_pipes(
     has_pipeout = False
     for i, (output, info) in enumerate(zip(args["outputs"], output_info)):
         if output[0] is None:
-
             has_pipeout = True
 
             # if fileobj or buffer output, use pipe

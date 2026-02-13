@@ -275,7 +275,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             for j, (index, _, _) in enumerate(
                 self.iter_output_pads(unlabeled_only=True)
             ):
-                unc_pads[f"{label}{i+j+1}"] = (None, index)
+                unc_pads[f"{label}{i + j + 1}"] = (None, index)
 
         links = {**fg._links, **unc_pads} if i >= 0 or j >= 0 else fg._links
 
@@ -306,11 +306,14 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             for j, (i0, i1) in enumerate(zip(pos[:-1], pos[1:]))
         ]
         if self.sws_flags:
-            chain_list = [f"{[' ']*(len(prefix)+3+nzeros)}{expr[:pos[0]]}", *chain_list]
+            chain_list = [
+                f"{[' '] * (len(prefix) + 3 + nzeros)}{expr[: pos[0]]}",
+                *chain_list,
+            ]
         if len(chain_list) > 12:
             chain_list = [
                 chain_list[:-4],
-                f"{[' ']*(len(prefix)+3+nzeros)}{expr[:pos[0]]}",
+                f"{[' '] * (len(prefix) + 3 + nzeros)}{expr[: pos[0]]}",
                 chain_list[-3:],
             ]
         chain_list = "\n".join(chain_list)
@@ -319,8 +322,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
     FFmpeg expression: \"{str(self)}\"
     Number of chains: {len(self)}
 {chain_list}      
-    Available input pads ({self.get_num_inputs()}): {', '.join((str(id[0]) for id in self.iter_input_pads()))}
-    Available output pads: ({self.get_num_outputs()}): {', '.join((str(id[0]) for id in self.iter_output_pads()))}
+    Available input pads ({self.get_num_inputs()}): {", ".join((str(id[0]) for id in self.iter_input_pads()))}
+    Available output pads: ({self.get_num_outputs()}): {", ".join((str(id[0]) for id in self.iter_output_pads()))}
 """
 
     def __setitem__(self, key, value):
@@ -339,7 +342,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             return UserList.__getitem__(self, key)
         except (IndexError, StopIteration) as e:
             raise e
-        except Exception as e:
+        except Exception:
             try:
                 assert len(key) == 2 and all((isinstance(k, int) for k in key))
                 return UserList.__getitem__(self, key[0])[key[1]]
@@ -462,7 +465,6 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             ioff = chain
 
         for i, c in enumerate(chains):
-
             j = (len(c) + filter) if filter is not None and filter < 0 else filter
 
             for pidx, f, other_pidx in iter_filter_pad(
@@ -587,7 +589,13 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             yield v
 
     def get_num_inputs(self, chainable_only=False):
-        return len(list(self.iter_input_pads(exclude_stream_specs=True, chainable_only=chainable_only)))
+        return len(
+            list(
+                self.iter_input_pads(
+                    exclude_stream_specs=True, chainable_only=chainable_only
+                )
+            )
+        )
 
     def get_num_outputs(self, chainable_only=False):
         return len(list(self.iter_output_pads(chainable_only=chainable_only)))
@@ -801,7 +809,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """remove an input/output label
 
         :param label: linkn label
-        :param inpad: specify input pad if multiple pads receives the same input 
+        :param inpad: specify input pad if multiple pads receives the same input
                       stream, defaults to `None` to delete all input pads.
         """
 
@@ -890,14 +898,13 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             return Graph(other)
 
         if isinstance(other, Graph):
-
             fg = Graph(self)
             if other.sws_flags is not None:
                 if fg.sws_flags is None or replace_sws_flags is True:
                     fg.sws_flags = deepcopy(other.sws_flags)
                 elif replace_sws_flags is None:
                     raise Graph.Error(
-                        f"sws_flags are defined on both FilterGraphs. Specify replace_sws_flags option to True or False to avoid this error."
+                        "sws_flags are defined on both FilterGraphs. Specify replace_sws_flags option to True or False to avoid this error."
                     )
 
             try:
@@ -980,7 +987,6 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         # stack the remaining chains
         if len(bwd_links) or any(must_link_fwd):
-
             # sift through the connections for chainable and unchainables
             n0 = fg.get_num_chains()  # chain index offset
 

@@ -1,7 +1,9 @@
-import os, shutil
+import os
+import shutil
 from pluggy import HookimplMarker
 
 hookimpl = HookimplMarker("ffmpegio")
+
 
 @hookimpl
 def finder():

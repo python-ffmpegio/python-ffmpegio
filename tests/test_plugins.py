@@ -31,6 +31,7 @@ def test_rawdata_bytes():
     assert hook.audio_info(obj=data) == (shape, dtype)
     assert hook.audio_bytes(obj=data) == b
 
+
 def test_use():
     import numpy as np
 

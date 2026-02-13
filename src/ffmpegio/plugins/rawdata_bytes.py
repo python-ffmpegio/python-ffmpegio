@@ -138,7 +138,7 @@ def bytes_to_video(
         return {
             "buffer": b,
             "dtype": dtype,
-            "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
+            "shape": tuple((i for i in sh if i != 1)) if squeeze else sh,
         }
     except:
         return None
@@ -163,7 +163,7 @@ def bytes_to_audio(
         return {
             "buffer": b,
             "dtype": dtype,
-            "shape": tuple(((i for i in sh if i != 1))) if squeeze else sh,
+            "shape": tuple((i for i in sh if i != 1)) if squeeze else sh,
         }
     except:
         return None

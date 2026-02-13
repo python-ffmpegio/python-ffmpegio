@@ -31,7 +31,6 @@ class GraphLinks: ...
 
 
 class GraphLinks(UserDict):
-
     class Error(FFmpegioError):
         pass
 
@@ -84,7 +83,7 @@ class GraphLinks(UserDict):
         if id is None:
             if none_ok:
                 return
-            raise GraphLinks.Error(f"pad index cannot be None")
+            raise GraphLinks.Error("pad index cannot be None")
 
         if not (
             isinstance(id, (tuple))
@@ -102,7 +101,7 @@ class GraphLinks(UserDict):
             assert len(ids) == 2
         except:
             raise GraphLinks.Error(
-                f"Link value must be a 2-element tuple with inpad and outpad pad ids"
+                "Link value must be a 2-element tuple with inpad and outpad pad ids"
             )
 
         (inpad, outpad) = ids
@@ -110,12 +109,12 @@ class GraphLinks(UserDict):
 
         inpad_is_none = inpad is None
         if inpad_is_none and outpad is None:
-            raise GraphLinks.Error(f"Both input and output pads cannot be None.")
+            raise GraphLinks.Error("Both input and output pads cannot be None.")
 
         i = -1
         for i, d in enumerate(GraphLinks.iter_inpad_ids(inpad, True)):
             if d is None and not inpad_is_none:
-                raise GraphLinks.Error(f"multi-id input label item cannot be None.")
+                raise GraphLinks.Error("multi-id input label item cannot be None.")
             GraphLinks.validate_pad_idx(d)
 
     @staticmethod
@@ -137,7 +136,6 @@ class GraphLinks(UserDict):
 
         # validate each link
         for label, pads in data.items():
-
             if (
                 not is_map_option(label, allow_missing_file_id=True)
                 and pads[0] is not None
@@ -593,7 +591,7 @@ class GraphLinks(UserDict):
             )
         else:
             if inpad is None and outpad is None:
-                raise ValueError(f"At least one of inpad or outpad must be specified.")
+                raise ValueError("At least one of inpad or outpad must be specified.")
 
             # check internal links first
             it_links = self.iter_links()
@@ -794,8 +792,8 @@ class GraphLinks(UserDict):
         if not isinstance(other, GraphLinks) and validate:
             try:
                 assert isinstance(other, Mapping)
-            except Exception as e:
-                raise GraphLinks.Error(f"Other must be a dict-like mapping object")
+            except Exception:
+                raise GraphLinks.Error("Other must be a dict-like mapping object")
             self.validate(other)
 
         # set aside labels
@@ -871,8 +869,8 @@ class GraphLinks(UserDict):
         :param len: number of chains to be inserted (if positive) or removed (if negative)
         """
 
-        select = (
-            lambda pid: pid[0] == chain_id and pid[1] >= pos
+        select = lambda pid: (
+            pid[0] == chain_id and pid[1] >= pos
         )  # select all chains at or above pos
         adjust = lambda pid: (pid[0], pid[1] + len, pid[2])
         self._modify_pad_ids(select, adjust)

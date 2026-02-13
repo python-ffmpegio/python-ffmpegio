@@ -2,7 +2,8 @@ from typing import Literal
 from os import path as _path, name as _os_name, devnull
 from shutil import which
 from subprocess import run, DEVNULL, PIPE, STDOUT
-import re, shlex
+import re
+import shlex
 from packaging.version import Version
 import logging
 

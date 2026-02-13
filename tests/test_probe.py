@@ -1,9 +1,7 @@
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
-import pytest
 
-from ffmpegio import ffmpeg_info
 import ffmpegio.probe as probe
 
 # print(
@@ -29,15 +27,15 @@ def test_url_types():
         out1 = probe.query(f)
         f.seek(0)
         del out1["filename"]
-        if 'bit_rate' not in out1:
-            del out['bit_rate']
-        if 'size' not in out1:
-            del out['size']
+        if "bit_rate" not in out1:
+            del out["bit_rate"]
+        if "size" not in out1:
+            del out["size"]
         assert out1 == out
 
         # piping in byte content of the file yields a few other differences
         probe.query(f.read())
-        
+
 
 def test_all():
     url = "tests/assets/testmulti-1m.mp4"

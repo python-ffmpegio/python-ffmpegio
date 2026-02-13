@@ -117,7 +117,6 @@ def parse_stream_spec(spec: str | int) -> StreamSpecDict:
     """
 
     if isinstance(spec, str):
-
         out: StreamSpecDict = {}
         spec_parts = spec.split(":")
         nspecs = len(spec_parts)
@@ -130,7 +129,9 @@ def parse_stream_spec(spec: str | int) -> StreamSpecDict:
                     (
                         10
                         if s[0] != "0" and len(s) > 1
-                        else 16 if s.startswith("0x") or s.startswith("0X") else 8
+                        else 16
+                        if s.startswith("0x") or s.startswith("0X")
+                        else 8
                     ),
                 )
                 assert v >= 0

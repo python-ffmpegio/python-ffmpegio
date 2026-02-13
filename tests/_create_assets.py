@@ -2,8 +2,6 @@ from ffmpegio import ffmpegprocess, probe
 from os import path
 from pprint import pprint
 
-from ffmpegio import image
-from matplotlib import pyplot as plt
 
 command_list = (
     {
