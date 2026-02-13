@@ -235,7 +235,7 @@ def versions():
 
 
 def check_version(ver, cond=None):
-    """check FFmpeg version
+    """check FFmpeg version against the given version for the specified condition
 
     :param ver: desired version string
     :type ver: str
@@ -243,7 +243,35 @@ def check_version(ver, cond=None):
     :type cond: "==", "!=", "<", "<=", ">", ">=", optional
     :return: True if condition is met
     :rtype: bool
+
+    Note "nightly" builds are assumed to be the latest.
     """
+
+    ver_nightly = ver == "nightly"
+
+    # ffmpeg version is a nightly (assumed the latest)
+    if FFMPEG_VER == "nightly":
+        return {
+            "==": ver_nightly,
+            "!=": not ver_nightly,
+            "<": False,
+            "<=": ver_nightly,
+            ">": not ver_nightly,
+            ">=": True,
+        }[cond or ">="]
+
+    # ffmpeg version is a release compared to nightly
+    if ver_nightly:
+        return {
+            "==": False,
+            "!=": True,
+            "<": True,
+            "<=": True,
+            ">": False,
+            ">=": False,
+        }[cond or ">="]
+
+    # both are releases
     return {
         "==": FFMPEG_VER.__eq__,
         "!=": FFMPEG_VER.__ne__,
