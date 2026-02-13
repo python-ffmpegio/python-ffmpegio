@@ -6,6 +6,10 @@ class FFmpegioError(Exception):
     pass
 
 
+class FFmpegioInsufficientInputData(FFmpegioError):
+    pass
+
+
 class FFmpegioNoPipeAllowed(FFmpegioError):
     pass
 
