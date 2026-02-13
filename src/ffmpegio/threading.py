@@ -516,21 +516,26 @@ class WriterThread(Thread):
 
     :param stdin: stream to write data to
     :param queuesize: depth of a queue for inter-thread data transfer, defaults to None
-    :param bufsize: maximum number of bytes to write at once, defaults to None (1048576 bytes)
+    :param timeout: maximum number of bytes to write at once, defaults to None (1048576 bytes)
     """
 
-    def __init__(self, stdin_or_pipe: BinaryIO | NPopen, queuesize: int | None = None):
+    def __init__(
+        self,
+        stdin_or_pipe: BinaryIO | NPopen,
+        queuesize: int | None = None,
+        timeout: float | None = None,
+    ):
         super().__init__()
         is_pipe = isinstance(stdin_or_pipe, NPopen)
         self.pipe = stdin_or_pipe if is_pipe else None
         self.stdin = None if is_pipe else stdin_or_pipe  #:writable stream: data sink
-        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
+        self._queue = Queue(16 if queuesize is None else queuesize)
         self._empty_cond = Condition()
         self._empty = True
         self._no_more = False  # true if sentinel has been written to the queue
+        self._timeout = float(timeout) if timeout else None
 
     def join(self, timeout: float | None = None):
-
         if self.stdin is None:
             # pipe not yet connected, open it to release the runner
             with open(self.pipe.path, "rb"):
@@ -541,7 +546,11 @@ class WriterThread(Thread):
             self._queue.put(None)
 
         # if queue is full,
-        super().join(timeout)
+        super().join(timeout or self._timeout)
+
+    def closed(self) -> bool:
+        """``True`` if thread no longer accepts data to write"""
+        return self._no_more
 
     def __enter__(self):
         self.start()
@@ -552,7 +561,6 @@ class WriterThread(Thread):
         return False
 
     def run(self):
-
         if self.stdin is None:
             self.stdin = self.pipe.wait()
 
@@ -561,6 +569,7 @@ class WriterThread(Thread):
 
         while True:
             # get next data block
+            logger.debug("WriterThread getting data to the queue")
             try:
                 data = queue.get_nowait()
             except Empty:
@@ -607,10 +616,8 @@ class WriterThread(Thread):
             try:
                 queue.get_nowait()
             except Empty:
-                break
-            else:
-                # queue was empty
                 not_empty = False
+                break
 
         # if queue was not empty, notify its empty state now
         if not_empty:
@@ -631,7 +638,7 @@ class WriterThread(Thread):
             if data is None:
                 self._no_more = True
 
-            self._queue.put(data, timeout != 0, timeout)
+            self._queue.put(data, timeout != 0, timeout or self._timeout)
             self._empty = False
 
     def flush(self, timeout: float | None = None):
@@ -643,7 +650,11 @@ class WriterThread(Thread):
         """
 
         with self._empty_cond:
-            if not (self._no_more or self._empty or self._empty_cond.wait(timeout)):
+            if not (
+                self._no_more
+                or self._empty
+                or self._empty_cond.wait(timeout or self._timeout)
+            ):
                 raise NotEmpty()
 
     def qsize(self) -> int:
