@@ -238,21 +238,45 @@ def versions():
 def check_version(
     ver: str, cond: Literal["==", "!=", "<", "<=", ">", ">="] | None = None
 ) -> bool:
-    """check FFmpeg version
+    """check FFmpeg version against the given version for the specified condition
 
     :param ver: desired version string
     :param cond: condition, defaults to None (">=)
     :return: True if condition is met, False if FFmpeg binary is not found or a nightly release
+
+    Note "nightly" builds are assumed to be the latest.
     """
 
-    try:
-        return FFMPEG_VER is not None and {
-            "==": FFMPEG_VER.__eq__,
-            "!=": FFMPEG_VER.__ne__,
-            "<": FFMPEG_VER.__lt__,
-            "<=": FFMPEG_VER.__le__,
-            ">": FFMPEG_VER.__gt__,
-            ">=": FFMPEG_VER.__ge__,
-        }[cond or ">="](Version(ver))
-    except NotImplementedError:
-        return False
+    ver_nightly = ver == "nightly"
+
+    # ffmpeg version is a nightly (assumed the latest)
+    if FFMPEG_VER == "nightly":
+        return {
+            "==": ver_nightly,
+            "!=": not ver_nightly,
+            "<": False,
+            "<=": ver_nightly,
+            ">": not ver_nightly,
+            ">=": True,
+        }[cond or ">="]
+
+    # ffmpeg version is a release compared to nightly
+    if ver_nightly:
+        return {
+            "==": False,
+            "!=": True,
+            "<": True,
+            "<=": True,
+            ">": False,
+            ">=": False,
+        }[cond or ">="]
+
+    # both are releases
+    return {
+        "==": FFMPEG_VER.__eq__,
+        "!=": FFMPEG_VER.__ne__,
+        "<": FFMPEG_VER.__lt__,
+        "<=": FFMPEG_VER.__le__,
+        ">": FFMPEG_VER.__gt__,
+        ">=": FFMPEG_VER.__ge__,
+    }[cond or ">="](Version(ver))
