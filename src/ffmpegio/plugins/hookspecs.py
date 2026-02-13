@@ -132,3 +132,13 @@ def device_sink_api() -> tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+    ...
+
+
+@hookspec(firstresult=True)
+def is_empty(obj: object) -> bool:
+    """True if data blob object has no data
+
+    :param obj: object containing media data
+    """
+    ...
