@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 import shutil
+
 from pluggy import HookimplMarker
 
 hookimpl = HookimplMarker("ffmpegio")

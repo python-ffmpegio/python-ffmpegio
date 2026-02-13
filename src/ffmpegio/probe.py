@@ -1,23 +1,24 @@
 from __future__ import annotations
 
-from typing import BinaryIO, Any, Literal, Union, Tuple, Dict
-from numbers import Number
-from collections.abc import Sequence
-from typing_extensions import Buffer, IO
-from io import IOBase
-
 import json
+import logging
 import re
+from collections.abc import Sequence
 from fractions import Fraction
 from functools import lru_cache
+from io import IOBase
+from numbers import Number
+from typing import Any, BinaryIO, Literal, Union
 
-import logging
+from typing_extensions import IO, Buffer
+
+from .errors import FFmpegError
+from .path import PIPE, ffprobe
+from .stream_spec import StreamSpecDict
+from .stream_spec import stream_spec as compose_stream_spec
 
 logger = logging.getLogger("ffmpegio")
 
-from .path import ffprobe, PIPE
-from .errors import FFmpegError
-from .stream_spec import StreamSpecDict, stream_spec as compose_stream_spec
 
 # fmt:off
 __all__ = ['full_details', 'format_basic', 'streams_basic',
@@ -75,8 +76,8 @@ IntervalSpec = Union[
     str,
     int,
     float,
-    Tuple[Union[str, float], Union[str, int, float]],
-    Dict[Literal["start", "start_offset", "end"], Union[str, float]],
+    tuple[str | float, str | int | float],
+    dict[Literal["start", "start_offset", "end"], str | float],
 ]
 """ Union type to specify the FFprobe read_intervals option
 

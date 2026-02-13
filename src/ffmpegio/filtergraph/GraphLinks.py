@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import re
 from collections import UserDict
-from collections.abc import Generator, Mapping, Sequence, Callable
+from collections.abc import Callable, Generator, Mapping, Sequence
 
-
-from ..stream_spec import is_map_option
 from ..errors import FFmpegioError
+from ..stream_spec import is_map_option
 from .typing import PAD_INDEX, PAD_PAIR, Literal
 
 """
@@ -25,9 +24,6 @@ GraphLinks class design:
   at the same time
 
 """
-
-
-class GraphLinks: ...
 
 
 class GraphLinks(UserDict):
@@ -618,7 +614,12 @@ class GraphLinks(UserDict):
     def chain_has_link(
         self, chain_id: int, check_input: bool = True, check_output: bool = True
     ) -> bool:
-        """True if there is any link/label defined on the chain specified by its id"""
+        """True if there is any link/label defined on the chain specified by its id
+
+        :param chain_id: index of the chain under test
+        :param check_input: True to check all the input pads, defaults to True
+        :param check_output: _description_, defaults to True
+        """
         for inpads, outpad in self.values():
             if check_output and outpad and outpad[0] == chain_id:
                 return True

@@ -1,6 +1,7 @@
 """ffmpegio plugin to find ffmpeg and ffprobe installed by static-ffmpeg package"""
 
 import logging
+
 from pluggy import HookimplMarker
 from static_ffmpeg import run
 

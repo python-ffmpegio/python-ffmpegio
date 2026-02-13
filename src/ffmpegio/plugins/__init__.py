@@ -1,10 +1,6 @@
 from __future__ import annotations
 
 import logging
-
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.NullHandler())
-
 import os
 import re
 from importlib import import_module
@@ -13,6 +9,10 @@ from typing import Any, Literal
 import pluggy
 
 from . import hookspecs
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
 
 __all__ = ["initialize", "get_hook"]
 

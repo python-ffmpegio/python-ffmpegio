@@ -6,18 +6,18 @@ parse & compose FFmpeg stream spec string from/to StreamSpec object
 
 from __future__ import annotations
 
+import re
+
 from ._typing import (
-    get_args,
-    Literal,
-    TypedDict,
-    Union,
-    Tuple,
     FFmpegMediaType,
+    Literal,
     MediaType,
     NotRequired,
+    Tuple,
+    TypedDict,
+    Union,
+    get_args,
 )
-
-import re
 
 StreamSpecStreamType = Literal["v", "a", "s", "d", "t", "V"]
 # libavformat/avformat.c:match_stream_specifier()

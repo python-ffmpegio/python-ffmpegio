@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from copy import copy
 
-from .typing import PAD_INDEX, JOIN_HOW, Literal, get_args
-
-from .exceptions import FiltergraphInvalidExpression, FFmpegioError
 from .. import filtergraph as fgb
-
 from .._utils import zip  # pre-py310 compatibility
+from .exceptions import FFmpegioError, FiltergraphInvalidExpression
+from .GraphLinks import GraphLinks
+from .typing import JOIN_HOW, PAD_INDEX, Literal, get_args
 
 __all__ = ["connect", "join", "attach", "stack", "concatenate"]
 

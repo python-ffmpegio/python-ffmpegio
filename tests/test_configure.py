@@ -1,5 +1,6 @@
-import pytest
 from pprint import pprint
+
+import pytest
 
 from ffmpegio import configure
 from ffmpegio import filtergraph as fgb

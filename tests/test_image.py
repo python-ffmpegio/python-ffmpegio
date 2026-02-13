@@ -1,9 +1,10 @@
-import pytest
-from ffmpegio import image, probe, transcode
-import tempfile
 import re
+import tempfile
 from os import path
 
+import pytest
+
+from ffmpegio import image, probe, transcode
 
 outext = ".png"
 

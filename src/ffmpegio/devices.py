@@ -16,14 +16,17 @@ url = 'v:0|a:0'
 
 """
 
-import logging
+from __future__ import annotations
 
-logger = logging.getLogger("ffmpegio")
+import logging
+import re
+from subprocess import DEVNULL, PIPE
 
 from ffmpegio.path import ffmpeg
-from subprocess import PIPE, DEVNULL
+
 from . import plugins
-import re
+
+logger = logging.getLogger("ffmpegio")
 
 SOURCES = {}
 SINKS = {}

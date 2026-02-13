@@ -3,13 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 
-from .typing import PAD_INDEX, JOIN_HOW, Literal
-from .exceptions import *
-
 from .. import filtergraph as fgb
-
 from .._utils import zip  # pre-py310 compatibility
-
+from .exceptions import *
+from .GraphLinks import GraphLinks
+from .typing import JOIN_HOW, PAD_INDEX, Literal
 
 __all__ = ["FilterGraphObject"]
 

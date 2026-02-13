@@ -1,16 +1,22 @@
-from typing import Literal
-from os import path as _path, name as _os_name, devnull
-from shutil import which
-from subprocess import run, DEVNULL, PIPE, STDOUT
+from __future__ import annotations
+
+import logging
 import re
 import shlex
+from os import devnull
+from os import name as _os_name
+from os import path as _path
+from shutil import which
+from subprocess import DEVNULL, PIPE, STDOUT, run
+from typing import Literal
+
 from packaging.version import Version
-import logging
+
+from . import plugins
+from .errors import FFmpegioError
 
 logger = logging.getLogger("ffmpegio")
 
-from .errors import FFmpegioError
-from . import plugins
 
 # fmt:off
 __all__ = [

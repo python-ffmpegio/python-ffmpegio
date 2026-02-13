@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import pluggy
 from typing import Callable
+
+import pluggy
+
 from .._typing import DTypeString, ShapeTuple
 
 hookspec = pluggy.HookspecMarker("ffmpegio")
 
 
 @hookspec(firstresult=True)
-def finder() -> Tuple[str, str]:
+def finder() -> tuple[str, str]:
     """find ffmpeg and ffprobe executable"""
+    ...
 
 
 @hookspec(firstresult=True)
@@ -20,6 +23,7 @@ def video_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     :return shape: shape (height,width,components)
     :return dtype: data type in numpy dtype str expression
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -30,6 +34,7 @@ def audio_info(obj: object) -> tuple[ShapeTuple, DTypeString]:
     :return ac: number of channels
     :return dtype: sample data type in numpy dtype str expression
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -39,6 +44,7 @@ def video_bytes(obj: object) -> memoryview:
     :param obj: object containing video frame data with arbitrary number of frames
     :return: packed bytes of video frames
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -48,6 +54,7 @@ def audio_bytes(obj: object) -> memoryview:
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: packed bytes of audio samples
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -57,6 +64,7 @@ def video_frames(obj: object) -> int:
     :param obj: object containing video frame data with arbitrary number of frames
     :return: number of video frames in obj
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -66,6 +74,7 @@ def audio_samples(obj: object) -> int:
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: number of samples in obj
     """
+    ...
 
 
 @hookspec(firstresult=True)
@@ -108,6 +117,7 @@ def device_source_api() -> tuple[str, dict[str, Callable]]:
 
     Partial definition is OK
     """
+    ...
 
 
 @hookspec

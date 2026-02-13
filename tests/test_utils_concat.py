@@ -1,11 +1,12 @@
-from ffmpegio.utils.concat import FFConcat
-from ffmpegio.utils import escape
-from ffmpegio.configure import check_url
-from ffmpegio.transcode import transcode
-from ffmpegio.ffmpegprocess import run
-import pytest
 import tempfile
 from os import path
+
+import pytest
+
+from ffmpegio.ffmpegprocess import run
+from ffmpegio.transcode import transcode
+from ffmpegio.utils import escape
+from ffmpegio.utils.concat import FFConcat
 
 
 def test_file_item():

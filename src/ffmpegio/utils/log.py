@@ -1,8 +1,10 @@
 import re
 from fractions import Fraction
 
-from . import layout_to_channels
+from .. import utils
+from .._typing import RawStreamInfoTuple, Sequence
 from ..caps import sample_fmts
+from . import layout_to_channels
 
 _re_audio = re.compile(r"(?:(\d+) Hz, )?(.+)")
 
@@ -111,19 +113,19 @@ _re_stream = re.compile(
 )
 
 
-def extract_output_stream(logs, file_id=0, stream_id=0, hint=None):
+def extract_output_stream(
+    logs: str | Sequence[str],
+    file_id: int = 0,
+    stream_id: int = 0,
+    hint: int | None = None,
+) -> dict:
     """extract output stream info from the log lines
 
     :param logs: lines of FFmpeg log messages
-    :type logs: seq(str)
     :param file_id: output file id, defaults to 0
-    :type file_id: int, optional
     :param stream_id: output stream id, defaults to 0
-    :type stream_id: int, optional
     :param hint: starting log line index to search, defaults to None
-    :type hint: int, optional
     :return: stream information
-    :rtype: dict
     """
     if isinstance(logs, str):
         logs = re.split(r"[\n\r]+", logs)

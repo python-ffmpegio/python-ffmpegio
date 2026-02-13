@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-from .._typing import TYPE_CHECKING, Any, Sequence, Literal
-from ..stream_spec import StreamSpecDict
-
 from fractions import Fraction
 
 from .. import filtergraph as fgb
+from .._typing import TYPE_CHECKING, Any, Literal, Sequence
+from ..stream_spec import StreamSpecDict
 
 if TYPE_CHECKING:
-    from .Graph import Graph
     from .Chain import Chain
+    from .Graph import Graph
 
 
 def remove_video_alpha(

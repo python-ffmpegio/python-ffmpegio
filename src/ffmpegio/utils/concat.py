@@ -1,16 +1,18 @@
 """FFConcat class to build/use ffconcat list file for concat demuxer"""
 
-from glob import glob
-import io
-import re
-import os
-from tempfile import NamedTemporaryFile
-from functools import partial
-import logging
+from __future__ import annotations
 
-logger = logging.getLogger("ffmpegio")
+import io
+import logging
+import os
+import re
+from functools import partial
+from glob import glob
+from tempfile import NamedTemporaryFile
 
 from .._utils import escape, unescape
+
+logger = logging.getLogger("ffmpegio")
 
 # https://trac.ffmpeg.org/wiki/Concatenate
 # https://ffmpeg.org/ffmpeg-formats.html#concat

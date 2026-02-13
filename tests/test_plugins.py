@@ -1,9 +1,10 @@
 import logging
 
-from ffmpegio.utils import prod
 from ffmpegio import plugins
+from ffmpegio.utils import prod
 
 logging.basicConfig(level=logging.INFO)
+
 
 def test_rawdata_bytes():
     hook = plugins.get_hook()
@@ -36,8 +37,8 @@ def test_use():
     import numpy as np
 
     plugins.use("read_numpy")
-    assert plugins.using('video')=='read_numpy'
-    assert plugins.using('audio')=='read_numpy'
+    assert plugins.using("video") == "read_numpy"
+    assert plugins.using("audio") == "read_numpy"
 
     dtype = "|u1"
     shape = (2, 2, 3)
@@ -48,16 +49,17 @@ def test_use():
     assert isinstance(data, np.ndarray)
 
     plugins.use("read_bytes")
-    assert plugins.using('video')=='read_bytes'
-    assert plugins.using('audio')=='read_bytes'
+    assert plugins.using("video") == "read_bytes"
+    assert plugins.using("audio") == "read_bytes"
 
     hook = plugins.get_hook()
     data = hook.bytes_to_video(b=b, dtype=dtype, shape=shape, squeeze=False)
     assert isinstance(data, dict)
 
     plugins.use("read_pillow")
-    assert plugins.using('video')=='read_pillow'
-    assert plugins.using('audio')!='read_pillow'
+    assert plugins.using("video") == "read_pillow"
+    assert plugins.using("audio") != "read_pillow"
+
 
 if __name__ == "__main__":
     print(plugins.pm.get_plugins())

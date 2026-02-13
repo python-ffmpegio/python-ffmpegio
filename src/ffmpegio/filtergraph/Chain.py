@@ -2,15 +2,12 @@ from __future__ import annotations
 
 from collections import UserList
 from collections.abc import Callable, Generator, Sequence
-
 from itertools import chain
 
-from . import utils as filter_utils
 from .. import filtergraph as fgb
-
-from .typing import PAD_INDEX, Literal
+from . import utils as filter_utils
 from .exceptions import *
-
+from .typing import PAD_INDEX, Literal
 
 __all__ = ["Chain"]
 
@@ -86,7 +83,9 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     Output pads: ({self.get_num_outputs()}): {", ".join((str(id) for id, *_ in self.iter_output_pads()))}
 """
 
-    def __getitem__(self, key: int | slice | tuple[int | slice, int | slice]):
+    def __getitem__(
+        self, key: int | slice | tuple[int | slice, int | slice]
+    ) -> fgb.Filter:
         if not isinstance(key, (int, slice)):
             i, key = key
             if i != 0:
@@ -122,7 +121,9 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         """Returns True if the given id is the last filter of the chain"""
         return filter_id == len(self) - 1
 
-    def normalize_pad_index(self, input: bool, index: PAD_INDEX) -> PAD_INDEX:
+    def normalize_pad_index(
+        self, input: bool, index: PAD_INDEX
+    ) -> tuple[int, int, int]:
         """normalize pad index.
 
         Returns three-element pad index with non-negative indices.
