@@ -30,9 +30,9 @@ These functions are served by three classes:
    :nosignatures:
    :recursive:
 
-   ffmpegio.filtergraph.Filter
-   ffmpegio.filtergraph.Chain
-   ffmpegio.filtergraph.Graph
+   Filter
+   Chain
+   Graph
 
 See :ref:`api` section below for the full documentation of these classes
 and other helper functions.
@@ -528,7 +528,7 @@ temporary script file. The previous example can also run as follows:
    with fg.as_script_file() as script_path:
       ffmpegio.ffmpegprocess.run(
          {
-               'inputs':  [('input.mp4', None)]
+               'inputs':  [('input.mp4', None)],
                'outputs': [('output.mp4', {'filter_script:v': script_path})]
          })
 

@@ -255,7 +255,7 @@ class GraphLinks(UserDict):
 
         if not (in_label or out_label):
             # new label, resolve
-            label = self._resolve_label(label, force)
+            label = self.resolve_label(label, force)
 
         # create the new link (overwrite if forced)
         self.data[label] = (inpad, outpad)
@@ -304,11 +304,13 @@ class GraphLinks(UserDict):
         for id in range(new_id + 1, old_id + 1):
             del self.data[id]
 
-    def _resolve_label(
+    def resolve_label(
         self,
         label: str | int | None,
         force: bool = False,
         check_stream_spec: bool = True,
+        auto_index: bool = False,
+        auto_index_sep: str = "",
     ) -> str | int:
         """check the label name for duplicate, adjust as needed
 
@@ -316,6 +318,10 @@ class GraphLinks(UserDict):
                       is ignored and replaced with the autonumbering label
         :param force: True to allow overwrite an existing label, defaults to False
         :param check_stream_spec: False to skip stream spec check, defaults to True
+        :param auto_index: True to append a number to a string label until a unique
+                           label is found, defaults to False to error out.
+        :param auto_index_sep: a string to separate the label and the auto-index number,
+                               defaults to ''
         :return: validated label name/id
         """
 
@@ -329,11 +335,105 @@ class GraphLinks(UserDict):
             return label
 
         if not force and label in self:
-            raise GraphLinks.Error(f"{label=} is already in use.")
+            if not auto_index:
+                raise GraphLinks.Error(f"{label=} is already in use.")
+            i = 0
+            label_ = f"{label}{auto_index_sep}"
+            while label in self:
+                i += 1
+                label = f"{label_}{i}"
 
         self.validate_label(label)
 
         return label
+
+    @staticmethod
+    def duplicates(
+        *link_objs: tuple[GraphLinks | None, ...],
+    ) -> dict[str | int, list[tuple[int, str]]]:
+        """re-label the duplicate label names of multiple ``GraphLink`` objects
+
+        :param link_objs: ``GraphLink``s objects to be re-labeled. ``None`` elements
+            are ignored
+        :return: copies of ``link_objs`` with relabeled ``GraphLink``s
+        """
+
+        # accumulate all the labels (remove trailing numbers if exist to match)
+        labels: dict[str | int, list[tuple[int, str]]] = {}
+        regexp = re.compile(r"\d+$")
+        for i, obj in enumerate(link_objs):
+            if obj is None:
+                continue
+            for label in obj:
+                key = label
+                if isinstance(key, str):
+                    m = regexp.search(key)
+                    if m:
+                        key = key[: m.start()]
+
+                if key in labels:
+                    labels[key].append((i, label))
+                else:
+                    labels[key] = [(i, label)]
+
+        return {k: v for k, v in labels.items() if len(v) > 1}
+
+    @staticmethod
+    def relabel_duplicates(
+        *link_objs: tuple[GraphLinks | None, ...],
+    ) -> tuple[GraphLinks | None, ...]:
+        """re-label the duplicate label names of multiple ``GraphLink`` objects
+
+        :param link_objs: ``GraphLink``s objects to be re-labeled. ``None`` elements
+            are ignored
+        :return: copies of ``link_objs`` with relabeled ``GraphLink``s
+        """
+
+        # accumulate all the labels (remove trailing numbers if exist to match)
+        labels: dict[str | int, list[tuple[int, str]]] = {}
+        regexp = re.compile(r"\d+$")
+        for i, obj in enumerate(link_objs):
+            if obj is None:
+                continue
+            for label in obj:
+                key = label
+                if isinstance(key, str):
+                    m = regexp.search(key)
+                    if m:
+                        key = key[: m.start()]
+
+                if key in labels:
+                    labels[key].append((i, label))
+                else:
+                    labels[key] = [(i, label)]
+
+        # copy the link objects
+        new_links = [obj or GraphLinks(obj) for obj in link_objs]
+
+        # generate new labels for duplicated labels
+        int_counter = 0
+        for key, matches in labels.items():
+            if isinstance(key, int):
+                # integer label (auto-labels)
+                for i, old_label in matches:
+                    new_label = int_counter
+                    int_counter += 1
+                    if new_label != old_label:
+                        obj = new_links[i]
+                        obj[new_label] = obj.pop(old_label)
+            else:
+                # user label's
+                if len(matches) == 1:
+                    # unique, keep
+                    continue
+
+                for j, (i, old_label) in enumerate(matches):
+                    new_label = f"{key}{j}"
+                    if new_label != old_label:
+                        obj = new_links[i]
+                        obj[new_label] = obj.pop(old_label)
+
+        return new_links
 
     def __getitem__(self, key: str | int) -> PAD_PAIR:
         """get link item by label or by inpad pad id tuple
@@ -661,7 +761,7 @@ class GraphLinks(UserDict):
 
         is_stspec = is_map_option(label, allow_missing_file_id=True)
         if not is_stspec:
-            label = self._resolve_label(label, force=force, check_stream_spec=False)
+            label = self.resolve_label(label, force=force, check_stream_spec=False)
 
         label_in_use = label in self
 
@@ -765,7 +865,7 @@ class GraphLinks(UserDict):
         :return: renamed label name
         """
         v = self.data[old_label]
-        label = self._resolve_label(new_label, force)
+        label = self.resolve_label(new_label, force)
         del self.data[old_label]
         self.data[label] = v
         return label
@@ -897,20 +997,54 @@ class GraphLinks(UserDict):
         self._modify_pad_ids(select, adj)
 
     def map_chains(
-        self, mapper: int | Mapping[int:int], validate_new: bool = True
+        self,
+        mapper: int | Mapping[int, int] | None,
+        shifter: Mapping[int, int] | None = None,
     ) -> GraphLinks:
         """Generate a new GraphLink object with a chain id mapper
 
-        :param mapper: the current chain id as a key and the new chain id as its value
+        :param mapper: the current chain id as a key and the new chain id as its
+        value. If an int value, all the chains are offset by the value.
+        :param shifter: keyed chain links are shifted by the given value if specified
+
+        Note: if a chain is indexed in both `mapper` and `shifter`, its links
+        are first shifted then mapped.
+
 
         """
+
+        if shifter is not None and len(shifter):
+
+            def shift_padidx(pad):
+                if pad[0] in shifter:
+                    pad = (pad[0], pad[1] + shifter[pad[0]], pad[2])
+                return pad
+
+            def shift_pair(inpads, outpad):
+                if outpad is not None:
+                    outpad = shift_padidx(outpad)
+                if inpads is not None:
+                    if isinstance(inpads[0], int):  # single-input
+                        inpads = shift_padidx(inpads)
+                    else:  # multiple-inputs (an input stream)
+                        inpads = tuple(shift_padidx(d) for d in inpads)
+                return (inpads, outpad)
+
+            data = {label: shift_pair(*value) for label, value in self.items()}
+        else:
+            data = self.data
 
         # check for duplicate value
         if isinstance(mapper, int):
 
             class OffsetMapper:
+                nmap = len(self)
+
                 def __init__(self, offset):
                     self._off = offset
+
+                def __len__(self):
+                    return self.nmap
 
                 def __contains__(self, _):
                     # applies to all
@@ -923,41 +1057,28 @@ class GraphLinks(UserDict):
                     return k + self._off
 
             mapper = OffsetMapper(mapper)
-        elif validate_new:
-            new_ids = sorted(set(mapper.values()))
-            if len(new_ids) != len(mapper):
-                raise ValueError("Values of mapper must have no duplicate.")
-            if new_ids != list(range(len(new_ids))):
-                raise ValueError(
-                    "Values of mapper must be values between 0 and len(mapper)."
-                )
 
-        def adjust_pair(inpads, outpad):
-            if outpad is not None:
-                if outpad[0] not in mapper:
-                    return None
-                outpad = (mapper[outpad[0]], *outpad[1:])
-            if inpads is not None:
-                if isinstance(inpads[0], int):  # single-input
-                    if inpads[0] not in mapper:
-                        return None
-                    inpads = (mapper[inpads[0]], *inpads[1:])
-                else:  # multiple-inputs (an input stream)
-                    inpads = tuple(
-                        (cid, *d[1:])
-                        for d in inpads
-                        if ((cid := mapper.get(d[0], None)) is not None)
-                    )
-                    if not len(inpads):
-                        return None
-            return (inpads, outpad)
+        if mapper is not None and len(mapper):
+
+            def map_padidx(pad):
+                if pad[0] in mapper:
+                    pad = (mapper[pad[0]], *pad[1:])
+                return pad
+
+            def adjust_pair(inpads, outpad):
+                if outpad is not None:
+                    outpad = map_padidx(outpad)
+                if inpads is not None:
+                    if isinstance(inpads[0], int):  # single-input
+                        inpads = map_padidx(inpads)
+                    else:  # multiple-inputs (an input stream)
+                        inpads = tuple(map_padidx(d) for d in inpads)
+                return (inpads, outpad)
+
+            data = {label: adjust_pair(*value) for label, value in data.items()}
 
         fglinks = GraphLinks()
-        fglinks.data = {
-            label: pair
-            for label, value in self.data.items()
-            if (pair := adjust_pair(*value)) is not None
-        }
+        fglinks.data = data
         return fglinks
 
     def drop_labels(self, labels: Sequence[str], keep_links: bool = True) -> GraphLinks:
@@ -971,7 +1092,7 @@ class GraphLinks(UserDict):
         def keep(k):
             if isinstance(k, str) and k in labels:
                 if keep_links and self.is_linked(k):
-                    return self._resolve_label(None)
+                    return self.resolve_label(None)
                 return None
             else:
                 return k

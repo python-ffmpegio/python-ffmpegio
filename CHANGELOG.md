@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+### Changed
+
+- allow writers' `extra_inputs` arguments to be `str` or `tuple[str, dict|None]`
+- `probe` functions accepts PathLike object as the media url
+
+### Added
+
+- `media` module - block
+- `PipedStreams` module - media stream classes with multiple inputs and outputs.
+
+### Removed
+
+- `build_basic_vf()` options from video readers and filters. Users can generate 
+  equivalent filter chains via `filtergraph.presets.filter_video_basic()`.
+
 ## [0.11.1] - 2025-05-17
 
 ### Fixed

@@ -7,7 +7,7 @@ import ffmpegio.filtergraph.presets as presets
     "kwargs",
     [
         dict(crop=None, flip=None, transpose=None),
-        dict(scale=1.2, crop=100, flip="both", transpose=90, square_pixels="upscale"),
+        dict(scale=1.2, crop=100, flip="both", transpose=90),
     ],
 )
 def test_video_basic_filter(kwargs):
@@ -21,5 +21,5 @@ def test_video_basic_filter(kwargs):
         {"fill_color": "red", "input_label": "in", "output_label": "[out]"},
     ],
 )
-def test_remove_video_alpha(kwargs):
-    print(presets.remove_video_alpha(**kwargs))
+def test_remove_alpha(kwargs):
+    print(presets.remove_alpha(**kwargs))

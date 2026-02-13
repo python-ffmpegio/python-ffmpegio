@@ -410,6 +410,11 @@ def stack(
     if len(fgs) == 1:
         return fgb.as_filtergraph_object(fgs[0], copy=True)
 
+    # re-label the links
+    for fg, links in zip(fgs, GraphLinks.relabel_duplicates([fg.links for fg in fgs])):
+        if links is not None:
+            fg._links = links
+
     fg = fgb.as_filtergraph(fgs[0], copy=not inplace)
 
     if n == 1:
