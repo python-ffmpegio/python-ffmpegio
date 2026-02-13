@@ -84,8 +84,8 @@ def transcode(
     if utils.is_valid_output_url(outputs):
         outputs = [outputs]
 
-    args, input_info, output_info = configure.init_media_transcoder(
-        inputs, outputs, None, None, options
+    args, input_info, output_info = configure.init_media_transcode(
+        inputs, outputs, options
     )
 
     # check number of pipes
@@ -93,7 +93,7 @@ def transcode(
     nb_outpipes = sum(info["dst_type"] == "buffer" for info in output_info)
 
     # if 0 or 1 buffered input and 0 or 1 buffered output, just use stdin/stdout
-    simple_mode = nb_inpipes < 2 and nb_outpipes < 2
+    simple_mode = (nb_inpipes + nb_outpipes) < 2
 
     if not simple_mode:
         raise NotImplementedError(
@@ -101,25 +101,27 @@ def transcode(
         )
 
     # convert basic VF options to vf option
-    for i in range(len(output_info)):
-        configure.build_basic_vf(args, None, i)
-
-    stdin, stdout, input = configure.assign_std_pipes(
-        args, input_info, output_info, use_sp_run=True
-    )
+    # for i in range(len(output_info)):
+    #     configure.build_basic_vf(args, None, i)
 
     kwargs = {**sp_kwargs} if sp_kwargs else {}
+
+    # configure a std pipe if used
+    if nb_inpipes:
+        kwargs.update(configure.assign_input_pipes(args, input_info, True, True)[1])
+    elif nb_outpipes:
+        kwargs.update(configure.assign_output_pipes(args, output_info, True)[1])
+
     kwargs.update(
         {
             "progress": progress,
             "overwrite": overwrite,
-            "stdin": stdin,
-            "stdout": stdout,
-            "input": input,
             "capture_log": None if show_log else True,
         }
     )
     if two_pass:
+        if len(output_info) > 1:
+            raise ValueError("transcode() only supports two_pass mode for one output.")
         kwargs["pass1_omits"] = pass1_omits
         kwargs["pass1_extras"] = pass1_extras
 

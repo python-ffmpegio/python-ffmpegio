@@ -1,95 +1,70 @@
+import logging
 import warnings
-from . import ffmpegprocess as fp, utils, configure, FFmpegError, plugins, analyze
-from .utils import log as log_utils
+from fractions import Fraction
+
+from . import analyze, configure, utils
+from . import filtergraph as fgb
+from ._typing import (
+    Any,
+    DTypeString,
+    FFmpegOptionDict,
+    ProgressCallable,
+    RawDataBlob,
+    ShapeTuple,
+)
+from .configure import (
+    FFmpegInputOptionTuple,
+    FFmpegInputUrlComposite,
+    FFmpegInputUrlNoPipe,
+    FFmpegNoPipeInputOptionTuple,
+    FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputUrlNoPipe,
+)
+from .errors import FFmpegioError
+from .std_runners import run_and_return_encoded, run_and_return_raw
 
 __all__ = ["create", "read", "write", "filter", "detect"]
 
-
-def _run_read(*args, show_log=None, sp_kwargs=None, **kwargs):
-    """run FFmpeg and retrieve audio stream data
-    :param *args ffmpegprocess.run arguments
-    :type *args: tuple
-    :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
-    :type sp_kwargs: dict, optional
-    :param \\**kwargs: All additional keyword arguments to call `ffmpegprocess.run`.
-                       These keywords take precedence over `sp_kwargs`.
-    :type \\**kwargs: dict, optional
-    :return: video data, created by `bytes_to_video` plugin hook
-    :rtype: object
-    """
-
-    outopts = args[0]["outputs"][0][1]
-    outopts["map"] = "0:v:0"
-    dtype, shape, r = configure.finalize_video_read_opts(
-        args[0],
-        input_info=[
-            {"src_type": "filtergraph" if outopts.get("f", None) == "lavfi" else "url"}
-        ],
-    )
-
-    if sp_kwargs is not None:
-        kwargs = {**sp_kwargs, **kwargs}
-
-    if shape is None or r is None:
-        configure.clear_loglevel(args[0])
-
-        out = fp.run(*args, capture_log=True, **kwargs)
-        if show_log:
-            print(out.stderr)
-        if out.returncode:
-            raise FFmpegError(out.stderr)
-
-        info = log_utils.extract_output_stream(out.stderr)
-        dtype, shape = utils.get_video_format(info["pix_fmt"], info["s"])
-        r = info["r"]
-    else:
-        out = fp.run(
-            *args,
-            capture_log=None if show_log else False,
-            **kwargs,
-        )
-        if out.returncode:
-            raise FFmpegError(out.stderr)
-    return r, plugins.get_hook().bytes_to_video(
-        b=out.stdout, dtype=dtype, shape=shape, squeeze=False
-    )
+logger = logging.getLogger("ffmpegio")
 
 
-def create(expr, *args, progress=None, show_log=None, sp_kwargs=None, **options):
+def create(
+    expr: str | fgb.abc.FilterGraphObject,
+    *args,
+    squeeze: bool = True,
+    progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
+    **options,
+) -> tuple[Fraction | int, RawDataBlob]:
     """Create a video using a source video filter
 
-    :param name: name of the source filter
-    :type name: str
-    :param \\*args: sequential filter option arguments. Only valid for
+    :param expr: source filter graph
+    :param args: sequential filter option arguments. Only valid for
                     a single-filter expr, and they will overwrite the
                     options set by expr.
-    :type \\*args: seq, optional
+    :param squeeze: False to return 2D data with the 2nd dimension as the audio
+                    channels, defaults to True to reduce monaural data to 1D,
+                    eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
-    :param \\**options: Named filter options or FFmpeg options. Items are
+    :param options: Named filter options or FFmpeg options. Items are
                         only considered as the filter options if expr is a
                         single-filter graph, and take the precedents over
                         general FFmpeg options. Append '_in' for input
                         option names (see :doc:`options`), and '_out' for
                         output option names if they conflict with the filter
                         options.
-    :type \\**options: dict, optional
-    :return: frame rate and video data, created by `bytes_to_video` plugin hook
-    :rtype: tuple[Fraction,object]
+    :return rate: frame rate in frames/second
+    :return data: video data object specified by selected `bytes_to_video` plugin hook.
+                  The output shape is 4D (time x row x column x comp).
+                  (since v0.12.0) With `squeeze=True` the shape dimensions with
+                  length 1 are removed.
 
     ...seealso::
       https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for available
@@ -97,206 +72,232 @@ def create(expr, *args, progress=None, show_log=None, sp_kwargs=None, **options)
 
     """
 
-    input_options = utils.pop_extra_options(options, "_in")
-    output_options = utils.pop_extra_options(options, "_out")
     url, t_, options = configure.config_input_fg(expr, args, options)
-    options = {**options, **output_options}
 
-    if (
-        t_ is None
-        and not any(a in input_options for a in ("t", "to"))
-        and not any(a in options for a in ("t", "to", "frames:v", "vframes"))
+    if t_ is None and not any(
+        a in options for a in ("t_in", "to_in", "t", "to", "frames:v", "vframes")
     ):
         warnings.warn(
             "neither input nor output duration specified. this function call may hang."
         )
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(ffmpeg_args, "input", url, {**input_options, "f": "lavfi"})
-    configure.add_url(
-        ffmpeg_args, "output", "-", {"pix_fmt": "rgb24", **options, "f": "rawvideo"}
-    )
-    # TODO: filtergraph scanning will remove the default 'pix_fmt' setting
-
-    return _run_read(
-        ffmpeg_args, progress=progress, show_log=show_log, sp_kwargs=sp_kwargs
+    return read(
+        url,
+        squeeze=squeeze,
+        progress=progress,
+        show_log=show_log,
+        sp_kwargs=sp_kwargs,
+        **options,
     )
 
 
-def read(url, progress=None, show_log=None, sp_kwargs=None, **options):
+def read(
+    url: (
+        FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+    ),
+    *,
+    extra_outputs: (
+        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    ) = None,
+    squeeze: bool = True,
+    progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
+    **options,
+) -> tuple[Fraction | int, RawDataBlob]:
     """Read video frames
 
-    :param url: URL of the video file to read.
-    :type url: str
+    :param url: URL of the video file to read or a list of URLs to be used by
+                complex filtergraph. Each url may be accompanied by its own input
+                options (a tuple pair of url and its option dict). These options
+                supersede the input options given with keyword arguments with `'_in'`
+                suffix.
+    :param extra_outputs: list of additional encoded output sources, defaults to
+                          None. Each destination may be a url string or a pair of
+                          a url string and an option dict.
+    :param squeeze: False to return 2D data with the 2nd dimension as the audio
+                    channels, defaults to True to reduce monaural data to 1D,
+                    eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
-    :type show_log: bool, optional
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
 
     :return: frame rate and video frame data, created by `bytes_to_video` plugin hook
-    :rtype: (fractions.Fraction, object)
     """
 
-    # get pix_fmt of the input file only if needed
-    input_options = utils.pop_extra_options(options, "_in")
+    # use user-specified map or default '0:a:0' map
+    output_map = options.pop("map", "0:V:0")
 
-    # get url/file stream
-    url, stdin, input = configure.check_url(
-        url, False, format=input_options.get("f", None)
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, output_info = configure.init_media_read(
+        [url] if utils.is_valid_input_url(url) else url,
+        [output_map],
+        options,
+        extra_outputs,
+        squeeze,
     )
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(ffmpeg_args, "input", url, input_options)
-    configure.add_url(ffmpeg_args, "output", "-", options)
+    if output_info is None:
+        raise FFmpegioError(
+            "Unknown configuration error occurred. Necessary output information could not be collected."
+        )
+    if output_info[0]["media_type"] != "video":
+        raise ValueError("Mapped stream is not a video stream.")
 
-    # override user specified stdin and input if given
-    sp_kwargs = {**sp_kwargs} if sp_kwargs else {}
-    sp_kwargs["stdin"] = stdin
-    sp_kwargs["input"] = input
-
-    return _run_read(
-        ffmpeg_args, progress=progress, show_log=show_log, sp_kwargs=sp_kwargs
+    return run_and_return_raw(
+        args,
+        input_info,
+        output_info,
+        progress,
+        show_log,
+        sp_kwargs,
     )
 
 
 def write(
-    url,
-    rate_in,
-    data,
-    progress=None,
-    overwrite=None,
-    show_log=None,
-    two_pass=False,
-    pass1_omits=None,
-    pass1_extras=None,
-    extra_inputs=None,
-    sp_kwargs=None,
+    url: (
+        FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+    ),
+    rate_in: Fraction | int,
+    data: RawDataBlob,
+    *,
+    extra_inputs: (
+        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    ) = None,
+    dtype: DTypeString | None = None,
+    shape: ShapeTuple | None = None,
+    progress: ProgressCallable | None = None,
+    overwrite: bool | None = None,
+    show_log: bool | None = None,
+    two_pass: bool = False,
+    pass1_omits: list[str] | None = None,
+    pass1_extras: list[FFmpegOptionDict] | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
     **options,
-):
-    """Write Numpy array to a video file
+) -> bytes | None:
+    """Write raw video data blob
 
     :param url: URL of the video file to write.
-    :type url: str
     :param rate_in: frame rate in frames/second
-    :type rate_in: `float`, `int`, or `fractions.Fraction`
     :param data: video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
-    :type data: object
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :type overwrite: bool, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_log: bool, optional
     :param two_pass: True to encode in 2-pass
     :param pass1_omits: list of output arguments to ignore in pass 1, defaults to None
-    :type pass1_omits: seq(str), optional
     :param pass1_extras: list of additional output arguments to include in pass 1, defaults to None
-    :type pass1_extras: dict(int:dict(str)), optional
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
                          string or a pair of a url string and an option dict.
-    :type extra_inputs: seq(str|(str,dict))
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     """
 
-    url, stdout, _ = configure.check_url(url, True)
+    # if filter_complex is not defined use '0:V:0' as default mapping
+    if (
+        not any(
+            (o in options)
+            for o in (
+                "filter_complex",
+                "lavfi",
+                "/filter_complex",
+                "/lavfi",
+                "filter_complex_script",
+            )
+        )
+        and "map" not in options
+    ):
+        options["map"] = "0:V:0"
 
-    input_options = utils.pop_extra_options(options, "_in")
-
-    ffmpeg_args = configure.empty()
-    configure.add_url(
-        ffmpeg_args,
-        "input",
-        *configure.array_to_video_input(rate_in, data=data, **input_options),
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, output_info = configure.init_media_write(
+        url, [{"r": rate_in}], extra_inputs, options, [data]
     )
 
-    # add extra input arguments if given
-    if extra_inputs is not None:
-        configure.add_urls(ffmpeg_args, "input", extra_inputs)
-
-    configure.add_url(ffmpeg_args, "output", url, options)
-
-    configure.build_basic_vf(ffmpeg_args, configure.check_alpha_change(ffmpeg_args, -1))
-
-    kwargs = {**sp_kwargs} if sp_kwargs else {}
-    kwargs.update(
-        {
-            "input": plugins.get_hook().video_bytes(obj=data),
-            "stdout": stdout,
-            "progress": progress,
-            "overwrite": overwrite,
-        }
+    return run_and_return_encoded(
+        progress,
+        overwrite,
+        show_log,
+        sp_kwargs,
+        args,
+        input_info,
+        output_info,
+        two_pass,
+        pass1_omits,
+        pass1_extras,
     )
-    kwargs["capture_log"] = None if show_log else False
-    if pass1_omits is not None:
-        kwargs["pass1_omits"] = [pass1_omits]
-    if pass1_extras is not None:
-        kwargs["pass1_extras"] = [pass1_extras]
-
-    out = (fp.run_two_pass if two_pass else fp.run)(ffmpeg_args, **kwargs)
-    if out.returncode:
-        raise FFmpegError(out.stderr, show_log)
 
 
-def filter(expr, rate, input, progress=None, show_log=None, sp_kwargs=None, **options):
+def filter(
+    expr: str | fgb.abc.FilterGraphObject | None,
+    input_rate: Fraction | int,
+    input: RawDataBlob,
+    *,
+    extra_inputs: (
+        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    ) = None,
+    extra_outputs: (
+        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    ) = None,
+    squeeze: bool = True,
+    progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
+    **options,
+) -> tuple[Fraction | int, RawDataBlob]:
     """Filter video frames.
 
-    :param expr: SISO filter graph or None if implicit filtering via output options.
-    :type expr: str,  None
+    :param expr: filter graph or None if implicit filtering via output options.
     :param rate: input frame rate in frames/second
-    :type rate: `float`, `int`, or `fractions.Fraction`
-    :param input: input video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
-    :type input: object
+    :param input: input video frame data blob, accessed by `video_info` and `video_bytes` plugin hooks
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_log: bool, optional
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :type sp_kwargs: dict, optional
-    :param \\**options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :type \\**options: dict, optional
+    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :return: output frame rate and video frame data, created by `bytes_to_video` plugin hook
-    :rtype: object
 
     """
 
-    input_options = utils.pop_extra_options(options, "_in")
+    if expr is not None:
+        if extra_inputs is None and extra_outputs is None:
+            # guaranteed SISO filtering
+            options["filter:v"] = expr
+            options["map"] = "0:V:0"
+        else:
+            options["filter_complex"] = expr
+            # expects map option is set
 
-    ffmpeg_args = configure.empty()
-    configure.add_url(
-        ffmpeg_args,
-        "input",
-        *configure.array_to_video_input(rate, data=input, **input_options),
+    # initialize FFmpeg argument dict and get input & output information
+    args, input_info, output_info = configure.init_media_filter(
+        [{"r": input_rate}],
+        extra_inputs,
+        None,
+        extra_outputs,
+        options,
+        squeeze,
+        [input],
     )
-    outopts = configure.add_url(ffmpeg_args, "output", "-", options)[1][1]
 
-    if expr:
-        outopts["filter:v"] = expr
+    if output_info is None:
+        raise RuntimeError("Something went wrong in setting up filter operation...")
 
-    # override user specified stdin and input if given
-    sp_kwargs = {**sp_kwargs} if sp_kwargs else {}
-    sp_kwargs["stdin"] = None
-    sp_kwargs["input"] = plugins.get_hook().video_bytes(obj=input)
-
-    return _run_read(
-        ffmpeg_args, progress=progress, show_log=show_log, sp_kwargs=sp_kwargs
+    return run_and_return_raw(
+        args, input_info, output_info, progress, show_log, sp_kwargs
     )
 
 

@@ -1,36 +1,33 @@
-from .SimpleStreams import (
-    SimpleVideoReader,
-    SimpleVideoWriter,
-    SimpleAudioReader,
-    SimpleAudioWriter,
-    SimpleVideoFilter,
-    SimpleAudioFilter,
+"""media streamer classes
+
+=============== ===================== ====================
+Class Name           Input(s)              Output(s)
+=============== ===================== ====================
+SimpleReader    multiple urls         single audio/video
+SimpleWriter    single audio/video    single url
+
+MediaReader     multiple urls/encoded multiple audio/video
+MediaWriter     multiple audio/video  multiple urls/encoded
+MediaTranscoder multiple encoded      multiple encoded
+SISOMediaFilter single audio/video    single audio/video
+MISOMediaFilter multiple audio/video  single audio/video
+SIMOMediaFilter single audio/video    multiple audio/video
+MIMOMediaFilter multiple audio/video  multiple audio/video
+=============== ====================  ====================
+"""
+
+from .open import open
+from .runners import (
+    BaseFFmpegRunner,
+    PipedFFmpegRunner,
+    SISOFFmpegFilter,
+    StdFFmpegRunner,
 )
-from .StdStreams import (
-    StdAudioDecoder,
-    StdAudioEncoder,
-    StdAudioFilter,
-    StdVideoDecoder,
-    StdVideoEncoder,
-    StdVideoFilter,
-    StdMediaTranscoder,
-)
-from .PipedStreams import (
-    PipedMediaReader,
-    PipedMediaWriter,
-    PipedMediaFilter,
-    PipedMediaTranscoder,
-)
-from .AviStreams import AviMediaReader
 
 # TODO multi-stream write
 # TODO Buffered reverse video read
 
 # fmt: off
-__all__ = ["SimpleVideoReader", "SimpleVideoWriter", "SimpleAudioReader",
-    "SimpleAudioWriter", "SimpleVideoFilter", "SimpleAudioFilter",
-    "StdAudioDecoder", "StdAudioEncoder", "StdAudioFilter", 
-    "StdVideoDecoder", "StdVideoEncoder", "StdVideoFilter", "StdMediaTranscoder",
-    "PipedMediaReader", "PipedMediaWriter", "PipedMediaFilter", "PipedMediaTranscoder",
-    "AviMediaReader"]
+__all__ = ['StdFFmpegRunner', 'PipedFFmpegRunner', 'BaseFFmpegRunner',
+           "SISOFFmpegFilter", "open"]
 # fmt: on

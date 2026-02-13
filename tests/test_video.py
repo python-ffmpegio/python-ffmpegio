@@ -106,21 +106,6 @@ def test_two_pass_write():
             show_log=True,
         )
 
-
-def test_write_basic_filter():
-
-    url = "tests/assets/ffmpeg-logo.png"
-
-    _, B = video.read(url)
-    print(B)
-    B["buffer"] = B["buffer"] * 30
-    B["shape"] = (30, *B["shape"][1:])
-
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        out_url = path.join(tmpdirname, "output.mp4")
-        video.write(out_url, 30, B, pix_fmt="yuv420p", show_log=True)
-
-
 if __name__ == "__main__":
     # test_create()
 
