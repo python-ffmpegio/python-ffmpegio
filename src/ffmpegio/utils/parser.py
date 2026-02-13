@@ -1,10 +1,12 @@
-import re
+from __future__ import annotations
+
 import os
+import re
 import shlex
 from collections import abc
 
-from ..filtergraph import Graph, Chain, Filter
 from .. import devices
+from ..filtergraph import Chain, Filter, Graph
 
 __all__ = ["parse", "compose", "FLAG"]
 

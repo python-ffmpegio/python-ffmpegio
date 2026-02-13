@@ -2,27 +2,27 @@
 
 from __future__ import annotations
 
-from typing import BinaryIO
-
-from copy import deepcopy
-import re
-import os
-from threading import Thread, Condition, Lock, Event
-from io import TextIOBase, TextIOWrapper
-from time import sleep, time
-from tempfile import TemporaryDirectory
-from queue import Empty, Full, Queue
-from math import ceil
-from shutil import copyfileobj
 import logging
+import os
+import re
+from copy import deepcopy
+from io import TextIOBase, TextIOWrapper
+from math import ceil
+from queue import Empty, Full, Queue
+from shutil import copyfileobj
+from tempfile import TemporaryDirectory
+from threading import Condition, Event, Lock, Thread
+from time import sleep, time
+from typing import BinaryIO
 
 from namedpipe import NPopen
 
-logger = logging.getLogger("ffmpegio")
-
+from .errors import FFmpegError
 from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream
-from .errors import FFmpegError
+
+logger = logging.getLogger("ffmpegio")
+
 
 # fmt:off
 __all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',

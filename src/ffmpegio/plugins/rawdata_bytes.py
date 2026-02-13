@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from .._utils import get_samplesize
-from pluggy import HookimplMarker
 from typing import Tuple, TypedDict
 
+from pluggy import HookimplMarker
+
 from .._typing import DTypeString, ShapeTuple
+from .._utils import get_samplesize
 
 __all__ = [
     "BytesRawDataBlob",
@@ -97,6 +98,8 @@ def video_frames(obj: BytesRawDataBlob) -> int:
 
     :param obj: object containing video frame data with arbitrary number of frames
     :return: number of video frames in obj
+
+    Note: if blob is squeezed, the returned value may not be accurate.
     """
 
     try:
@@ -111,6 +114,8 @@ def audio_samples(obj: BytesRawDataBlob) -> int:
 
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: number of samples in obj
+
+    Note: assumes a blob of audio samples always consists of more one time sample.
     """
 
     try:

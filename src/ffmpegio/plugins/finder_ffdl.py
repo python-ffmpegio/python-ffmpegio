@@ -1,9 +1,9 @@
 """ffmpegio plugin to find ffmpeg and ffprobe installed by ffmpeg-downloader (ffdl) package"""
 
 import logging
-from pluggy import HookimplMarker
 
 import ffmpeg_downloader as ffdl
+from pluggy import HookimplMarker
 
 hookimpl = HookimplMarker("ffmpegio")
 
@@ -17,7 +17,7 @@ def finder():
     ffmpeg_path = ffdl.ffmpeg_path
 
     if ffmpeg_path is None:
-        logging.warning(
+        logging.info(
             """FFmpeg binaries not found in the ffmpegio-downloader's install directory. To install, run the following in the terminal:
         
           ffdl install

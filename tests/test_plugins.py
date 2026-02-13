@@ -1,5 +1,5 @@
-from ffmpegio.utils import prod
 from ffmpegio import plugins
+from ffmpegio.utils import prod
 
 
 def test_rawdata_bytes():

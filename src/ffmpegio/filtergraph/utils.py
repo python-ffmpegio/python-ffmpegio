@@ -1,7 +1,9 @@
-from fractions import Fraction
-import re
+from __future__ import annotations
+
 import itertools
+import re
 from collections.abc import Sequence
+from fractions import Fraction
 
 # Filter string parser/composer
 # For FilterGraph class, see ../filtergraph.py
@@ -85,13 +87,11 @@ def parse_filter_args(expr):
     return args
 
 
-def compose_filter_args(*args):
+def compose_filter_args(*args: tuple[str, ...]) -> str:
     """compose once-escaped filter argument string
 
-    :param *args: list of argument strings; last element may be a dict of key-value pairs
-    :type *args: list of str + dict
+    :param args: list of argument strings; last element may be a dict of key-value pairs
     :return: filter argument string
-    :rtype: str
     """
 
     def finalize_option_value(value):

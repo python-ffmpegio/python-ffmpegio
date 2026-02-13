@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from . import utils as filter_utils
-
-from .exceptions import FiltergraphConversionError, FiltergraphInvalidExpression
 from .. import filtergraph as fgb
+from . import utils as filter_utils
+from .exceptions import FiltergraphConversionError, FiltergraphInvalidExpression
 
 
 def as_filter(

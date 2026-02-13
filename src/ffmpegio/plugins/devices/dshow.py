@@ -1,11 +1,15 @@
 """DirectShow device"""
 
-from subprocess import PIPE
-from ffmpegio import path
-import re
-from pluggy import HookimplMarker
-from packaging.version import Version
+from __future__ import annotations
+
 import logging
+import re
+from subprocess import PIPE
+
+from packaging.version import Version
+from pluggy import HookimplMarker
+
+from ffmpegio import path
 
 logger = logging.getLogger("ffmpegio")
 

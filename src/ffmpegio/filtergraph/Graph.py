@@ -1,24 +1,20 @@
 from __future__ import annotations
 
-from collections import UserList
-from collections.abc import Generator, Callable, Sequence
-
-from contextlib import contextmanager
-from itertools import chain
-from copy import deepcopy
-from math import floor, log10
 import os
+from collections import UserList
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
+from copy import deepcopy
+from itertools import chain
+from math import floor, log10
 from tempfile import NamedTemporaryFile
 
-from . import utils as filter_utils
-
-from ..stream_spec import is_map_option
 from .. import filtergraph as fgb
-
-from .typing import PAD_INDEX, Literal
+from ..stream_spec import is_map_option
+from . import utils as filter_utils
 from .exceptions import *
 from .GraphLinks import GraphLinks
-
+from .typing import PAD_INDEX, Literal
 
 __all__ = ["Graph"]
 
@@ -937,8 +933,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """combine another filtergraph object and make downstream connections (worker)
 
         :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing self's output pad and right's ipnut pad
-        :param bwd_links: a list of tuples, pairing right's output pad and self's ipnut pad
+        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
+        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
         :param chain_siso: True to chain the single-input single-output connection, default: True
         :param replace_sws_flags: True to use `right` sws_flags if present,
                                   False to drop `right` sws_flags,

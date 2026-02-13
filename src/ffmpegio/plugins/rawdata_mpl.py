@@ -1,9 +1,13 @@
 """ffmpegio plugin to use `numpy.ndarray` objects for media data I/O"""
 
+from __future__ import annotations
+
+import io
+
 import matplotlib as Figure
 from pluggy import HookimplMarker
-from .._typing import DTypeString, ShapeTuple
-import io
+
+from .._typing import DTypeString, Literal, ShapeTuple
 
 __all__ = ["video_info", "video_bytes"]
 

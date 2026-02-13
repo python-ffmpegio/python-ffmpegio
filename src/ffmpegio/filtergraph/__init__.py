@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """ffmpegio.filtergraph module - FFmpeg filtergraph classes
 
     Arithmetic Filtergraph Construction
@@ -9,7 +7,7 @@ from __future__ import annotations
    :widths: 15 10 30
    :header-rows: 1
 
-   ---------------------------------  ------------------------------------------------------------
+   ------------------------------  ------------------------------------------------------------
    Operation                       Description  Related Methods
    ------------------------------  ------------------------------------------------------------
    `+` operator                    Chaining/join operator, supports scalar expansion
@@ -27,7 +25,7 @@ from __future__ import annotations
    `Filter * int    -> Graph`      Stacking the filters (int) times
    ` Chain * int    -> Graph`      Stacking the chain (int) times
    ` Graph * int    -> Graph`      Stacking the input graph (int) times
-   
+
    `|` operator                    Stacking operator
    `Filter | Filter -> Graph`      Stacking the filters
    ` Chain | Filter -> Graph`      Stacking chain and filter
@@ -48,12 +46,12 @@ from __future__ import annotations
    `(_,Index) >> Filter -> Graph`  Specify input pad
    `(_,Index) >> Chain  -> Graph`  Specify input pad of the first filter
    `(_,Index) >> Graph  -> Graph`  Specify input pad
-   
+
    right `>>` operator             Output labeling or attach output filter/chain
    `Filter >> str       -> Graph`  Label first available output pad*
    ` Chain >> str       -> Graph`  Label first available output pad*
    ` Graph >> str       -> Graph`  Label first available chainable output pad*
-   ` Graph >> Filter    -> Graph`  Attach filter to the first 
+   ` Graph >> Filter    -> Graph`  Attach filter to the first
    ` Graph >> Chain     -> Graph`  Adding Chain to itself int times
    `Filter >> (Index,_) -> Graph`  Specify output pad
    ` Chain >> (Index,_) -> Graph`  Specify output pad
@@ -63,16 +61,17 @@ from __future__ import annotations
 Filter Pad Labeling
 ===================
 
-`str >> Filter/Chain/Graph` and `Filter/Chain/Graph >> str` operations can be used to set input
-and output labels, respectively. The labels must be specified in square brackets as in the same
-manner as FFmpeg filtergraph specification.
+`str >> Filter/Chain/Graph` and `Filter/Chain/Graph >> str` operations can be
+used to set input and output labels, respectively. The labels must be specified
+in square brackets as in the same manner as FFmpeg filtergraph specification.
 
 .. code-block::python
 
     fg = '[in]' >> Filter('scale',0.5,-1) >> '[out]'
 
-The brackets are required to distinguish labels from str expressions of filter, chain, and graph.
-For example, the following expression chains `scale` and `setsar` filters:
+The brackets are required to distinguish labels from str expressions of filter,
+chain, and graph. For example, the following expression chains `scale` and
+`setsar` filters:
 
 .. code-block::python
 
@@ -93,19 +92,18 @@ Both input and output filter pads can be specified in a number of ways:
     ---------------------  -----------------------------------------------------------------------
 
  Except for the label indexing, which is a Graph specific feature, all the indexing syntax may be
- used by `Filter`, `Chain`, or `Graph` class instances. An irrelevant field (e.g., chain or filter 
+ used by `Filter`, `Chain`, or `Graph` class instances. An irrelevant field (e.g., chain or filter
  indexing for a `Filter` instance) will be ignored. Standard negative-number indexing is supported.
 
 """
 
+from __future__ import annotations
 
 from .. import path
 from ..caps import filters as list_filters
 from . import abc
-from .Filter import Filter
+from .build import attach, concatenate, connect, join, stack
 from .Chain import Chain
-from .Graph import Graph
-from .build import connect, join, attach, stack, concatenate
 from .convert import (
     as_filter,
     as_filterchain,
@@ -115,6 +113,8 @@ from .convert import (
     atleast_filterchain,
 )
 from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
+from .Filter import Filter
+from .Graph import Graph
 
 # chain | filter | pad
 

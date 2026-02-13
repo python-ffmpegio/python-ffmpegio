@@ -1,11 +1,12 @@
 """ffmpegio plugin to use `numpy.ndarray` objects for media data I/O"""
 
 from __future__ import annotations
-import numpy as np
-from pluggy import HookimplMarker
-from .._typing import DTypeString, ShapeTuple
 
+import numpy as np
 from numpy.typing import ArrayLike
+from pluggy import HookimplMarker
+
+from .._typing import DTypeString, ShapeTuple
 
 hookimpl = HookimplMarker("ffmpegio")
 
@@ -55,6 +56,7 @@ def video_frames(obj: ArrayLike) -> int:
 
     :param obj: object containing video frame data with arbitrary number of frames
     :return: number of video frames in obj
+    Note: if blob is squeezed, the returned value may not be accurate.
     """
 
     try:
@@ -69,6 +71,8 @@ def audio_samples(obj: ArrayLike) -> int:
 
     :param obj: object containing audio data (with interleaving channels) with arbitrary number of samples
     :return: number of samples in obj
+
+    Note: assumes a blob of audio samples always consists of more one time sample.
     """
 
     try:

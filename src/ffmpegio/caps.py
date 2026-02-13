@@ -1,18 +1,17 @@
 # TODO add function to guess media type given extension
 
-import logging
-
-logger = logging.getLogger("ffmpegio")
-
-import re
 import fractions
+import logging
+import re
 import subprocess as sp
 from collections import namedtuple
 from fractions import Fraction
 from functools import partial
 
-from .path import ffmpeg as _ffmpeg
 from .errors import FFmpegError
+from .path import ffmpeg as _ffmpeg
+
+logger = logging.getLogger("ffmpegio")
 
 # fmt:off
 __all__ = ["options", "filters", "codecs", "coders", "formats", "devices",

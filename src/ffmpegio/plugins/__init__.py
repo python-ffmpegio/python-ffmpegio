@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import logging
+import os
+import re
+from importlib import import_module
+from typing import Any, Literal
+
+import pluggy
+
+from . import hookspecs
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
-
-from typing import Literal, Any
-
-from importlib import import_module
-import re
-import os
-import pluggy
-
-
-from . import hookspecs
 
 __all__ = ["initialize", "get_hook"]
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from typing import *
-from typing_extensions import *
 
+from typing_extensions import *
 
 PAD_INDEX = Union[
     Tuple[Union[int, None], Union[int, None], int],

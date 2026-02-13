@@ -1,6 +1,8 @@
 import math
-from ffmpegio import utils, FFmpegioError
+
 import pytest
+
+from ffmpegio import FFmpegioError, utils
 
 
 def test_string_escaping():
