@@ -896,6 +896,9 @@ def _parse_codec_info(name: str, encoder: bool) -> dict:
         stdout,
     )
 
+    if m is None:
+        raise FFmpegError(stdout)
+
     def resolveFs(s):
         m = re.match(r"(\d+)\/(\d+)", s)
         return fractions.Fraction(int(m[1]), int(m[2]))
@@ -1154,6 +1157,10 @@ def filter_info(name: str) -> FilterInfo:
         r"([\s\S]*)",
         blocks[0],
     )
+
+    if m is None:
+        raise FFmpegError(blocks[0])
+
     name = m[1]
     desc = m[2]
     threading = ["slice"] if m[3] else []
