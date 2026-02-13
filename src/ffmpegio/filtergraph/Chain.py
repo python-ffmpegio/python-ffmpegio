@@ -32,6 +32,12 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     def __init__(self, filter_specs=None):
         # convert str to a list of filter_specs
 
+        if isinstance(filter_specs, fgb.Graph):
+            nchains = len(filter_specs)
+            if nchains != 1:
+                raise TypeError("Cannot convert a `Graph` object to a `Chain` object")
+            filter_specs = filter_specs[0] if nchains == 1 else ""
+
         if isinstance(filter_specs, fgb.Filter):
             filter_specs = [filter_specs]
         elif filter_specs is not None:

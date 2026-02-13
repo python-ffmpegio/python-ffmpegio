@@ -1,8 +1,7 @@
 import re
 from fractions import Fraction
 
-from .. import utils
-from .._typing import RawStreamInfoTuple, Sequence
+from .._typing import Sequence
 from ..caps import sample_fmts
 from . import layout_to_channels
 

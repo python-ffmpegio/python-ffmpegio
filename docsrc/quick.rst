@@ -384,7 +384,7 @@ for the list of predefined color names.
   * - :code:`'gray'` with light gray background
     - .. plot:: 
     
-        IM = ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', fill_color='#F0F0F0')
+        IM = ffmpegio.image.read('ffmpeg-logo.png', pix_fmt='gray', vf=ffmpegio.filtergraph.presets.remove_alpha('#F0F0F0'))
         plt.figure(figsize=(IM.shape[1]/96, IM.shape[0]/96), dpi=96)
         plt.imshow(IM, cmap='gray')
         plt.gca().set_position((0, 0, 1, 1))
