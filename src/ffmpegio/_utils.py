@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
-from ._typing import DTypeString, ShapeTuple
-
+import re
+import urllib.parse
 from io import IOBase
 from pathlib import Path
-from namedpipe import NPopen
-import urllib.parse
+from typing import Any, Sequence
 
-import re
+from namedpipe import NPopen
+
+from ._typing import DTypeString, ShapeTuple
 
 try:
     from math import prod
@@ -109,8 +109,8 @@ def get_samplesize(shape: ShapeTuple, dtype: DTypeString) -> int:
 
 
 def deprecate_core():
-    from importlib import metadata
     import warnings
+    from importlib import metadata
 
     try:
         metadata.version("ffmpegio-core")
