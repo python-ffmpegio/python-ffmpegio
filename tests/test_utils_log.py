@@ -1,5 +1,3 @@
-import io
-import time
 from ffmpegio.utils import log
 from ffmpegio.ffmpegprocess import run
 from tempfile import TemporaryDirectory
@@ -26,5 +24,4 @@ def test_log_completed():
 
 
 if __name__ == "__main__":
-
     pass

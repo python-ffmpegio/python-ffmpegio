@@ -1,8 +1,6 @@
-from pprint import pprint
-import tempfile, re
-from os import path
-from ffmpegio.ffmpegprocess import run, PIPE
-from ffmpegio import FFmpegError, caps, probe
+import tempfile
+from ffmpegio.ffmpegprocess import run
+from ffmpegio import FFmpegError, caps
 import pytest
 
 

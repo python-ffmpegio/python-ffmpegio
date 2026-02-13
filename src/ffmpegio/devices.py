@@ -1,6 +1,6 @@
 """I/O Device Enumeration Module
 
-This module allows input and output hardware devices to be enumerated in the same fashion as the 
+This module allows input and output hardware devices to be enumerated in the same fashion as the
 streams of media containers. For example, instead of specifying DirectShow hardware by
 
 ```
@@ -15,6 +15,7 @@ url = 'v:0|a:0'
 
 
 """
+
 import logging
 
 logger = logging.getLogger("ffmpegio")
@@ -64,7 +65,7 @@ def scan():
 
         src_spans = [
             [m[1], *m.span()]
-            for m in re.finditer(fr"Auto-detected {dev_type} for (.+?):\n", out.stdout)
+            for m in re.finditer(rf"Auto-detected {dev_type} for (.+?):\n", out.stdout)
         ]
         for i in range(len(src_spans) - 1):
             src_spans[i][1] = src_spans[i][2]
@@ -249,7 +250,7 @@ def list_source_options(device, enum):
     try:
         list_options = dev["list_options"]
     except:
-        raise ValueError(f"No options to list")
+        raise ValueError("No options to list")
     return list_options(dev["list"][enum])
 
 
@@ -268,7 +269,7 @@ def list_sink_options(device, enum):
     try:
         list_options = info["list_options"]
     except:
-        raise ValueError(f"No options to list")
+        raise ValueError("No options to list")
     return list_options("sink", enum)
 
 

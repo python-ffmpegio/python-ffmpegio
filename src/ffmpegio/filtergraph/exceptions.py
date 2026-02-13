@@ -43,5 +43,5 @@ class FiltergraphPadNotFoundError(FFmpegioError):
     #     )
     #     super().__init__(f"cannot find {type} pad at {target}")
 
-class FiltergrapDuplicatehPadFoundError(FFmpegioError):
-    ...
+
+class FiltergrapDuplicatehPadFoundError(FFmpegioError): ...

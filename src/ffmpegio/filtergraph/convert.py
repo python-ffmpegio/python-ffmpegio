@@ -125,7 +125,9 @@ def as_filtergraph_object(
         return (
             fgb.Graph(specs, links, sws_flags)
             if links or sws_flags or len(specs) > 1
-            else fgb.Filter(specs[0][0]) if len(specs[0]) == 1 else fgb.Chain(specs[0])
+            else fgb.Filter(specs[0][0])
+            if len(specs[0]) == 1
+            else fgb.Chain(specs[0])
         )
     except Exception as exc:
         raise FiltergraphInvalidExpression from exc

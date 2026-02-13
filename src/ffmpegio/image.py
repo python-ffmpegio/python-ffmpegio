@@ -165,7 +165,7 @@ def write(
     show_log=None,
     extra_inputs=None,
     sp_kwargs=None,
-    **options
+    **options,
 ):
     """Write a NumPy array to an image file.
 

@@ -3,7 +3,8 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 import ffmpegio
-import tempfile, re
+import tempfile
+import re
 from os import path
 from ffmpegio import streams, utils
 
@@ -106,9 +107,12 @@ def test_video_filter():
 
     fps = 10  # fractions.Fraction(60000,1001)
 
-    with streams.SimpleVideoReader(url, blocksize=30, t=30) as src, streams.SimpleVideoFilter(
-        "scale=200:100", rate_in=src.rate, rate=fps, show_log=True
-    ) as f:
+    with (
+        streams.SimpleVideoReader(url, blocksize=30, t=30) as src,
+        streams.SimpleVideoFilter(
+            "scale=200:100", rate_in=src.rate, rate=fps, show_log=True
+        ) as f,
+    ):
 
         def process(i, frames):
             print(f"{i} - output {frames['shape'][0]} frames ({f.nin},{f.nout})")
@@ -126,7 +130,6 @@ def test_audio_filter():
     sps = 4000  # fractions.Fraction(60000,1001)
 
     with streams.SimpleAudioReader(url, blocksize=1024 * 8, t=10, ar=32000) as src:
-
         samples = src.read(src.blocksize)
 
         with streams.SimpleAudioFilter(

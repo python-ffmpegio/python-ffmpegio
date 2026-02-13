@@ -3,14 +3,14 @@ This module mimics Python's `subprocess` library module and allows you to
 spawn FFmpeg processes, connect to their input/output/error pipes, and obtain
 their return codes.
 
-To read/write a media file, `run_simple()` is the fast and simple solution. Use 
+To read/write a media file, `run_simple()` is the fast and simple solution. Use
 more complex `run()` if FFmpeg progress callback
 
 Main API
 ========
-run(...): Runs a FFmpeg command, waits for it to complete, then returns a 
+run(...): Runs a FFmpeg command, waits for it to complete, then returns a
           CompletedProcess instance.
-Popen(...): A subclass of subprocess.Popen to manage FFmpeg subprocess.  
+Popen(...): A subclass of subprocess.Popen to manage FFmpeg subprocess.
 
 Constants
 ---------
@@ -207,9 +207,9 @@ def monitor_process(proc, on_exit=None):
         for fcn in on_exit:
             try:
                 fcn(returncode)
-            except Exception as e:
+            except Exception:
                 pass
-                #TODO - need to re-raise these exceptions?
+                # TODO - need to re-raise these exceptions?
 
         logger.debug("[monitor] executed all on_exit callbacks")
 
@@ -273,8 +273,15 @@ class Popen(sp.Popen):
                 if k
                 in (
                     # fmt: off
-                    "executable", "close_fds", "shell", "niversal_newlines", "pass_fds",
-                    "encoding", "errors", "text", "pipesize",
+                    "executable",
+                    "close_fds",
+                    "shell",
+                    "niversal_newlines",
+                    "pass_fds",
+                    "encoding",
+                    "errors",
+                    "text",
+                    "pipesize",
                     # fmt: on
                 )
             )
@@ -381,7 +388,7 @@ class Popen(sp.Popen):
         Without any argument, `send_signal()` will perform control-C to initiate
         soft-terminate FFmpeg. FFmpeg may output additional frames before exits.
 
-        Note: Setting `kill_monitor=True` will block the caller thread until the 
+        Note: Setting `kill_monitor=True` will block the caller thread until the
         FFmpeg terminates.
 
         """
@@ -598,7 +605,6 @@ def run_two_pass(
 
         ret = run(pass1_args, **other_run_kwargs)
         if not ret.returncode:
-
             if stdin is not None:
                 stdin.seek(pos)
 

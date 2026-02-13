@@ -1,7 +1,6 @@
 from ffmpegio import devices, audio, open, transcode, video
 from tempfile import TemporaryDirectory
 from os import path
-import logging
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -22,7 +21,7 @@ def test_devices():
         print(dev, devices.resolve_source(f"{dev}:{hw_enum}", None))
         print(devices.list_source_options(dev, hw_enum))
 
-        print(devices.resolve_source(f"dshow:v:0|a:0", None))
+        print(devices.resolve_source("dshow:v:0|a:0", None))
 
     except:
         print("no source device found")

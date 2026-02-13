@@ -1,7 +1,6 @@
 from pprint import pprint
 from ffmpegio import analyze, path as ffmpeg_path
-import tempfile, re, logging
-from os import path
+import logging
 import pytest
 
 logging.basicConfig(level=logging.DEBUG)
@@ -64,7 +63,6 @@ def test_astats():
 
 if __name__ == "__main__":
     import logging
-    from matplotlib import pyplot as plt
     import ffmpegio
 
     logging.basicConfig(level=logging.DEBUG)

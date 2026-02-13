@@ -50,16 +50,13 @@ def test_parse_options():
 
 
 def test_compose():
-    assert (
-        parser.compose(
-            {
-                "global_options": None,
-                "inputs": [("input.avi", {})],
-                "outputs": [("output.avi", {"b:v": "64k", "bufsize": "64k"})],
-            }
-        )
-        == ["-i", "input.avi", "-b:v", "64k", "-bufsize", "64k", "output.avi"]
-    )
+    assert parser.compose(
+        {
+            "global_options": None,
+            "inputs": [("input.avi", {})],
+            "outputs": [("output.avi", {"b:v": "64k", "bufsize": "64k"})],
+        }
+    ) == ["-i", "input.avi", "-b:v", "64k", "-bufsize", "64k", "output.avi"]
 
     assert parser.compose(
         {

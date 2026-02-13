@@ -1,5 +1,6 @@
-from ffmpegio import transcode, probe, FFmpegError, FilterGraph
-import tempfile, re
+from ffmpegio import transcode, FFmpegError, FilterGraph
+import tempfile
+import re
 from os import path
 import pytest
 
@@ -66,7 +67,7 @@ def test_transcode_2pass():
             show_log=True,
             two_pass=True,
             t=1,
-            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"}
+            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"},
         )
 
         transcode(
@@ -78,7 +79,7 @@ def test_transcode_2pass():
             pass1_extras={"an": None},
             overwrite=True,
             t=1,
-            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"}
+            **{"c:v": "libx264", "b:v": "1000k", "c:a": "aac", "b:a": "128k"},
         )
 
 

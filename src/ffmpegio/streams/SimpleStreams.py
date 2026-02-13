@@ -735,7 +735,9 @@ class SimpleFilterBase:
 
         if "filter_complex" in glopts:
             # prepare complex filter output
-            FFmpegioError("To use complex filtergraph (i.e., the `filter_complex` global option), use the PipedFilter class instead.")
+            FFmpegioError(
+                "To use complex filtergraph (i.e., the `filter_complex` global option), use the PipedFilter class instead."
+            )
 
         try:
             not_ready, self.shape_in, self.dtype_in = self._set_options(
@@ -823,7 +825,7 @@ class SimpleFilterBase:
             )
         except TimeoutError as e:
             raise e
-        except Exception as e:
+        except Exception:
             if self._proc.poll() is None:
                 raise self._logger.Exception
             else:
@@ -1057,9 +1059,20 @@ class SimpleVideoFilter(SimpleFilterBase):
 
     def __init__(
         # fmt:off
-        self, expr, rate_in, shape_in=None, dtype_in=None, rate=None, shape=None, dtype=None,
-        blocksize=None, default_timeout=None, progress=None, show_log=None,         sp_kwargs=None,
-**options,
+        self,
+        expr,
+        rate_in,
+        shape_in=None,
+        dtype_in=None,
+        rate=None,
+        shape=None,
+        dtype=None,
+        blocksize=None,
+        default_timeout=None,
+        progress=None,
+        show_log=None,
+        sp_kwargs=None,
+        **options,
         # fmt:on
     ) -> None:
         hook = plugins.get_hook()

@@ -8,7 +8,8 @@ logger.addHandler(logging.NullHandler())
 from typing import Literal, Any
 
 from importlib import import_module
-import re, os
+import re
+import os
 import pluggy
 
 
@@ -62,8 +63,10 @@ def unregister(name: str) -> Any | None:
     """
     return pm.unregister(name)
 
+
 def list_plugins() -> list:
     return [pm.get_name(p) for p in pm.get_plugins()]
+
 
 def use(name: Literal["read_numpy", "read_bytes"] | str):
     """Select the plugin to use (among contentious plugins)

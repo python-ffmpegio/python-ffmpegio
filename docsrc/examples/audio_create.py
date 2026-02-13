@@ -21,6 +21,6 @@ fs = 8000
 
 x = audio.create("sine", f=220, b=4, d=5, r=fs)
 
-t = np.arange(x.shape[0],dtype=float)*fs
+t = np.arange(x.shape[0], dtype=float) * fs
 plt.plot(t, x)
 plt.show()

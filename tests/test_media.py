@@ -26,8 +26,12 @@ def test_media_read(urls, kwargs):
 
 
 def test_media_read_filter_complex():
-    urls = (url2, url) # aud + mul
-    kwargs = dict(t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono;[1:v:1]setpts=0.5*PTS')
+    urls = (url2, url)  # aud + mul
+    kwargs = dict(
+        t=1,
+        show_log=True,
+        filter_complex="[0:a]aformat=f=dbl:r=8000:cl=mono;[1:v:1]setpts=0.5*PTS",
+    )
     # kwargs = dict(map=(['[vout]','[aout]']), t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono[aout];[1:v:1]setpts=0.5*PTS[vout]')
     rates, data = ff.media.read(*urls, **kwargs)
     print(rates)

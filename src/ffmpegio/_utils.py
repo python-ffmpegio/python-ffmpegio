@@ -48,13 +48,13 @@ def zip(*args, strict=False):
         if items:
             i = len(items)
             plural = " " if i == 1 else "s 1-"
-            msg = f"zip() argument {i+1} is shorter than argument{plural}{i}"
+            msg = f"zip() argument {i + 1} is shorter than argument{plural}{i}"
             raise ValueError(msg)
         sentinel = object()
         for i, iterator in enumerate(iterators[1:], 1):
             if next(iterator, sentinel) is not sentinel:
                 plural = " " if i == 1 else "s 1-"
-                msg = f"zip() argument {i+1} is longer than argument{plural}{i}"
+                msg = f"zip() argument {i + 1} is longer than argument{plural}{i}"
                 raise ValueError(msg)
 
     return strict_zip()
@@ -242,7 +242,6 @@ def unescape(txt: str) -> str:
     in_quote = True
 
     while i0 < n:
-
         if in_quote:
             # find the end quote
             i1 = txt.find("'", i0)

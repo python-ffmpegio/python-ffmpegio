@@ -58,7 +58,7 @@ from . import ffmpegprocess
 from .errors import FFmpegError, FFmpegioError
 from .utils.concat import FFConcat
 from .filtergraph import Graph as FilterGraph
-from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
+from . import devices, caps, probe, audio, image, video, media
 from .transcode import transcode
 from .utils.parser import FLAG
 from ._open import open

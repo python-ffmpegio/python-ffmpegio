@@ -1,4 +1,6 @@
-import re, os, shlex
+import re
+import os
+import shlex
 from collections import abc
 
 from ..filtergraph import Graph, Chain, Filter
@@ -215,7 +217,9 @@ def compose(args, command="", shell_command=False):
             args.append(
                 str(url)
                 if url is not None
-                else "/dev/null" if os.name != "nt" else "NUL"
+                else "/dev/null"
+                if os.name != "nt"
+                else "NUL"
             )
         return args
 

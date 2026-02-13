@@ -57,7 +57,7 @@ class AviMediaReader:
         show_log=None,
         queuesize=0,
         sp_kwargs=None,
-        **options
+        **options,
     ):
 
         self.ref_stream = ref_stream

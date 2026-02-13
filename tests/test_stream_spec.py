@@ -75,4 +75,4 @@ def test_stream_spec():
     ],
 )
 def test_parse_map_option(map, input_file_id, ret):
-    assert ret==utils.parse_map_option(map, input_file_id=input_file_id)
+    assert ret == utils.parse_map_option(map, input_file_id=input_file_id)

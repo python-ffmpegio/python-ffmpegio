@@ -1,5 +1,4 @@
-"""Audio Read/Write Module
-"""
+"""Audio Read/Write Module"""
 
 import warnings
 from . import ffmpegprocess, utils, configure, FFmpegError, plugins, analyze

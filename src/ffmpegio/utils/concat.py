@@ -1,8 +1,8 @@
-"""FFConcat class to build/use ffconcat list file for concat demuxer
-"""
+"""FFConcat class to build/use ffconcat list file for concat demuxer"""
 
 from glob import glob
-import io, re
+import io
+import re
 import os
 from tempfile import NamedTemporaryFile
 from functools import partial
@@ -163,7 +163,7 @@ class FFConcat:
             lines = [
                 f"file {escape(self.path)}\n",
                 *(
-                    f"{k} {getattr(self,k)}\n"
+                    f"{k} {getattr(self, k)}\n"
                     for k in ("duration", "inpoint", "outpoint")
                     if getattr(self, k) is not None
                 ),
@@ -226,7 +226,7 @@ class FFConcat:
                 )
             if self.extradata is not None:
                 lines.append(
-                    f"stream_extradata {self.extradata if isinstance(self.extradata,str) else memoryview(self.extradata).hex()}\n"
+                    f"stream_extradata {self.extradata if isinstance(self.extradata, str) else memoryview(self.extradata).hex()}\n"
                 )
 
             return lines
@@ -552,7 +552,7 @@ class FFConcat:
         n = len(self.files)
         nst = v + a
         in_labels = "".join(
-            (f"[{i+file_offset}:{j}]" for j in range(nst) for i in range(n))
+            (f"[{i + file_offset}:{j}]" for j in range(nst) for i in range(n))
         )
 
         fg = f"{in_labels}concat=n={n}:v={v}:a={a}"

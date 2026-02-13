@@ -189,7 +189,7 @@ def guess_video_format(
     ndim = len(shape)
     if ndim < 2 or ndim > 4:
         raise ValueError(
-            f"invalid video data dimension: data shape must be must be 2d, 3d or 4d"
+            "invalid video data dimension: data shape must be must be 2d, 3d or 4d"
         )
 
     has_comp = ndim != 2 and (ndim != 3 or shape[-1] < 5)
@@ -291,7 +291,7 @@ def guess_audio_format(shape: ShapeTuple, dtype: DTypeString) -> tuple[int, str]
         ndim = len(shape)
         if ndim < 1 or ndim > 2:
             raise ValueError(
-                f"invalid audio data dimension: data shape must be must be 1d or 2d"
+                "invalid audio data dimension: data shape must be must be 1d or 2d"
             )
 
     try:
@@ -513,7 +513,7 @@ def array_to_audio_options(
         return ({}, info)
     sample_fmt, ac = guess_audio_format(shape, dtype)
     codec, f = get_audio_codec(sample_fmt)
-    return ({"f": f, f"c:a": codec, f"ac": ac, f"sample_fmt": sample_fmt}, info)
+    return ({"f": f, "c:a": codec, "ac": ac, "sample_fmt": sample_fmt}, info)
 
 
 def array_to_video_options(
@@ -531,9 +531,9 @@ def array_to_video_options(
     s, pix_fmt = guess_video_format(shape, dtype)
     return (
         (
-            {"f": "rawvideo", f"c:v": "rawvideo"}
+            {"f": "rawvideo", "c:v": "rawvideo"}
             if s is None
-            else {"f": "rawvideo", f"c:v": "rawvideo", f"s": s, f"pix_fmt": pix_fmt}
+            else {"f": "rawvideo", "c:v": "rawvideo", "s": s, "pix_fmt": pix_fmt}
         ),
         info,
     )
@@ -773,7 +773,6 @@ def analyze_complex_filtergraphs(
     for i, (padidx, filt, _) in enumerate(
         fg.iter_input_pads(full_pad_index=True, exclude_stream_specs=False)
     ):
-
         label = fg.get_label(inpad=padidx)
         media_type = filt.get_pad_media_type("input", padidx[-1])
 
@@ -782,7 +781,7 @@ def analyze_complex_filtergraphs(
             sspec = None
             if i > 0:
                 raise FFmpegioError(
-                    f"All the input pads of a filtergraph with more than one inputs must have them labeled."
+                    "All the input pads of a filtergraph with more than one inputs must have them labeled."
                 )
         else:
             map_option = parse_map_option(label)
@@ -803,7 +802,7 @@ def analyze_complex_filtergraphs(
                 )
             )
         else:
-            raise FFmpegioError(f"unknown media type of a filter")
+            raise FFmpegioError("unknown media type of a filter")
 
         sources.append((src, (0, len(src) - 1, 0), padidx))
 
@@ -927,7 +926,7 @@ def get_output_stream_id(
             )
     elif stream < 0 or stream >= len(output_info):
         raise FFmpegioError(
-            f'"{stream=}") is not a valid output index (0-{len(output_info)-1})'
+            f'"{stream=}") is not a valid output index (0-{len(output_info) - 1})'
         )
 
     return stream
@@ -943,7 +942,7 @@ def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option 
     if not valid:
         try:
             memoryview(url)
-        except TypeError as e:
+        except TypeError:
             pass
         else:
             valid = True

@@ -3,7 +3,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from ffmpegio.filtergraph.GraphLinks import GraphLinks
-from pprint import pprint
 import pytest
 
 
@@ -245,7 +244,6 @@ def test_label_checks(key, expects, base_links):
     for i, ans in enumerate(
         [base_links.is_linked(key), base_links.is_input(key), base_links.is_output(key)]
     ):
-
         assert ans == (i == expects)
 
 
@@ -323,8 +321,16 @@ def test_unlink(base_links):
         (((0, 0, 0), (4, 0, 0), None, False, True), 1, "l"),  # forced
         (((0, 0, 0), (4, 0, 0), None, True), False, "1"),  # bad src
         (((2, 1, 0), (4, 0, 0)), 1, None),  # links to not inherit 'in' input label
-        (((2, 1, 0), (4, 0, 0), None, 'input'),  "in", None),  # links to inherit 'in' input label
-        (((4, 0, 0), (1, 1, 0), None, 'output'), "out", None),  # links to inherit 'out' output label
+        (
+            ((2, 1, 0), (4, 0, 0), None, "input"),
+            "in",
+            None,
+        ),  # links to inherit 'in' input label
+        (
+            ((4, 0, 0), (1, 1, 0), None, "output"),
+            "out",
+            None,
+        ),  # links to inherit 'out' output label
         (((4, 0, 0), (1, 1, 0), None, True), 1, None),  # new label
         (((3, 0, 0), (4, 0, 0)), 1, None),
         # links to inherit 'in' input label
@@ -383,7 +389,7 @@ def test_update(base_links):
     # existing dst
     with pytest.raises(GraphLinks.Error):
         base_links.update({"test": ((4, 0, 0), (4, 0, 0))})
-    
+
     base_links.update({"l": ((4, 0, 0), (4, 0, 0))}, force=True)
     assert base_links["l"] == ((4, 0, 0), (4, 0, 0))
 

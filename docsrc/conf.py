@@ -42,7 +42,7 @@ extensions = [
 ]
 # Looks for objects in external projects
 
-autodoc_typehints = 'description'
+autodoc_typehints = "description"
 # autodoc_type_aliases = {'AgentAssignment': 'AgentAssignment'}
 
 # Add any paths that contain templates here, relative to this directory.

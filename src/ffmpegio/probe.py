@@ -6,7 +6,8 @@ from collections.abc import Sequence
 from typing_extensions import Buffer, IO
 from io import IOBase
 
-import json, re
+import json
+import re
 from fractions import Fraction
 from functools import lru_cache
 
@@ -41,7 +42,6 @@ def _items_to_numeric(d):
             try:
                 return float(v)
             except ValueError:
-
                 # convert ratio to fraction ':' -> '/' if
                 v = _re_ratio.sub(r"\1/\2", v)
 
@@ -838,7 +838,6 @@ def frames(
                 pass
 
     if accurate_time and has_time:
-
         time_bases = {d["index"]: Fraction(d["time_base"]) for d in res["streams"]}
 
         if not pick_entries:

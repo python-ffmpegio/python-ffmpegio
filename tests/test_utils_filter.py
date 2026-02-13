@@ -1,5 +1,4 @@
 import logging
-from ffmpegio.caps import filters
 
 logging.basicConfig(level=logging.INFO)
 
@@ -57,8 +56,10 @@ def test_compose_filter():
     f = r"select='eq(pict_type\,I)'"
     print(filter_utils.compose_filter("select", "eq(pict_type,I)"))
 
-    f = r"drawtext=fontfile=/usr/share/fonts/truetype/DroidSans.ttf: timecode='09\:57\:00\:00': r=25: \
+    f = (
+        r"drawtext=fontfile=/usr/share/fonts/truetype/DroidSans.ttf: timecode='09\:57\:00\:00': r=25: \
     x=(w-tw)/2: y=h-(2*lh): fontcolor=white: box=1: boxcolor=0x00000000@1"
+    )
 
     print(
         filter_utils.compose_filter(
@@ -165,6 +166,7 @@ def test_compose_graph():
             },
         )
     )
+
 
 if __name__ == "__main__":
     from pprint import pprint

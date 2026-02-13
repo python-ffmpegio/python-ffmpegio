@@ -1,5 +1,6 @@
 from ffmpegio import video, probe, utils
-import tempfile, re
+import tempfile
+import re
 from os import path
 
 
@@ -105,29 +106,29 @@ def test_two_pass_write():
             show_log=True,
         )
 
+
 def test_write_basic_filter():
 
     url = "tests/assets/ffmpeg-logo.png"
 
     _, B = video.read(url)
     print(B)
-    B['buffer'] = B['buffer']*30
-    B['shape'] = (30, *B['shape'][1:])
+    B["buffer"] = B["buffer"] * 30
+    B["shape"] = (30, *B["shape"][1:])
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, "output.mp4")
         video.write(out_url, 30, B, pix_fmt="yuv420p", show_log=True)
 
+
 if __name__ == "__main__":
     # test_create()
-    import ffmpegio
 
     # ffmpeg -y -i input -c:v libx264 -b:v 2600k -pass 1 -an -f null /dev/null && \
     # ffmpeg -i input -c:v libx264 -b:v 2600k -pass 2 -c:a aac -b:a 128k output.mp4
     import logging
 
     logging.basicConfig(level=logging.DEBUG)
-
 
     #     B = video.read(url, show_log=True, s=(100, -2))
     #     print(B["shape"])

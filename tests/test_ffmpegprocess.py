@@ -1,5 +1,5 @@
 import logging
-from ffmpegio import probe, configure, ffmpegprocess, utils
+from ffmpegio import configure, ffmpegprocess, utils
 
 # logging.basicConfig(level=logging.DEBUG)
 
@@ -121,5 +121,4 @@ def test_popen_progress():
 
 
 if __name__ == "__main__":
-
     logging.basicConfig(level=logging.DEBUG)

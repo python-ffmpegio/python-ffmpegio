@@ -1,6 +1,7 @@
 import ffmpegio.caps as caps
 from pprint import pprint
 
+
 def test_all():
     filters = caps.filters()
     # print(filters)
@@ -42,12 +43,13 @@ def test_all():
         caps.bsfilter_info(bsf)
         break
 
+
 def test_options():
     pprint(caps.options(name_only=True))
-    pprint(caps.options('global'))
-    pprint(caps.options('video',True))
-    pprint(caps.options('per-file'))
+    pprint(caps.options("global"))
+    pprint(caps.options("video", True))
+    pprint(caps.options("per-file"))
 
-if __name__ == '__main__':
-    caps.encoder_info('mpeg1video')
 
+if __name__ == "__main__":
+    caps.encoder_info("mpeg1video")

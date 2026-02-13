@@ -1,5 +1,6 @@
 from fractions import Fraction
-import re, itertools
+import re
+import itertools
 from collections.abc import Sequence
 
 # Filter string parser/composer
@@ -228,7 +229,9 @@ def parse_graph(expr):
             padspecs = sig[output]
             if padspecs is None:
                 sig[output] = padspec
-            elif not output and sig[1] is None: # new input label with the same name as existing input label
+            elif (
+                not output and sig[1] is None
+            ):  # new input label with the same name as existing input label
                 if isinstance(sig[output][0], int):
                     # second matching input label
                     sig[output] = [padspecs, padspec]
@@ -237,7 +240,7 @@ def parse_graph(expr):
                     padspecs.append(padspec)
             else:
                 raise ValueError(
-                    f'Filter graph specifies multiple \'{label}\' {"output" if output else "input"} pads.'
+                    f"Filter graph specifies multiple '{label}' {'output' if output else 'input'} pads."
                 )
 
     def parse_labels(expr, i, output, *cidfid):
@@ -300,7 +303,6 @@ def parse_graph(expr):
                 i = j
 
             else:
-
                 # add new filter to the chain
                 fc.append(parse_filter(fs))
 
@@ -468,7 +470,6 @@ def compose_graph(filter_specs, links=None, sws_flags=None):
     labels = set()  # collection of all the labels
 
     if links is not None and len(links):
-
         # log all named link labels
         labels = {k for k in links.keys() if isinstance(k, str)}
 
