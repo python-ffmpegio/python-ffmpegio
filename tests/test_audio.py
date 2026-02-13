@@ -4,6 +4,10 @@ import re
 import logging
 from os import path
 import pytest
+import numpy as np
+from io import BytesIO
+
+from namedpipe import NPopen
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -29,11 +33,11 @@ def test_create():
 
     fs, x = audio.create("anoisesrc", d=60, c="pink", r=44100, a=0.5)
     print(x["shape"], 60 * 44100)
-    assert x["shape"] == (60 * 44100, 1)
+    assert x["shape"] == (60 * 44100,)
 
     fs, x = audio.create("sine", f=220, b=4, d=5)
     print(x["shape"], 5 * 44100)
-    assert x["shape"] == (5 * 44100, 1)
+    assert x["shape"] == (5 * 44100,)
 
 
 @pytest.mark.skip(reason="takes too long to test")
@@ -67,6 +71,28 @@ def test_read():
     # assert x1['shape'] == x2.shape
     # assert np.array_equal(x1, x2)
 
+
+def test_read_af():
+
+    url = "tests/assets/testaudio-1m.mp3"
+
+    T = 0.51111
+    T = 0.49805
+    fs, x = audio.read(
+        url, t=T, show_log=True, af="aresample=8000,channelmap=map=FL-FC"
+    )
+    assert fs == 8000
+    assert len(x["shape"]) == 1
+
+def test_read_filter():
+
+    url = "tests/assets/testaudio-1m.mp3"
+
+    T = 0.51111
+    T = 0.49805
+    fs, x = audio.read(
+        [url,url], t=T, show_log=True, filter_complex="[0][1]amix[mixed]",map='[mixed]'
+    )
 
 def test_read_write():
     url = "tests/assets/testaudio-1m.mp3"
@@ -128,9 +154,52 @@ def test_filter():
     output_rate, output = audio.filter(expr, input_rate, input)
     assert output_rate == 44100
     assert output["shape"] == (44100, 2)
-    assert output["dtype"] == "<f8"
+    assert output["dtype"] == "<i2"
 
     output_rate, output = audio.filter("[in]bandpass[out]", input_rate, input)
+
+
+def test_read_buffin():
+
+    url = "tests/assets/testaudio-1m.mp3"
+
+    T = 0.49805
+
+    with open(url, "rb") as f:
+        b = f.read()
+
+    fs, x = audio.read(b, t=T, show_log=True)
+    assert round(fs * T) == x["shape"][0]
+
+
+def test_read_fileobj():
+
+    url = "tests/assets/testaudio-1m.mp3"
+
+    T = 0.49805
+
+    with open(url, "rb") as f:
+        fs, x = audio.read(f, t=T, show_log=True)
+        assert round(fs * T) == x["shape"][0]
+
+
+def test_write_buffout():
+
+    fs = 16000
+    x = np.random.randint(-(2**15), 2**15, fs, np.int16)
+    out = audio.write("-", fs, x, f="flv", acodec="aac", show_log=True)
+    assert len(out) > 0
+
+
+def test_write_fileobj():
+
+    fs = 16000
+    x = np.random.randint(-(2**15), 2**15, fs, np.int16)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+
+        url = path.join(tmpdirname, "test.flv")
+        with open(url, "wb") as f:
+            audio.write(f, fs, x, f="flv", acodec="aac", show_log=True)
 
 
 if __name__ == "__main__":

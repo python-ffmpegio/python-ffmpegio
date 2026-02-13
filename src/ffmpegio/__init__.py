@@ -53,25 +53,35 @@ def __getattr__(name):
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
-from . import ffmpegprocess
-
-from .errors import FFmpegError, FFmpegioError
-from .utils.concat import FFConcat
-from .filtergraph import Graph as FilterGraph
-from . import devices, caps, probe, audio, image, video, media
-from .transcode import transcode
-from .utils.parser import FLAG
-from ._open import open
+from . import (
+    audio,
+    caps,
+    devices,
+    ffmpegprocess,
+    image,
+    media,
+    probe,
+    stream_spec,
+    streams,
+    video,
+)
 
 # check if ffmpegio-core is installed, if it is warn its deprecation
 from ._utils import deprecate_core
+from .errors import FFmpegError, FFmpegioError
+from .filtergraph import Graph as FilterGraph
+from .streams.open import open
+from .transcode import transcode
+from .utils.concat import FFConcat
+from .utils.parser import FLAG
 
 deprecate_core()
 
 # fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
     "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
-    "open", "ffmpegprocess", "FFmpegError", "FFmpegioError", "FilterGraph", "FFConcat", "use", "FLAG"]
+    "open", "streams", "ffmpegprocess", "FFmpegError", "FFmpegioError", "FilterGraph", 
+    "FFConcat", "use", "FLAG", "stream_spec"]
 # fmt:on
 
 __version__ = "0.11.1"

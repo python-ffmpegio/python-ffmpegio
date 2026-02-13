@@ -4,7 +4,8 @@ from os import path
 
 import pytest
 
-from ffmpegio import image, probe, transcode
+from ffmpegio import filtergraph as fgb
+from ffmpegio import image, transcode
 
 outext = ".png"
 
@@ -50,15 +51,10 @@ def test_read_write():
     A = image.read(url)
     print(A["dtype"] == "|u1")
     B = image.read(url, pix_fmt="ya8")
-    print(B["shape"])
-    C = image.read(url, pix_fmt="rgb24")
-    D = image.read(url, pix_fmt="gray")
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, re.sub(r"\..*?$", outext, path.basename(url)))
-        print(out_url, C["shape"])
-        image.write(out_url, C)
-        print(probe.video_streams_basic(out_url))
-        C = image.read(out_url, pix_fmt="rgba", show_log=True)
+        image.write(out_url, B)
+        image.read(out_url, pix_fmt="rgba", show_log=True)
 
     #     with open(path.join(tmpdirname, "progress.txt")) as f:
     #         print(f.read())
@@ -76,44 +72,58 @@ def test_read_write():
     # plt.show()
 
 
-@pytest.mark.parametrize(
-    "kwargs",
-    [
-        dict(
-            pix_fmt="rgb24",
-            fill_color="red",
-            crop=(300, 50),
-            flip="horizontal",
-            transpose="clock",
-        ),
-        dict(s=(100, -2)),
-        dict(fill_color="red"),
-        dict(fill_color="red", pix_fmt="rgb24"),
-    ],
-)
-def test_read_basic_filter(kwargs):
+def test_read_basic_filter():
 
     url = "tests/assets/ffmpeg-logo.png"
-    image.read(url, show_log=True, **kwargs)
+    vf = fgb.presets.filter_video_basic(
+        crop=(300, 50),
+        flip="horizontal",
+        transpose="clock",
+    )
+    image.read(url, show_log=True, vf=vf)
 
 
-def test_square_pixels():
+def test_filter():
+
+    url = "tests/assets/ffmpeg-logo.png"
+    I = image.read(url, vf=fgb.presets.remove_alpha("red", "rgb24"))
+    vf = fgb.presets.filter_video_basic(
+        crop=(10, 50),
+        flip="horizontal",
+        transpose="clock",
+    )
+    J = image.filter(vf, I, show_log=True)
+
+
+@pytest.mark.parametrize(
+    "fill_color,pix_fmt,ncomp",
+    [("red", "rgb24", 3), ("red", None, 4), ("red", "gray", 0)],
+)
+def test_remove_alpha_filter(fill_color, pix_fmt, ncomp):
+
+    url = "tests/assets/ffmpeg-logo.png"
+    vf = fgb.presets.remove_alpha(fill_color=fill_color, pix_fmt=pix_fmt)
+    print(str(vf))
+    I = image.read(url, show_log=True, vf=vf)
+    assert I["shape"] == ((100, 396, ncomp) if ncomp else (100, 396))
+
+
+@pytest.fixture(scope="module")
+def nonsquarepix_url():
     url = "tests/assets/testvideo-1m.mp4"
     with tempfile.TemporaryDirectory() as tmpdirname:
         out_url = path.join(tmpdirname, path.basename(url))
-        transcode(url, out_url, show_log=True, vf="setsar=11/13", t=0.5)
+        transcode(url, out_url, show_log=True, vf="setsar=11/13", t=0.5, pix_fmt="gray")
+        yield out_url
 
-        B = image.read(out_url)
-        Bu = image.read(out_url, square_pixels="upscale")
-        Bd = image.read(out_url, square_pixels="downscale")
-        Bue = image.read(out_url, square_pixels="upscale_even")
-        Bde = image.read(out_url, square_pixels="downscale_even")
 
-        print(B["shape"])
-        print(Bu["shape"])
-        print(Bd["shape"])
-        print(Bue["shape"])
-        print(Bde["shape"])
+@pytest.mark.parametrize(
+    "mode", ["upscale", "downscale", "upscale_even", "downscale_even"]
+)
+def test_square_pixels(nonsquarepix_url, mode):
+
+    vf = fgb.presets.square_pixels(mode)
+    image.read(nonsquarepix_url, vf=vf, show_log=None)
 
 
 if __name__ == "__main__":
