@@ -90,9 +90,12 @@ def test_concat_demux():
 
 def test_url_check():
     concat = FFConcat("file vid1.mp4\nfile vid2.mp4\n", pipe_url="-")
-    url, _, input = check_url(concat, nodata=False)
+
+    url = concat
+    data = url.input
+
     assert url == concat
-    assert input == concat.input
+    assert data == concat.input
 
 
 def test_transcode():
