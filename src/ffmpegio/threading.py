@@ -5,9 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import re
-from copy import deepcopy
 from io import TextIOBase, TextIOWrapper
-from math import ceil
 from queue import Empty, Full, Queue
 from shutil import copyfileobj
 from tempfile import TemporaryDirectory
@@ -18,15 +16,14 @@ from typing import BinaryIO
 from namedpipe import NPopen
 
 from .errors import FFmpegError
-from .utils.avi import AviReader
 from .utils.log import extract_output_stream as _extract_output_stream
 
 logger = logging.getLogger("ffmpegio")
 
 
 # fmt:off
-__all__ = ['AviReader', 'FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',
- 'LoggerThread', 'ReaderThread', 'WriterThread', 'AviReaderThread', 'Empty', 'Full']
+__all__ = ['FFmpegError', 'ThreadNotActive', 'ProgressMonitorThread',
+ 'LoggerThread', 'ReaderThread', 'WriterThread', 'Empty', 'Full']
 # fmt:on
 
 
@@ -309,6 +306,7 @@ class ReaderThread(Thread):
         queuesize: int | None = None,
         itemsize: int | None = None,
         retry_delay: float | None = None,
+        timeout: float | None = None,
     ):
         super().__init__()
         is_pipe = isinstance(stdout_or_pipe, NPopen)
@@ -316,11 +314,15 @@ class ReaderThread(Thread):
         self.stdout = None if is_pipe else stdout_or_pipe  #:readable stream
         self.nmin = nmin  #:positive int: expected minimum number of read()'s n arg (not enforced)
         self.itemsize = itemsize or 2**20  #:int: number of bytes per time sample
-        self._queue = Queue(queuesize or 0)  # inter-thread data I/O
-        self._carryover = None  # extra data that was not previously read by user
+        self._queue = Queue(16 if queuesize is None else queuesize)
+        self._carryover: bytes | None = (
+            None  #:bytes: extra data that was not previously read by user
+        )
         self._halt = Event()
+        self._cooling = Event()
         self._running = Event()
-        self._retry_delay = 0.001 if retry_delay is None else retry_delay
+        self._retry_delay = 0.01 if retry_delay is None else retry_delay
+        self._timeout = float(timeout) if timeout else None
 
     def start(self):
         if self.itemsize is None:
@@ -332,9 +334,11 @@ class ReaderThread(Thread):
 
     def cool_down(self):
         # stop enqueue read samples
-        self._halt.set()
+        self._cooling.set()
 
     def join(self, timeout=None):
+        if timeout is None:
+            timeout = self._timeout
 
         if self.pipe is None:
             self.stdout.close()
@@ -345,15 +349,19 @@ class ReaderThread(Thread):
                     ...
             self.pipe.close()
 
+        # set flag to terminate the thread loop
+        self._cooling.set()
         self._halt.set()
-        if self._queue.full():
-            if timeout:
-                self._queue.not_full.wait(timeout)
-                if self._queue.full():
-                    return
-            else:
-                with self._queue.mutex:
-                    self._queue.queue.clear()
+
+        # if queue is full, the thread loop is likely stuck.
+        is_full = self._queue.full()
+        if is_full and timeout:
+            # if timeout is set, wait to see if dequeued by another thread
+            self._queue.not_full.wait(timeout)
+            is_full = self._queue.full()
+
+        if is_full:
+            raise Full("Cannot join reader thread because the queue is full.")
 
         # if queue is full,
         super().join(timeout)
@@ -362,7 +370,7 @@ class ReaderThread(Thread):
         return self._running.is_set()
 
     def wait_till_running(self, timeout: float | None = None) -> bool:
-        return self._running.wait(timeout)
+        return self._running.wait(timeout or self._timeout)
 
     def __enter__(self):
         self.start()
@@ -387,33 +395,51 @@ class ReaderThread(Thread):
 
         logger.debug("starting to read")
         self._running.set()
-        while not self._halt.is_set():
+        while not self._cooling.is_set():
             try:
                 data = stream.read(blocksize)
-                logger.debug("read %d bytes", len(data))
+                # logger.debug("read %d bytes", len(data))
             except:
                 # stdout stream closed/FFmpeg terminated, end the thread as well
                 data = None
 
             # print(f"reader thread: read {len(data)} bytes")
-            if not data:
-                if stream.closed:  # just in case
-                    logger.info("ReaderThread no data, stream is closed, exiting")
-                    self._halt.set()
-                    break
-                else:
-                    # pause a bit then try again
-                    sleep(self._retry_delay)
-                    continue
+            if data:
+                logger.debug("ReaderThread putting data into the queue")
+                while not self._cooling.is_set():
+                    try:
+                        queue.put(data, timeout=0.01)
+                        break
+                    except Full:
+                        if self._cooling.is_set():
+                            break
 
-            if not self._halt.is_set():  # True until self.cooloff
-                queue.put(data)
-                # print(f"reader thread: queued samples")
+                logger.debug("ReaderThread data in the reader queue")
+
+            elif stream.closed:  # just in case
+                logger.info("ReaderThread no data, stream is closed, exiting")
+                self._cooling.set()
+                self._halt.set()
+                break
+            else:
+                # pause a bit then try again
+                # logger.info("ReaderThread no data, reader thread pausing")
+                sleep(self._retry_delay)
 
         logger.debug("stopping to read")
-
         logger.info("ReaderThread sending the sentinel")
-        queue.put(None)  # sentinel for eos
+        while not self._halt.is_set():
+            try:
+                queue.put(None, timeout=0.01)
+                break
+            except Full:
+                if self._halt.is_set():
+                    break
+
+        # cooling loop (no queuing, flush all read)
+        logger.info("ReaderThread enters cool-down mode")
+        while not self._halt.is_set():
+            stream.read(blocksize)
 
         logger.info("ReaderThread exiting")
         self._running.clear()
@@ -434,6 +460,8 @@ class ReaderThread(Thread):
         read_all = n < 0
 
         # wait till matching line is read by the thread
+        if timeout is None:
+            timeout = self._timeout
         if timeout is not None:
             timeout = time() + timeout
 
@@ -451,11 +479,17 @@ class ReaderThread(Thread):
         # loop till enough data are collected
         while read_all or m > 0:
             tout = timeout and max(timeout - time(), 0)
-            block = self._running.is_set() and tout != 0
-
+            block = self.is_alive() and timeout is None
             try:
-                b = self._queue.get(block, tout)
-                assert b is not None  # encountered sentinel
+                b = self._queue.get(block, tout or 0.01)
+            except Empty:
+                if not block:
+                    break
+            else:
+                if b is None:
+                    # encountered sentinel
+                    break
+
                 self._queue.task_done()
                 arrays.append(b)
                 mr = len(b)
@@ -464,8 +498,6 @@ class ReaderThread(Thread):
                 assert mr and (
                     read_all or tout is None or tout > 0
                 )  # no more read time left
-            except (Empty, AssertionError):
-                break
 
         # combine all the data and return requested amount
         all_data = b"".join(arrays)
@@ -484,6 +516,64 @@ class ReaderThread(Thread):
 
     def read_all(self, timeout: float | None = None) -> bytes:
         return self.read(-1, timeout)
+
+    def read_nowait(self, n: int = -1) -> bytes:
+        """read at most n samples
+
+        :param n: number of samples/frames to read, if non-positive, read all
+                  in the queue, defaults to -1
+        :return: <= n*itemsize bytes
+        """
+
+        # no sample requested, return empty bytes object
+        if n == 0:
+            return b""
+
+        read_all = n < 0
+
+        # wait till matching line is read by the thread
+        arrays = []
+        m = n * self.itemsize  # bytes needed
+        mread = 0  # bytes read
+
+        # grab any leftover data from previous read
+        if self._carryover:
+            mread = len(self._carryover)
+            arrays = [self._carryover]
+            m -= mread
+            self._carryover = None
+
+        # loop till enough data are collected
+        while read_all or m > 0:
+            try:
+                b = self._queue.get_nowait()
+                self._queue.task_done()
+                if b is None:
+                    # sentinel
+                    break
+                mr = len(b)
+                assert mr > 0  # just in case
+
+                arrays.append(b)
+                m -= mr
+                mread += mr
+            except Empty:
+                break
+
+        # combine all the data and return requested amount
+        all_data = b"".join(arrays)
+
+        nread = mread // self.itemsize  # number of frames read
+        if n >= 0:
+            nread = min(nread, n)  # adjust to number of frames needed
+
+        mbytes = nread * self.itemsize  # number of bytes needed
+
+        # update carryover buffer
+        self._carryover = all_data[mbytes:] if mbytes < mread else None
+
+        # return retrieved bytes array
+        return all_data[:mbytes]
 
     def qsize(self) -> int:
         """Return the approximate size of the queue.
