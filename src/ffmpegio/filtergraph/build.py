@@ -3,7 +3,6 @@ from __future__ import annotations
 from copy import copy
 
 from .. import filtergraph as fgb
-from .._utils import zip  # pre-py310 compatibility
 from .exceptions import FFmpegioError, FiltergraphInvalidExpression
 from .GraphLinks import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX, Literal, get_args
@@ -376,7 +375,7 @@ def concatenate(*fgs):
 def stack(
     *fgs: fgb.abc.FilterGraphObject,
     auto_link: bool = False,
-    use_last_sws_flags: bool | None = None,
+    use_last_sws_flags: bool | int | None = None,
     inplace: bool = False,
 ) -> fgb.Graph:
     """stack filtergraph objects
@@ -411,6 +410,7 @@ def stack(
         return fgb.as_filtergraph_object(fgs[0], copy=True)
 
     # re-label the links
+    new_links, label_map = GraphLinks.combine([fg.links for fg in fgs])
     for fg, links in zip(fgs, GraphLinks.relabel_duplicates([fg.links for fg in fgs])):
         if links is not None:
             fg._links = links

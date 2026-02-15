@@ -510,22 +510,36 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
     def _stack(
         self,
-        other: fgb.abc.FilterGraphObject,
+        *others: tuple[fgb.abc.FilterGraphObject | str],
         auto_link: bool = False,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """stack another Graph to this Graph (no var check)"""
+        replace_sws_flags: bool | int | None = None,
+    ) -> tuple[fgb.Graph, list[int], list[tuple[str | int, str | int]]]:
+        """stack filtergraphs and also return the configuration
 
-        other = fgb.atleast_filterchain(other)
+        :param others: other filtergraphs to be stacked under in the order
+                       appeared
+        :param auto_link: True to connect matched I/O labels, defaults to None
+        :param replace_sws_flags: Defines how to set ``sws_flags``:
 
-        # if other is not a filter, elevate self to match first
-        return (
-            fgb.Graph([self, other])
-            if isinstance(other, fgb.Chain)
-            else fgb.Graph(self)._stack(other, auto_link, replace_sws_flags)
+            * ``True``: to use the first ``sws_flags`` found among the
+              filtergraphs, chosen in the order of appearance
+            * ``False``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
+        :return fg: new filtergraph object
+        :return new_chain_ids: new chain ids of ``others`` input filtergraphs
+        :return new_link_lookup: new labels of each ``others`` entry keyed by
+            their old labels.
+        """
+
+        return fgb.Graph([self])._stack(
+            *others, auto_link=auto_link, replace_sws_flags=replace_sws_flags
         )
-
-        return fgb.as_filtergraph(self)._stack(other, auto_link, replace_sws_flags)
 
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         """returns True if specified input pad index is available"""

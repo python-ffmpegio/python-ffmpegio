@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import re
-from collections import UserDict
+from collections import UserDict, defaultdict
 from collections.abc import Callable, Generator, Mapping, Sequence
+from copy import deepcopy
 
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
-from .typing import PAD_INDEX, PAD_PAIR, Literal
+from .typing import PAD_INDEX, PAD_PAIR, Literal, cast
 
 """
 
@@ -262,6 +263,58 @@ class GraphLinks(UserDict):
 
         return label
 
+    def link_by_labels(
+        self,
+        in_label: str,
+        out_label: str,
+        label: str | None = None,
+        preserve_label: Literal[False, "input", "output"] = False,
+    ) -> str | int:
+        """set a filtergraph link from outpad to inpad
+
+        :param in_label: input pad label
+        :param out_label: output pad label
+        :param label: desired new label name, defaults to None (=reuse inpad/outpad label or unnamed link)
+        :param preserve_label: `False` to remove the labels of the input and output pads (default) or
+                               `'input'` to prefer the input label or `'output'` to prefer the output
+                               label.
+        :return: assigned label of the created link. Unnamed links gets a
+                 unique integer value assigned to it.
+
+        """
+
+        if not self.is_input(in_label, exclude_stream_specs=True):
+            raise ValueError(f"{in_label=} is not a valid input label.")
+        if not self.is_output(out_label):
+            raise ValueError(f"{out_label=} is not a valid output label.")
+
+        link_value = (self[in_label][0], self[out_label][1])
+
+        linked = label is None
+        if linked:
+            if preserve_label == "input":
+                label = in_label
+                self[label] = link_value
+                del self[out_label]
+            elif preserve_label == "output":
+                label = out_label
+                self[label] = link_value
+                del self[in_label]
+            elif preserve_label is False:
+                label = self.resolve_label(None)
+                linked = False
+            else:
+                raise ValueError(f"{preserve_label=} is not a valid value.")
+        else:
+            self.validate_label(label)
+
+        if not linked:
+            self[label] = link_value
+            del self[in_label]
+            del self[out_label]
+
+        return label
+
     def unlink(self, label=None, inpad=None, outpad=None):
         """unlink specified links
 
@@ -348,92 +401,174 @@ class GraphLinks(UserDict):
         return label
 
     @staticmethod
-    def duplicates(
-        *link_objs: tuple[GraphLinks | None, ...],
-    ) -> dict[str | int, list[tuple[int, str]]]:
-        """re-label the duplicate label names of multiple ``GraphLink`` objects
+    def combine(
+        link_objs: Sequence[GraphLinks | None], cumsum_chains: Sequence[int]
+    ) -> tuple[GraphLinks, list[dict[tuple[int, str | int], str | int]]]:
+        """combine ``GraphLinks`` objects into one, resolving duplicate labels
 
-        :param link_objs: ``GraphLink``s objects to be re-labeled. ``None`` elements
-            are ignored
-        :return: copies of ``link_objs`` with relabeled ``GraphLink``s
+        :params link_objs: ``GraphLinks`` objects to be combined. If ``None``,
+            the entry is ignored.
+        :param cumsum_chains: cumulative sum of the number of chains of the
+            filtergraphs that are associated with ``link_objs``
+        :return combined_link_obj: a new ``GraphLinks`` object of all the links
+            combined. Input streams are not linked, and they are returned
+            separately as the third output below.
+        :return mapping: mapping a pair of ``link_objs`` index and its old label
+            to its new labels in ``combined_link_obj``.
         """
 
         # accumulate all the labels (remove trailing numbers if exist to match)
-        labels: dict[str | int, list[tuple[int, str]]] = {}
+        labels: dict[str | int, list[tuple[int, str]]] = defaultdict(list)
+        input_streams: dict[str, list[int]] = defaultdict(list)
         regexp = re.compile(r"\d+$")
-        for i, obj in enumerate(link_objs):
+        for i, (obj, cid0) in enumerate(zip(link_objs, cumsum_chains)):
             if obj is None:
                 continue
-            for label in obj:
+            links = cast(GraphLinks, obj)
+            for label in links:
                 key = label
                 if isinstance(key, str):
-                    m = regexp.search(key)
-                    if m:
-                        key = key[: m.start()]
+                    if links.is_input_stream(label):
+                        # update the connected input pads
+                        input_streams[label].append(
+                            [
+                                (cid + cid0, fid, pid)
+                                for cid, fid, pid in links[label][0]
+                            ]
+                        )
+                        continue
+                    else:
+                        m = regexp.search(key)
+                        if m:
+                            key = key[: m.start()]
 
-                if key in labels:
-                    labels[key].append((i, label))
-                else:
-                    labels[key] = [(i, label)]
+                labels[key].append((i, label))
 
-        return {k: v for k, v in labels.items() if len(v) > 1}
-
-    @staticmethod
-    def relabel_duplicates(
-        *link_objs: tuple[GraphLinks | None, ...],
-    ) -> tuple[GraphLinks | None, ...]:
-        """re-label the duplicate label names of multiple ``GraphLink`` objects
-
-        :param link_objs: ``GraphLink``s objects to be re-labeled. ``None`` elements
-            are ignored
-        :return: copies of ``link_objs`` with relabeled ``GraphLink``s
-        """
-
-        # accumulate all the labels (remove trailing numbers if exist to match)
-        labels: dict[str | int, list[tuple[int, str]]] = {}
-        regexp = re.compile(r"\d+$")
-        for i, obj in enumerate(link_objs):
-            if obj is None:
-                continue
-            for label in obj:
-                key = label
-                if isinstance(key, str):
-                    m = regexp.search(key)
-                    if m:
-                        key = key[: m.start()]
-
-                if key in labels:
-                    labels[key].append((i, label))
-                else:
-                    labels[key] = [(i, label)]
-
-        # copy the link objects
-        new_links = [obj or GraphLinks(obj) for obj in link_objs]
-
-        # generate new labels for duplicated labels
+        # create mapping table
+        # - generate new labels for duplicated labels
+        mappings = [obj and {} for obj in link_objs]
         int_counter = 0
         for key, matches in labels.items():
             if isinstance(key, int):
-                # integer label (auto-labels)
+                # auto-labels (auto-label over all internal links)
                 for i, old_label in matches:
                     new_label = int_counter
                     int_counter += 1
-                    if new_label != old_label:
-                        obj = new_links[i]
-                        obj[new_label] = obj.pop(old_label)
+                    mappings[i][old_label] = new_label
             else:
-                # user label's
-                if len(matches) == 1:
-                    # unique, keep
-                    continue
-
+                # explicit labels (append a unique suffix number)
                 for j, (i, old_label) in enumerate(matches):
                     new_label = f"{key}{j}"
-                    if new_label != old_label:
-                        obj = new_links[i]
-                        obj[new_label] = obj.pop(old_label)
+                    mappings[i][old_label] = new_label
+
+        # create the combined object
+        combined = GraphLinks()
+        for obj, cid0 in zip(link_objs, cumsum_chains):
+            if obj is None:
+                continue
+            links = cast(GraphLinks, obj)
+            for label, (in_pad, out_pad) in links.items():
+                in_pad = (in_pad[0] + cid0, *in_pad[1:])
+                out_pad = (out_pad[0] + cid0, *out_pad[1:])
+                combined[mappings[label]] = (in_pad, out_pad)
+
+        # add the input streams with the updated pad indices
+        for label, in_pads in input_streams.items():
+            combined.create_label(label, in_pads)
+
+        return combined, mappings
+
+    def relabel(self) -> GraphLinks:
+        """relabel ``GraphLinks``
+        :return: a new ``GraphLinks`` object of all the internal int labels
+            renumbered as well as the trailing numbers of user labels
+        """
+
+        # accumulate all the labels (remove trailing numbers if exist to match)
+        labels: dict[str | int, list[str | int]] = defaultdict(list)
+        regexp = re.compile(r"\d+$")
+
+        for label in self:
+            key = label
+            if isinstance(key, str):
+                m = regexp.search(key)
+                if m:
+                    key = key[: m.start()]
+
+            labels[key].append(label)
+
+        # create mapping table
+        # - generate new labels for duplicated labels
+        mappings = {}
+        int_counter = 0
+        for key, matches in labels.items():
+            if isinstance(key, int):
+                # auto-labels (auto-label over all internal links)
+                for old_label in matches:
+                    new_label = int_counter
+                    int_counter += 1
+                    mappings[old_label] = new_label
+            else:
+                # explicit labels (append a unique suffix number)
+                for j, old_label in enumerate(matches):
+                    new_label = f"{key}{j}"
+                    mappings[old_label] = new_label
+
+        # create the combined object
+        new_links = GraphLinks()
+        for label, link in self.items():
+            new_links[mappings[label]] = deepcopy(link)
 
         return new_links
+
+    @staticmethod
+    def pair_unconnected_labels(
+        link_objs: Sequence[GraphLinks | None],
+    ) -> list[tuple[str, int, int]]:
+        """pair matched input and output labels and gather matched input streams
+
+        :params link_objs: ``GraphLinks`` objects to be combined. If ``None``,
+            the entry is ignored.
+        :return combined_link_obj: a new ``GraphLinks`` object of all links
+            combined
+        :return: a list of tuples ``(label, in_index, out_index)`` of the pairs.
+            ``in_index`` and ``out_index`` are indices to ``link_objs``.
+
+        Note
+        ----
+
+        A pairing is only returned if and only if one-to-one match is found. If
+        a label is used in 3 or more inputs or 3 or more outputs, those ports
+        will not be reported as pairs.
+
+        """
+
+        # accumulate all the labels (remove trailing numbers if exist to match)
+        input_labels = defaultdict(list)
+        output_labels = defaultdict(list)
+        for i, obj in enumerate(link_objs):
+            if obj is None:
+                continue
+            links = cast(GraphLinks, obj)
+
+            for label in links:
+                if isinstance(label, int):
+                    continue
+                if links.is_input(label, exclude_stream_specs=True):
+                    input_labels[label].append(i)
+                elif links.is_output(label):
+                    output_labels[label].append(i)
+
+        # remove duplicate labels
+        input_labels = {k: v[0] for k, v in input_labels.items() if len(v) == 1}
+        output_labels = {k: v[0] for k, v in output_labels.items() if len(v) == 1}
+
+        # return the matched input & output
+        return [
+            (label, in_obj, output_labels[label])
+            for label, in_obj in input_labels.items()
+            if label in output_labels
+        ]
 
     def __getitem__(self, key: str | int) -> PAD_PAIR:
         """get link item by label or by inpad pad id tuple
@@ -461,37 +596,48 @@ class GraphLinks(UserDict):
         else:
             self.link(value[0], value[1], label=key, force=True)
 
-    def is_linked(self, label):
+    def is_linked(self, label: str) -> bool:
         """True if label specifies a link
 
         :param label: link label
-        :type label: str
         :return: True if label is a link
-        :rtype: bool
 
         If multi-inpad label, True if any inpad is not None
         """
         lnk = self.data.get(label, (None, None))
         return lnk[1] is not None and any(self.iter_inpad_ids(lnk[0]))
 
-    def is_input(self, label):
+    def is_input(self, label: str, exclude_stream_specs: bool = False) -> bool:
         """True if label specifies an input
 
         :param label: link label
-        :type label: str
-        :return: True if label is an input
-        :rtype: bool
+        :param exclude_stream_specs: ``True`` to return ``False`` if the label
+            is an input stream spec.
+        :return: ``True`` if label is an input
         """
         lnk = self.data.get(label, None)
-        return lnk and lnk[1] is None
+        return (
+            lnk
+            and lnk[1] is None
+            and (not exclude_stream_specs or isinstance(lnk[0], str))
+        )
 
-    def is_output(self, label):
-        """True if label specifies an output
+    def is_input_stream(self, label: str) -> bool:
+        """``True`` if label specifies an input stream map
+
+        :param label: input stream map specifier
+        :param exclude_stream_specs: ``True`` to return ``False`` if the label
+            is an input stream spec.
+        :return: ``True`` if label is an input
+        """
+        lnk = self.data.get(label, None)
+        return lnk and lnk[1] is None and not isinstance(lnk[0], str)
+
+    def is_output(self, label: str) -> bool:
+        """``True`` if label specifies an output
 
         :param label: link label
-        :type label: str
-        :return: True if label is an output
-        :rtype: bool
+        :return: ``True`` if label is an output
 
         If multi-inpad label, True if any inpad is None
         """
@@ -1081,24 +1227,24 @@ class GraphLinks(UserDict):
         fglinks.data = data
         return fglinks
 
-    def drop_labels(self, labels: Sequence[str], keep_links: bool = True) -> GraphLinks:
-        """create new graph links without specified labels
-
-        :param labels: labels to be dropped
-        :param keep_links: True to keep all the links as auto-labeled, defaults to True
-        :return: _description_
-        """
-
-        def keep(k):
-            if isinstance(k, str) and k in labels:
-                if keep_links and self.is_linked(k):
-                    return self.resolve_label(None)
-                return None
-            else:
-                return k
-
-        fglinks = GraphLinks()
-        fglinks.data = {
-            knew: v for k, v in self.items() if (knew := keep(k)) is not None
-        }
-        return fglinks
+    def combine_chains(self, cid_out: int, cid_in: int, n_out: int):
+        for label, (inpad, outpad) in self.items():
+            if isinstance(inpad, tuple):
+                if inpad[0] == cid_in:
+                    inpad = (cid_out, inpad[1] + n_out, inpad[2])
+                elif inpad[0] > cid_in:
+                    inpad = (inpad[0] - 1, *inpad[1:])
+            elif isinstance(inpad, list):
+                inpad = [
+                    (cid_out, pad[1] + n_out, pad[2])
+                    if pad[0] == cid_in
+                    else (pad[0] - 1, *pad[1:])
+                    if pad[0] > cid_in
+                    else pad
+                    for pad in inpad
+                ]
+            if outpad[0] == cid_in:
+                outpad = (cid_out, outpad[1] + n_out, outpad[2])
+            elif outpad[0] > cid_in:
+                outpad = (outpad[0] - 1, *outpad[1:])
+            self[label] = (inpad, outpad)
