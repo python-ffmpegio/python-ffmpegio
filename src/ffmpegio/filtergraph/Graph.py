@@ -5,7 +5,7 @@ from collections import UserList
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from copy import deepcopy
-from itertools import chain
+from itertools import accumulate, chain
 from math import floor, log10
 from tempfile import NamedTemporaryFile
 
@@ -919,18 +919,32 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
     def _stack(
         self,
-        other: fgb.abc.FilterGraphObject,
+        *others: tuple[fgb.abc.FilterGraphObject | str],
         auto_link: bool = False,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """stack another Graph to this Graph
+        replace_sws_flags: bool | int | None = None,
+    ) -> tuple[fgb.Graph, list[int], list[dict[tuple[int, str | int], str | int]]]:
+        """stack filtergraphs and also return the configuration
 
-        :param other: other filtergraph
-        :param auto_link: True to connect matched I/O labels, defaults to None
-        :param replace_sws_flags: True to use other's sws_flags if present,
-                                  False to ignore other's sws_flags,
-                                  None to throw an exception (default)
-        :return: new filtergraph object
+        :param others: other filtergraphs to be stacked under in the order
+                       appeared
+        :param auto_link: ``True`` to connect matched I/O labels, defaults to
+            ``False``
+        :param replace_sws_flags: Defines how to set ``sws_flags``:
+
+            * ``True``: to use the first ``sws_flags`` found among the
+              filtergraphs, chosen in the order of appearance
+            * ``False``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
+        :return fg: new filtergraph object
+        :return new_chain_ids: new chain ids of ``others`` input filtergraphs
+        :return new_link_mapping: mapping a pair of ``link_objs`` index and its
+            old label to its new labels in ``combined_link_obj``.
 
         Remarks
         -------
@@ -941,48 +955,64 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         TO-CHECK/TO-DO: what happens if common link labels are already linked
         """
 
-        n = len(self)
-        m = len(other)
+        if len(others) == 0:
+            return self.copy()
 
-        if not m:  # other is empty
-            return Graph(self)
-        if not n:  # self is empty
-            return Graph(other)
+        fgs: list[fgb.abc.FilterGraphObject] = [
+            self,
+            *(fgb.as_filtergraph_object(fg) for fg in others),
+        ]
 
-        if isinstance(other, Graph):
-            fg = Graph(self)
-            if other.sws_flags is not None:
-                if fg.sws_flags is None or replace_sws_flags is True:
-                    fg.sws_flags = deepcopy(other.sws_flags)
-                elif replace_sws_flags is None:
-                    raise Graph.Error(
-                        "sws_flags are defined on both FilterGraphs. Specify replace_sws_flags option to True or False to avoid this error."
-                    )
+        old_links = [fg.links for fg in fgs]
+        chain_offsets = accumulate(fg.get_num_chains() for fg in fgs)
+        new_links, link_mappings = GraphLinks.combine(old_links, chain_offsets)
 
-            try:
-                fg._links.update(
-                    other._links.map_chains(len(self)), auto_link=auto_link
-                )
-            except Exception as e:
-                if auto_link:
-                    raise
-                else:
-                    raise Graph.Error(e) from e
+        # if requested, link input and output pads with a matching label
+        if auto_link:
+            pairs = GraphLinks.pair_unconnected_labels(old_links)
+            for label, in_fg, out_fg in pairs:
+                in_label = link_mappings[(in_fg, label)]
+                out_label = link_mappings[(out_fg, label)]
+                new_links.link_by_labels(in_label, out_label)
+            if len(pairs):
+                new_links = new_links.relabel()
 
-            fg.data.extend(other)
-
+        # pick sws_flags
+        if replace_sws_flags is False or (
+            replace_sws_flags is None and self.sws_flags is not None
+        ):
+            sws_flags = self.sws_flags
+        elif isinstance(replace_sws_flags, int):
+            fg = fgs[replace_sws_flags]
+            sws_flags = fg.sws_flags if isinstance(fg, Graph) else None
         else:
-            # if other is not filtergraph, copy and append the new chain
-            fg = Graph(self)
-            fg.append(other)
+            # find the first fg with sws_flags
+            iter_sws_flags = (
+                fg.sws_flags
+                for fg in fgs[1:]
+                if isinstance(fg, Graph) and fg.sws_flags is not None
+            )
+            other_sws_flags = next(iter_sws_flags, None)
+            if replace_sws_flags is True:
+                sws_flags = other_sws_flags
+            elif next(iter_sws_flags, None) is not None:
+                raise Graph.Error(
+                    f"{replace_sws_flags=} and more than 1 filtergraphs has sws_flags"
+                )
+        if sws_flags is not None:
+            sws_flags = deepcopy(sws_flags)
 
-        return fg
+        return (
+            Graph(chain(fg.iter_chains() for fg in fgs), new_links, sws_flags),
+            chain_offsets,
+            link_mappings,
+        )
 
     def _connect(
         self,
         right: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        bwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
+        fwd_links: list[tuple[PAD_INDEX | str, PAD_INDEX | str]],
+        bwd_links: list[tuple[PAD_INDEX | str, PAD_INDEX | str]],
         chain_siso: bool = True,
         replace_sws_flags: bool | None = None,
     ) -> fgb.Graph:
@@ -1010,118 +1040,88 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         # 3. add remaining fwd_links
         # 4. add bwd_links
 
-        fg = Graph(self)
-
-        right_links = (
-            GraphLinks(right._links) if isinstance(right, Graph) else GraphLinks(None)
+        new_fg, chain_offsets, new_link_mapping = self._stack(
+            right, replace_sws_flags=replace_sws_flags
         )
+        new_links = new_fg.links
 
-        lut_shift = {}
-        lut_map = {}
+        chain_links = []
+        stack_links = []
 
-        # scan fwd_links: split fwd_links to be chained and stacked
-        fwd_chain_links = {}  # keyed by input chain idx
-        fwd_stack_links = []
-        for outpad, inpad in fwd_links:
-            link = (
-                self.normalize_pad_index(False, outpad),
-                right.normalize_pad_index(True, inpad),
-            )
+        for out_pad, in_pad in fwd_links:  # self -> right
+            if isinstance(out_pad, str):
+                # convert to padidx
+                out_pad = new_links[new_link_mapping[(0, out_pad)]][1]
+            else:
+                # update the padidx
+                out_pad = self.normalize_pad_index(False, out_pad)
+
+            if isinstance(in_pad, str):
+                # convert to padidx
+                in_pad = new_links[new_link_mapping[(1, in_pad)]][0]
+            else:
+                # update the padidx
+                in_pad = right.normalize_pad_index(True, in_pad)
+                in_pad = (in_pad[0] + chain_offsets[1], *in_pad[1:])
 
             if (
                 chain_siso
-                and self._output_pad_is_chainable(link[0])
-                and right._input_pad_is_chainable(link[1])
+                and new_fg._output_pad_is_chainable(out_pad)
+                and new_fg._input_pad_is_chainable(in_pad)
             ):
-                # there should be only 1 link which is a chaining link for inpad (and also for outpad)
-                fwd_chain_links[link[1][0]] = link
+                chain_links.append(out_pad, in_pad)
             else:
-                fwd_stack_links.append(link)
+                stack_links.append(out_pad, in_pad)
 
-            # drop labels currently exists on these pads
-            label = fg._links.find_outpad_label(outpad)
-            if label is not None:
-                assert isinstance(label, str)
-                fg._links.remove_label(label)
-            label = right_links.find_inpad_label(inpad)
-            if label is not None:
-                assert isinstance(label, str)
-                right_links.remove_label(label)
+        for out_pad, in_pad in bwd_links:  # right -> self
+            if isinstance(out_pad, str):
+                # convert to padidx
+                out_pad = new_links[new_link_mapping[(1, out_pad)]][1]
+            else:
+                # update the padidx
+                out_pad = right.normalize_pad_index(False, out_pad)
 
-        # scan bwd_links
-        bwd_links_ = []
-        for outpad, inpad in bwd_links:
-            link = (
-                self.normalize_pad_index(False, outpad),
-                right.normalize_pad_index(True, inpad),
+            if isinstance(in_pad, str):
+                # convert to padidx
+                in_pad = new_links[new_link_mapping[(1, in_pad)]][0]
+            else:
+                # update the padidx
+                in_pad = self.normalize_pad_index(True, in_pad)
+                in_pad = (in_pad[0] + chain_offsets[1], *in_pad[1:])
+
+            if (
+                chain_siso
+                and new_fg._output_pad_is_chainable(out_pad)
+                and new_fg._input_pad_is_chainable(in_pad)
+            ):
+                chain_links.append(out_pad, in_pad)
+            else:
+                stack_links.append(out_pad, in_pad)
+
+        # connect non-chaining links
+        for out_pad, in_pad in stack_links:
+            new_links.link(in_pad, out_pad)
+
+        # combine chains if any chain_links specified
+        if len(chain_links):
+            new_fg._combine_chains(
+                [(out_pad[0], in_pad[0]) for out_pad, in_pad in chain_links]
             )
-            bwd_links_.append(link)
 
-            # drop labels currently exists on these pads
-            label = right_links.find_outpad_label(outpad)
-            if label is not None:
-                assert isinstance(label, str)
-                right_links.remove_label(label)
-            label = fg._links.find_inpad_label(inpad)
-            if label is not None:
-                assert isinstance(label, str)
-                fg._links.remove_label(label)
+        return new_fg
 
-        # stack/chain the chains of the right filtergraph to the left fg
-        n0 = len(fg)  # chain index offset
-        for i, c in right.iter_chains():
-            if i in fwd_chain_links:
-                op, ip = fwd_chain_links[i]
+    def _combine_chains(self, chain_pairs: list[tuple[int, int]]):
 
-                # all the links on this chain gets mapped to outpad's chain
-                # and shifted by the length of the chain before chaining
-                lut_map[ip[0]] = op[0]
-                lut_shift[ip[0]] = len(fg[op[0]])
+        # sort chain_pairs in descending order of trailing chain
+        chain_pairs = sorted(chain_pairs, key=lambda cp: cp[1], reverse=True)
 
-                # chain
-                fg[op[0]].extend(c)
+        for cid_out, cid_in in chain_pairs:
+            # fix the existing links
+            self._links.combine_chains(cid_out, cid_in, len(self[cid_out]))
 
-            else:  # stack
-                # map the right links to the new chain
-                lut_map[i] = n0
-                # increment the chain counter
-                n0 += 1
-                # stack the new chain
-                fg = fg._stack(c)
-
-        # map the remainig right links to the new fg
-        right_links = right_links.map_chains(lut_map, lut_shift)
-
-        # make sure labels don't collide
-        right_links = {
-            fg._links.resolve_label(label, auto_index=True): link
-            for label, link in right_links.items()
-        }
-
-        # transfer the right links to fg (remap chains)
-        fg._links.update(right_links)
-
-        # add the new links in (input, output) of the combined graph
-        def adjust_right_pad(pad):
-            c = pad[0]
-            if c in lut_shift:
-                pad = (pad[0], pad[1] + lut_shift[c], pad[2])
-            if c in lut_map:
-                pad = (lut_map[c], *pad[1:])
-            return pad
-
-        it_fwd = tuple((adjust_right_pad(r), l) for l, r in fwd_stack_links)
-        it_bwd = tuple((l, adjust_right_pad(r)) for r, l in bwd_links)
-        fg._links.update(
-            {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
-            validate=False,
-        )
-
-        # if commanded, use the right sws flags as the output sws flags
-        if replace_sws_flags and isinstance(right, Graph) and right.sws_flags:
-            fg.sws_flags = right.sws_flags
-
-        return fg
+            # move the trailing chain to the end of the leading chain
+            fc = self.pop(cid_in)
+            self[cid_out].append(fc)
 
     def _rconnect(
         self,
