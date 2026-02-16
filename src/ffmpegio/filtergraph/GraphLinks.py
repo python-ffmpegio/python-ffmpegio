@@ -1228,6 +1228,19 @@ class GraphLinks(UserDict):
         return fglinks
 
     def combine_chains(self, cid_out: int, cid_in: int, n_out: int):
+        """adjust pad indices as two chains are combined
+
+        :param cid_out: id of the host chain
+        :param cid_in: id of the moving chain
+        :param n_out: number of filters of the host chain
+
+        .. warning::
+           this operation does not check for the existence of a link between the
+           last output pad of the last filter of the ``cid_out`` chain and the
+           last input pad of the first filter of the ``cid_in`` chain. The
+           caller must remove such link if it exists.
+
+        """
         for label, (inpad, outpad) in self.items():
             if isinstance(inpad, tuple):
                 if inpad[0] == cid_in:

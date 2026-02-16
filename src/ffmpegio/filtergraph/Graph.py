@@ -10,6 +10,7 @@ from math import floor, log10
 from tempfile import NamedTemporaryFile
 
 from .. import filtergraph as fgb
+from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
 from . import utils as filter_utils
 from .exceptions import *
@@ -17,6 +18,63 @@ from .GraphLinks import GraphLinks
 from .typing import PAD_INDEX, Literal
 
 __all__ = ["Graph"]
+
+
+def resolve_connect_pad_indices(
+    left: fgb.abc.FilterGraphObject,
+    right: fgb.abc.FilterGraphObject,
+    from_left: list[PAD_INDEX | str | None],
+    to_right: list[PAD_INDEX | str | None],
+    from_right: list[PAD_INDEX | str | None],
+    to_left: list[PAD_INDEX | str | None],
+    resolve_omitted: bool,
+) -> tuple[list[tuple[PAD_INDEX, PAD_INDEX]]]:
+    """resolve and validate pad indices given for a filtergraph connect operation
+
+    :param left: transmitting filtergraph object
+    :param right: receiving filtergraph object
+    :param from_left: output pad ids or labels of `left` fg (feedforward link sources)
+    :param to_right: input pad ids or labels of the `right` fg (feedforward link destinations)
+    :param from_right: output pad ids or labels of the `right` fg (feedback link sources)
+    :param to_left: input pad ids or labels of this `left` fg (feedback destinations)
+    :param resolve_omitted: True to resolve the `None`'s in the pad indices. If False, any
+                            incomplete pad index (those with `None`) will raise FiltergraphPadNotFoundError
+    :return: tuple pairs of filter pad indices to be paired. Each tuple pair consists of two pad indices: the
+             first is the source/output pad and the second is the destination/input pad.
+    """
+
+    # make sure the pads to be linked are all pairable
+    try:
+        fwd_links = [(l, r) for l, r in zip(from_left, to_right, strict=True)]
+    except:
+        raise ValueError(
+            f"the number of pad indices in {from_left=} and {to_right=} must match."
+        )
+
+    try:
+        bwd_links = [(l, r) for l, r in zip(from_right, to_left, strict=True)]
+    except:
+        raise ValueError(
+            f"the number of pad indices in {from_right=} and {to_left=} must match."
+        )
+
+    # make sure all the link indices are 3-element tuples
+    fwd_links = [
+        (
+            left.resolve_pad_index(l, is_input=False, resolve_omitted=resolve_omitted),
+            right.resolve_pad_index(r, is_input=True, resolve_omitted=resolve_omitted),
+        )
+        for l, r in fwd_links
+    ]
+    bwd_links = [
+        (
+            right.resolve_pad_index(r, is_input=False, resolve_omitted=resolve_omitted),
+            left.resolve_pad_index(l, is_input=True, resolve_omitted=resolve_omitted),
+        )
+        for r, l in bwd_links
+    ]
+
+    return fwd_links, bwd_links
 
 
 class Graph(fgb.abc.FilterGraphObject, UserList):
@@ -141,6 +199,11 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if chain < 0 or chain >= len(self):
             raise ValueError(f"{chain=} is invalid.")
         return len(self[chain])
+
+    def is_simple_chain(self) -> bool:
+        """``True`` if the filtergraph is a simple chain"""
+
+        return len(self) <= 1 and len(self.links) == 0 and self.sws_flags is None
 
     def resolve_pad_index(
         self,
@@ -917,11 +980,12 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         conn_to = self._links.output_dict().get(outpad)
         return conn_to is None or isinstance(conn_to, str)
 
-    def _stack(
+    def stack(
         self,
-        *others: tuple[fgb.abc.FilterGraphObject | str],
+        others: tuple[fgb.abc.FilterGraphObject | str],
         auto_link: bool = False,
-        replace_sws_flags: bool | int | None = None,
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+        inplace: bool = False,
     ) -> tuple[fgb.Graph, list[int], list[dict[tuple[int, str | int], str | int]]]:
         """stack filtergraphs and also return the configuration
 
@@ -931,9 +995,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             ``False``
         :param replace_sws_flags: Defines how to set ``sws_flags``:
 
-            * ``True``: to use the first ``sws_flags`` found among the
-              filtergraphs, chosen in the order of appearance
-            * ``False``: use this filtergraph's ``sws_flags`` (or none used if
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
               not set).
             * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
               refers to this object, ``1`` refers to ``others[0]``, etc.
@@ -958,10 +1022,27 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if len(others) == 0:
             return self.copy()
 
-        fgs: list[fgb.abc.FilterGraphObject] = [
-            self,
-            *(fgb.as_filtergraph_object(fg) for fg in others),
-        ]
+        new_links, sws_flags, *_ = self._stack_analyze(
+            others, auto_link, sws_flags_policy
+        )
+
+        return self._stack_create(others, inplace, new_links, sws_flags)
+
+    def _stack_analyze(
+        self,
+        others: tuple[fgb.abc.FilterGraphObject | str],
+        auto_link: bool,
+        sws_flags_policy: Literal["first", "last"] | int | None,
+        insert_at: int = 0,
+    ) -> tuple[
+        GraphLinks,
+        Sequence[str] | None,
+        list[int],
+        list[dict[tuple[int, str | int], str | int]],
+    ]:
+
+        fgs = list(others)
+        fgs.insert(insert_at, self)
 
         old_links = [fg.links for fg in fgs]
         chain_offsets = accumulate(fg.get_num_chains() for fg in fgs)
@@ -978,43 +1059,72 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                 new_links = new_links.relabel()
 
         # pick sws_flags
-        if replace_sws_flags is False or (
-            replace_sws_flags is None and self.sws_flags is not None
-        ):
-            sws_flags = self.sws_flags
-        elif isinstance(replace_sws_flags, int):
-            fg = fgs[replace_sws_flags]
+        if isinstance(sws_flags_policy, int):
+            fg = fgs[sws_flags_policy]
             sws_flags = fg.sws_flags if isinstance(fg, Graph) else None
         else:
-            # find the first fg with sws_flags
             iter_sws_flags = (
                 fg.sws_flags
-                for fg in fgs[1:]
+                for fg in (fgs if sws_flags_policy != "last" else fgs[::-1])
                 if isinstance(fg, Graph) and fg.sws_flags is not None
             )
-            other_sws_flags = next(iter_sws_flags, None)
-            if replace_sws_flags is True:
-                sws_flags = other_sws_flags
-            elif next(iter_sws_flags, None) is not None:
+            sws_flags = next(iter_sws_flags, None)
+
+            if sws_flags_policy is None and next(iter_sws_flags, None) is not None:
                 raise Graph.Error(
-                    f"{replace_sws_flags=} and more than 1 filtergraphs has sws_flags"
+                    f"{sws_flags_policy=} and more than 1 filtergraphs has sws_flags"
                 )
         if sws_flags is not None:
             sws_flags = deepcopy(sws_flags)
 
-        return (
-            Graph(chain(fg.iter_chains() for fg in fgs), new_links, sws_flags),
-            chain_offsets,
-            link_mappings,
-        )
+        return new_links, sws_flags, chain_offsets, link_mappings
 
-    def _connect(
+    def _stack_create(
+        self,
+        others: Sequence[fgb.abc.FilterGraphObject],
+        inplace: bool,
+        new_links: GraphLinks,
+        sws_flags: Sequence[str] | None,
+        insert_at: int = 0,
+    ) -> Graph:
+
+        if inplace:
+            # extend self.data and replace its links and sws_flags
+            self.data = [
+                *(
+                    fgb.Chain(fc)
+                    for fc in chain(*(fg.iter_chains() for fg in others[:insert_at]))
+                ),
+                *self.data,
+                *(
+                    fgb.Chain(fc)
+                    for fc in chain(*(fg.iter_chains() for fg in others[insert_at:]))
+                ),
+            ]
+            self._links = new_links
+            self.sws_flags = sws_flags
+            return self
+        else:
+            return Graph(
+                chain(
+                    fg.iter_chains()
+                    for fg in (*others[:insert_at], self, *others[insert_at:])
+                ),
+                new_links,
+                sws_flags,
+            )
+
+    def connect(
         self,
         right: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX | str, PAD_INDEX | str]],
-        bwd_links: list[tuple[PAD_INDEX | str, PAD_INDEX | str]],
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        *,
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
         chain_siso: bool = True,
-        replace_sws_flags: bool | None = None,
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+        inplace: bool = False,
     ) -> fgb.Graph:
         """combine another filtergraph object and make downstream connections (worker)
 
@@ -1022,81 +1132,167 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
         :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
         :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param replace_sws_flags: True to use `right` sws_flags if present,
-                                  False to drop `right` sws_flags,
-                                  None to throw an exception (default)
+        :param sws_flags_policy: Defines how to set ``sws_flags``:
+
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
+        :param inplace: ``True`` to add the ``right`` graph in place.
         :return: new filtergraph object
 
         * link labels may be auto-renamed if there is a conflict
 
         """
 
-        # procedure outline
-        # 0. analyze fwd_links whether they can be chained or not
-        # 1. chain or stack each chain of the right filtergraph object
-        #    - chain if there is a responsible fwd_link else stack
-        #    - drop chained fwd_link from the list
-        # 2. if right is a Graph, add its links to the output fg with adjustments
-        # 3. add remaining fwd_links
-        # 4. add bwd_links
-
-        new_fg, chain_offsets, new_link_mapping = self._stack(
-            right, replace_sws_flags=replace_sws_flags
+        return self._connect(
+            right,
+            from_left,
+            to_right,
+            from_right,
+            to_left,
+            chain_siso,
+            sws_flags_policy,
+            inplace,
+            0,
         )
-        new_links = new_fg.links
 
-        chain_links = []
+    def rconnect(
+        self,
+        left: fgb.abc.FilterGraphObject,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        *,
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        chain_siso: bool = True,
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+        inplace: bool = False,
+    ) -> fgb.Graph:
+        """combine another filtergraph object and make upstream connections
+
+        :param left: other filtergraph
+        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
+        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
+        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param sws_flags_policy: Defines how to set ``sws_flags``:
+
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
+        :param inplace: ``True`` to add the ``right`` graph in place.
+        :return: new filtergraph object
+
+        * link labels may be auto-renamed if there is a conflict
+
+        """
+
+        return self._connect(
+            left,
+            from_left,
+            to_right,
+            from_right,
+            to_left,
+            chain_siso,
+            sws_flags_policy,
+            inplace,
+            1,
+        )
+
+    def _connect(
+        self,
+        other: fgb.abc.FilterGraphObject,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None,
+        chain_siso: bool,
+        sws_flags_policy: Literal["first", "last"] | int | None,
+        inplace: bool,
+        insert_at: Literal[0, 1],  # 0:connect, 1:rconnect
+    ) -> fgb.Graph:
+        """helper function for self.connect() & self.rconnect()"""
+        if not isinstance(from_left, list):
+            from_left = [from_left]
+        if not isinstance(to_right, list):
+            to_right = [to_right]
+        if len(from_left) != len(to_right):
+            raise ValueError("Mismatched number of pads in 'from_right' and 'to_left'")
+
+        if from_right is None:
+            from_right = []
+        elif not isinstance(from_right, list):
+            from_right = [from_right]
+        if to_left is None:
+            to_left = []
+        elif not isinstance(to_left, list):
+            to_left = [to_left]
+        if len(from_right) != len(to_left):
+            raise ValueError("Mismatched number of pads in 'from_left' and 'to_right'")
+
+        new_links, sws_flags, chain_offsets, link_mappings = self._stack_analyze(
+            [other], False, sws_flags_policy, insert_at
+        )
+
+        # convert the connecting pads to the new stacked graph to be created
+
+        left, right = (self, other) if insert_at == 0 else (other, self)
+
+        def get_pads(
+            fg: fgb.abc.FilterGraphObject, pad: PAD_INDEX | str, is_input: bool
+        ) -> tuple[int, int, int] | str:
+
+            is_right = fg == right
+            if isinstance(pad, str):
+                pad = new_links[link_mappings[(is_right, pad)]][not is_input]
+            else:
+                pad = fg.normalize_pad_index(is_input, pad)
+                pad = (pad[0] + chain_offsets[is_right], *pad[1:])
+            return pad
+
+        out_pads = [
+            get_pads(fg, pad, False)
+            for fg, pads in [(left, from_left), (right, from_right or [])]
+            for pad in pads
+        ]
+
+        in_pads = [
+            get_pads(fg, pad, True)
+            for fg, pads in [(right, to_right), (left, to_left or [])]
+            for pad in pads
+        ]
+
+        # create new graph (note: new_fg==self if inplace=True)
+        new_fg = self._stack_create([right], inplace, new_links, sws_flags, insert_at)
+        new_links = new_fg._links
+
+        # pair the links (separate links to be chained instead)
+
         stack_links = []
+        chain_links = []
 
-        for out_pad, in_pad in fwd_links:  # self -> right
-            if isinstance(out_pad, str):
-                # convert to padidx
-                out_pad = new_links[new_link_mapping[(0, out_pad)]][1]
-            else:
-                # update the padidx
-                out_pad = self.normalize_pad_index(False, out_pad)
-
-            if isinstance(in_pad, str):
-                # convert to padidx
-                in_pad = new_links[new_link_mapping[(1, in_pad)]][0]
-            else:
-                # update the padidx
-                in_pad = right.normalize_pad_index(True, in_pad)
-                in_pad = (in_pad[0] + chain_offsets[1], *in_pad[1:])
-
+        for out_pad, in_pad in zip(out_pads, in_pads):  # self -> right
             if (
                 chain_siso
                 and new_fg._output_pad_is_chainable(out_pad)
                 and new_fg._input_pad_is_chainable(in_pad)
             ):
-                chain_links.append(out_pad, in_pad)
+                chain_links.append((out_pad, in_pad))
             else:
-                stack_links.append(out_pad, in_pad)
-
-        for out_pad, in_pad in bwd_links:  # right -> self
-            if isinstance(out_pad, str):
-                # convert to padidx
-                out_pad = new_links[new_link_mapping[(1, out_pad)]][1]
-            else:
-                # update the padidx
-                out_pad = right.normalize_pad_index(False, out_pad)
-
-            if isinstance(in_pad, str):
-                # convert to padidx
-                in_pad = new_links[new_link_mapping[(1, in_pad)]][0]
-            else:
-                # update the padidx
-                in_pad = self.normalize_pad_index(True, in_pad)
-                in_pad = (in_pad[0] + chain_offsets[1], *in_pad[1:])
-
-            if (
-                chain_siso
-                and new_fg._output_pad_is_chainable(out_pad)
-                and new_fg._input_pad_is_chainable(in_pad)
-            ):
-                chain_links.append(out_pad, in_pad)
-            else:
-                stack_links.append(out_pad, in_pad)
+                stack_links.append((out_pad, in_pad))
 
         # connect non-chaining links
         for out_pad, in_pad in stack_links:
@@ -1104,51 +1300,23 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         # combine chains if any chain_links specified
         if len(chain_links):
-            new_fg._combine_chains(
-                [(out_pad[0], in_pad[0]) for out_pad, in_pad in chain_links]
+            # sort chain_pairs in descending order of trailing chain
+            chain_pairs = sorted(
+                ((out_pad[0], in_pad[0]) for out_pad, in_pad in chain_links),
+                key=lambda cp: cp[1],
+                reverse=True,
             )
 
+            # joining chains
+            for cid_out, cid_in in chain_pairs:
+                # fix the existing links
+                self._links.combine_chains(cid_out, cid_in, len(self[cid_out]))
+
+                # move the trailing chain to the end of the leading chain
+                fc = self.pop(cid_in)
+                self[cid_out].append(fc)
+
         return new_fg
-
-    def _combine_chains(self, chain_pairs: list[tuple[int, int]]):
-
-        # sort chain_pairs in descending order of trailing chain
-        chain_pairs = sorted(chain_pairs, key=lambda cp: cp[1], reverse=True)
-
-        for cid_out, cid_in in chain_pairs:
-            # fix the existing links
-            self._links.combine_chains(cid_out, cid_in, len(self[cid_out]))
-
-            # move the trailing chain to the end of the leading chain
-            fc = self.pop(cid_in)
-            self[cid_out].append(fc)
-
-    def _rconnect(
-        self,
-        left: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        bwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        chain_siso: bool = True,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """combine another filtergraph object and make upstream connections (worker)
-
-        :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing left's output pad and self's ipnut pad
-        :param bwd_links: a list of tuples, pairing self's output pad and left's ipnut pad
-        :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param replace_sws_flags: True to use `right` sws_flags if present,
-                                  False to drop `right` sws_flags,
-                                  None to throw an exception (default)
-        :return: new filtergraph object
-
-        * link labels may be auto-renamed if there is a conflict
-
-        """
-
-        return fgb.as_filtergraph(left)._connect(
-            self, fwd_links, bwd_links, chain_siso, replace_sws_flags
-        )
 
     def _iter_io_pads(self, is_input, how, ignore_labels=False):
         """Iterates input/output pads of the filtergraph

@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from collections.abc import Generator, Sequence
 from functools import partial
-from itertools import chain
 
 from .. import filtergraph as fgb
 from ..caps import FilterInfo, filter_info, layouts
@@ -734,105 +733,32 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
         ):
             yield (0, fgb.Chain([self]))
 
-    def _connect(
+    def connect(
         self,
-        right: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        bwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
+        right: fgb.abc.FilterGraphObject | str,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        *,
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
         chain_siso: bool = True,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """combine another filtergraph object and make downstream connections (worker)
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+        inplace: bool = False,
+    ) -> fgb.Graph | fgb.Chain | None:
+        """append another filtergraph object and make downstream connections
 
-        :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing self's output pad and right's ipnut pad
-        :param bwd_links: a list of tuples, pairing right's output pad and self's ipnut pad
+        :param right: receiving filtergraph object
+        :param from_left: output pad ids or labels of `left` fg
         :param to_right: input pad ids or labels of the `right` fg
-        :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param replace_sws_flags: True to use `right` sws_flags if present,
-                                  False to drop `right` sws_flags,
-                                  None to throw an exception (default)
-        :return: new filtergraph object
+        :param from_right: output pad ids or labels of the `right` fg
+        :param to_left: input pad ids or labels of this `left` fg
+        :param chain_siso: ``True`` (default) to chain the connections instead
+            of stacking. ``False`` to append all the chains of ``right`` graphs.
+        :param sws_flags_policy: Defines how to set ``sws_flags``:
 
-        * link labels may be auto-renamed if there is a conflict
-
-        """
-
-        if not isinstance(right, fgb.Filter):
-            # right is more complex filtergraph object
-            return right._rconnect(
-                self, fwd_links, bwd_links, chain_siso, replace_sws_flags
-            )
-
-        if chain_siso and self.get_num_outputs() == 1 and right.get_num_inputs() == 1:
-            return fgb.Chain([self, right])
-
-        # create iterators to organize the links in (input, output) of the combined graph
-        it_fwd = (((1, 0, r[2]), l) for (l, r) in fwd_links)
-        it_bwd = ((l, (1, 0, r[2])) for (r, l) in bwd_links)
-
-        return fgb.Graph(
-            [[self], [right]],
-            {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
-        )
-
-    def _rconnect(
-        self,
-        left: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        bwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        chain_siso: bool = True,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """combine another filtergraph object and make upstream connections (worker)
-
-        :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing left's output pad and self's ipnut pad
-        :param bwd_links: a list of tuples, pairing self's output pad and left's ipnut pad
-        :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param replace_sws_flags: True to use `right` sws_flags if present,
-                                  False to drop `right` sws_flags,
-                                  None to throw an exception (default)
-        :return: new filtergraph object
-
-        * link labels may be auto-renamed if there is a conflict
-
-        """
-
-        if not isinstance(left, fgb.Filter):
-            # left is more complex filtergraph object
-            return left._connect(
-                self, fwd_links, bwd_links, chain_siso, replace_sws_flags
-            )
-
-        if chain_siso and left.get_num_outputs() == 1 and self.get_num_inputs() == 1:
-            return fgb.Chain([left, self])
-
-        # create iterators to organize the links in (input, output) of the combined graph
-        it_fwd = (((1, 0, r[2]), l) for (l, r) in fwd_links)
-        it_bwd = ((l, (1, 0, r[2])) for (r, l) in bwd_links)
-
-        return fgb.Graph(
-            [[left], [self]],
-            {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
-        )
-
-    def _stack(
-        self,
-        *others: tuple[fgb.abc.FilterGraphObject | str],
-        auto_link: bool = False,
-        replace_sws_flags: bool | None = None,
-    ) -> tuple[fgb.Graph, list[int], list[tuple[str | int, str | int]]]:
-        """stack filtergraphs and also return the configuration
-
-        :param others: other filtergraphs to be stacked under in the order
-                       appeared
-        :param auto_link: True to connect matched I/O labels, defaults to None
-        :param replace_sws_flags: Defines how to set ``sws_flags``:
-
-            * ``True``: to use the first ``sws_flags`` found among the
-              filtergraphs, chosen in the order of appearance
-            * ``False``: use this filtergraph's ``sws_flags`` (or none used if
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
               not set).
             * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
               refers to this object, ``1`` refers to ``others[0]``, etc.
@@ -840,22 +766,81 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
               ``FFmpegioError`` exception. Otherwise, it uses the only one found
               or none if none not found.
 
-        :return fg: new filtergraph object
-        :return new_chain_ids: new chain ids of ``others`` input filtergraphs
-        :return new_link_lookup: new labels of each ``others`` entry keyed by
-            their old labels.
+        :param inplace: Must be ``False`` as the result is always a ``Graph``.
+            If ``True``, a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
 
-        Remarks
-        -------
-        - extend() and import links
-        - If `auto-link=False`, common labels may be renamed.
-        - For more explicit linking rather than the auto-linking, use `connect()` instead.
+        * link labels may be auto-renamed if there is a conflict
 
-        TO-CHECK/TO-DO: what happens if common link labels are already linked
         """
 
-        return fgb.Graph([[self]])._stack(
-            *others, auto_link=auto_link, replace_sws_flags=replace_sws_flags
+        if inplace:
+            raise ValueError("Filter object cannot perform connect() with inplace=True")
+
+        return fgb.as_filterchain(self).connect(
+            right,
+            from_left,
+            to_right=to_right,
+            from_right=from_right,
+            to_left=to_left,
+            chain_siso=chain_siso,
+            sws_flags_policy=sws_flags_policy,
+            inplace=False,
+        )
+
+    def rconnect(
+        self,
+        left: fgb.abc.FilterGraphObject | str,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        *,
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        chain_siso: bool = True,
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+        inplace: bool = False,
+    ) -> fgb.Graph | fgb.Chain | None:
+        """append another filtergraph object and make downstream connections
+
+        :param left: receiving filtergraph object
+        :param from_left: output pad ids or labels of `left` fg
+        :param to_right: input pad ids or labels of the `right` fg
+        :param from_right: output pad ids or labels of the `right` fg
+        :param to_left: input pad ids or labels of this `left` fg
+        :param chain_siso: ``True`` (default) to chain the connections instead
+            of stacking. ``False`` to append all the chains of ``right`` graphs.
+        :param sws_flags_policy: Defines how to set ``sws_flags``:
+
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
+        :param inplace: Must be ``False`` as the result is always a ``Graph``.
+            If ``True``, a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        * link labels may be auto-renamed if there is a conflict
+
+        """
+
+        if inplace:
+            raise ValueError("Filter object cannot perform connect() with inplace=True")
+
+        return fgb.as_filterchain(self).rconnect(
+            left,
+            from_left,
+            to_right=to_right,
+            from_right=from_right,
+            to_left=to_left,
+            chain_siso=chain_siso,
+            sws_flags_policy=sws_flags_policy,
+            inplace=False,
         )
 
     def apply(self, options, filter_id=None):
