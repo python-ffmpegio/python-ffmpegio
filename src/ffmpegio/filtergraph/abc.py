@@ -596,7 +596,8 @@ class FilterGraphObject(ABC):
                         per chain.
         :param strict: True to raise exception if numbers of available pads do not match, default: False
         :param unlabeled_only: True to ignore labeled unconnected pads, defaults to False
-        :param chain_siso: True to chain the single-input single-output connection, default: True
+        :param chain_siso: ``True`` to chain the single-input single-output
+            connection, default: True
         :param sws_flags_policy: Defines how to set ``sws_flags``:
 
             * ``'first'``: to use the first ``sws_flags`` found among the
@@ -701,292 +702,76 @@ class FilterGraphObject(ABC):
             to_right = right_pads[:n_links]
         return from_left, to_right
 
+    @abstractmethod
     def attach(
         self,
-        right: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
+        right: fgb.abc.FilterGraphObject | str | list[str],
         left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
         right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
         inplace: bool = False,
-    ) -> fgb.Graph:
-        """attach filter(s), chain(s), or label(s) to a filtergraph object
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available output pads
 
-        :param right: output filterchain, filtergraph expression, or label, or list thereof
-        :param left_on: pad_index, specify the pad on left, default to None (first available)
-        :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
+        :param right: output filtergraph or labels. If ``str``, the expression
+            is first attempted to be converted to a filtergraph object. If the
+            attempt fails, it is treated as a label.
+        :param left_on: pad_index, specify the output pad to connect ``right``
+            to, defaults to auto-detect (first available)
+        :param right_on: pad index, specifies the input pad of ``right`` to
+            connect to the ``left_on`` pad, defaults to auto-detect (first
+            available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
         :param inplace: ``True`` to store the output filtergraph in place.
             If ``'inplace=True`` but the output is not of the same class type,
             a ``ValueError` exception will be raised.
         :return: new filtergraph object or ``None`` if ``inplace=True``
 
-        One and only one of ``left`` or ``right`` may be a list or a label.
-
-        If pad indices are not specified, only the first available output/input pad is linked. If the
-        primary filtergraph object is ``Filter`` or ``Chain``, the chainable pad (i.e., the last pad) will be
-        chosen.
-
         """
 
-        if not isinstance(right, list):
-            right = [right]
-
-        objs = []
-        labels = []
-        for obj in right:
-            try:
-                objs.append(fgb.as_filtergraph_object(obj))
-            except FiltergraphInvalidExpression:
-                if isinstance(obj, str):
-                    labels.append(obj)
-                else:
-                    raise ValueError(
-                        f"{type(right)} could not be converted to a filtergraph object or a label string."
-                    )
-
-        def analyze_fgobj(obj):
-            attach_obj = isinstance(obj, list)
-            obj = [check_obj(o) for o in obj] if attach_obj else check_obj(obj)
-            if isinstance(obj, str):
-                attach_obj = True
-                obj = [obj]
-
-            return obj, attach_obj
-
-        left_objs_labels, attach_left = analyze_fgobj(left)
-        right_objs_labels, attach_right = analyze_fgobj(right)
-
-        if not (attach_left or attach_right):
-            if not len(right_objs_labels):
-                return left_objs_labels
-            if not len(left_objs_labels):
-                return right_objs_labels
-
-            # no list or label given
-            if isinstance(right_objs_labels, (fgb.Filter, fgb.Chain)):
-                attach_right = True
-                right_objs_labels = [right_objs_labels]
-            if not attach_right and isinstance(
-                left_objs_labels, (fgb.Filter, fgb.Chain)
-            ):
-                attach_left = True
-                left_objs_labels = [left_objs_labels]
-        if attach_left == attach_right:
-            raise ValueError(
-                "Cannot determine which side is attaching. One of left or right argument must be a Filter or Chain object."
-            )
-
-        nlinks = len(left_objs_labels) if attach_left else len(right_objs_labels)
-
-        # put single index arguments as lists of indices
-        if left_on is None:
-            left_on = [None] * nlinks
-        elif not isinstance(left_on, list):
-            left_on = [left_on]
-        if right_on is None:
-            right_on = [None] * nlinks
-        elif not isinstance(right_on, list):
-            right_on = [right_on]
-
-        def resolve_indices(
-            base, branches, base_indices, branch_indices, base_is_input
-        ):
-
-            # resolve all the specified pad indices of the base object
-            base_indices = base.resolve_pad_indices(
-                base_indices, is_input=base_is_input
-            )
-
-            # resolve the specified attaching pad indices
-            branch_indices = [
-                (
-                    idx
-                    if isinstance(robj, str)
-                    else robj.resolve_pad_index(
-                        idx,
-                        is_input=not base_is_input,
-                        chain_id_omittable=True,
-                        filter_id_omittable=True,
-                        pad_id_omittable=True,
-                        resolve_omitted=True,
-                    )
-                )
-                for robj, idx in zip(branches, branch_indices, strict=True)
-            ]
-
-            return base_indices, branch_indices
-
-        if attach_right:
-            left_on, right_on = resolve_indices(
-                left_objs_labels, right_objs_labels, left_on, right_on, False
-            )
-        else:
-            right_on, left_on = resolve_indices(
-                right_objs_labels, left_objs_labels, right_on, left_on, True
-            )
-
-        if attach_right:
-            return fgb.as_filtergraph_object(
-                left_objs_labels, copy=not inplace
-            )._attach(right_objs_labels, left_on, right_on)
-        else:
-            return fgb.as_filtergraph_object(
-                right_objs_labels, copy=not inplace
-            )._rattach(left_objs_labels, left_on, right_on)
-
-        return fgb.attach(self, right, left_on, right_on)
-
+    @abstractmethod
     def rattach(
         self,
-        left: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
+        left: fgb.abc.FilterGraphObject | str | list[str],
         left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
         right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
         inplace: bool = False,
-    ) -> fgb.Graph:
-        """attach filter(s), chain(s), or label(s) to a filtergraph object
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available input pads
 
-        :param left: input filtergraph object, filtergraph expression, or label, or list thereof
-        :param right: output filterchain, filtergraph expression, or label, or list thereof
-        :param left_on: pad_index, specify the pad on left, default to None (first available)
-        :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
+        :param left: input filtergraph or labels. If ``str``, the expression
+            is first attempted to be converted to a filtergraph object. If the
+            attempt fails, it is treated as a label.
+        :param left_on: pad_index, specify the output pad of ``left``,
+            defaults to auto-detect (first available)
+        :param right_on: pad index, specifies which input pad to connect
+            ``left`` to, defaults to auto-detect (first available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
         :param inplace: ``True`` to store the output filtergraph in place.
             If ``'inplace=True`` but the output is not of the same class type,
             a ``ValueError` exception will be raised.
         :return: new filtergraph object or ``None`` if ``inplace=True``
 
-        One and only one of ``left`` or ``right`` may be a list or a label.
-
-        If pad indices are not specified, only the first available output/input pad is linked. If the
-        primary filtergraph object is ``Filter`` or ``Chain``, the chainable pad (i.e., the last pad) will be
-        chosen.
-
         """
-
-        return fgb.attach(left, self, left_on, right_on)
-
-    @staticmethod
-    def _attach_analyze(
-        left: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
-        right: fgb.abc.FilterGraphObject | str | list[fgb.abc.FilterGraphObject | str],
-        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None,
-        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None,
-        inplace: bool,
-    ) -> fgb.Graph | fgb.Chain:
-        """attach filter(s), chain(s), or label(s) to a filtergraph object
-
-        :param left: input filtergraph object, filtergraph expression, or label, or list thereof
-        :param right: output filtergraph object, filtergraph expression, or label, or list thereof.
-        :param left_on: pad_index, specify the pad on left, default to None (first available)
-        :param right_on: pad index, specifies which pad on the right graph, defaults to None (first available)
-        :return: new filtergraph object
-
-        One and only one of ``left`` or ``right`` may be a list or a label.
-
-        If pad indices are not specified, only the first available output/input pad is linked. If the
-        primary filtergraph object is ``Filter`` or ``Chain``, the chainable pad (i.e., the last pad) will be
-        chosen.
-
-        """
-
-        def check_obj(obj):
-            try:
-                obj_label = fgb.as_filtergraph_object(obj, copy=not inplace)
-            except FiltergraphInvalidExpression:
-                try:
-                    obj_label = str(obj)
-                except:
-                    raise ValueError(
-                        f"{type(obj)} could not be converted to a filtergraph object or a label string."
-                    )
-            return obj_label
-
-        def analyze_fgobj(obj):
-            attach_obj = isinstance(obj, list)
-            obj = [check_obj(o) for o in obj] if attach_obj else check_obj(obj)
-            if isinstance(obj, str):
-                attach_obj = True
-                obj = [obj]
-
-            return obj, attach_obj
-
-        left_objs_labels, attach_left = analyze_fgobj(left)
-        right_objs_labels, attach_right = analyze_fgobj(right)
-
-        if not (attach_left or attach_right):
-            if not len(right_objs_labels):
-                return left_objs_labels
-            if not len(left_objs_labels):
-                return right_objs_labels
-
-            # no list or label given
-            if isinstance(right_objs_labels, (fgb.Filter, fgb.Chain)):
-                attach_right = True
-                right_objs_labels = [right_objs_labels]
-            if not attach_right and isinstance(
-                left_objs_labels, (fgb.Filter, fgb.Chain)
-            ):
-                attach_left = True
-                left_objs_labels = [left_objs_labels]
-        if attach_left == attach_right:
-            raise ValueError(
-                "Cannot determine which side is attaching. One of left or right argument must be a Filter or Chain object."
-            )
-
-        nlinks = len(left_objs_labels) if attach_left else len(right_objs_labels)
-
-        # put single index arguments as lists of indices
-        if left_on is None:
-            left_on = [None] * nlinks
-        elif not isinstance(left_on, list):
-            left_on = [left_on]
-        if right_on is None:
-            right_on = [None] * nlinks
-        elif not isinstance(right_on, list):
-            right_on = [right_on]
-
-        def resolve_indices(
-            base, branches, base_indices, branch_indices, base_is_input
-        ):
-
-            # resolve all the specified pad indices of the base object
-            base_indices = base.resolve_pad_indices(
-                base_indices, is_input=base_is_input
-            )
-
-            # resolve the specified attaching pad indices
-            branch_indices = [
-                (
-                    idx
-                    if isinstance(robj, str)
-                    else robj.resolve_pad_index(
-                        idx,
-                        is_input=not base_is_input,
-                        chain_id_omittable=True,
-                        filter_id_omittable=True,
-                        pad_id_omittable=True,
-                        resolve_omitted=True,
-                    )
-                )
-                for robj, idx in zip(branches, branch_indices, strict=True)
-            ]
-
-            return base_indices, branch_indices
-
-        if attach_right:
-            left_on, right_on = resolve_indices(
-                left_objs_labels, right_objs_labels, left_on, right_on, False
-            )
-        else:
-            right_on, left_on = resolve_indices(
-                right_objs_labels, left_objs_labels, right_on, left_on, True
-            )
-
-        if attach_right:
-            return fgb.as_filtergraph_object(
-                left_objs_labels, copy=not inplace
-            )._attach(right_objs_labels, left_on, right_on)
-        else:
-            return fgb.as_filtergraph_object(
-                right_objs_labels, copy=not inplace
-            )._rattach(left_objs_labels, left_on, right_on)
 
     ### main graph manipulation routines
 

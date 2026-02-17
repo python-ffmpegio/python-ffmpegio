@@ -843,6 +843,97 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             inplace=False,
         )
 
+    def attach(
+        self,
+        right: fgb.abc.FilterGraphObject | str | list[str],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available output pads
+
+        :param right: output filtergraph or labels. If ``str``, the expression
+            is first attempted to be converted to a filtergraph object. If the
+            attempt fails, it is treated as a label.
+        :param left_on: pad_index, specify the output pad to connect ``right``
+            to, defaults to auto-detect (first available)
+        :param right_on: pad index, specifies the input pad of ``right`` to
+            connect to the ``left_on`` pad, defaults to auto-detect (first
+            available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if inplace:
+            raise ValueError("Filter object cannot perform connect() with inplace=True")
+
+        return fgb.as_filterchain(self).attach(
+            right,
+            left_on,
+            right_on,
+            chainable_only=chainable_only,
+            chain_siso=chain_siso,
+            inplace=False,
+        )
+
+    def rattach(
+        self,
+        left: fgb.abc.FilterGraphObject | str | list[str],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available input pads
+
+        :param left: input filtergraph or labels
+        :param left_on: pad_index, specify the output pad of ``left``,
+            defaults to auto-detect (first available)
+        :param right_on: pad index, specifies which input pad to connect
+            ``left`` to, defaults to auto-detect (first available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if inplace:
+            raise ValueError("Filter object cannot perform connect() with inplace=True")
+
+        return fgb.as_filterchain(self).rattach(
+            left,
+            left_on,
+            right_on,
+            chainable_only=chainable_only,
+            chain_siso=chain_siso,
+            inplace=False,
+        )
+
     def apply(self, options, filter_id=None):
         """apply new filter options
 

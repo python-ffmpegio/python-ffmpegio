@@ -49,4 +49,4 @@ testpaths = ["tests"]
 # addopts = "-ra -q"
 
 [tool.ruff]
-typing-modules = ["ffmpegio._typing"]
+typing-modules = ["ffmpegio._typing", "ffmpegio.filtergraph.typing"]

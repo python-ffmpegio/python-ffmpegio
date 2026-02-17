@@ -1318,6 +1318,193 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         return new_fg
 
+    def attach(
+        self,
+        right: fgb.abc.FilterGraphObject | str | list[str],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available output pads
+
+        :param right: output filtergraph or labels. If ``str``, the expression
+            is first attempted to be converted to a filtergraph object. If the
+            attempt fails, it is treated as a label.
+        :param left_on: pad_index, specify the output pad to connect ``right``
+            to, defaults to auto-detect (first available)
+        :param right_on: pad index, specifies the input pad of ``right`` to
+            connect to the ``left_on`` pad, defaults to auto-detect (first
+            available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if chainable_only == "auto":
+            chainable_only = False
+
+        try:
+            right_is_label = False
+            right_obj = fgb.as_filtergraph_object(right)
+        except FiltergraphInvalidExpression:
+            right_is_label = True
+
+        # get output pads
+        left_pads = (
+            list(
+                self.iter_output_pads(
+                    chainable_only=chainable_only is True or chainable_only == "left",
+                    full_pad_index=True,
+                )
+            )
+            if left_on is None
+            else [
+                self.get_output_pad(pad)[0]
+                for pad in (left_on if isinstance(left_on, list) else [left_on])
+            ]
+        )
+
+        # resolve the label attachment first
+        if right_is_label:
+            left = self if inplace else Graph(self)
+
+            for pad, label in zip(
+                left_pads, right if isinstance(right, list) else [right]
+            ):
+                left.add_label(label, pad)
+
+            return None if inplace else left
+
+        # get pads to be connected
+        right_pads = (
+            list(
+                right_obj.iter_input_pads(
+                    chainable_only=chainable_only is True or chainable_only == "right",
+                    full_pad_index=True,
+                )
+            )
+            if left_on is None
+            else [
+                right_obj.get_input_pad(pad)[0]
+                for pad in (right_on if isinstance(right_on, list) else [right_on])
+            ]
+        )
+
+        nconn = min(len(left_pads), len(right_pads))
+        return self.connect(
+            right_obj,
+            left_pads[:nconn],
+            right_pads[:nconn],
+            inplce=inplace,
+            chain_siso=chain_siso,
+            sws_flags_policy="first",
+        )
+
+    def rattach(
+        self,
+        left: fgb.abc.FilterGraphObject | str | list[str],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available input pads
+
+        :param left: input filtergraph or labels
+        :param left_on: pad_index, specify the output pad of ``left``,
+            defaults to auto-detect (first available)
+        :param right_on: pad index, specifies which input pad to connect
+            ``left`` to, defaults to auto-detect (first available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if chainable_only == "auto":
+            chainable_only = False
+
+        try:
+            left_is_label = False
+            left_obj = fgb.as_filtergraph_object(left)
+        except FiltergraphInvalidExpression:
+            left_is_label = True
+
+        # get output pads
+        right_pads = (
+            list(
+                self.iter_input_pads(
+                    chainable_only=chainable_only is True or chainable_only == "right",
+                    full_pad_index=True,
+                )
+            )
+            if right_on is None
+            else [
+                self.get_input_pad(pad)[0]
+                for pad in (right_on if isinstance(right_on, list) else [right_on])
+            ]
+        )
+
+        # resolve the label attachment first
+        if left_is_label:
+            right = self if inplace else Graph(self)
+
+            for pad, label in zip(
+                right_pads, left if isinstance(left, list) else [left]
+            ):
+                right.add_label(label, pad)
+
+            return None if inplace else right
+
+        # get pads to be connected
+        left_pads = (
+            list(
+                left_obj.iter_output_pads(
+                    chainable_only=chainable_only is True or chainable_only == "left",
+                    full_pad_index=True,
+                )
+            )
+            if left_on is None
+            else [
+                left_obj.get_input_pad(pad)[0]
+                for pad in (left_on if isinstance(left_on, list) else [left_on])
+            ]
+        )
+
+        nconn = min(len(left_pads), len(right_pads))
+        return self.rconnect(
+            left_obj,
+            left_pads[:nconn],
+            right_pads[:nconn],
+            inplce=inplace,
+            chain_siso=chain_siso,
+            sws_flags_policy="first",
+        )
+
     def _iter_io_pads(self, is_input, how, ignore_labels=False):
         """Iterates input/output pads of the filtergraph
 
