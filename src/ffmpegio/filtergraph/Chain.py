@@ -5,7 +5,11 @@ from collections.abc import Callable, Generator, Sequence
 
 from .. import filtergraph as fgb
 from . import utils as filter_utils
-from .exceptions import *
+from .exceptions import (
+    FFmpegioError,
+    FiltergraphInvalidExpression,
+    FiltergraphInvalidIndex,
+)
 from .typing import PAD_INDEX, Literal
 
 __all__ = ["Chain"]
@@ -545,6 +549,9 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             inplace=False,
         )
 
+        return self._convert_graph(inplace, fg)
+
+    def _convert_graph(self, inplace, fg):
         if not inplace:
             return fg[0] if fg.is_simple_chain() else fg
 
@@ -559,6 +566,123 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             raise ValueError(
                 "'inplace=True' but resulting filtergraph is not a simple chain."
             )
+
+    def attach(
+        self,
+        right: fgb.abc.FilterGraphObject | str | list[str],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available output pads
+
+        :param right: output filtergraph or labels. If ``str``, the expression
+            is first attempted to be converted to a filtergraph object. If the
+            attempt fails, it is treated as a label.
+        :param left_on: pad_index, specify the output pad to connect ``right``
+            to, defaults to auto-detect (first available)
+        :param right_on: pad index, specifies the input pad of ``right`` to
+            connect to the ``left_on`` pad, defaults to auto-detect (first
+            available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if chainable_only == "auto":
+            chainable_only = True
+
+        try:
+            assert left_on is None and right_on is None and chainable_only is True
+            right_obj = fgb.as_filterchain(right)
+        except (AssertionError, FiltergraphInvalidExpression):
+            return self._convert_graph(
+                inplace,
+                fgb.as_filtergraph(self).attach(
+                    right,
+                    left_on,
+                    right_on,
+                    chainable_only=chainable_only,
+                    chain_siso=chain_siso,
+                    inplace=False,
+                ),
+            )
+
+        left_pad = next(self.iter_output_pads(chainable_only=True))
+        right_pad = next(right_obj.iter_input_pads(chainable_only=True))
+        return self.connect(
+            right_obj, left_pad, right_pad, chain_siso=chain_siso, inplace=inplace
+        )
+
+    def rattach(
+        self,
+        left: fgb.abc.FilterGraphObject | str | list[str],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> fgb.Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available input pads
+
+        :param left: input filtergraph or labels
+        :param left_on: pad_index, specify the output pad of ``left``,
+            defaults to auto-detect (first available)
+        :param right_on: pad index, specifies which input pad to connect
+            ``left`` to, defaults to auto-detect (first available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if chainable_only == "auto":
+            chainable_only = True
+
+        try:
+            assert left_on is None and right_on is None and chainable_only is True
+            left_obj = fgb.as_filterchain(left)
+        except (AssertionError, FiltergraphInvalidExpression):
+            return self._convert_graph(
+                inplace,
+                fgb.as_filtergraph(self).rattach(
+                    left,
+                    left_on,
+                    right_on,
+                    chainable_only=chainable_only,
+                    chain_siso=chain_siso,
+                    inplace=False,
+                ),
+            )
+
+        left_pad = next(left_obj.iter_output_pads(chainable_only=True))
+        right_pad = next(self.iter_input_pads(chainable_only=True))
+        return self.connect(
+            left_obj, left_pad, right_pad, chain_siso=chain_siso, inplace=inplace
+        )
 
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         """returns True if specified input pad index is available"""
