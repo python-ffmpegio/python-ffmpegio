@@ -120,7 +120,7 @@ def as_filtergraph_object(
         return type(filter_specs)(filter_specs) if copy else filter_specs
 
     try:
-        specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+        specs, links, sws_flags = filter_utils.parse_graph(filter_specs, False)
         return (
             fgb.Graph(specs, links, sws_flags)
             if links or sws_flags or len(specs) > 1
@@ -172,7 +172,7 @@ def atleast_filterchain(
         return fgb.Chain([filter_specs])
 
     try:
-        specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
+        specs, links, sws_flags = filter_utils.parse_graph(filter_specs, False)
         return (
             fgb.Graph(specs, links, sws_flags)
             if links or sws_flags or len(specs) > 1

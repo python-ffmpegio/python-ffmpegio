@@ -1,12 +1,9 @@
 from __future__ import annotations
 
-from copy import copy
-
 from .. import filtergraph as fgb
-from .exceptions import FFmpegioError
-from .typing import JOIN_HOW, PAD_INDEX, Literal, get_args
+from .typing import JOIN_HOW, PAD_INDEX, Literal
 
-__all__ = ["connect", "join", "attach", "stack"]
+__all__ = ["connect", "join", "stack"]
 
 
 def stack(
@@ -41,7 +38,9 @@ def stack(
 
     """
 
-    return fgs[0].stack(*fgs[1:], auto_link, sws_flags_policy)
+    return fgb.as_filtergraph_object(fgs[0]).stack(
+        *fgs[1:], auto_link=auto_link, sws_flags_policy=sws_flags_policy
+    )
 
 
 def connect(
@@ -85,8 +84,14 @@ def connect(
 
     """
 
-    return left.connect(
-        right, from_left, to_right, from_right, to_left, chain_siso, sws_flags_policy
+    return fgb.as_filtergraph_object(left).connect(
+        right,
+        from_left,
+        to_right,
+        from_right=from_right,
+        to_left=to_left,
+        chain_siso=chain_siso,
+        sws_flags_policy=sws_flags_policy,
     )
 
 
@@ -133,88 +138,12 @@ def join(
     :return: Graph with the appended filter chains or None if inplace=True.
     """
 
-    # if one of the filtergraphs is empty, return the other (or a copy thereof)
-    if not fgb.as_filtergraph_object(right).get_num_filters():
-        if inplace:
-            return left
-        else:
-            return fgb.as_filtergraph_object(left).copy()
-    if not fgb.as_filtergraph_object(left).get_num_filters():
-        if inplace:
-            return right
-        else:
-            return copy(fgb.as_filtergraph_object(right))
-
-    if how is None:
-        how = "auto"
-    if n_links is None:
-        n_links = "all"
-
-    if how not in get_args(JOIN_HOW):
-        raise ValueError(f"{how=} is an unknown matching method")
-
-    # make sure right is a Graph, Chain, or Filter object
-    left = fgb.as_filtergraph_object(left, copy=not inplace)
-    right = fgb.as_filtergraph_object(right, copy=not inplace)
-
-    # handle joining empty graph
-    nright = right.get_num_chains()
-    if not nright:
-        return left
-    nleft = left.get_num_chains()
-    if not nleft:
-        return right
-
-    iter_kws = {"unlabeled_only": unlabeled_only, "full_pad_index": True}
-    if how == "chainable":
-        iter_kws["chainable_only"] = True
-
-    if n_links == "all" or n_links < 0:
-        n_links = 0
-
-    if how in ("per_chain", "auto") and nright == nleft:
-        #
-        try:
-            links = [None] * nleft
-            for c in range(nleft):
-                # get the first available pad to join
-                left_pad, *_ = next(left.iter_output_pads(chain=c, **iter_kws))
-                right_pad, *_ = next(right.iter_input_pads(chain=c, **iter_kws))
-                links[c] = (left_pad, right_pad)
-        except:
-            if how == "auto":
-                how = "all"
-            else:
-                raise
-
-    if how in ("all", "chainable") or nright != nleft:
-        left_pads = [out[0] for out in left.iter_output_pads(**iter_kws)]
-        right_pads = [out[0] for out in right.iter_input_pads(**iter_kws)]
-
-        nleft, nright = len(left_pads), len(right_pads)
-        if strict and nleft != nright:
-            raise FFmpegioError("`[stict=True] number of unconnected pads must match.")
-        n_max = min(nleft, nright)
-        n_links = n_max if n_links <= 0 else min(n_links, n_max)
-
-        links = [None] * n_links
-        for i, (left_pad, right_pad) in enumerate(
-            zip(left_pads[:n_links], right_pads[:n_links])
-        ):
-            links[i] = (left_pad, right_pad)
-
-    fg = left._connect(
+    return fgb.as_filtergraph_object(left).join(
         right,
-        links,
-        [],
-        chain_siso,
-        replace_sws_flags,
+        how=how,
+        n_links=n_links,
+        strict=strict,
+        unlabeled_only=unlabeled_only,
+        chain_siso=chain_siso,
+        sws_flags_policy=sws_flags_policy,
     )
-    if fg == NotImplemented:
-        fg = right._rconnect(
-            left,
-            links,
-            chain_siso,
-            replace_sws_flags,
-        )
-    return fg

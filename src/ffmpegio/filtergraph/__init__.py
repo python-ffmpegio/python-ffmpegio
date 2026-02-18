@@ -101,8 +101,8 @@ from __future__ import annotations
 
 from .. import path
 from ..caps import filters as list_filters
-from . import abc
-from .build import attach, concatenate, connect, join, stack
+from . import abc, presets
+from .build import connect, join, stack
 from .Chain import Chain
 from .convert import (
     as_filter,

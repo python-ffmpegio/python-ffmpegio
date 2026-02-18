@@ -1,9 +1,12 @@
 from os import path
-from tempfile import TemporaryDirectory
-from ffmpegio import ffmpegprocess, filtergraph as fgb
-from ffmpegio.filtergraph import Chain
 from pprint import pprint
+from tempfile import TemporaryDirectory
+
 import pytest
+
+from ffmpegio import ffmpegprocess
+from ffmpegio import filtergraph as fgb
+from ffmpegio.filtergraph import Chain
 
 
 @pytest.mark.parametrize(
@@ -164,22 +167,12 @@ def test_iter_output_pads(
 
 
 @pytest.mark.parametrize(
-    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
-    [
-        ("fps;scale", False, False, False, 2),
-        ("fps;scale", True, True, True, 2),
-        ("nullsrc;fps", False, False, False, 2),
-        ("nullsrc;fps", True, False, False, 1),
-        ("fps;nullsink", False, False, False, 2),
-        ("fps;nullsink", False, True, False, 1),
-        ("split[L1][L2];[L2]fps", True, False, False, 1),
-        ("split[L1][L2];[L2]fps", False, True, False, 1),
-        ("split[L1][L2];[L2]fps", False, True, True, 1),
-    ],
+    "expr, ret",
+    [(None, 0), ("fps;scale", 2)],
 )
-def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
+def test_iter_chains(expr, ret):
     f = fgb.Graph(expr)
-    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
+    chains = [*f.iter_chains()]
     assert len(chains) == ret
 
 
@@ -305,8 +298,18 @@ def test_attach(fg, fc, left_on, right_on, out):
         ("fps;crop", "trim", (1, 0, 0), "[UNC0]trim,crop[UNC2];[UNC1]fps[UNC3]"),
         ("fps;[in]crop", "trim", "in", "[UNC0]trim,crop[UNC2];[UNC1]fps[UNC3]"),
         ("[L]fps;crop[L]", "trim", None, "[UNC0]trim,crop[L];[L]fps[UNC1]"),
-        ("[C]overlay;crop[C]", "trim", None, "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]"),
-        ("[C][in]overlay;crop[C]", "trim", "in", "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]"),
+        (
+            "[C]overlay;crop[C]",
+            "trim",
+            None,
+            "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]",
+        ),
+        (
+            "[C][in]overlay;crop[C]",
+            "trim",
+            "in",
+            "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]",
+        ),
         # fmt: on
     ],
 )
@@ -432,9 +435,30 @@ def test_get_output_pad(fg, id, out):
     "fg, r, to_l,to_r,chain, out",
     [
         # fmt: off
-        ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], None, "[a1]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[d1]"),
-        ("[la]fps;crop[lb]", "[lb]trim;scale[la]", ['lb'], ['lb'], None, "[la]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[la1]"),
-        ("[a1]fps;crop[b]", "[c]trim;scale[d1]", ['b'], ['c'], True, "[a1]fps[UNC2];[UNC0]crop,trim[UNC3];[UNC1]scale[d1]"),
+        (
+            "[a1]fps;crop[b]",
+            "[c]trim;scale[d1]",
+            ["b"],
+            ["c"],
+            None,
+            "[a1]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[d1]",
+        ),
+        (
+            "[la]fps;crop[lb]",
+            "[lb]trim;scale[la]",
+            ["lb"],
+            ["lb"],
+            None,
+            "[la]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[la1]",
+        ),
+        (
+            "[a1]fps;crop[b]",
+            "[c]trim;scale[d1]",
+            ["b"],
+            ["c"],
+            True,
+            "[a1]fps[UNC2];[UNC0]crop,trim[UNC3];[UNC1]scale[d1]",
+        ),
         # fmt: on
     ],
 )
@@ -453,9 +477,21 @@ def test_connect(fg, r, to_l, to_r, chain, out):
     "fg, r, how, unlabeled_only, out",
     [
         # fmt: off
-        ("fps;crop", "trim;scale", None, False, "[UNC0]fps,trim[UNC2];[UNC1]crop,scale[UNC3]"),
-        ("[in1]fps;crop[ou1]", "[in2]trim;scale[out2]", None, True, "[in1]fps,scale[out2];[UNC0]crop[ou1];[in2]trim[UNC1]"),
-        ("fps", "overlay", 'per_chain', False, "[UNC0]fps[L0];[L0][UNC1]overlay[UNC2]"),
+        (
+            "fps;crop",
+            "trim;scale",
+            None,
+            False,
+            "[UNC0]fps,trim[UNC2];[UNC1]crop,scale[UNC3]",
+        ),
+        (
+            "[in1]fps;crop[ou1]",
+            "[in2]trim;scale[out2]",
+            None,
+            True,
+            "[in1]fps,scale[out2];[UNC0]crop[ou1];[in2]trim[UNC1]",
+        ),
+        ("fps", "overlay", "per_chain", False, "[UNC0]fps[L0];[L0][UNC1]overlay[UNC2]"),
         # fmt: on
     ],
 )
@@ -589,7 +625,7 @@ def test_readme():
 if __name__ == "__main__":
     from pprint import pprint
 
-    from ffmpegio.filtergraph import Graph, filter_info, FFmpegioError, list_filters
+    from ffmpegio.filtergraph import FFmpegioError, Graph, filter_info, list_filters
 
     for k, v in list_filters().items():
         if v.num_inputs is None or v.num_inputs:

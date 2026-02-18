@@ -4,7 +4,6 @@ import os
 from collections import UserList
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
-from copy import deepcopy
 from itertools import accumulate, chain
 from math import floor, log10
 from tempfile import NamedTemporaryFile
@@ -15,7 +14,7 @@ from ..stream_spec import is_map_option
 from . import utils as filter_utils
 from .exceptions import *
 from .GraphLinks import GraphLinks
-from .typing import PAD_INDEX, Literal
+from .typing import PAD_INDEX, Iterable, Literal
 
 __all__ = ["Graph"]
 
@@ -78,33 +77,6 @@ def resolve_connect_pad_indices(
 
 
 class Graph(fgb.abc.FilterGraphObject, UserList):
-    """List of FFmpeg filterchains in parallel with interchain link specifications
-
-    Graph() to instantiate empty Graph object
-
-    Graph(obj) to copy-instantiate Graph object from another
-
-    Graph('...') to parse an FFmpeg filtergraph expression
-
-    Graph(filter_specs, links, sws_flags)
-    to specify the compose_graph(...) arguments
-
-    :param filter_specs: either an existing Graph instance to copy, an FFmpeg
-                         filtergraph expression, or a nested sequence of argument
-                         sequences to compose_filter() to define a filtergraph.
-                         For the latter option, The last element of each filter argument
-                         sequence may be a dict, defining its keyword arguments,
-                         defaults to None
-    :type filter_specs: Graph, str, or seq(seq(filter_args))
-    :param links: specifies filter links
-    :type links: dict, optional
-    :param sws_flags: specify swscale flags for those automatically inserted
-                      scalers, defaults to None
-    :type sws_flags: seq of stringifyable elements with optional dict as the last
-                     element for the keyword flags, optional
-
-    """
-
     class Error(FFmpegioError):
         pass
 
@@ -123,9 +95,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
     def __init__(
         self,
         filter_specs: (
-            Sequence[fgb.Chain | str | Sequence[fgb.Filter]]
-            | str
+            str
             | fgb.abc.FilterGraphObject
+            | Iterable[fgb.Chain | str | Iterable[fgb.Filter]]
             | None
         ) = None,
         links: (
@@ -133,47 +105,98 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                 str | int,
                 tuple[
                     PAD_INDEX | Sequence[PAD_INDEX] | None,
-                    PAD_INDEX | Sequence[PAD_INDEX] | None,
+                    PAD_INDEX | None,
                 ],
             ]
             | GraphLinks
             | None
         ) = None,
-        sws_flags: Sequence[str] | None = None,
+        sws_flags: str | None = None,
     ):
+        """FFmpeg filtergraph
 
-        # convert str to a list of filter_specs
-        if isinstance(filter_specs, fgb.Graph):
+        :param filter_specs: filtergraph specification, defaults to create an
+            empty graph. Acceptable formats include:
+
+            * ``str`` FFmpeg filtergraph expression. Note: ``links`` and
+                ``sws_flags`` arguments are ignored.
+            * Another ``Graph`` object to copy
+            * A ``Chain`` object as the first and only chain of the filtergraph
+            * A ``Filter`` object to place the filter on the first chain
+            * An iterable of ``Chain`` constructor arguments
+
+        :param links: a dict specifying the inter-chain connections and input
+            and output labels, defaults to none specified.
+
+            Dict keys specify the link labels, each of which may be:
+
+                * A ``str`` with or without the bracket (e.g., ``'[in]'`` or
+                  ``'in'``). To specify connections to an input stream, the key
+                  must be a valid map option, e.g. ``'0:v:0'`` or ``'0:a:0'``.
+                * An ``int`` value which will be converted to ``'L0'``, ``'L1'``,
+                  etc. when ``Graph`` object is converted to ``str``.
+
+            These labels may change during the lifespan of a ``Graph`` object.
+            As it is combining with another ``Graph`` object duplicate labels
+            may be assigned. Duplicates ``str`` labels are resolved by trailing
+            numbers. E.g., ``'in0'``, ``'in1'``, ... Duplicate ``int`` labels
+            are simply renumbered.
+
+            Dict values are two-element tuples and must follow one of 4 formats:
+
+                * Link label ``(to_pad, from_pad)``: connecting the output pad
+                  ``from_pad`` to the input pad ``to_pad``.
+                * Input label ``(in_pad, None)``: Only defining the ``in_pad``
+                * Output label ``(None, out_pad)``: Only defining the ``out_pad``
+                * Input streams ``([in_pad0, in_pad1, ...], None)``: Multiple
+                  input pads can be specified only for input stream connection.
+
+        :param sws_flags: ``flags`` option of automatically inserted ``scale``
+            filters, defaults to use the FFmpeg default (``='bicubic'``). FFmpeg
+            automatically inserts ``scale`` filters where format conversion is
+            required.
+
+        Examples
+        ^^^^^^^^
+
+        .. code:: python
+
+            import ffmpegio.filtergraph as fgb
+
+            # from FFmpeg filtergraph expression
+            fg = fgb.Graph('[in]yadif=0:0:0[middle];[middle]scale=iw/2:-1[out]')
+
+            # same graph but specify separate chains
+            fg = fgb.Graph(['yadif=0:0:0', 'scale=iw/2:-1'],
+                           links={'in':     ((0,0,0), None)),
+                                  'middle': ((0,0,0), (1,0,0)),
+                                  'out':    (None,    (1,0,0))})
+
+        """
+        if isinstance(filter_specs, str):
+            # parse ffmpeg filtergraph expression
+            filter_specs, links, sws_flags = filter_utils.parse_graph(
+                filter_specs, False
+            )
+        elif filter_specs is None:
+            # empty graph
+            filter_specs = ()
+        elif isinstance(filter_specs, fgb.Graph):
+            # copy constructor, pull links and sws_flags aside
             links = filter_specs._links
-            sws_flags = filter_specs.sws_flags and [*filter_specs.sws_flags[1:]]
+            sws_flags = filter_specs.sws_flags and [*filter_specs.sws_flags]
+        elif isinstance(filter_specs, fgb.Filter):
+            filter_specs = [[filter_specs]]
         elif isinstance(filter_specs, fgb.Chain):
             filter_specs = [filter_specs] if len(filter_specs) else ()
-        elif filter_specs is not None:
-            if isinstance(filter_specs, fgb.Filter):
-                filter_specs = [[filter_specs]]
-            elif not len(filter_specs):
-                filter_specs = []
-                links = sws_flags = None
-            elif isinstance(filter_specs, str):
-                filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
 
-            if any(not len(fspec) for fspec in filter_specs):
-                raise ValueError(
-                    "An empty filterchain found. All chains must be populated."
-                )
-
-        UserList.__init__(
-            self,
-            () if filter_specs is None else iter(fgb.Chain(c) for c in filter_specs),
-        )
+        super().__init__((fgb.Chain(c) for c in filter_specs))
 
         self._links = GraphLinks(links)
         """utils.fglinks.GraphLinks: filtergraph link specifications
         """
 
-        self.sws_flags = (
-            None if sws_flags is None else fgb.Filter(["scale", *sws_flags])
-        )
+        self.sws_flags = None if sws_flags is None else str(sws_flags)
         """Filter|None: swscale flags for automatically inserted scalers
         """
 
@@ -345,7 +368,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         links = {**fg._links, **unc_pads} if i >= 0 or j >= 0 else fg._links
 
-        return filter_utils.compose_graph(fg, links, fg.sws_flags and fg.sws_flags[1:])
+        return filter_utils.compose_graph(fg, links, fg.sws_flags)
 
     def __repr__(self):
         type_ = type(self)
@@ -456,39 +479,14 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         # delete all links with the specified chain
         self._links.remove_chains([i])
 
-    def iter_chains(
-        self,
-        skip_if_no_input: bool = False,
-        skip_if_no_output: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[int, fgb.Chain]]:
+    def iter_chains(self) -> Generator[fgb.Chain]:
         """iterate over chains of the filtergraphobject
 
-        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
-        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
-        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
-                               arguments to require chainable input or output, defaults to False to
-                               allow any input/output
-        :yield: chain id and chain object
+        :yields: chain object
         """
 
-        for i, c in enumerate(self):
-            if (
-                skip_if_no_output
-                and self.next_output_pad(
-                    chain=i, filter=-1, chainable_only=chainable_only
-                )
-                is None
-            ) or (
-                skip_if_no_input
-                and self.next_input_pad(
-                    chain=i, filter=0, chainable_only=chainable_only
-                )
-                is None
-            ):
-                continue
-
-            yield i, c
+        for c in self:
+            yield c
 
     def _iter_pads(
         self,
@@ -982,7 +980,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
     def stack(
         self,
-        others: tuple[fgb.abc.FilterGraphObject | str],
+        *others: tuple[fgb.abc.FilterGraphObject | str],
         auto_link: bool = False,
         sws_flags_policy: Literal["first", "last"] | int | None = None,
         inplace: bool = False,
@@ -1036,7 +1034,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         insert_at: int = 0,
     ) -> tuple[
         GraphLinks,
-        Sequence[str] | None,
+        str | None,
         list[int],
         list[dict[tuple[int, str | int], str | int]],
     ]:
@@ -1045,7 +1043,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         fgs.insert(insert_at, self)
 
         old_links = [fg.links for fg in fgs]
-        chain_offsets = accumulate(fg.get_num_chains() for fg in fgs)
+        chain_offsets = [0, *accumulate(fg.get_num_chains() for fg in fgs[:-1])]
         new_links, link_mappings = GraphLinks.combine(old_links, chain_offsets)
 
         # if requested, link input and output pads with a matching label
@@ -1074,8 +1072,6 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                 raise Graph.Error(
                     f"{sws_flags_policy=} and more than 1 filtergraphs has sws_flags"
                 )
-        if sws_flags is not None:
-            sws_flags = deepcopy(sws_flags)
 
         return new_links, sws_flags, chain_offsets, link_mappings
 
@@ -1107,8 +1103,10 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         else:
             return Graph(
                 chain(
-                    fg.iter_chains()
-                    for fg in (*others[:insert_at], self, *others[insert_at:])
+                    *(
+                        fg.iter_chains()
+                        for fg in (*others[:insert_at], self, *others[insert_at:])
+                    )
                 ),
                 new_links,
                 sws_flags,
@@ -1313,8 +1311,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
                 self._links.combine_chains(cid_out, cid_in, len(self[cid_out]))
 
                 # move the trailing chain to the end of the leading chain
-                fc = self.pop(cid_in)
-                self[cid_out].append(fc)
+                fc = new_fg.pop(cid_in)
+                new_fg[cid_out].extend(fc)
 
         return new_fg
 
@@ -1365,14 +1363,15 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         # get output pads
         left_pads = (
             list(
-                self.iter_output_pads(
+                c[0]
+                for c in self.iter_output_pads(
                     chainable_only=chainable_only is True or chainable_only == "left",
                     full_pad_index=True,
                 )
             )
             if left_on is None
             else [
-                self.get_output_pad(pad)[0]
+                self.get_output_pad(self.normalize_pad_index(False, pad))[0]
                 for pad in (left_on if isinstance(left_on, list) else [left_on])
             ]
         )
@@ -1391,14 +1390,15 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         # get pads to be connected
         right_pads = (
             list(
-                right_obj.iter_input_pads(
+                c[0]
+                for c in right_obj.iter_input_pads(
                     chainable_only=chainable_only is True or chainable_only == "right",
                     full_pad_index=True,
                 )
             )
-            if left_on is None
+            if right_on is None
             else [
-                right_obj.get_input_pad(pad)[0]
+                right_obj.get_input_pad(self.normalize_pad_index(True, pad))[0]
                 for pad in (right_on if isinstance(right_on, list) else [right_on])
             ]
         )
@@ -1408,7 +1408,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             right_obj,
             left_pads[:nconn],
             right_pads[:nconn],
-            inplce=inplace,
+            inplace=inplace,
             chain_siso=chain_siso,
             sws_flags_policy="first",
         )
@@ -1457,7 +1457,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         # get output pads
         right_pads = (
             list(
-                self.iter_input_pads(
+                c[0]
+                for c in self.iter_input_pads(
                     chainable_only=chainable_only is True or chainable_only == "right",
                     full_pad_index=True,
                 )
@@ -1483,7 +1484,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         # get pads to be connected
         left_pads = (
             list(
-                left_obj.iter_output_pads(
+                c[0]
+                for c in left_obj.iter_output_pads(
                     chainable_only=chainable_only is True or chainable_only == "left",
                     full_pad_index=True,
                 )
@@ -1500,7 +1502,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             left_obj,
             left_pads[:nconn],
             right_pads[:nconn],
-            inplce=inplace,
+            inplace=inplace,
             chain_siso=chain_siso,
             sws_flags_policy="first",
         )

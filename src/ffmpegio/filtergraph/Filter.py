@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Generator, Sequence
-from functools import partial
+from functools import cached_property, partial
 
 from .. import filtergraph as fgb
 from ..caps import FilterInfo, filter_info, layouts
-from ..caps import filters as list_filters
 from ..stream_spec import parse_stream_spec
 from . import utils as filter_utils
 from .exceptions import *
@@ -48,110 +47,129 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
         def __init__(self, name, feature) -> None:
             super().__init__(f"{feature} not yet supported feature for {name} filter.")
 
-    _info: dict[str, FilterInfo] = {}
-
-    @staticmethod
-    def _get_info(name: str) -> FilterInfo:
+    @cached_property
+    def info(self) -> FilterInfo:
         try:
-            info = Filter._info[name]
+            return filter_info(self.name)
+            # return list_filters()[self.name] # summary
         except KeyError:
-            try:
-                info = Filter._info[name] = list_filters()[name]
-            except:
-                raise Filter.InvalidName(name)
-        return info
+            raise Filter.InvalidName(self.name)
 
-    def __new__(self, filter_spec, *args, filter_id=None, **kwargs):
-        """_summary_"""
+    def __new__(
+        self,
+        filter_spec: str | fgb.abc.FilterGraphObject,
+        *args,
+        filter_id: str = None,
+        **kwargs,
+    ):
+        """FFmpeg filter object (immutable)
 
-        if isinstance(filter_spec, fgb.Graph):
-            if len(filter_spec) != 1:
-                raise TypeError(
-                    "Cannot convert a `Graph` object with more than one filter to a `Filter` object"
-                )
-            filter_spec = filter_spec[0]
+        :param filter_spec: FFmpeg filter specification. Acceptable formats
+            include:
 
-        if isinstance(filter_spec, fgb.Chain):
-            if len(filter_spec) != 1:
-                raise TypeError(
-                    "Cannot convert a `Chain` or `Graph` object to a `Filter` object if it does not have exactly one filter."
-                )
-            filter_spec = filter_spec[0]
+            * ``str`` of a single-chain FFmpeg filter filtergraph expression
+                without any labels or the ``'[sws_flags=flags;]'`` clause.
+            * ``Filter`` object (returns the same object)
+            * ``Chain`` Must be a single-filter chain.
+            * ``Graph`` Must be a single-filter graph without any labels or
+                ``sws_flags``
 
-        proto = []
+        :param filter_id: Optional id string to distinguish multiple instances
+            of a same filter.
 
-        if isinstance(filter_spec, Filter):
-            if filter_spec.id and filter_id is not None:  # new id
-                proto.append((filter_spec.name, filter_id))
-                proto.extend(filter_spec[1:])
-            else:
-                proto.extend(filter_spec)
+        FFmpeg filter class arguments can be specified by position and keyword
+        arguments.
+
+        Examples
+        ^^^^^^^^
+
+        .. code:: python
+
+           import ffmpegio.filtergraph as fgb
+
+           # "scale=w=200:h=100" can be constructed by any of the following:
+
+           fgb.Filter('scale=200:100')
+           fgb.Filter('scale=w=200:h=100')
+           fgb.Filter('scale', 200, 100)
+           fgb.Filter('scale', w=200, h=100)
+
+        """
+
+        # parse if str given
+        if isinstance(filter_spec, str):
+            name, _args, _kwargs = filter_utils.parse_filter(filter_spec)
+
+            if isinstance(name, tuple):
+                name, _filter_id = name
+                if filter_id is None:
+                    #
+                    filter_id = _filter_id
+            if len(_args) > 0 or len(_kwargs) > 0:
+                if len(args) or len(kwargs):
+                    raise TypeError(
+                        "Filter arguments can only be passed via either in a Filter expression or the function arguments"
+                    )
+                args = _args
+                kwargs = _kwargs
+            proto = [name, args, kwargs]
         else:
-            # parse if str given
-            if isinstance(filter_spec, str):
-                filter_spec = filter_utils.parse_filter(filter_spec)
+            no_id = filter_id is None
+            if isinstance(filter_spec, fgb.Graph):
+                if not filter_spec.is_simple_chain() or len(filter_spec[0]) != 1:
+                    raise TypeError(
+                        "Cannot convert a multi-filter `Graph` object to a `Filter` object"
+                    )
+                filter_spec = filter_spec[0][0]
+                if no_id:
+                    return filter_spec
+            elif isinstance(filter_spec, fgb.Chain):
+                if len(filter_spec) != 1:
+                    raise TypeError(
+                        "Cannot convert a `Chain` or `Graph` object to a `Filter` object if it does not have exactly one filter."
+                    )
+                filter_spec = filter_spec[0]
+            elif not isinstance(filter_spec, fgb.Filter):
+                raise ValueError("Invalid filterspec type.")
 
-            if not (isinstance(filter_spec, Sequence) and len(filter_spec)):
-                raise ValueError("filter_spec must be a non-empty sequence.")
-            name, *opts = filter_spec
-            if isinstance(name, str):
-                self._get_info(name)
-                proto.append((name, id) if isinstance(id, str) else name)
-            elif not (
-                isinstance(name, Sequence)
-                and len(name) != 2
-                and all((isinstance(i, str) for i in name))
-            ):
-                raise ValueError(
-                    "filter_spec[0] must be a str or 2-element str sequence."
-                )
+            proto = [*filter_spec]
+
+            # check id: if matched, no change needed
+            if filter_spec.id == filter_id:
+                return filter_spec
+            elif filter_id is None:
+                proto[0] = filter_spec.name
             else:
-                # name + id: re-id if id arg given
-                self._get_info(name[0])
-                proto.append(tuple(name) if filter_id is None else (name[0], filter_id))
+                proto[0] = (filter_spec.name, filter_id)
 
-            proto.extend(opts)
-
-        # create named options dict
-        proto_dict = proto.pop() if isinstance(proto[-1], dict) else {}
-
-        # change ordered options if non-None value is given
-        nord = len(proto) - 1  # # of ordered options
-        for i, o in enumerate(args[:nord]):
-            if o is not None:
-                proto[i] = o
-
-        # add additional ordered options if present
-        proto.extend(args[nord:])
-
-        # update named options
-        if len(kwargs):
-            proto_dict.update(kwargs)
-
-        # validate named option keys to be str
-        for k in proto_dict:
-            if not isinstance(k, str):
-                raise ValueError(
-                    "All keys of the named option dict must be of type str."
-                )
-
-        # add the named option dict to the prototype list
-        if len(proto_dict):
-            proto.append(proto_dict)
+        # convert kwargs dict to tuple of tuples of key and values (immutable)
+        proto[-1] = tuple(proto[-1].items())
 
         # create the final tuple
         return tuple.__new__(Filter, proto)
 
+    def copy(self) -> Filter:
+        """returns itself (immutable)"""
+        return self
+
+    def __iter__(self):
+        """iterates to be compatible with compose_filter()"""
+
+        for i, v in enumerate(super().__iter__()):
+            yield dict(v) if i == 2 else v
+
     def __getitem__(self, key):
+        """make sure the last
+
+        :param key: _description_
+        :return: _description_
+        """
         value = tuple.__getitem__(self, key)
 
-        if isinstance(value, dict):
-            value = {**value}
-        if isinstance(value, tuple):
-            if isinstance(value[-1], dict):
-                value = tuple((*value[:-1], {**value[-1]}))
-            elif isinstance(value[0], dict):
-                value = tuple(({**value[-1]}, *value[1:]))
+        if key in (2, -1):
+            value = dict(value)
+        elif isinstance(key, slice) and isinstance(value[-1], tuple):
+            value = (*value[:-1], dict(value[-1]))
         return value
 
     def compose(
@@ -180,36 +198,27 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
 """
 
     @property
-    def name(self):
+    def name(self) -> str:
         name = self[0]
         return name if isinstance(name, str) else name[0]
 
     @property
-    def fullname(self):
+    def fullname(self) -> str:
         name = self[0]
         return name if isinstance(name, str) else f"{name[0]}@{name[1]}"
 
     @property
-    def id(self):
+    def id(self) -> str | None:
         name = self[0]
         return None if isinstance(name, str) else name[1]
 
     @property
-    def ordered_options(self):
-        opts = self[1:]
-        return opts[:-1] if isinstance(opts[-1], dict) else opts
+    def ordered_options(self) -> tuple:
+        return self[1]
 
     @property
-    def named_options(self):
-        opts = self[-1]
-        return opts if isinstance(opts, dict) else {}
-
-    @property
-    def info(self):
-        try:
-            return filter_info(self.name)
-        except:
-            raise Filter.InvalidName(self.name)
+    def named_options(self) -> dict:
+        return dict(self[-1])
 
     def get_pad_media_type(
         self, port: Literal["input", "output"], pad_id: int
@@ -353,12 +362,10 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             # name@id
             name = name[0]
 
-        try:
-            nin = self._info[name].num_inputs
-        except:
-            raise Filter.InvalidName(name)
+        nin = self.info.inputs
+
         if nin is not None:  # fixed number
-            return nin
+            return len(nin)
 
         def _inplace():
             return 1 if self.get_option_value("inplace") else 2
@@ -435,12 +442,9 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
         """
         name = self.name
 
-        try:
-            nout = self._info[name].num_outputs
-        except:
-            raise Filter.InvalidName(name)
+        nout = self.info.outputs
         if nout is not None:  # arbitrary number allowed
-            return nout
+            return len(nout)
 
         def _concat():
             return int(self.get_option_value("a")) + int(self.get_option_value("v"))
@@ -712,26 +716,13 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
                 else (index, filter, other_index)
             )
 
-    def iter_chains(
-        self,
-        skip_if_no_input: bool = False,
-        skip_if_no_output: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[int, fgb.Chain]]:
+    def iter_chains(self) -> Generator[fgb.Chain]:
         """iterate over chains of the filtergraphobject
 
-        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
-        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
-        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
-                               arguments to require chainable input or output, defaults to False to
-                               allow any input/output
-        :yield: chain id and chain object
+        :yields: chain object
         """
 
-        if (not skip_if_no_input or self.get_num_inputs()) and (
-            not skip_if_no_output or self.get_num_outputs()
-        ):
-            yield (0, fgb.Chain([self]))
+        yield fgb.Chain([self])
 
     def connect(
         self,
@@ -934,18 +925,15 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             inplace=False,
         )
 
-    def apply(self, options, filter_id=None):
+    def apply(self, options: dict, filter_id: str | None = None) -> Filter:
         """apply new filter options
 
-        :param options: new option key-value pairs. For ordered option, use positional index (0
-                        corresponds to the first option). Set value as None to drop the option.
-                        Ordered options can only be dropped in contiguous fashion, including the
-                        last ordered option.
-        :type options: dict
-        :param filter_id: new filter id, defaults to None
-        :type filter_id: str, optional
+        :param options: new option key-value pairs. For ordered option, use
+            positional index (0 corresponds to the first option). Set value as
+            ``None`` to drop the option. Ordered options can only be dropped in
+            contiguous fashion, including the last ordered option.
+        :param filter_id: new filter id, defaults to clear existing filter id
         :return: new filter with modified options
-        :rtype: Filter
 
         .. note::
 
@@ -954,25 +942,16 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
 
         """
 
-        try:
-            assert isinstance(self[-1], dict)
-            kwopts = dict(self[-1])
-            try:
-                opts = list(self[1:-1])
-            except:
-                opts = []
-        except:
-            kwopts = {}
-            try:
-                opts = list(self[1:])
-            except:
-                opts = []
+        name, opts, kwopts = self
 
+        if isinstance(name, tuple):
+            name = name[0]
+        opts = list(opts)
         nopts = len(opts)
 
         delopts = set()
         for k, v in options.items():
-            if type(k) == int:
+            if isinstance(k, int):
                 if k < 0 or k > nopts:
                     raise Filter.Error(f"invalid positional index [{k}]")
                 if v is not None:
@@ -999,7 +978,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
                 )
             opts = opts[:o1]
 
-        return Filter(self[0], *opts, filter_id=filter_id, **kwopts)
+        return Filter(name, *opts, filter_id=filter_id, **kwopts)
 
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         pad_pos = index[2]
