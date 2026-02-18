@@ -150,7 +150,7 @@ FilterSummary = namedtuple(
 # fmt:on
 
 
-def filters(type=None):
+def filters(type=None) -> dict[str, FilterSummary]:
     """get FFmpeg filters
 
     :param type: specify input or output stream type, defaults to None

@@ -6,7 +6,7 @@ from collections.abc import Generator, Sequence
 from .. import filtergraph as fgb
 from .exceptions import *
 from .GraphLinks import GraphLinks
-from .typing import JOIN_HOW, PAD_INDEX, Literal
+from .typing import JOIN_HOW, PAD_INDEX, Literal, get_args
 
 __all__ = ["FilterGraphObject"]
 
@@ -144,20 +144,10 @@ class FilterGraphObject(ABC):
             return None
 
     @abstractmethod
-    def iter_chains(
-        self,
-        skip_if_no_input: bool = False,
-        skip_if_no_output: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[int, fgb.Chain]]:
+    def iter_chains(self) -> Generator[fgb.Chain]:
         """iterate over chains of the filtergraphobject
 
-        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
-        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
-        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
-                               arguments to require chainable input or output, defaults to False to
-                               allow any input/output
-        :yield: chain id and chain object
+        :yields chain: ``Chain`` object
         """
 
     @abstractmethod
@@ -819,30 +809,30 @@ class FilterGraphObject(ABC):
     # Filtergraph math operators
 
     def __add__(self, other: FilterGraphObject | str) -> fgb.Chain | fgb.Graph:
-        return fgb.join(self, other, inplace=False)
+        return self.join(other)
 
     def __radd__(self, other: FilterGraphObject | str) -> fgb.Chain | fgb.Graph:
-        return fgb.join(other, self, inplace=False)
+        return fgb.as_filtergraph_object(other).join(self)
 
     def __mul__(self, __n: int) -> fgb.Graph:
         """duplicate-n-stack"""
         if not isinstance(__n, int):
             return NotImplemented
-        return fgb.stack(*((self,) * __n), inplace=False)
+        return fgb.stack(*((self,) * __n))
 
     def __rmul__(self, __n: int) -> fgb.Graph:
         """duplicate-n-stack"""
         if not isinstance(__n, int):
             return NotImplemented
-        return fgb.stack(*((self,) * __n), inplace=False)
+        return fgb.stack(*((self,) * __n))
 
     def __or__(self, other: FilterGraphObject | str) -> fgb.Graph:
         """stack"""
-        return fgb.stack(self, other, inplace=False)
+        return self.stack(other)
 
     def __ror__(self, other: FilterGraphObject | str) -> fgb.Graph:
         """stack"""
-        return fgb.stack(other, self, inplace=False)
+        return fgb.stack(other, self)
 
     def __rshift__(
         self,
@@ -850,53 +840,34 @@ class FilterGraphObject(ABC):
             FilterGraphObject
             | str
             | tuple[FilterGraphObject, PAD_INDEX | str]
-            | tuple[FilterGraphObject, PAD_INDEX | str, PAD_INDEX | str]
-            | list[
-                FilterGraphObject
-                | str
-                | tuple[FilterGraphObject, PAD_INDEX | str]
-                | tuple[FilterGraphObject, PAD_INDEX | str, PAD_INDEX | str]
-            ]
+            | tuple[FilterGraphObject, PAD_INDEX | str | None, PAD_INDEX | str]
         ),
     ) -> fgb.Graph:
-        """make one-to-one connections
+        """make one-to-one attachment
 
         self >> other|label
         self >> (index, other|label)
         self >> (index, other_index, other)
-        self >> [other0, other1, ...]
 
         If pad is unspecified (i.e., ``index`` is ``None`` or the last
         element of ``index`` is ``None``), chain connection is sought first
         unless multiple other connection points are given.
         """
 
-        def parse_other(other):
-            if not isinstance(other, fgb.Filter) and isinstance(other, tuple):
-                if len(other) > 2:
-                    index, other_index, other = other
-                else:
-                    index, other = other
-                    other_index = None
-            else:
-                index = other_index = None
+        left_on = right_on = None
+        if isinstance(other, tuple):
+            n = len(other)
+            if n == 0 or n > 3:
+                return NotImplemented
+            right = other[-1]
 
-            return other, index, other_index
-
-        # if output is a list
-        if isinstance(other, list):
-            if len(other) == 0:
-                raise ValueError("At least one `other` filtergraph must be specified.")
-
-            # match the pad indices first
-            right, left_on, right_on = [
-                [*t] for t in zip(*(parse_other(o) for o in other))
-            ]
+            if n > 1:
+                left_on = other[0]
+                right_on = other[1] if n > 2 else None
         else:
-            # parse other argument, separate the indices if given
-            right, left_on, right_on = parse_other(other)
+            right = other
 
-        return fgb.attach(self, right, left_on, right_on, inplace=False)
+        return self.attach(right, left_on, right_on, inplace=False)
 
     def __rrshift__(
         self,
@@ -905,12 +876,6 @@ class FilterGraphObject(ABC):
             | str
             | tuple[PAD_INDEX | str, FilterGraphObject]
             | tuple[PAD_INDEX | str, PAD_INDEX | str, FilterGraphObject]
-            | list[
-                FilterGraphObject
-                | str
-                | tuple[PAD_INDEX | str, FilterGraphObject]
-                | tuple[PAD_INDEX | str, PAD_INDEX | str, FilterGraphObject]
-            ]
         ),
     ) -> fgb.Graph:
         """make one-to-one connections
@@ -924,32 +889,20 @@ class FilterGraphObject(ABC):
         unless multiple other connection points are given.
         """
 
-        def parse_other(other):
-            if not isinstance(other, fgb.Filter) and isinstance(other, tuple):
-                if len(other) > 2:
-                    other, other_index, index = other
-                else:
-                    other, index = other
-                    other_index = None
-            else:
-                index = other_index = None
+        left_on = right_on = None
+        if isinstance(other, tuple):
+            n = len(other)
+            if n == 0 or n > 3:
+                return NotImplemented
+            left = other[0]
 
-            return other, index, other_index
-
-        # if output is a list
-        if isinstance(other, list):
-            if len(other) == 0:
-                raise ValueError("At least one `other` filtergraph must be specified.")
-
-            # match the pad indices first
-            left, right_on, left_on = [
-                [*t] for t in zip(*(parse_other(o) for o in other))
-            ]
+            if n > 1:
+                right_on = other[-1]
+                left_on = other[1] if n > 2 else None
         else:
-            # parse other argument, separate the indices if given
-            left, right_on, left_on = parse_other(other)
+            left = other
 
-        return fgb.attach(left, self, left_on, right_on, inplace=False)
+        return self.rattach(left, left_on, right_on, inplace=False)
 
     def resolve_pad_index(
         self,

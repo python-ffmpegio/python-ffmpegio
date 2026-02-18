@@ -403,7 +403,7 @@ class GraphLinks(UserDict):
     @staticmethod
     def combine(
         link_objs: Sequence[GraphLinks | None], cumsum_chains: Sequence[int]
-    ) -> tuple[GraphLinks, list[dict[tuple[int, str | int], str | int]]]:
+    ) -> tuple[GraphLinks, list[dict[tuple[int, str | int], str | int]] | None]:
         """combine ``GraphLinks`` objects into one, resolving duplicate labels
 
         :params link_objs: ``GraphLinks`` objects to be combined. If ``None``,

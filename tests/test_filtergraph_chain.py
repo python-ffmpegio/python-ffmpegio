@@ -3,8 +3,9 @@ import operator
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio import filtergraph as fgb
 import pytest
+
+from ffmpegio import filtergraph as fgb
 
 
 def test_fchain():
@@ -142,41 +143,99 @@ def test_iter_output_pads(
                 assert out_index[0] == index[0] - 1
 
 
-@pytest.mark.parametrize(
-    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
-    [
-        ("fps,scale", False, False, False, 1),
-        ("fps,scale", True, True, True, 1),
-        ("nullsrc,fps", False, False, False, 1),
-        ("nullsrc,fps", True, False, False, 0),
-        ("fps,nullsink", False, False, False, 1),
-        ("fps,nullsink", False, True, False, 0),
-    ],
-)
-def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
-    f = fgb.Chain(expr)
-    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
-    assert len(chains) == ret
+def test_iter_chains():
+    assert len([*fgb.Chain("fps,scale").iter_chains()]) == 1
+    assert len([*fgb.Chain().iter_chains()]) == 0
 
 
 @pytest.mark.parametrize(
     "op, lhs,rhs,expected",
     [
         # fmt:off
-        (operator.__add__, fgb.Chain("scale"), "overlay", "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
-        (operator.__add__, "scale", fgb.Chain("overlay"), "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"),
-        (operator.__rshift__, fgb.Chain("split"), "hflip", "[UNC0]split[L0][UNC1];[L0]hflip[UNC2]"),
-        (operator.__rshift__, fgb.Chain("split"), (1, "overlay"), "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]"),
-        (operator.__rshift__, fgb.Chain("split"), (1, "[in]overlay"), "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]"),
-        (operator.__rshift__, fgb.Chain("split"), (1, 1, "overlay"), "[UNC0]split[UNC2][L0];[UNC1][L0]overlay[UNC3]"),
-        (operator.__rshift__, fgb.Chain("split"), (None, '[over]', "[base][over]overlay"), "[UNC0]split[L0][UNC1];[base][L0]overlay[UNC2]"),
-        (operator.__rshift__, "hflip", fgb.Chain("overlay"), "[UNC0]hflip[L0];[L0][UNC1]overlay[UNC2]"),
-        (operator.__rshift__, ("split",1), fgb.Chain("overlay"), "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]"),
-        (operator.__rshift__, ("split",(0,1)), fgb.Chain("overlay"), "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]"),
-        (operator.__rshift__, ("split[out]",1), fgb.Chain("overlay"), "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]"),
-        (operator.__rshift__, ("split[out]", '[out]',None), fgb.Chain("overlay"), "[UNC0]split[L0][UNC2];[L0][UNC1]overlay[UNC3]"),
-        (operator.__rshift__, ["scale","fps"], fgb.Chain("hstack"), "[UNC0]scale[L0];[UNC1]fps,[L0]hstack[UNC2]"),
-        (operator.__rshift__, fgb.Chain("split"), ["[v1]","[v2]"], "[UNC0]split[v1][v2]"),
+        (
+            operator.__add__,
+            fgb.Chain("scale"),
+            "overlay",
+            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
+        ),
+        (
+            operator.__add__,
+            "scale",
+            fgb.Chain("overlay"),
+            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Chain("split"),
+            "hflip",
+            "[UNC0]split[L0][UNC1];[L0]hflip[UNC2]",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Chain("split"),
+            (1, "overlay"),
+            "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Chain("split"),
+            (1, "[in]overlay"),
+            "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Chain("split"),
+            (1, 1, "overlay"),
+            "[UNC0]split[UNC2][L0];[UNC1][L0]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Chain("split"),
+            (None, "[over]", "[base][over]overlay"),
+            "[UNC0]split[L0][UNC1];[base][L0]overlay[UNC2]",
+        ),
+        (
+            operator.__rshift__,
+            "hflip",
+            fgb.Chain("overlay"),
+            "[UNC0]hflip[L0];[L0][UNC1]overlay[UNC2]",
+        ),
+        (
+            operator.__rshift__,
+            ("split", 1),
+            fgb.Chain("overlay"),
+            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            ("split", (0, 1)),
+            fgb.Chain("overlay"),
+            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            ("split[out]", 1),
+            fgb.Chain("overlay"),
+            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            ("split[out]", "[out]", None),
+            fgb.Chain("overlay"),
+            "[UNC0]split[L0][UNC2];[L0][UNC1]overlay[UNC3]",
+        ),
+        (
+            operator.__rshift__,
+            ["scale", "fps"],
+            fgb.Chain("hstack"),
+            "[UNC0]scale[L0];[UNC1]fps,[L0]hstack[UNC2]",
+        ),
+        (
+            operator.__rshift__,
+            fgb.Chain("split"),
+            ["[v1]", "[v2]"],
+            "[UNC0]split[v1][v2]",
+        ),
         # (operator.__rshift__, fgb.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
         # fmt:on
     ],

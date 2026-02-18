@@ -4,12 +4,13 @@ import itertools
 import re
 from collections.abc import Sequence
 from fractions import Fraction
+from typing import Literal, overload
 
 # Filter string parser/composer
 # For FilterGraph class, see ../filtergraph.py
 
 # various regexp objects used in the module
-_re_name_id = re.compile(r"\s*([a-zA-Z0-9_]+)(?:\s*@\s*([a-zA-Z0-9_]+))?\s*(?:=|$)")
+_re_name_id = re.compile(r"\s*([a-z0-9_]+)(?:\s*@\s*([a-zA-Z0-9_]+))?\s*(?:=|$)")
 _re_labels = re.compile(r"\s*\[\s*(.+?)\s*\]")
 _re_graph = re.compile(r"(?<!\\)(?:\\\\)*('|;|,|\[)|$")
 _re_esc2 = re.compile(r"([\\\'\[\];,])")
@@ -19,26 +20,30 @@ _re_esc = re.compile(r"\\(.)")
 _re_args_kw = re.compile(r"\s*([a-zA-Z0-9_]+)\s*=\s*(.+)\s*")
 
 
-def parse_filter_args(expr):
+def parse_filter_args(
+    expr: str,
+) -> tuple[
+    tuple[str | int | float | Fraction, ...],
+    dict[str, str, str | int | float | Fraction],
+]:
     """parse filter argument string
 
     :param expr: filter argument string
-    :type expr: str
-    :return: list of argument strings; last element may be a dict of key-value pairs
-    :rtype: list of str + dict
+    :return args: tuple of positional arguments
+    :return kwargs: dict of keyword arguments
     """
 
     def conv_val(s):
         # convert a numeric option value
         try:
             return int(s)
-        except:
+        except ValueError:
             try:
                 return float(s)
-            except:
+            except ValueError:
                 try:
                     return Fraction(s)
-                except:
+                except ValueError:
                     return s
 
     # remove escaped single quotes
@@ -73,21 +78,24 @@ def parse_filter_args(expr):
     )
 
     # gather ordered options
-    args = [conv_val(s.rstrip()) for s in (all_args if ikw is None else all_args[:ikw])]
+    args = tuple(
+        conv_val(s.rstrip()) for s in (all_args if ikw is None else all_args[:ikw])
+    )
 
-    if ikw is not None:
+    if ikw is None:
+        kwargs = {}
+    else:
         # if named options are given, form a dict
         def get_kw(arg):
             m = _re_args_kw.match(arg)
             return m[1], conv_val(m[2].rstrip())
 
         kwargs = {k: v for k, v in (get_kw(arg) for arg in all_args[ikw:])}
-        args = [*args, kwargs]
 
-    return args
+    return args, kwargs
 
 
-def compose_filter_args(*args: tuple[str, ...]) -> str:
+def compose_filter_args(args: tuple, kwargs: dict) -> str:
     """compose once-escaped filter argument string
 
     :param args: list of argument strings; last element may be a dict of key-value pairs
@@ -120,10 +128,6 @@ def compose_filter_args(*args: tuple[str, ...]) -> str:
 
         return s
 
-    kwargs = args[-1] if len(args) > 0 and isinstance(args[-1], dict) else None
-    if kwargs is not None:
-        args = args[:-1]
-
     args = ":".join([finalize_option_value(i) for i in args])
     if kwargs:
         kwargs = ":".join(
@@ -136,14 +140,20 @@ def compose_filter_args(*args: tuple[str, ...]) -> str:
 ###################################################################################################
 
 
-def parse_filter(expr):
+def parse_filter(
+    expr: str,
+) -> tuple[
+    str | tuple[str, str],
+    tuple[str | int | float | Fraction],
+    dict[str, str | int | float | Fraction],
+]:
     """Parse FFmpeg filter expression
 
     :param expr: filter expression, escaped special characters once
-    :type expr: str
-    :return: filter name followed by arguments, followed by a dict containing id string
-             (empty if id not given)
-    :rtype: tuple(str, *args, {['id':str]})
+    :return name: filter name. If filter id is specified (i.e., ``'name@id'``)
+        a tuple of the name and id are returned instead.
+    :return args: positional arguments
+    :return kwargs: keyword arguments
     """
 
     m = _re_name_id.match(expr, 0)
@@ -153,33 +163,50 @@ def parse_filter(expr):
             f'"{expr}" does not start with a valid filter name or not terminated "=" character.'
         )
 
-    name, id = m.groups()
+    filter_name, filter_id = m.groups()
     s_args = expr[m.end() :]
 
     try:
-        args = parse_filter_args(s_args) if s_args else []
-    except:
-        raise ValueError(f'"{expr}" is not a valid filter expression.')
+        args, kwargs = parse_filter_args(s_args) if s_args else ((), {})
+    except Exception as e:
+        raise ValueError(f'"{expr}" is not a valid filter expression.') from e
 
-    return (((name, id) if id else name), *args)
+    return filter_name if filter_id is None else (filter_name, filter_id), args, kwargs
 
 
-def compose_filter(name, *args):
-    """Compose FFmpeg filter expression
+@overload
+def compose_filter(
+    name: str | tuple[str, str],
+    args: tuple[str | int | float | Fraction],
+    kwargs: dict[str, str | int | float | Fraction],
+) -> str:
+    """compose filter expression from args and kwargs
 
-    :param name: filter name, optionally seq of name & id
-    :type name: str or (str, str)
-    :param args: option value sequence
-    :type args: seq of stringifyable items + last item may be a dict to hold
-                key-value pairs
+    :param name: filter name or a pair of filter name and id strings
+    :param args: tuple of positional arguments
+    :param kwargs: dict of keyword arguments
     :return: filter expression, once escaped
-    :rtype: str
     """
+
+
+def compose_filter(
+    name: str | tuple[str, str],
+    *args: *tuple[str | int | float | Fraction],
+    **kwargs: dict[str, str | int | float | Fraction],
+) -> str:
+    """compose filter expression from expanded positional & keyword arguments
+
+    :param name: filter name or a pair of filter name and id strings
+    :return: filter expression, once escaped
+    """
+
+    if len(args) == 2 and isinstance(args[0], tuple) and isinstance(args[1], dict):
+        args, kwargs = args
 
     expr = name if isinstance(name, str) else f"{name[0]}@{name[1]}"
 
-    if len(args):
-        expr = f"{expr}={compose_filter_args(*args)}"
+    if len(args) or len(kwargs):
+        expr = f"{expr}={compose_filter_args(args, kwargs)}"
 
     return expr
 
@@ -188,16 +215,46 @@ def compose_filter(name, *args):
 
 # FILTERGRAPH PARSER/COMPOSER
 
+FilterSpecTuple = tuple[str | tuple[str, str], tuple, dict]
 
-def parse_graph(expr):
+
+@overload
+def parse_graph(
+    expr: str, parse_filters: Literal[True]
+) -> tuple[
+    list[list[FilterSpecTuple]],
+    dict[str, tuple[tuple | list[tuple] | None, tuple | None]],
+    str | None,
+]: ...
+@overload
+def parse_graph(
+    expr: str, parse_filters: Literal[False]
+) -> tuple[
+    list[list[str]],
+    dict[str, tuple[tuple | list[tuple] | None, tuple | None]],
+    str | None,
+]: ...
+def parse_graph(
+    expr: str, parse_filters: bool = True
+) -> tuple[
+    list[list],
+    dict[str, tuple[tuple | list[tuple] | None, tuple | None]],
+    str | None,
+]:
     """parse filter graph expression
 
     :param expr: twice-escaped filter graph string
-    :type expr: str
-    :return: tuple of unescaped filter graph blob, input labels, output labels, chain links, and sws_flags list
-    :rtype: (list of list of (name, args, id), dict, dict, dict, list)
-    :return: tuple of unescaped filter graph blob, pad link map, and sws_flags list
-    :rtype: (list of list of (name, args, id), dict, list)
+    :param parse_filters: ``True`` (default) to convert individual filter
+        expressions to ``FilterSpecTuple``. ``False`` to keep the filter
+        expressions as (escaped) strings.
+    :return filter_specs: list of lists of filters. If ``parse_filters=True``,
+        filters are parsed to a tuple of name (or a tuple of name and id),
+        a tuple of positional options, and a dict of keyword options. If
+        ``parsed_filters=False``, escaped filter expressions are returned.
+    :return link_specs: a mapping of link labels and pairs of output and input
+        pads.
+    :return sws_flags: optional ``flags`` option for automatically inserted
+        scale filters (FFmpeg defaults to ``'bicubic'``).
 
     Note
     ----
@@ -259,7 +316,7 @@ def parse_graph(expr):
     # get scale flags if given
     m = re.match(r"\s*sws_flags=(.+?);", expr)
     if m:
-        sws_flags = parse_filter_args(m[1])
+        sws_flags = m[1]
         i = m.end()
     else:
         sws_flags = None
@@ -283,7 +340,7 @@ def parse_graph(expr):
             i = parse_labels(expr, j - 1, bool(fs), cid, fid)  # grab all labels
             if i == n:
                 # add new filter to the chain
-                fc.append(parse_filter(fs))
+                fc.append(parse_filter(fs) if parse_filters else fs)
 
                 # if new chain, add it to the graph
                 if not fid:
@@ -304,7 +361,7 @@ def parse_graph(expr):
 
             else:
                 # add new filter to the chain
-                fc.append(parse_filter(fs))
+                fc.append(parse_filter(fs) if parse_filters else fs)
 
                 # if new chain, add it to the graph
                 if not fid:
@@ -322,20 +379,19 @@ def parse_graph(expr):
     return (fg, links, sws_flags)
 
 
-def compose_graph(filter_specs, links=None, sws_flags=None):
+def compose_graph(
+    filter_specs: Sequence[Sequence[str | FilterSpecTuple]],
+    links: dict[str, tuple[tuple | list[tuple] | None, tuple | None]] | None = None,
+    sws_flags: str | None = None,
+) -> str:
     """Compose complex filter graph
-    :param filter_specs: a nested sequence of argument sequences to compose_filter() to define
-               a filter graph. The last element of each filter argument sequence
-               may be a dict, defining its keyword arguments.
-    :type filter_specs: seq(seq(filter_args))
+    :param filter_specs: a nested sequence of argument sequences to 
+        ``compose_filter()`` to define a filter graph. The last element of each 
+        filter argument sequence may be a dict, defining its keyword arguments.
     :param links: specifies how non-sequential filters are linked. See below for the specification.
-    :type links: dict, optional
     :param sws_flags: specify swscale flags for those automatically inserted
                       scalers, defaults to None
-    :type sws_flags: seq of stringifyable elements with optional dict as the last
-                     element for the keyword flags, optional
     :returns: filter graph expression
-    :rtype: str
 
     Note
     ----
@@ -507,11 +563,7 @@ def compose_graph(filter_specs, links=None, sws_flags=None):
     # COMPOSE FILTER GRAPH
 
     # add optional auto-scaling filter arguments
-    expr = (
-        ""
-        if sws_flags is None
-        else f"sws_flags={escape(compose_filter_args(*sws_flags))};"
-    )
+    expr = "" if sws_flags is None else f"sws_flags={sws_flags};"
 
     # form individual filters, form chains, then comine them into graphs
     expr += ";".join(

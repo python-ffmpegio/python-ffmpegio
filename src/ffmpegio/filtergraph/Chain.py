@@ -10,7 +10,7 @@ from .exceptions import (
     FiltergraphInvalidExpression,
     FiltergraphInvalidIndex,
 )
-from .typing import PAD_INDEX, Literal
+from .typing import PAD_INDEX, Iterable, Literal
 
 __all__ = ["Chain"]
 
@@ -32,38 +32,55 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     class Error(FFmpegioError):
         pass
 
-    def __init__(self, filter_specs=None):
-        # convert str to a list of filter_specs
+    def __init__(
+        self,
+        filter_specs: str
+        | fgb.abc.FilterGraphObject
+        | Iterable[str | fgb.Filter] = None,
+    ):
+        """FFmpeg filterchain
 
-        if isinstance(filter_specs, fgb.Graph):
+        :param filter_specs: filtergraph specification, defaults to create an
+            empty graph. Acceptable formats include:
+
+            * ``str`` of a single-chain FFmpeg filtergraph expression without
+                any labels or the ``'[sws_flags=flags;]'`` clause.
+            * ``Chain`` object to copy-construct
+            * ``Filter`` object to create a single-filter chain
+            * ``Graph`` object with only one chain without any labels or
+                ``sws_flags``
+            * An iterable of ``Filter`` constructor arguments
+        """
+
+        if isinstance(filter_specs, str):
+            filter_specs, links, sws_flags = filter_utils.parse_graph(
+                filter_specs, False
+            )
+            if links:
+                raise ValueError(
+                    "filter_specs with link labels cannot be represented by the Chain class. Use Graph instead."
+                )
+            if sws_flags:
+                raise ValueError(
+                    "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph instead."
+                )
+            if len(filter_specs) != 1:
+                raise ValueError(
+                    "filter_specs str must resolve to a single-chain filtergraph. Use Graph instead."
+                )
+            filter_specs = filter_specs[0]
+        elif isinstance(filter_specs, fgb.Graph):
             if not filter_specs.is_simple_chain():
                 raise TypeError(
-                    "Cannot convert a multi-chain or linked `Graph` object to a `Chain` object"
+                    "Cannot convert only a 'simple-chain' `Graph` object can be converted to a `Chain` object"
                 )
-            filter_specs = filter_specs[0] if len(filter_specs) > 0 else ""
-
-        if isinstance(filter_specs, fgb.Filter):
+            filter_specs = filter_specs[0] if len(filter_specs) > 0 else []
+        elif isinstance(filter_specs, fgb.Filter):
             filter_specs = [filter_specs]
-        elif filter_specs is not None:
-            if isinstance(filter_specs, str):
-                filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-                if links:
-                    raise ValueError(
-                        "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
-                    )
-                if sws_flags:
-                    raise ValueError(
-                        "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph."
-                    )
-                if len(filter_specs) != 1:
-                    raise ValueError(
-                        "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
-                    )
-                filter_specs = filter_specs[0]
+        elif filter_specs is None:
+            filter_specs = []
 
-            filter_specs = (fgb.as_filter(fspec) for fspec in filter_specs)
-
-        UserList.__init__(self, () if filter_specs is None else filter_specs)
+        super().__init__([fgb.as_filter(spec) for spec in filter_specs])
 
     def compose(
         self,
@@ -222,32 +239,14 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             self.data = fg.data
             return self
 
-    def iter_chains(
-        self,
-        skip_if_no_input: bool = False,
-        skip_if_no_output: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[int, fgb.Chain]]:
+    def iter_chains(self) -> Generator[fgb.Chain]:
         """iterate over chains of the filtergraphobject
 
-        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
-        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
-        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
-                               arguments to require chainable input or output, defaults to False to
-                               allow any input/output
-        :yield: chain id and chain object
+        :yields: chain object
         """
 
-        if not len(self):
-            return
-
-        if skip_if_no_input and self.next_input_pad() is None:
-            return
-
-        if skip_if_no_output and self.next_output_pad() is None:
-            return
-
-        yield (0, self)
+        if len(self):
+            yield self
 
     def _iter_pads(
         self,
@@ -538,7 +537,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         """helper for connect and rconnect"""
 
         fg = graph_connect(
-            fgb.as_filtergraph(self),
+            fgb.Graph(self),
             other,
             from_left,
             to_right,
@@ -621,8 +620,8 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
                 ),
             )
 
-        left_pad = next(self.iter_output_pads(chainable_only=True))
-        right_pad = next(right_obj.iter_input_pads(chainable_only=True))
+        left_pad = next(self.iter_output_pads(chainable_only=True))[0]
+        right_pad = next(right_obj.iter_input_pads(chainable_only=True))[0]
         return self.connect(
             right_obj, left_pad, right_pad, chain_siso=chain_siso, inplace=inplace
         )
