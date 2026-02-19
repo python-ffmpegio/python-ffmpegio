@@ -6,7 +6,7 @@ from collections.abc import Generator, Sequence
 from .. import filtergraph as fgb
 from .exceptions import *
 from .GraphLinks import GraphLinks
-from .typing import JOIN_HOW, PAD_INDEX, Literal, get_args
+from .typing import JOIN_HOW, PAD_INDEX, Literal, Self, get_args
 
 __all__ = ["FilterGraphObject"]
 
@@ -28,6 +28,10 @@ class FilterGraphObject(ABC):
         :param input: True to get the input count, False for the output count.
         """
         return self.get_num_inputs() if input else self.get_num_outputs()
+
+    @abstractmethod
+    def copy(self) -> Self:
+        """(deep) copy filtergraph object"""
 
     @abstractmethod
     def get_num_inputs(self) -> int:
@@ -682,7 +686,7 @@ class FilterGraphObject(ABC):
 
             nleft, nright = len(left_pads), len(right_pads)
             if strict and nleft != nright:
-                raise FFmpegioError(
+                raise FiltergraphMismatchError(
                     "`[stict=True] number of unconnected pads must match."
                 )
             n_max = min(nleft, nright)

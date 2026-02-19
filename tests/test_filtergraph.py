@@ -345,7 +345,7 @@ def test_rattach(right, left, right_on, out):
             "[lb]trim;scale[la]",
             False,
             None,
-            None,
+            "[la0]fps[UNC2];[UNC0]crop[lb0];[lb1]trim[UNC3];[UNC1]scale[la1]",
         ),
         (
             "[la]fps;crop[lb]",
@@ -354,20 +354,26 @@ def test_rattach(right, left, right_on, out):
             None,
             "[la]fps[UNC2];[UNC0]crop[lb];[lb]trim[UNC3];[UNC1]scale[la]",
         ),
-        ("sws_flags=w=200;fps;crop", "sws_flags=h=400;trim;scale", False, None, None),
         (
-            "sws_flags=w=200;fps;crop",
-            "sws_flags=h=400;trim;scale",
+            "sws_flags=fast_bilinear;fps;crop",
+            "sws_flags=bicubic;trim;scale",
             False,
-            False,
-            "sws_flags=w=200;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
+            None,
+            None,
         ),
         (
-            "sws_flags=w=200;fps;crop",
-            "sws_flags=h=400;trim;scale",
+            "sws_flags=fast_bilinear;fps;crop",
+            "sws_flags=bicubic;trim;scale",
             False,
-            True,
-            "sws_flags=h=400;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
+            "first",
+            "sws_flags=fast_bilinear;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
+        ),
+        (
+            "sws_flags=fast_bilinear;fps;crop",
+            "sws_flags=bicubic;trim;scale",
+            False,
+            "last",
+            "sws_flags=bicubic;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
         ),
     ],
 )
@@ -376,9 +382,11 @@ def test_stack(fg, other, auto_link, replace_sws_flags, out):
     fg = fgb.Graph(fg)
     if out is None:
         with pytest.raises(fgb.Graph.Error):
-            fg = fg.stack(other, auto_link, replace_sws_flags)
+            fg = fg.stack(
+                other, auto_link=auto_link, sws_flags_policy=replace_sws_flags
+            )
     else:
-        fg = fg.stack(other, auto_link, replace_sws_flags)
+        fg = fg.stack(other, auto_link=auto_link, sws_flags_policy=replace_sws_flags)
         assert fg.compose() == out
 
 

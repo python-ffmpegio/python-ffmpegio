@@ -57,21 +57,21 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
                 filter_specs, False
             )
             if links:
-                raise ValueError(
+                raise fgb.FiltergraphInvalidExpression(
                     "filter_specs with link labels cannot be represented by the Chain class. Use Graph instead."
                 )
             if sws_flags:
-                raise ValueError(
+                raise fgb.FiltergraphInvalidExpression(
                     "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph instead."
                 )
             if len(filter_specs) != 1:
-                raise ValueError(
+                raise fgb.FiltergraphInvalidExpression(
                     "filter_specs str must resolve to a single-chain filtergraph. Use Graph instead."
                 )
             filter_specs = filter_specs[0]
         elif isinstance(filter_specs, fgb.Graph):
             if not filter_specs.is_simple_chain():
-                raise TypeError(
+                raise fgb.FiltergraphConversionError(
                     "Cannot convert only a 'simple-chain' `Graph` object can be converted to a `Chain` object"
                 )
             filter_specs = filter_specs[0] if len(filter_specs) > 0 else []
@@ -81,6 +81,9 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             filter_specs = []
 
         super().__init__([fgb.as_filter(spec) for spec in filter_specs])
+
+    def copy(self) -> Chain:
+        return Chain(self)
 
     def compose(
         self,

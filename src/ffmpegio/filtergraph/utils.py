@@ -6,6 +6,8 @@ from collections.abc import Sequence
 from fractions import Fraction
 from typing import Literal, overload
 
+from .exceptions import FiltergraphInvalidExpression
+
 # Filter string parser/composer
 # For FilterGraph class, see ../filtergraph.py
 
@@ -56,7 +58,9 @@ def parse_filter_args(
         s = next(arg_iter, None)
 
         if not in_quote and any((c in s for c in ",;[]")):
-            raise ValueError("filter specification includes reserved characters ',;[]'")
+            raise FiltergraphInvalidExpression(
+                "filter specification includes reserved characters ',;[]'"
+            )
 
         if s is None:
             break
@@ -169,7 +173,9 @@ def parse_filter(
     try:
         args, kwargs = parse_filter_args(s_args) if s_args else ((), {})
     except Exception as e:
-        raise ValueError(f'"{expr}" is not a valid filter expression.') from e
+        raise FiltergraphInvalidExpression(
+            f'"{expr}" is not a valid filter expression.'
+        ) from e
 
     return filter_name if filter_id is None else (filter_name, filter_id), args, kwargs
 
@@ -296,7 +302,7 @@ def parse_graph(
                     # more matching labels
                     padspecs.append(padspec)
             else:
-                raise ValueError(
+                raise FiltergraphInvalidExpression(
                     f"Filter graph specifies multiple '{label}' {'output' if output else 'input'} pads."
                 )
 
@@ -353,7 +359,7 @@ def parse_graph(
                 # add quoted text to fs unchanged
                 j = expr.find("'", i) + 1
                 if j <= 0:
-                    raise ValueError(
+                    raise FiltergraphInvalidExpression(
                         "a quote in the filter graph string not terminated properly"
                     )
                 fs += expr[i - 1 : j]

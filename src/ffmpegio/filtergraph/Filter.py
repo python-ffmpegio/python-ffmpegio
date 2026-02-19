@@ -107,7 +107,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
                     filter_id = _filter_id
             if len(_args) > 0 or len(_kwargs) > 0:
                 if len(args) or len(kwargs):
-                    raise TypeError(
+                    raise fgb.FiltergraphInvalidExpression(
                         "Filter arguments can only be passed via either in a Filter expression or the function arguments"
                     )
                 args = _args
@@ -117,7 +117,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
             no_id = filter_id is None
             if isinstance(filter_spec, fgb.Graph):
                 if not filter_spec.is_simple_chain() or len(filter_spec[0]) != 1:
-                    raise TypeError(
+                    raise fgb.FiltergraphConversionError(
                         "Cannot convert a multi-filter `Graph` object to a `Filter` object"
                     )
                 filter_spec = filter_spec[0][0]
@@ -125,7 +125,7 @@ class Filter(fgb.abc.FilterGraphObject, tuple):
                     return filter_spec
             elif isinstance(filter_spec, fgb.Chain):
                 if len(filter_spec) != 1:
-                    raise TypeError(
+                    raise fgb.FiltergraphConversionError(
                         "Cannot convert a `Chain` or `Graph` object to a `Filter` object if it does not have exactly one filter."
                     )
                 filter_spec = filter_spec[0]

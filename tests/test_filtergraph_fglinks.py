@@ -424,3 +424,80 @@ def test_remove_label(links, n, nin):
 # "out": (None, (1, 1, 0)),  # named output
 # "sout1": (None, (1, 0, 0)),  # split output label#1
 # "sout2": ((2, 0, 0), (1, 0, 0)),  # split output label#2
+
+
+@pytest.mark.parametrize(
+    ("link_objs,cumsum_chains,res"),
+    [
+        ([], [], ({}, [])),
+        ([None], [0], ({}, [None])),
+        (
+            [
+                GraphLinks(
+                    {
+                        "in": ((0, 0, 0), None),
+                        "out": (None, (1, 0, 0)),
+                        0: ((1, 0, 1), (0, 1, 0)),
+                    }
+                ),
+                GraphLinks(
+                    {
+                        "in": ((0, 0, 0), None),
+                        "link": ((1, 0, 0), (0, 0, 0)),
+                        0: ((1, 0, 1), (0, 1, 0)),
+                        1: ((0, 1, 0), (2, 0, 0)),
+                    }
+                ),
+            ],
+            [0, 2],
+            (
+                {
+                    "in0": ((0, 0, 0), None),
+                    "in1": ((2, 0, 0), None),
+                    "out": (None, (1, 0, 0)),
+                    "link": ((3, 0, 0), (2, 0, 0)),
+                    0: ((1, 0, 1), (0, 1, 0)),
+                    1: ((3, 0, 1), (2, 1, 0)),
+                    2: ((2, 1, 0), (4, 0, 0)),
+                },
+                [
+                    {"in": "in0", "out": "out", 0: 0},
+                    {"in": "in1", "link": "link", 0: 1, 1: 2},
+                ],
+            ),
+        ),
+        (
+            [
+                GraphLinks({"0:v:0": ((0, 0, 0), None)}),
+                GraphLinks({"0:v:0": (((0, 0, 0), (1, 0, 0)), None)}),
+            ],
+            [0, 2],
+            (
+                {
+                    "0:v:0": (((0, 0, 0), (2, 0, 0), (3, 0, 0)), None),
+                },
+                [{}, {}],
+            ),
+        ),
+    ],
+)
+def test_combine(link_objs, cumsum_chains, res):
+    out = GraphLinks.combine(link_objs, cumsum_chains)
+    assert out[1] == res[1]
+    assert out[0] == res[0]
+
+
+@pytest.mark.parametrize(
+    "links,res",
+    [
+        (
+            [
+                GraphLinks({"la": ((0, 0, 0), None), "lb": (None, (1, 0, 0))}),
+                GraphLinks({"lb": ((0, 0, 0), None), "la": (None, (1, 0, 0))}),
+            ],
+            [("la", 0, 1), ("lb", 1, 0)],
+        ),
+    ],
+)
+def test_pair_unconnected_labels(links, res):
+    assert res == GraphLinks.pair_unconnected_labels(links)

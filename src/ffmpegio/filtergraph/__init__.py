@@ -112,7 +112,12 @@ from .convert import (
     as_filtergraph_object_like,
     atleast_filterchain,
 )
-from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
+from .exceptions import (
+    FiltergraphConversionError,
+    FiltergraphInvalidExpression,
+    FiltergraphInvalidIndex,
+    FiltergraphPadNotFoundError,
+)
 from .Filter import Filter
 from .Graph import Graph
 
@@ -137,6 +142,8 @@ __all__ = [
     "Graph",
     "FiltergraphInvalidIndex",
     "FiltergraphPadNotFoundError",
+    "FiltergraphConversionError",
+    "FiltergraphInvalidExpression",
 ]
 
 
