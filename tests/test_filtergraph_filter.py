@@ -216,7 +216,7 @@ def test_apply():
         # fmt:off
         (
             operator.__add__,
-            fgb.Filter("scale"),
+            fgb.scale(),
             "overlay",
             "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
         ),

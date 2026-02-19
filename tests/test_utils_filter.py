@@ -2,9 +2,11 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio.filtergraph import utils as filter_utils
 from pprint import pprint
+
 import pytest
+
+from ffmpegio.filtergraph import utils as filter_utils
 
 
 def test_parse_filter():
@@ -44,11 +46,7 @@ def test_compose_filter():
     print(filter_utils.compose_filter("loudnorm"))
 
     f = "loudnorm=print_format=summary:linear=true"
-    print(
-        filter_utils.compose_filter(
-            "loudnorm", dict(print_format="summary", linear=True)
-        )
-    )
+    print(filter_utils.compose_filter("loudnorm", print_format="summary", linear=True))
 
     f = "scale=iw/2:-1"
     print(filter_utils.compose_filter("scale", "iw/2", -1))
@@ -64,16 +62,14 @@ def test_compose_filter():
     print(
         filter_utils.compose_filter(
             "drawtext",
-            dict(
-                fontfile="/usr/share/fonts/truetype/DroidSans.ttf",
-                timecode="09:57:00:00",
-                r=25,
-                x="(w-tw)/2",
-                y="h-(2*lh)",
-                fontcolor="white",
-                box=1,
-                boxcolor="0x00000000@1",
-            ),
+            fontfile="/usr/share/fonts/truetype/DroidSans.ttf",
+            timecode="09:57:00:00",
+            r=25,
+            x="(w-tw)/2",
+            y="h-(2*lh)",
+            fontcolor="white",
+            box=1,
+            boxcolor="0x00000000@1",
         )
     )
 

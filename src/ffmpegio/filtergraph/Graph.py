@@ -1018,7 +1018,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """
 
         if len(others) == 0:
-            return self.copy()
+            return self.copy() if inplace else None
+
+        others = list(fgb.as_filtergraph_object(obj) for obj in others)
 
         new_links, sws_flags, *_ = self._stack_analyze(
             others, auto_link, sws_flags_policy
@@ -1028,7 +1030,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
     def _stack_analyze(
         self,
-        others: tuple[fgb.abc.FilterGraphObject | str],
+        others: tuple[fgb.abc.FilterGraphObject],
         auto_link: bool,
         sws_flags_policy: Literal["first", "last"] | int | None,
         insert_at: int = 0,
@@ -1050,11 +1052,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if auto_link:
             pairs = GraphLinks.pair_unconnected_labels(old_links)
             for label, in_fg, out_fg in pairs:
-                in_label = link_mappings[(in_fg, label)]
-                out_label = link_mappings[(out_fg, label)]
-                new_links.link_by_labels(in_label, out_label)
-            if len(pairs):
-                new_links = new_links.relabel()
+                in_label = link_mappings[in_fg][label]
+                out_label = link_mappings[out_fg][label]
+                new_links.link_by_labels(in_label, out_label, label=label)
 
         # pick sws_flags
         if isinstance(sws_flags_policy, int):

@@ -308,10 +308,11 @@ class GraphLinks(UserDict):
         else:
             self.validate_label(label)
 
+        # delete old labels and create a new link with the chosen label
         if not linked:
-            self[label] = link_value
             del self[in_label]
             del self[out_label]
+            self[label] = link_value
 
         return label
 
@@ -413,8 +414,11 @@ class GraphLinks(UserDict):
         :return combined_link_obj: a new ``GraphLinks`` object of all the links
             combined. Input streams are not linked, and they are returned
             separately as the third output below.
-        :return mapping: mapping a pair of ``link_objs`` index and its old label
-            to its new labels in ``combined_link_obj``.
+        :return mapping: list of mapping pairs for each element of
+            ``link_objs``. Each mapping links ``link_objs`` item's old labels to
+            its new labels in ``combined_link_obj``. If a ``link_objs`` element
+            is a ``None``, a ``None`` is returned in ``mapping`` instead of a
+            ``dict``.
         """
 
         # accumulate all the labels (remove trailing numbers if exist to match)
@@ -430,7 +434,7 @@ class GraphLinks(UserDict):
                 if isinstance(key, str):
                     if links.is_input_stream(label):
                         # update the connected input pads
-                        input_streams[label].append(
+                        input_streams[label].extend(
                             [
                                 (cid + cid0, fid, pid)
                                 for cid, fid, pid in links[label][0]
@@ -457,20 +461,28 @@ class GraphLinks(UserDict):
                     mappings[i][old_label] = new_label
             else:
                 # explicit labels (append a unique suffix number)
-                for j, (i, old_label) in enumerate(matches):
-                    new_label = f"{key}{j}"
-                    mappings[i][old_label] = new_label
+                if len(matches) == 1:  # no duplicate, use as is
+                    i, old_label = matches[0]
+                    mappings[i][old_label] = key
+                else:  # duplicates, append auto-#
+                    for j, (i, old_label) in enumerate(matches):
+                        new_label = f"{key}{j}"
+                        mappings[i][old_label] = new_label
 
         # create the combined object
         combined = GraphLinks()
-        for obj, cid0 in zip(link_objs, cumsum_chains):
+        for obj, cid0, mapping in zip(link_objs, cumsum_chains, mappings):
             if obj is None:
                 continue
             links = cast(GraphLinks, obj)
             for label, (in_pad, out_pad) in links.items():
-                in_pad = (in_pad[0] + cid0, *in_pad[1:])
-                out_pad = (out_pad[0] + cid0, *out_pad[1:])
-                combined[mappings[label]] = (in_pad, out_pad)
+                if label not in mapping:
+                    continue
+                if in_pad is not None:
+                    in_pad = (in_pad[0] + cid0, *in_pad[1:])
+                if out_pad is not None:
+                    out_pad = (out_pad[0] + cid0, *out_pad[1:])
+                combined[mapping[label]] = (in_pad, out_pad)
 
         # add the input streams with the updated pad indices
         for label, in_pads in input_streams.items():
@@ -619,19 +631,17 @@ class GraphLinks(UserDict):
         return (
             lnk
             and lnk[1] is None
-            and (not exclude_stream_specs or isinstance(lnk[0], str))
+            and not (exclude_stream_specs and self.is_input_stream(label))
         )
 
     def is_input_stream(self, label: str) -> bool:
         """``True`` if label specifies an input stream map
 
         :param label: input stream map specifier
-        :param exclude_stream_specs: ``True`` to return ``False`` if the label
-            is an input stream spec.
         :return: ``True`` if label is an input
         """
-        lnk = self.data.get(label, None)
-        return lnk and lnk[1] is None and not isinstance(lnk[0], str)
+
+        return label in self and is_map_option(label, allow_missing_file_id=True)
 
     def is_output(self, label: str) -> bool:
         """``True`` if label specifies an output
