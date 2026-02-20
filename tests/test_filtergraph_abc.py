@@ -132,3 +132,61 @@ def test_resolve_pad_index(
             )
             == ret
         )
+
+
+@pytest.mark.parametrize(
+    "fg, r, how, unlabeled_only, out",
+    [
+        # fmt: off
+        (
+            "fps;crop",
+            "trim;scale",
+            None,
+            False,
+            "[UNC0]fps,trim[UNC2];[UNC1]crop,scale[UNC3]",
+        ),
+        (
+            "[in1]fps;crop[out1]",
+            "[in2]trim;scale[out2]",
+            None,
+            True,
+            "[in0]fps,scale[out1];[UNC0]crop[out0];[in1]trim[UNC1]",
+        ),
+        ("fps", "overlay", "per_chain", False, "[UNC0]fps[L0];[L0][UNC1]overlay[UNC2]"),
+        # fmt: on
+    ],
+)
+def test_join(fg, r, how, unlabeled_only, out):
+    # other, auto_link=False, replace_sws_flags=None,
+    fg = fgb.as_filtergraph_object(fg)
+    if out is None:
+        with pytest.raises(fgb.Graph.Error):
+            fg = fg.join(r, how, unlabeled_only=unlabeled_only)
+    else:
+        fg = fg.join(r, how, unlabeled_only=unlabeled_only)
+        assert fg.compose() == out
+
+
+@pytest.mark.parametrize(
+    "fg, id, out",
+    [
+        # fmt: off
+        ("fps;crop", (0, 0, 0), ((0, 0, 0), None)),
+        ("fps;crop", (1, 0, 0), ((1, 0, 0), None)),
+        ("fps;crop", (0, 1, 0), None),
+        ("fps;crop", "fake", None),
+        ("[la]fps;crop[lb]", "la", ((0, 0, 0), "la")),
+        ("[la]fps;crop[lb]", "lb", None),
+        ("[0:v]fps;[0:v]crop", (0, 0, 0), None),
+        ("[0:v]fps;[0:v]crop", "0:v", None),
+        # fmt: on
+    ],
+)
+def test_get_input_pad(fg, id, out):
+    # other, auto_link=False, replace_sws_flags=None,
+    fg = fgb.as_filtergraph_object(fg)
+    if out is None:
+        with pytest.raises(fgb.FiltergraphPadNotFoundError):
+            fg.get_input_pad(id)
+    else:
+        assert fg.get_input_pad(id) == out

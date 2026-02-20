@@ -603,7 +603,9 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             chainable_only,
         ):
             # exclude a pad connected to an input stream
-            is_stream_spec = is_map_option(other_pidx, allow_missing_file_id=True)
+            is_stream_spec = is_map_option(
+                other_pidx, allow_missing_file_id=True, unique_stream=True
+            )
             if (is_stream_spec and exclude_stream_specs) or (
                 not is_stream_spec and only_stream_specs
             ):
@@ -1241,13 +1243,15 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if len(from_right) != len(to_left):
             raise ValueError("Mismatched number of pads in 'from_left' and 'to_right'")
 
+        other_fg = fgb.as_filtergraph_object(other)
+
         new_links, sws_flags, chain_offsets, link_mappings = self._stack_analyze(
-            [other], False, sws_flags_policy, insert_at
+            [other_fg], False, sws_flags_policy, insert_at
         )
 
         # convert the connecting pads to the new stacked graph to be created
 
-        left, right = (self, other) if insert_at == 0 else (other, self)
+        left, right = (self, other_fg) if insert_at == 0 else (other_fg, self)
 
         def get_pads(
             fg: fgb.abc.FilterGraphObject, pad: PAD_INDEX | str, is_input: bool
@@ -1255,7 +1259,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
             is_right = fg == right
             if isinstance(pad, str):
-                pad = new_links[link_mappings[(is_right, pad)]][not is_input]
+                pad = new_links[link_mappings[is_right][pad]][not is_input]
             else:
                 pad = fg.normalize_pad_index(is_input, pad)
                 pad = (pad[0] + chain_offsets[is_right], *pad[1:])
@@ -1300,15 +1304,17 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if len(chain_links):
             # sort chain_pairs in descending order of trailing chain
             chain_pairs = sorted(
-                ((out_pad[0], in_pad[0]) for out_pad, in_pad in chain_links),
+                ((out_pad, in_pad) for out_pad, in_pad in chain_links),
                 key=lambda cp: cp[1],
                 reverse=True,
             )
 
             # joining chains
-            for cid_out, cid_in in chain_pairs:
+            for out_pad, in_pad in chain_pairs:
+                cid_out, cid_in = out_pad[0], in_pad[0]
+
                 # fix the existing links
-                self._links.combine_chains(cid_out, cid_in, len(self[cid_out]))
+                new_links.combine_chains(out_pad, in_pad, len(self[cid_out]))
 
                 # move the trailing chain to the end of the leading chain
                 fc = new_fg.pop(cid_in)
