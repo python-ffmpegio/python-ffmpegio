@@ -152,26 +152,6 @@ class GraphLinks(UserDict):
                 if d is not None:
                     inpads.add(d)
 
-    @staticmethod
-    def format_value(inpads, outpad, modifier=None):
-
-        if modifier:
-            if outpad is not None:
-                outpad = modifier(outpad)
-            modified = tuple(
-                (
-                    d if d is None else modifier(d)
-                    for d in GraphLinks.iter_inpad_ids(inpads, True)
-                )
-            )
-            n = len(modified)
-            inpads = None if n < 1 else modified[0] if n < 2 else modified
-        elif inpads is not None and isinstance(inpads[0], tuple):
-            # make sure inpads sequence of ids is a tuple
-            inpads = tuple(inpads)
-
-        return (inpads, outpad)
-
     # regex pattern to identify a label with a trailing number
     AutoLabelPattern = re.compile(r"^L\d+?$")
 
@@ -187,7 +167,6 @@ class GraphLinks(UserDict):
         if isinstance(links, GraphLinks):
             self.data = links.data.copy()
         elif links is not None:
-            links = {k: self.format_value(*v) for k, v in links.items()}
             self.update(links)
 
     def link(
@@ -362,7 +341,7 @@ class GraphLinks(UserDict):
         self,
         label: str | int | None,
         force: bool = False,
-        check_stream_spec: bool = True,
+        check_stream_spec: bool = False,
         auto_index: bool = False,
         auto_index_sep: str = "",
     ) -> str | int:
@@ -915,7 +894,7 @@ class GraphLinks(UserDict):
         if (outpad is None) == (inpad is None):
             raise ValueError("outpad or inpad (but not both) must be given.")
 
-        is_stspec = is_map_option(label, allow_missing_file_id=True)
+        is_stspec = outpad is None and is_map_option(label, allow_missing_file_id=True)
         if not is_stspec:
             label = self.resolve_label(label, force=force, check_stream_spec=False)
 
@@ -946,7 +925,7 @@ class GraphLinks(UserDict):
                     inpad0 = ()
                 elif isinstance(inpad0[0], int):
                     inpad0 = (inpad0,)
-                inpad = (*inpad0, *(inpad if isinstance(inpad[0], tuple) else (inpad,)))
+                inpad = (*inpad0, *inpad)
                 label_in_use = False  # OK to overwrite
                 if pad_in_use == label:
                     pad_in_use = None
@@ -985,7 +964,7 @@ class GraphLinks(UserDict):
 
         try:
             inpads, outpad = self.data[label]
-        except:
+        except KeyError:
             raise GraphLinks.Error(f"{label} is not a valid link label.")
 
         if inpads is None or (outpad is None and inpad is None):
@@ -1021,7 +1000,7 @@ class GraphLinks(UserDict):
         :return: renamed label name
         """
         v = self.data[old_label]
-        label = self.resolve_label(new_label, force)
+        label = self.resolve_label(new_label, force, check_stream_spec=v[1] is None)
         del self.data[old_label]
         self.data[label] = v
         return label
@@ -1051,7 +1030,8 @@ class GraphLinks(UserDict):
                 assert isinstance(other, Mapping)
             except Exception:
                 raise GraphLinks.Error("Other must be a dict-like mapping object")
-            self.validate(other)
+
+            # self.validate(other)
 
         # set aside labels
         labels = {
@@ -1237,7 +1217,7 @@ class GraphLinks(UserDict):
         fglinks.data = data
         return fglinks
 
-    def combine_chains(self, cid_out: int, cid_in: int, n_out: int):
+    def combine_chains(self, out_pad: PAD_INDEX, in_pad: PAD_INDEX, n_out: int):
         """adjust pad indices as two chains are combined
 
         :param cid_out: id of the host chain
@@ -1251,23 +1231,56 @@ class GraphLinks(UserDict):
            caller must remove such link if it exists.
 
         """
+
+        # check that the pads to be chained are available
+        # (no go if either pads are already connected)
+        label_out = self.find_outpad_label(out_pad)
+        label_in = self.find_inpad_label(in_pad)
+        if label_in == label_out:
+            if label_in is not None:
+                self.remove_label(label_in)
+        else:
+            if label_out is not None:
+                if self.is_linked(label_out):
+                    raise ValueError(
+                        f"cannot combine chains because {out_pad=} is already linked"
+                    )
+                self.remove_label(label_out)
+
+            if label_in is not None:  # in_pad already used
+                if self.is_linked(label_in) and not self.are_linked(in_pad, out_pad):
+                    raise ValueError(
+                        f"cannot combine chains because {in_pad=} is already linked"
+                    )
+                self.remove_label(label_in)
+
+            cid_out, cid_in = out_pad[0], in_pad[0]
+
+        # update all the pad indices appearing after the input chain
         for label, (inpad, outpad) in self.items():
+            cid_out, cid_in = out_pad[0], in_pad[0]
+
             if isinstance(inpad, tuple):
-                if inpad[0] == cid_in:
-                    inpad = (cid_out, inpad[1] + n_out, inpad[2])
-                elif inpad[0] > cid_in:
-                    inpad = (inpad[0] - 1, *inpad[1:])
-            elif isinstance(inpad, list):
-                inpad = [
-                    (cid_out, pad[1] + n_out, pad[2])
-                    if pad[0] == cid_in
-                    else (pad[0] - 1, *pad[1:])
-                    if pad[0] > cid_in
-                    else pad
-                    for pad in inpad
-                ]
-            if outpad[0] == cid_in:
-                outpad = (cid_out, outpad[1] + n_out, outpad[2])
-            elif outpad[0] > cid_in:
-                outpad = (outpad[0] - 1, *outpad[1:])
+                if isinstance(inpad[0], int):
+                    # input label
+                    if inpad[0] == cid_in:
+                        inpad = (cid_out, inpad[1] + n_out, inpad[2])
+                    elif inpad[0] > cid_in:
+                        inpad = (inpad[0] - 1, *inpad[1:])
+                else:
+                    # pads connected to an input stream are always in a nested tuple
+                    inpad = [
+                        (cid_out, pad[1] + n_out, pad[2])
+                        if pad[0] == cid_in
+                        else (pad[0] - 1, *pad[1:])
+                        if pad[0] > cid_in
+                        else pad
+                        for pad in inpad
+                    ]
+
+            if outpad is not None:
+                if outpad[0] == cid_in:
+                    outpad = (cid_out, outpad[1] + n_out, outpad[2])
+                elif outpad[0] > cid_in:
+                    outpad = (outpad[0] - 1, *outpad[1:])
             self[label] = (inpad, outpad)

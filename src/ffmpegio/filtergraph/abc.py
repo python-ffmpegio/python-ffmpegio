@@ -491,9 +491,9 @@ class FilterGraphObject(ABC):
     def join(
         self,
         right: fgb.abc.FilterGraphObject | str,
-        *,
         how: JOIN_HOW | None = None,
         n_links: int | Literal["all"] | None = None,
+        *,
         strict: bool = False,
         unlabeled_only: bool = False,
         chain_siso: bool = True,
