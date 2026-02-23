@@ -450,6 +450,28 @@ class GraphLinks(UserDict):
         self._auto_count = self._auto_count + 1
         return i
 
+    def __getitem__(self, key: str | int) -> PAD_PAIR_:
+
+        try:
+            try:
+                key_ = self.validate_label(key)
+            except GraphLinks.Error:
+                key_ = self.validate_input_stream(key)
+        except GraphLinks.Error as e:
+            raise KeyError("Unknown label") from e
+
+        return super().__getitem__(key_)
+
+    def __setitem__(self, key: str | int, value: PAD_PAIR):
+
+        # can only set named key
+        if value[0] is None:
+            self.create_label(key, outpad=value[1], force=True)
+        elif value[1] is None:
+            self.create_label(key, inpad=value[0], force=True)
+        else:
+            self.link(value[0], value[1], label=key, force=True)
+
     def link(
         self,
         inpad: PAD_INDEX,
@@ -679,26 +701,38 @@ class GraphLinks(UserDict):
 
         return label
 
-    def unlink(self, label=None, inpad=None, outpad=None):
+    def unlink(
+        self,
+        *,
+        label: str | int | None = None,
+        inpad: PAD_INDEX | None = None,
+        outpad: PAD_INDEX | None = None,
+    ):
         """unlink specified links
 
         :param label: specify all the links with this label, defaults to None
-        :type label: str|int, optional
         :param inpad: specify the link with this inpad pad, defaults to None
-        :type inpad: tuple(int,int,int), optional
         :param outpad: specify all the links with this outpad pad, defaults to None
-        :type outpad: tuple(int,int,int), optional
+
+        Only one of ``label``, ``inpad``, ``outpad`` should be specified. If
+        more than one input argument is given, the preference is given in the
+        order listed.
+
+        If the specified link item does not exist, this function exits quietly.
+
         """
         if label is not None:
-            del self.data[label]
-        if outpad is not None:
-            label = self.find_outpad_label(outpad)
-            if label is not None:
+            if label in self.data:
                 del self.data[label]
-        if inpad is not None:
+                # if int label removed, refresh auto-labels
+                if isinstance(label, int):
+                    self._refresh_autolabels()
+        elif inpad is not None:
             label = self.find_inpad_label(inpad)
-
-            if not self.is_linked(label) and self.is_input_stream(label):
+            if label is None:
+                return
+            if self.is_input_stream(label):
+                # if input stream with multiple connections, only unlink the requested
                 inpads, outpad = self.data[label]
                 if len(inpads) == 1:
                     del self.data[label]
@@ -709,10 +743,11 @@ class GraphLinks(UserDict):
                     )
             else:
                 del self.data[label]
-
-        # if int label removed, refresh auto-labels
-        if isinstance(label, int):
-            self._refresh_autolabels()
+        elif outpad is not None:
+            label = self.find_outpad_label(outpad)
+            if label is None:
+                return
+            del self.data[label]
 
     def rename(self, old_label: str, new_label: str, force: bool = False) -> str:
         """rename a label
@@ -1219,17 +1254,7 @@ class GraphLinks(UserDict):
 
     ############################################################################
 
-    def __setitem__(self, key: str | int, value: PAD_PAIR):
-
-        # can only set named key
-        if value[0] is None:
-            self.create_label(key, outpad=value[1], force=True)
-        elif value[1] is None:
-            self.create_label(key, inpad=value[0], force=True)
-        else:
-            self.link(value[0], value[1], label=key, force=True)
-
-    def is_linked(self, label: str) -> bool:
+    def is_linked(self, label: str, include_stream_specs: bool = False) -> bool:
         """True if label specifies a link
 
         :param label: link label
@@ -1238,7 +1263,10 @@ class GraphLinks(UserDict):
         If multi-inpad label, True if any inpad is not None
         """
         inpad, outpad = self.data.get(label, (None, None))
-        return inpad is not None and outpad is not None
+        is_link = inpad is not None and outpad is not None
+        if not is_link and include_stream_specs:
+            is_link = self.is_input_stream(label)
+        return is_link
 
     def is_input(self, label: str, exclude_stream_specs: bool = False) -> bool:
         """True if label specifies an input
@@ -1251,8 +1279,9 @@ class GraphLinks(UserDict):
         lnk = self.data.get(label, None)
         return (
             lnk
+            and lnk[0] is not None
             and lnk[1] is None
-            and not (exclude_stream_specs and isinstance(lnk[0], tuple))
+            and not (exclude_stream_specs and isinstance(lnk[0][0], tuple))
         )
 
     def is_input_stream(self, label: str) -> bool:
@@ -1262,11 +1291,12 @@ class GraphLinks(UserDict):
         :return: ``True`` if label is an input
         """
 
+        lnk = self.data.get(label, None)
         return (
-            label in self
-            and isinstance(label, str)
-            and self.data[label][0] is not None
-            and isinstance(self.data[label][0][0], tuple)
+            lnk is not None
+            and lnk[0] is not None
+            and lnk[1] is None
+            and isinstance(lnk[0][0], tuple)
         )
 
     def is_output(self, label: str) -> bool:

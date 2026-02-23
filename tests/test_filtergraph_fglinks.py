@@ -126,6 +126,7 @@ def base_links():
     yield GraphLinks(
         {
             "l": ((0, 0, 0), (0, 0, 0)),  # regular link
+            "d": (1, None),  # regular link
             0: ((1, 1, 0), (0, 1, 0)),  # unnamed link
             "in": ((2, 1, 0), None),  # named input
             "0:v": ([(3, 0, 0), (3, 1, 0)], None),  # named inputs
@@ -158,6 +159,7 @@ def test_iter_links(base_links):
 def test_iter_inputs(base_links):
     res = {
         ("in", (2, 1, 0)),  # regular link
+        ("d", (0, 0, 1)),  # regular link
         ("0:v", (3, 0, 0)),  # unnamed link
         ("0:v", (3, 1, 0)),  # split output label#2
     }
@@ -185,6 +187,7 @@ def test_iter_outputs(base_links):
 def test_iter_input_pads(base_links):
     res = {
         ("l", (0, 0, 0), (0, 0, 0)),  # regular link
+        ("d", (0, 0, 1), None),  # regular link
         (0, (1, 1, 0), (0, 1, 0)),  # unnamed link
         ("in", (2, 1, 0), None),  # named input
         ("0:v", (3, 0, 0), None),  # named inputs
@@ -308,6 +311,7 @@ def test_unlink(base_links):
         ),  # links to inherit 'out' output label
         (((4, 0, 0), (1, 1, 0), None, True), 1, None),  # new label
         (((3, 0, 0), (4, 0, 0), None, None, True), 1, None),
+        (((0, 0, 1), (1, 0, 2)), 1, None),
         # links to inherit 'in' input label
         # fmt:on
     ],

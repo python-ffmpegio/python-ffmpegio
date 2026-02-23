@@ -269,31 +269,20 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         # resolve a label string to pad index
         if isinstance(index_or_label, str):  # label given
-            label = (
-                index_or_label[1:-1]
-                if index_or_label[0] == "[" and index_or_label[-1] == "]"
-                else index_or_label
-            )
-
-            try:
-                if is_input:
-                    index_or_label = next(
-                        index
-                        for lbl, index in self.iter_input_labels(
-                            exclude_stream_specs=True
-                        )
-                        if lbl == label
-                    )
-                else:
-                    index_or_label = next(
-                        index
-                        for lbl, index in self.iter_output_labels()
-                        if lbl == label
-                    )
-            except StopIteration as exc:
+            if self._links.is_linked(index_or_label, include_stream_specs=True):
                 raise FiltergraphPadNotFoundError(
-                    f"{index_or_label=} is not defined on the filtergraph."
-                ) from exc
+                    f"Pad with label='{index_or_label}' is already linked"
+                )
+
+            # input/output label (input streams excluded)
+            try:
+                inpad, outpad = self._links[index_or_label]
+            except KeyError:
+                raise FiltergraphPadNotFoundError(
+                    f"Pad with label='{index_or_label}' does not exist"
+                )
+
+            return inpad if is_input else outpad
 
         # obtain 3-element tuple index (unvalidated)
         return super().resolve_pad_index(
@@ -676,9 +665,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         :param exclude_stream_specs: True to not include input streams
         :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
-        for label_index in self._links.iter_inputs(
-            exclude_stream_specs, only_stream_specs
-        ):
+        for label_index in self._links.iter_inputs(exclude_stream_specs):
             yield label_index
 
     def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
