@@ -22,7 +22,6 @@ def test_iter_inpad_ids(dsts, expects):
 @pytest.mark.parametrize(
     ("args", "ok"),
     [
-        (("0:v",), True),
         (("label",), True),
         ((0, True), True),
         ((0.0, True), False),
@@ -38,20 +37,37 @@ def test_validate_label(args, ok):
 
 
 @pytest.mark.parametrize(
-    ("id", "ok"),
+    ("args", "ok"),
     [
-        (None, True),
-        ((0, 0, 0), True),
-        ((0, 0, 0, 0), False),
-        ((0, 0, "0"), False),
+        (("0:v",), True),
+        (("a",), True),
+        (("in",), False),
     ],
 )
-def test_validate_pad_idx(id, ok):
+def test_validate_input_stream(args, ok):
     if ok:
-        GraphLinks.validate_pad_idx(id)
+        GraphLinks.validate_input_stream(*args)
     else:
         with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_pad_idx(id)
+            GraphLinks.validate_input_stream(*args)
+
+
+@pytest.mark.parametrize(
+    ("args", "ok"),
+    [
+        ((None, True), True),
+        ((None, False), False),
+        (((0, 0, 0),), True),
+        (((0, 0, 0, 0),), False),
+        (((0, 0, "0"),), False),
+    ],
+)
+def test_validate_pad_idx(args, ok):
+    if ok:
+        GraphLinks.validate_pad_idx(*args)
+    else:
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate_pad_idx(*args)
 
 
 @pytest.mark.parametrize(
@@ -104,28 +120,8 @@ def test_validate(data, ok):
             GraphLinks.validate(data)
 
 
-@pytest.mark.parametrize(
-    ("args", "expects"),
-    [
-        (((0, 0, 0), None), ((0, 0, 0), None)),
-        (([(0, 0, 0), (1, 0, 0)], None), (((0, 0, 0), (1, 0, 0)), None)),
-        (((0, 0, 0), None, lambda id: (id[0] + 1, *id[1:])), ((1, 0, 0), None)),
-        (
-            ((0, 0, 0), (0, 0, 0), lambda id: (id[0] + 1, *id[1:])),
-            ((1, 0, 0), (1, 0, 0)),
-        ),
-    ],
-)
-def test_format_value(args, expects):
-    if expects is None:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.format_value(*args)
-    else:
-        assert GraphLinks.format_value(*args) == expects
-
-
 # fixture links with one of each type of link items
-@pytest.fixture()
+@pytest.fixture(scope="function")
 def base_links():
     yield GraphLinks(
         {
@@ -143,25 +139,6 @@ def base_links():
 def test_init(base_links):
     GraphLinks()
     base_links
-
-
-@pytest.mark.parametrize(
-    ("labels", "expects"),
-    [
-        ([0, 3, None], [0, 1, 2]),
-        (["a", "b"], ["a", "b"]),
-    ],
-)
-def test_resolve_label(labels, expects):
-    links = GraphLinks()
-
-    def update(label):
-        links.data[links.resolve_label(label)] = None
-
-    for label in labels:
-        update(label)
-
-    assert list(links.keys()) == expects
 
 
 def test_iter_links(base_links):
@@ -226,10 +203,7 @@ def test_iter_input_pads(base_links):
 
 @pytest.mark.parametrize(
     ("key", "expects"),
-    [
-        ("l", ((0, 0, 0), (0, 0, 0))),
-        ((1, 1, 0), (0, (0, 1, 0))),
-    ],
+    [("l", ((0, 0, 0), (0, 0, 0)))],
 )
 def test__getitem__(key, expects, base_links):
 
@@ -333,7 +307,7 @@ def test_unlink(base_links):
             None,
         ),  # links to inherit 'out' output label
         (((4, 0, 0), (1, 1, 0), None, True), 1, None),  # new label
-        (((3, 0, 0), (4, 0, 0)), 1, None),
+        (((3, 0, 0), (4, 0, 0), None, None, True), 1, None),
         # links to inherit 'in' input label
         # fmt:on
     ],
