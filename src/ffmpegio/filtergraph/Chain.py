@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections import UserList
 from collections.abc import Callable, Generator, Sequence
 
+from typing_extensions import Iterable, Literal
+
 from .. import filtergraph as fgb
 from . import utils as filter_utils
 from .exceptions import (
@@ -10,7 +12,7 @@ from .exceptions import (
     FiltergraphInvalidExpression,
     FiltergraphInvalidIndex,
 )
-from .typing import PAD_INDEX, Iterable, Literal
+from .typing import PAD_INDEX
 
 __all__ = ["Chain"]
 

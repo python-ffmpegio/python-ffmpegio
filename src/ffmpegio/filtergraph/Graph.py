@@ -8,13 +8,15 @@ from itertools import accumulate, chain
 from math import floor, log10
 from tempfile import NamedTemporaryFile
 
+from typing_extensions import Iterable, Literal
+
 from .. import filtergraph as fgb
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
 from . import utils as filter_utils
 from .exceptions import *
 from .GraphLinks import GraphLinks
-from .typing import PAD_INDEX, Iterable, Literal
+from .typing import PAD_INDEX
 
 __all__ = ["Graph"]
 
@@ -654,7 +656,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         ):
             yield v
 
-    def get_num_inputs(self, chainable_only=False):
+    def get_num_inputs(self, chainable_only: bool = False) -> int:
         return len(
             list(
                 self.iter_input_pads(
@@ -667,12 +669,11 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         return len(list(self.iter_output_pads(chainable_only=chainable_only)))
 
     def iter_input_labels(
-        self, exclude_stream_specs: bool = False, only_stream_specs: bool = False
+        self, exclude_stream_specs: bool = False
     ) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled input pads of the filtergraph object
 
         :param exclude_stream_specs: True to not include input streams
-        :param only_stream_specs: True to only include input streams
         :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
         """
         for label_index in self._links.iter_inputs(
@@ -950,10 +951,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if nin == 0:
             return False
 
-        inpad = (chain_id, 0, nin - 1)
-        conn_from = self._links.input_dict().get(inpad)
-
-        return conn_from is None or isinstance(conn_from, str)
+        # make sure the chaining input pad is not already linked
+        return not self._links.are_linked(inpad=(chain_id, 0, nin - 1))
 
     def is_chain_appendable(self, chain_id: int) -> bool:
         """True if another chain can be appended to the specified filter chain
@@ -975,10 +974,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
 
         # the last output pad must not be already connected
         filter_id = len(chain) - 1
-        outpad = (chain_id, filter_id, nout - 1)
-
-        conn_to = self._links.output_dict().get(outpad)
-        return conn_to is None or isinstance(conn_to, str)
+        return not self._links.are_linked(outpad=(chain_id, filter_id, nout - 1))
 
     def stack(
         self,

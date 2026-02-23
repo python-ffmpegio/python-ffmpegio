@@ -3,10 +3,12 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 
+from typing_extensions import Literal, Self, get_args
+
 from .. import filtergraph as fgb
 from .exceptions import *
 from .GraphLinks import GraphLinks
-from .typing import JOIN_HOW, PAD_INDEX, Literal, Self, get_args
+from .typing import JOIN_HOW, PAD_INDEX
 
 __all__ = ["FilterGraphObject"]
 
@@ -14,8 +16,6 @@ __all__ = ["FilterGraphObject"]
 class FilterGraphObject(ABC):
     @staticmethod
     def relabel_duplicates(*fgs: tuple[FilterGraphObject]): ...
-
-    def relabel(self, labels: dict[str | int, str | int]): ...
 
     @property
     def links(self) -> GraphLinks | None:
