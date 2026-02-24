@@ -195,10 +195,12 @@ class GraphLinks(UserDict):
 
         if inpad is not None:
             try:
+                # try pad index first
                 inpad = GraphLinks.validate_pad_idx(
                     inpad, none_pos_ok, default_chain_pos, default_filter_pos
                 )
             except GraphLinks.Error:
+                # if failed, try as a sequence of pad indices (linking to an input stream)
                 inpad = tuple(
                     GraphLinks.validate_pad_idx(
                         item, False, default_chain_pos, default_filter_pos
@@ -339,12 +341,12 @@ class GraphLinks(UserDict):
 
         # check label and whether it can be an input stream specifier
         try:
-            label_ = GraphLinks.validate_label(label, is_link=False)
-        except GraphLinks.Error:
             label_ = GraphLinks.validate_input_stream(label)
-            is_stream_spec = True
-        else:
+        except GraphLinks.Error:
+            label_ = GraphLinks.validate_label(label, is_link=False)
             is_stream_spec = False
+        else:
+            is_stream_spec = True
 
         # check the pad pair
         inpad, outpad = GraphLinks.validate_pad_idx_pair(
@@ -357,16 +359,15 @@ class GraphLinks(UserDict):
             )
 
         if inpad is None:
-            if is_stream_spec:
+            if is_stream_spec and not re.match(r"[a-zA-Z0-9_]+$", label):
                 raise GraphLinks.Error("ouput label cannot be a stream specifier")
 
             # output pad - completed
             return label_, (inpad, outpad)
 
         # input pad - check input stream specifier
-        if is_stream_spec:
-            if isinstance(inpad[0], int):
-                inpad = (inpad,)
+        if is_stream_spec and isinstance(inpad[0], int):
+            inpad = (inpad,)
 
         return label_, (inpad, outpad)
 
@@ -632,7 +633,7 @@ class GraphLinks(UserDict):
                 else:
                     raise GraphLinks.Error(f"output pad {outpad_} is already in use.")
 
-            elif outlabel is not False and inlabel != label_:
+            elif outlabel is not False and outlabel != label_:
                 # is an input label
                 pads_to_unlink.append({"label": outlabel})
 
@@ -1334,6 +1335,24 @@ class GraphLinks(UserDict):
             for v in iter(label, *self.data[label]):
                 yield v
 
+    def iter_output_pads(
+        self, label: str | None = None
+    ) -> Generator[str, PAD_INDEX_, PAD_INDEX_ | None]:
+        """Iterate over all ``GraphLinks`` items with an assigned output pad
+
+        :param label: to iterate only on this label, defaults to None (all frames)
+        :yield label: a full link definition (inpad or outpad may be None if input or output label, respectively)
+        :yield inpad: input pad index
+        :yield outpad: output pad index
+        """
+
+        if label is None:  # all output pads
+            for label, (inpad, outpad) in self.data.items():
+                if outpad is not None:
+                    yield (label, inpad, outpad)
+        else:
+            yield label, *self.data[label]
+
     def iter_links(
         self, label: str | None = None, include_input_stream: bool = False
     ) -> Generator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
@@ -1468,57 +1487,53 @@ class GraphLinks(UserDict):
         self,
         inpad: PAD_INDEX | None,
         outpad: PAD_INDEX | None,
-        check_input_stream: bool | str = False,
+        check_input_stream: bool | None = None,
     ) -> bool:
         """True if given pads are linked
 
-        :param inpad: input pad index, default to ``None`` to check if ``outpad`` is connected to any
-                      input pad.
-        :param outpad: output pad index, defaults to ``None`` to check if ``inpad`` is connected to any
-                       output pad or an input stream.
-        :param check_input_stream: True to check inpad is connected to an input stream, or a stream
-                                   specifier string to check the connection to a specific stream, defaults
-                                   to ``False``.
+        :param inpad: input pad index, default to ``None`` to check if
+            ``outpad`` is connected to any input pad.
+        :param outpad: output pad index, defaults to ``None`` to check if
+            ``inpad`` is connected to any output pad or an input stream.
+        :param check_input_stream: ``True`` to check inpad is connected to an
+            input stream, or the default (``None``) behavior to return ``False``
+            for an ambiguous label such as ``'a'`` or ``'v'``, and ``True`` for
+            definitive label such as ``'0:v:0'``.
 
         ``ValueError`` will be raised if both ``inpad`` and ``outpad`` ``None`` or
         if ``include_input_stream!=False`` and ``outpad`` is ``None``.
 
         """
 
-        if isinstance(check_input_stream, str):
-            # check for a specific input stream
-            if outpad is not None:
-                raise ValueError(
-                    f"Both {outpad=} and {check_input_stream=} cannot be specified at the same time."
-                )
+        if inpad is None and outpad is None:
+            raise ValueError("At least one of inpad or outpad must be specified.")
+
+        inpad = self.validate_pad_idx(inpad, none_ok=True)
+        outpad = self.validate_pad_idx(outpad, none_ok=True)
+
+        if inpad is None:  # any link with outpad
+            return any(inp is not None for _, inp, __ in self.iter_output_pads())
+        elif outpad is None:  # any link with inpad
+            for label, inp, outp in self.iter_input_pads():
+                if inp is None:
+                    continue
+
+                if inp == inpad and outp is not None:
+                    return True
+
+                # check input stream link
+                if check_input_stream is not False and isinstance(inp[0], tuple):
+                    if check_input_stream is True and any(p == inpad for p in inp[0]):
+                        return True
+
+                    if check_input_stream is None and len(inp) == 1 and inp[0] == inpad:
+                        # ambiguous input stream connection if it is also a valid link label
+                        return re.match(r"[a-zA-Z0-9_]+$", label) is not None
+        else:  # specific pairing
             return any(
-                inpad == d for _, d, _ in self.iter_input_pads(check_input_stream)
+                inp == inpad and outp == outpad for _, inp, outp in self.iter_links()
             )
-        else:
-            if inpad is None and outpad is None:
-                raise ValueError("At least one of inpad or outpad must be specified.")
-
-            # check internal links first
-            it_links = self.iter_links()
-
-            # single check for a specific outpad
-            if outpad is not None:
-                return any(
-                    (outpad == s for _, _, s in it_links)
-                    if inpad is None
-                    else (outpad == s and inpad == d for _, d, s in it_links)
-                )
-
-            # possible 2-step check for an arbitrary ouput
-
-            # first check internal links
-            res = any(inpad == d for _, d, _ in it_links)
-            # then check for input stream if no link was found
-            return (
-                any(inpad == d for _, d in self.iter_input_streams())
-                if check_input_stream and not res and outpad is None
-                else res
-            )
+        return False
 
     def chain_has_link(
         self, chain_id: int, check_input: bool = True, check_output: bool = True
