@@ -683,17 +683,18 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         self,
         inpad: PAD_INDEX | None,
         outpad: PAD_INDEX | None,
-        check_input_stream: bool | str = False,
+        check_input_stream: bool | None = None,
     ) -> bool:
         """True if given pads are linked
 
-        :param inpad: input pad index, default to ``None`` to check if ``outpad`` is connected to any
-                      input pad.
-        :param outpad: output pad index, defaults to ``None`` to check if ``inpad`` is connected to any
-                       output pad or an input stream.
-        :param check_input_stream: True to check inpad is connected to an input stream, or a stream
-                                   specifier string to check the connection to a specific stream, defaults
-                                   to ``False``.
+        :param inpad: input pad index, default to ``None`` to check if
+            ``outpad`` is connected to any input pad.
+        :param outpad: output pad index, defaults to ``None`` to check if
+            ``inpad`` is connected to any output pad or an input stream.
+        :param check_input_stream: ``True`` to check inpad is connected to an
+            input stream, or the default (``None``) behavior to return ``False``
+            for an ambiguous label such as ``'a'`` or ``'v'``, and ``True`` for
+            definitive label such as ``'0:v:0'``.
 
         ``ValueError`` will be raised if both ``inpad`` and ``outpad`` ``None`` or
         if ``include_input_stream!=False`` and ``outpad`` is ``None``.
