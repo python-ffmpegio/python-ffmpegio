@@ -127,7 +127,7 @@ jobs:
         run: python -m build --sdist --wheel --outdir dist/ .
 
       - name: add python distribution files to release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*
         env:
