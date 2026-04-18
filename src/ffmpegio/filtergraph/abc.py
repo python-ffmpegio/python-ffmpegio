@@ -6,7 +6,7 @@ from collections.abc import Generator, Sequence
 from typing_extensions import Literal, Self, get_args
 
 from .. import filtergraph as fgb
-from .exceptions import *
+from .exceptions import FiltergraphMismatchError, FiltergraphPadNotFoundError
 from .GraphLinks import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX
 
@@ -57,96 +57,6 @@ class FilterGraphObject(ABC):
                       of filters across all chains
         """
 
-    def next_input_pad(
-        self,
-        pad: int | None = None,
-        filter: int | None = None,
-        chain: int | None = None,
-        chainable_first: bool = False,
-        unlabeled_only: bool = False,
-        chainable_only: bool = False,
-        full_pad_index: bool = False,
-        exclude_indices: Sequence[PAD_INDEX] | None = None,
-    ) -> PAD_INDEX | None:
-        """get next available input pad
-
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
-        :param chainable_first: True to retrieve the last pad first, then the rest sequentially, defaults to False
-        :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
-        :param full_pad_index: True to return 3-element index, defaults to False
-        :param exclude_indices: List pad indices to skip, defaults to None to allow all
-        :returns: The index of the pad or ``None`` if no pad found
-        """
-
-        if exclude_indices is None:
-            exclude_indices = ()
-
-        try:
-            return next(
-                (
-                    idx
-                    for idx, *_ in self.iter_input_pads(
-                        pad,
-                        filter,
-                        chain,
-                        chainable_first=chainable_first,
-                        unlabeled_only=unlabeled_only,
-                        chainable_only=chainable_only,
-                        full_pad_index=full_pad_index,
-                    )
-                    if idx not in exclude_indices
-                )
-            )
-        except StopIteration:
-            return None
-
-    def next_output_pad(
-        self,
-        pad: int | None = None,
-        filter: int | None = None,
-        chain: int | None = None,
-        chainable_first: bool = False,
-        unlabeled_only: bool = False,
-        chainable_only: bool = False,
-        full_pad_index: bool = False,
-        exclude_indices: Sequence[PAD_INDEX] | None = None,
-    ) -> PAD_INDEX | None:
-        """get next available output pad
-
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
-        :param chainable_first: True to retrieve the last pad first, then the rest sequentially, defaults to False
-        :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
-        :param full_pad_index: True to return 3-element index, defaults to False
-        :param exclude_indices: List pad indices to skip, defaults to None to allow all
-        :returns: The index of the pad or ``None`` if no pad found
-        """
-
-        if exclude_indices is None:
-            exclude_indices = ()
-
-        try:
-            return next(
-                idx
-                for idx, *_ in self.iter_output_pads(
-                    pad,
-                    filter,
-                    chain,
-                    chainable_first=chainable_first,
-                    unlabeled_only=unlabeled_only,
-                    chainable_only=chainable_only,
-                    full_pad_index=full_pad_index,
-                )
-                if idx not in exclude_indices
-            )
-        except StopIteration:
-            return None
-
     @abstractmethod
     def iter_chains(self) -> Generator[fgb.Chain]:
         """iterate over chains of the filtergraphobject
@@ -161,11 +71,8 @@ class FilterGraphObject(ABC):
         filter: int | None = None,
         chain: int | None = None,
         *,
-        exclude_stream_specs: bool = False,
-        only_stream_specs: bool = False,
-        exclude_chainable: bool = False,
         chainable_first: bool = False,
-        include_connected: bool = False,
+        include_connected: bool | None = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
@@ -175,9 +82,6 @@ class FilterGraphObject(ABC):
         :param pad: pad id, defaults to None
         :param filter: filter index, defaults to None
         :param chain: chain index, defaults to None
-        :param exclude_stream_specs: True to not include input streams
-        :param only_stream_specs: True to only include input streams
-        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last input first then the rest, defaults to False
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
@@ -185,6 +89,18 @@ class FilterGraphObject(ABC):
         :param full_pad_index: True to return 3-element index, defaults to False
         :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
         """
+
+        # used by: join (unlabeled_only, full_pad_index, chainable_only)
+        #          resolve_pad_index (chainable_first, chainable_only)
+        #          Chain.attach (chainable_only)
+        #          Graph.compose (unlabeled_only)
+        #          Graph.iter_input_pads/_iter_pads (exclude_chainable, chainable_first, include_connected, chainable_only)
+        #          Graph.get_num_inputs (exclude_stream_specs, chainable_only)
+        #          Graph.attach/rattach (chainable_only, full_pad_index)
+        #          analyze_complex_filtergraph (full_pad_index, exclude_stream_specs)
+        #
+        # iter_input_pads used by:
+        #
 
     @abstractmethod
     def iter_output_pads(
@@ -1033,94 +949,6 @@ class FilterGraphObject(ABC):
         raise FiltergraphPadNotFoundError(
             f"{index_or_label=} is either already connected or invalid {pad_type} pad."
         )
-
-    def resolve_pad_indices(
-        self,
-        indices_or_labels: Sequence[PAD_INDEX | str | None],
-        *,
-        is_input: bool = True,
-        resolve_omitted: bool = True,
-        chainable_first: bool = False,
-        unlabeled_only: bool = False,
-        chainable_only: bool = False,
-    ) -> list[PAD_INDEX]:
-        """Resolve unconnected labels or pad indices to full 3-element pad indices
-
-        :param indices_or_labels: a list of pad indices or pad labels or ``None`` to auto-select
-        :param is_input: True to resolve an input pad, else an output pad, defaults to True
-        :param chainable_first: if True, chainable pad is selected first, defaults to False
-        :param unlabeled_only: True to retrieve only unlabeled pad, defaults to False
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all pads
-
-        One and only one of ``index`` and ``label`` must be specified. If the given index
-        or label is invalid, it raises FiltergraphPadNotFoundError.
-
-        Omitted pads
-
-        """
-
-        # resolve all the specified pad indices of the self object
-        indices = [
-            (
-                self.resolve_pad_index(
-                    idx,
-                    is_input=is_input,
-                    chain_id_omittable=True,
-                    filter_id_omittable=True,
-                    pad_id_omittable=True,
-                    resolve_omitted=False,
-                )
-            )
-            for idx in indices_or_labels
-        ]
-
-        if resolve_omitted:
-            # assign unknown pad indices in the order of the following ranking:
-            # indices ranking
-            # - int, int, int    = 3*6 = 18
-            # - int, int, None   = 2*5 = 10
-            # - int, None, int   = 2*4 = 8
-            # - None, int, int   = 2*3 = 6
-            # - int, None, None  = 1*3 = 3
-            # - None, int, None  = 1*2 = 2
-            # - None, None, int  = 1*1 = 1
-            # - None, None, None = 0*0 = 0
-
-            index_scores = [
-                (
-                    sum(i is not None for i in index)
-                    * sum((3 - j) for j, i in enumerate(index) if i is not None)
-                )
-                for index in indices
-            ]
-            index_assign_order = sorted(
-                range(len(index_scores)), key=index_scores.__getitem__, reverse=True
-            )
-
-            next_base_pad = self.next_input_pad if is_input else self.next_output_pad
-            known_indices = set()
-            for i in index_assign_order:
-                if index_scores[i] < 18:
-                    chain, filter, pad = indices[i]
-                    pad = next_base_pad(
-                        chain=chain,
-                        filter=filter,
-                        pad=pad,
-                        chainable_first=chainable_first,
-                        unlabeled_only=unlabeled_only,
-                        chainable_only=chainable_only,
-                        full_pad_index=True,
-                        exclude_indices=known_indices,
-                    )
-                    if pad is None:
-                        raise ValueError("No more available filter pad found.")
-                    indices[i] = pad
-
-                known_indices.add(indices[i])
-        elif len(indices) != len(set(indices)):
-            raise FiltergrapDuplicatehPadFoundError()
-
-        return indices
 
     @abstractmethod
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:

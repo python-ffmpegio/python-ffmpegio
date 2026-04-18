@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import re
 from collections import UserDict, defaultdict
-from collections.abc import Callable, Generator, Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
-from typing_extensions import Literal, cast
+from typing_extensions import Iterator, Literal, cast
 
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
@@ -64,7 +64,7 @@ class GraphLinks(UserDict):
     @staticmethod
     def iter_inpad_ids(
         inpads: PAD_INDEX | list[PAD_INDEX] | None, include_labels: bool = False
-    ) -> Generator[PAD_INDEX]:
+    ) -> Iterator[PAD_INDEX]:
         """helper generator to work inpads ids
 
         :param inpads: inpads pad id or ids
@@ -1312,32 +1312,61 @@ class GraphLinks(UserDict):
         return lnk and lnk[0] is None
 
     def iter_input_pads(
-        self, label: str | None = None
-    ) -> Generator[str, PAD_INDEX_, PAD_INDEX_ | None]:
-        """Iterate over all link elements, possibly separating inpad ids with
-           the same label
+        self,
+        only_labels: bool = False,
+        only_links: bool = False,
+        input_streams_as_links: bool | None = None,
+        only_input_streams: bool = False,
+        exclude_input_streams: bool = False,
+    ) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
+        """Iterate over all link elements with assigned input pad index
 
-        :param label: to iterate only on this label, defaults to None (all frames)
-        :yield: a full link definition (inpad or outpad may be None if input or output label, respectively)
+        :param only_labels: ``True`` to exclude links
+        :param only_links: ``True`` to exclude unconnected input labels
+        :param input_stream_as_links: ``None`` (default) to treat only
+            undisputable input stream specifier as links, e.g., ``'a'`` or
+            ``'v'`` is treated as a label if it is assigned to only one pad
+            while ``'0:a:0'`` is treated as a link. Set ``False`` to treat all
+            input stream labels as unconnected labels, and ``True`` to treat all
+            likely input streams as links.
+        :param only_input_streams: ``True`` to include only input stream labels
+        :param exclude_input_streams: ``True`` to exclude input stream labels
+            (unless it is disputable)
+        :yield label: link label
+        :yield inpad: input pad index
+        :yield outpad: output pad index or ``None`` if input label
         """
 
-        def iter(label, inpad, outpad):
-            for d in self.iter_inpad_ids(inpad, True):
-                yield (label, d, outpad)
+        if only_input_streams and exclude_input_streams:
+            return
 
-        if label is None:
-            # all input pads
-            for label, (inpad, outpad) in self.data.items():
-                for v in iter(label, inpad, outpad):
-                    yield v
-        else:
-            # only specified label
-            for v in iter(label, *self.data[label]):
-                yield v
+        # all input pads
+        for label, (inpad, outpad) in self.data.items():
+            if inpad is None:
+                continue
+            if isinstance(inpad[0], int):  # not input stream
+                if (
+                    not only_input_streams
+                    and (not only_links or outpad is not None)
+                    and (not only_labels or outpad is None)
+                ):
+                    yield label, inpad, outpad
+            elif len(inpad) == 1 and re.match(r"[a-zA-Z0-9_]+$", label):
+                # can be either link label or input stream
+                # (input_streams_as_links is None == is_label)
+                if (input_streams_as_links is not True and not only_links) or (
+                    input_streams_as_links is True and not only_labels
+                ):
+                    yield label, inpad[0], outpad
+            elif (
+                not exclude_input_streams
+                and (input_streams_as_links is False and not only_links)
+                or (input_streams_as_links is not False and not only_labels)
+            ):
+                for inp in inpad:
+                    yield label, inp, outpad
 
-    def iter_output_pads(
-        self, label: str | None = None
-    ) -> Generator[str, PAD_INDEX_, PAD_INDEX_ | None]:
+    def iter_output_pads(self) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
         """Iterate over all ``GraphLinks`` items with an assigned output pad
 
         :param label: to iterate only on this label, defaults to None (all frames)
@@ -1346,16 +1375,13 @@ class GraphLinks(UserDict):
         :yield outpad: output pad index
         """
 
-        if label is None:  # all output pads
-            for label, (inpad, outpad) in self.data.items():
-                if outpad is not None:
-                    yield (label, inpad, outpad)
-        else:
-            yield label, *self.data[label]
+        for label, (inpad, outpad) in self.data.items():
+            if outpad is not None:
+                yield (label, inpad, outpad)
 
     def iter_links(
         self, label: str | None = None, include_input_stream: bool = False
-    ) -> Generator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
+    ) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
         """Iterate over only actual links, separating inpad ids with
            the same input stream
 
@@ -1381,11 +1407,15 @@ class GraphLinks(UserDict):
 
     def iter_inputs(
         self, exclude_stream_specs: bool = True
-    ) -> Generator[tuple[str, PAD_INDEX_]]:
+    ) -> Iterator[tuple[str, PAD_INDEX_]]:
         """Iterate over only input labels, possibly repeating the same label if shared among
            multiple input pad ids
 
-        :param exclude_stream_specs: True to not include input streams
+        :param exclude_input_streams: ``False`` (default) to include all  pads,
+            ``True`` to exclude input pads (possibly) connected to an input
+            stream, and ``None`` to exclude input pads definitively connected to
+            an input stream. For example, ``'a'`` or ``'v'`` may be an input
+            stream specifier but can also be a link label.
         :param only_stream_specs: True to only include input streams
         :yield: label and pad index
         """
@@ -1396,7 +1426,7 @@ class GraphLinks(UserDict):
                 for d in self.iter_inpad_ids(inpad):
                     yield (label, d)
 
-    def iter_input_streams(self) -> Generator[tuple[str, PAD_INDEX_]]:
+    def iter_input_streams(self) -> Iterator[tuple[str, PAD_INDEX_]]:
         """Iterate over input stream labels, possibly repeating the same label if shared among
            multiple input pad ids
 
@@ -1407,7 +1437,7 @@ class GraphLinks(UserDict):
                 for d in self.iter_inpad_ids(inpad):
                     yield (label, d)
 
-    def iter_outputs(self) -> Generator[tuple[str, PAD_INDEX_]]:
+    def iter_outputs(self) -> Iterator[tuple[str, PAD_INDEX_]]:
         """Iterate over only output labels
 
         :yield: output label and pad index
@@ -1418,22 +1448,43 @@ class GraphLinks(UserDict):
             if inpad is None:
                 yield (label, outpad)
 
-    def input_dict(self) -> dict[PAD_INDEX_, PAD_INDEX_ | str]:
+    def input_dict(
+        self,
+        only_labels: bool = False,
+        only_links: bool = False,
+        input_streams_as_links: bool | None = None,
+        only_input_streams: bool = False,
+        exclude_input_streams: bool = False,
+    ) -> dict[PAD_INDEX_, PAD_INDEX_ | str]:
         """Return the link table sorted by the input pad indices
 
-        The value of the returned dict is either the connected output pad index
-        if linked or a string if input pad is unconnected. Unconnected output
-        labels are excluded in the returned dict.
+        :param only_labels: ``True`` to exclude links
+        :param only_links: ``True`` to exclude unconnected input labels
+        :param input_stream_as_links: ``None`` (default) to treat only
+            undisputable input stream specifier as links, e.g., ``'a'`` or
+            ``'v'`` is treated as a label if it is assigned to only one pad
+            while ``'0:a:0'`` is treated as a link. Set ``False`` to treat all
+            input stream labels as unconnected labels, and ``True`` to treat all
+            likely input streams as links.
+        :param only_input_streams: ``True`` to include only input stream labels
+        :param exclude_input_streams: ``True`` to exclude input stream labels
+            (unless it is disputable)
+        :return: a dict mapping input pad index to either the connected output
+            pad index if linked or a string if input pad is unconnected.
 
         :see also:
         ``Graph.iter_input_pads``
         """
 
         return {
-            d: label if outpad is None else outpad
-            for label, (inpad, outpad) in self.data.items()
-            if inpad is not None
-            for d in self.iter_inpad_ids(inpad)
+            inpad: label if outpad is None else outpad
+            for label, inpad, outpad in self.iter_input_pads(
+                only_labels,
+                only_links,
+                input_streams_as_links,
+                only_input_streams,
+                exclude_input_streams,
+            )
         }
 
     def output_dict(self) -> dict[PAD_INDEX_, PAD_INDEX_ | str]:
