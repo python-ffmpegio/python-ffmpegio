@@ -700,7 +700,7 @@ def analyze_complex_filtergraphs(
 
     # for a filter or a filterchain, no labels. Connect all its inputs
     for i, (padidx, filt, _) in enumerate(
-        fg.iter_input_pads(full_pad_index=True, exclude_stream_specs=False)
+        fg.iter_input_pads(full_pad_index=True, include_connected=True)
     ):
         label = fg.get_label(inpad=padidx)
         media_type = filt.get_pad_media_type("input", padidx[-1])

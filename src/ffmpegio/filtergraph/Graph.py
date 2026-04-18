@@ -12,7 +12,6 @@ from typing_extensions import Iterable, Literal
 
 from .. import filtergraph as fgb
 from ..errors import FFmpegioError
-from ..stream_spec import is_map_option
 from . import utils as filter_utils
 from .exceptions import *
 from .GraphLinks import GraphLinks
@@ -556,11 +555,8 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         filter: int | None = None,
         chain: int | None = None,
         *,
-        exclude_stream_specs: bool = True,
-        only_stream_specs: bool = False,
-        exclude_chainable: bool = False,
         chainable_first: bool = False,
-        include_connected: bool = False,
+        include_connected: bool | None = False,
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
@@ -570,38 +566,39 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         :param pad: pad id, defaults to None
         :param filter: filter index, defaults to None
         :param chain: chain index, defaults to None
-        :param exclude_stream_specs: True to not include input streams
-        :param only_stream_specs: True to only include input streams
-        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last input first then the rest, defaults to False
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :param full_pad_index: True to return 3-element index
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        :yield input_pad: filter pad index
+        :yield filter_obj: connected filter object
+        :yield output_pad:, output pad index of the connected filter or
+            connected input stream specifier or ``None`` if not connected
         """
+
+        # get a dict mapping linked inputs to the output pads (or input streams)
+        # include_connected = True, input streams as available pads (exclude streams in link_inputs)
+        #                     False, input streams as connected (include streams in link_inputs)
+        #                     None, only definitive streams as connected treat definitive streams as streams
+
+        excluded_inputs = self._links.input_dict(
+            only_links=True,
+            exclude_input_streams=not include_connected,
+            input_streams_as_links=None if include_connected is None else True,
+        )
 
         for index, f, other_pidx in self._iter_pads(
             fgb.Chain.iter_input_pads,
-            self._links.input_dict(),
+            excluded_inputs,
             pad,
             filter,
             chain,
-            exclude_chainable,
             chainable_first,
             include_connected,
             unlabeled_only,
             chainable_only,
         ):
-            # exclude a pad connected to an input stream
-            is_stream_spec = is_map_option(
-                other_pidx, allow_missing_file_id=True, unique_stream=True
-            )
-            if (is_stream_spec and exclude_stream_specs) or (
-                not is_stream_spec and only_stream_specs
-            ):
-                continue
-
             yield index, f, other_pidx
 
     def iter_output_pads(
@@ -649,7 +646,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         return len(
             list(
                 self.iter_input_pads(
-                    exclude_stream_specs=True, chainable_only=chainable_only
+                    include_connected=False, chainable_only=chainable_only
                 )
             )
         )
@@ -1496,47 +1493,6 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
             chain_siso=chain_siso,
             sws_flags_policy="first",
         )
-
-    def _iter_io_pads(self, is_input, how, ignore_labels=False):
-        """Iterates input/output pads of the filtergraph
-
-        :param is_input: True if input; False if output
-        :type is_input: bool
-        :param how: pad selection method
-
-                    -----------  -------------------------------------------------------------------
-                    'chainable'  only chainable pads.
-                    'per_chain'  one pad per chain. Source and sink chains are ignored.
-                    'all'        joins all input pads and output pads
-                    -----------  -------------------------------------------------------------------
-
-        :type how: "chainable"|"per_chain"|"all"
-        :param ignore_labels: True to return labaled (but not linked) pads, defaults to False
-        :type ignore_labels: bool, optional
-        :yield: pad index, pad label, parent filter
-        :rtype: tuple(tuple(int,int,int), label, Filter)
-        """
-        if how is None or how in ("per_chain", "all"):
-            generator = self.iter_input_pads if is_input else self.iter_output_pads
-
-            return (
-                generator()
-                if how == "all"
-                else (
-                    info
-                    for info in (
-                        next(generator(unlabeled_only=not ignore_labels, chain=c), None)
-                        for c in range(len(self.data))
-                    )
-                    if info is not None
-                )
-            )
-        elif how == "chainable":
-            return (self.iter_input_pads if is_input else self.iter_output_pads)(
-                unlabeled_only=not ignore_labels, chainable_only=True
-            )
-        else:
-            raise ValueError(f"unknown how argument value: {how}")
 
     @contextmanager
     def as_script_file(self):

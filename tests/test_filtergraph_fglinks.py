@@ -184,24 +184,44 @@ def test_iter_outputs(base_links):
     assert not len(res)
 
 
-def test_iter_input_pads(base_links):
-    res = {
-        ("l", (0, 0, 0), (0, 0, 0)),  # regular link
-        ("d", (0, 0, 1), None),  # regular link
-        (0, (1, 1, 0), (0, 1, 0)),  # unnamed link
-        ("in", (2, 1, 0), None),  # named input
-        ("0:v", (3, 0, 0), None),  # named inputs
-        ("0:v", (3, 1, 0), None),  # named inputs
-        ("out", None, (1, 1, 0)),  # named output
-        ("sout1", None, (6, 0, 0)),  # split output label#1
-        ("sout2", (2, 0, 0), (1, 0, 0)),  # split output label#2
-    }
+@pytest.mark.parametrize(
+    ("only_labels,only_links,input_streams_as_links,ret"),
+    [
+        (False, False, None, {"link", "label", "0:v", "a", "v"}),
+        (False, False, False, {"link", "label", "0:v", "a", "v"}),
+        (False, False, True, {"link", "label", "0:v", "a", "v"}),
+        (False, True, None, {"link", "0:v"}),
+        (False, True, False, {"link"}),
+        (False, True, True, {"link", "0:v", "a", "v"}),
+        (True, False, None, {"label", "a", "v"}),
+        (True, False, False, {"label", "0:v", "a", "v"}),
+        (True, False, True, {"label"}),
+        (True, True, None, set()),
+        (True, True, False, set()),
+        (True, True, True, set()),
+    ],
+)
+def test_iter_input_pads(only_labels, only_links, input_streams_as_links, ret):
+    links = GraphLinks(
+        {
+            "link": ((0, 0, 0), (0, 0, 0)),  # regular link
+            "label": ((1, 0, 0), None),  # regular input label
+            "out": (None, (1, 0, 0)),  # regular output label
+            "0:v": ((3, 0, 0), None),  # input stream connection
+            "a": (4, None),  # possible input stream
+            "v": ((5, 6), None),  # input stream with two connections
+        }
+    )
+    out = set(
+        (
+            l
+            for l, *_ in links.iter_input_pads(
+                only_labels, only_links, input_streams_as_links
+            )
+        )
+    )
 
-    for v in base_links.iter_input_pads():
-        assert v in res
-        res.discard(v)
-
-    assert not len(res)
+    assert ret == out
 
 
 @pytest.mark.parametrize(
