@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Literal, TypeVar, Callable
+import fractions
 import logging
-
-import re, fractions, subprocess as sp
+import re
+import subprocess as sp
 from collections import namedtuple
 from fractions import Fraction
-from functools import partial, cache
+from functools import cache, partial
+from typing import Callable, Literal, TypeVar
 
-from .path import ffmpeg as _ffmpeg
 from .errors import FFmpegError, FFmpegioError
+from .path import ffmpeg as _ffmpeg
 
 logger = logging.getLogger("ffmpegio")
 
@@ -48,10 +49,24 @@ def ffmpeg(gopts: list[str]) -> str:
 
 def _(
     # fmt:off
-    cap: Literal['formats', "muxers", "demuxers", "devices",
-                 'codecs', "decoders", "encoders",
-                 "filters", "pix_fmts", "layouts", "sample_fmts", 'bsfs',
-                 'protocols', 'dispositions', 'colors', 'hwaccels'],
+    cap: Literal[
+        "formats",
+        "muxers",
+        "demuxers",
+        "devices",
+        "codecs",
+        "decoders",
+        "encoders",
+        "filters",
+        "pix_fmts",
+        "layouts",
+        "sample_fmts",
+        "bsfs",
+        "protocols",
+        "dispositions",
+        "colors",
+        "hwaccels",
+    ],
     # fmt:on
 ) -> str:
     return ffmpeg([f"-{cap}"])
@@ -184,13 +199,17 @@ def _parse_filters() -> dict[str, FilterSummary]:
             num_inputs=(
                 0
                 if intype == "none"
-                else len(match[5]) if intype != "dynamic" else None
+                else len(match[5])
+                if intype != "dynamic"
+                else None
             ),
             output=outtype,
             num_outputs=(
                 0
                 if outtype == "none"
-                else len(match[6]) if outtype != "dynamic" else None
+                else len(match[6])
+                if outtype != "dynamic"
+                else None
             ),
             timeline_support=match[1] == "T",
             slice_threading=match[2] == "S",
@@ -994,7 +1013,9 @@ def _get_filter_option(block: str, name: str) -> FilterOption:
         else (
             partial(_conv_func, float)
             if otype in ("float", "double")
-            else partial(_conv_func, Fraction) if otype == "rational" else (lambda s: s)
+            else partial(_conv_func, Fraction)
+            if otype == "rational"
+            else (lambda s: s)
         )
     )
 
@@ -1149,6 +1170,10 @@ def filter_info(name: str) -> FilterInfo:
 
     options = extra_options.pop(name, None) if len(extra_options) else []
     if options is None:  # options are shared among multiple filters
+        # fix filter name/AVOptions block name inconsistency
+        avopt_name = {
+            "vsrc_amf": "amf_capture"  # v8.1
+        }.get(name, name)
 
         def check_o_name(o_name, name):
             if o_name.startswith("cuda"):
@@ -1169,7 +1194,7 @@ def filter_info(name: str) -> FilterInfo:
                 (
                     o_name
                     for o_name in extra_options.keys()
-                    if check_o_name(o_name, name)
+                    if check_o_name(o_name, avopt_name)
                 ),
             )
         except StopIteration as e:
