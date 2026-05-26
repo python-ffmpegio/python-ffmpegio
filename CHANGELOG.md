@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-05-25
+
+### Added
+
+- `plugins.rawdata_pillow` - added pillow plugin to convert video/image stream to/from Pillow Image object
+
+### Changed
+
+- `caps` to cache the outputs of its functions
+
+### Fixed
+
+- FFmpeg v8 and v8.1 compatibility
+- FFmpeg version may start with 'n' to support a version name with a release branch name
+- `caps` subpackage - fixed several bugs
+- `plugins.finder_ffdl` - fixed logic to check existence of ffmpeg binaries
+
 ## [0.11.1] - 2025-05-17
 
 ### Fixed
@@ -456,7 +473,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 - Main functionality of `transcode`, `video`, `audio`, `image`, `SimpleStreams`, `probe`, and `caps` modules.
 - Preliminary implementations of `FilterGraph` and `FFmpegError` classes.
 
-[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.11.1...HEAD
+[unreleased]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.11.1...v0.12.0
 [0.11.1]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/python-ffmpegio/python-ffmpegio/compare/v0.9.1...v0.10.0

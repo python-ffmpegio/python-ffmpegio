@@ -79,7 +79,7 @@ __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe
 # isort: on
 # fmt:on
 
-__version__ = "0.11.1"
+__version__ = "0.12.0"
 
 ffmpeg_info = path.versions
 set_path = path.find
