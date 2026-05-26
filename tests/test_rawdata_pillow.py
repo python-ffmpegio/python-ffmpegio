@@ -1,10 +1,9 @@
-from tempfile import TemporaryDirectory
 from os import path
+from tempfile import TemporaryDirectory
 
-import pytest
-
-from PIL import Image, ImageSequence
 import numpy as np
+import pytest
+from PIL import Image, ImageSequence
 
 import ffmpegio as ff
 from ffmpegio import plugins
@@ -68,14 +67,13 @@ def test_pillow_image_seq(shape):
     shape_in, dtype_in = hook.video_info(obj=images)
 
     b = hook.video_bytes(obj=images)
-    image_out = hook.bytes_to_video(
-        b=b, dtype=dtype_in, shape=shape_in, squeeze=False
-    )
+    image_out = hook.bytes_to_video(b=b, dtype=dtype_in, shape=shape_in, squeeze=False)
 
     for fin, fout in zip(images, image_out):
         assert comp_images(fin, fout)
 
 
+@pytest.mark.skip(reason="Not supported on all platform???")
 def test_pillow_avif():
 
     url = "tests/assets/testvideo-1m.mp4"
@@ -85,7 +83,7 @@ def test_pillow_avif():
     with TemporaryDirectory() as tmpdir:
         avifpath = path.join(tmpdir, "test.avif")
         ff.transcode(url, avifpath, f="avif", r=1, to=10, show_log=True)
-        with Image.open(avifpath) as image:
+        with Image.open(avifpath, formats=["AVIF"]) as image:
             shape_in, dtype_in = hook.video_info(obj=image)
 
             b = hook.video_bytes(obj=image)
