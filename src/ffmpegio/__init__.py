@@ -48,30 +48,35 @@ except Exception as e:
 use = plugins.use
 using = plugins.using
 
+
 def __getattr__(name):
     if name == "ffmpeg_ver":
         return path.FFMPEG_VER
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
+# isort: off
+# fmt: off
+
 from . import ffmpegprocess
 
 from .errors import FFmpegError
 from .utils.concat import FFConcat
 from .filtergraph import Graph as FilterGraph
-from . import devices, ffmpegprocess, caps, probe, audio, image, video, media
+from . import devices, ffmpegprocess, caps, probe, audio, image, video, media # noqa
 from .transcode import transcode
 from . import streams as _streams
 from .utils.parser import FLAG
 
 # check if ffmpegio-core is installed, if it is warn its deprecation
 from ._utils import deprecate_core
+
 deprecate_core()
 
-# fmt:off
 __all__ = ["ffmpeg_info", "get_path", "set_path", "is_ready", "ffmpeg", "ffprobe",
     "transcode", "caps", "probe", "audio", "image", "video", "media", "devices",
     "open", "ffmpegprocess", "FFmpegError", "FilterGraph", "FFConcat", "use", "using"]
+# isort: on
 # fmt:on
 
 __version__ = "0.11.1"
@@ -101,7 +106,7 @@ def open(
     :type url_fg: str or seq(str)
     :param mode: specifies the mode in which the FFmpeg is used, see below
     :type mode: str
-    :param rate_in: (write and filter only, required) input frame rate (video) or sampling rate 
+    :param rate_in: (write and filter only, required) input frame rate (video) or sampling rate
                     (audio), defaults to None
     :type rate_in: Fraction, float, int, optional
     :param shape_in: (write and filter only) input video frame size (height x width [x ncomponents]),
@@ -138,11 +143,11 @@ def open(
     a corresponding stream object. If the file cannot be opened, an error is raised.
     See :ref:`quick-streamio` for more examples of how to use this function.
 
-    Just like built-in `open()`, it is good practice to use the with keyword when dealing with 
-    ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are 
-    properly closed after ffmpeg terminates, even if an exception is raised at some point. 
+    Just like built-in `open()`, it is good practice to use the with keyword when dealing with
+    ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are
+    properly closed after ffmpeg terminates, even if an exception is raised at some point.
     Using with is also much shorter than writing equivalent try-finally blocks.
-    
+
     :Examples:
 
     Open an MP4 file and process all the frames::
