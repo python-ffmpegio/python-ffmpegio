@@ -831,9 +831,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         if label[0] == "[" and label[-1] == "]":
             label = label[1:-1]
 
-        GraphLinks.validate_label(
-            label, is_link=False, no_stream_spec=outpad is not None
-        )
+        GraphLinks.validate_label(label, is_link=False)
         if inpad is not None:
             GraphLinks.validate_pad_idx_pair((inpad, None))
             for d in GraphLinks.iter_inpad_ids(inpad):
@@ -1001,7 +999,7 @@ class Graph(fgb.abc.FilterGraphObject, UserList):
         """
 
         if len(others) == 0:
-            return self.copy() if inplace else None
+            return None if inplace else self.copy()
 
         others = list(fgb.as_filtergraph_object(obj) for obj in others)
 

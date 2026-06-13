@@ -343,7 +343,6 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         :param chain: chain index, defaults to None
         :param exclude_stream_specs: True to not include input streams
         :param only_stream_specs: True to only include input streams
-        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last input first then the rest, defaults to False
         :param include_connected: True to include pads connected to input streams, defaults to False
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
@@ -358,7 +357,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             pad,
             filter,
             chain,
-            exclude_chainable,
+            False,
             chainable_first,
             include_connected,
             chainable_only,
