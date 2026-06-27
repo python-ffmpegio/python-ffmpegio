@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from typing import *
-
-from typing_extensions import *
+from typing_extensions import Literal, Union
 
 PAD_INDEX = Union[
-    Tuple[Union[int, None], Union[int, None], int],
-    Tuple[Union[int, None], Union[int, None]],
-    Tuple[Union[int, None]],
+    tuple[Union[int, None], Union[int, None], int],
+    tuple[Union[int, None], Union[int, None]],
+    tuple[Union[int, None]],
     int,
 ]
 """Filter pad index. 
@@ -22,9 +20,9 @@ usually means to assign first available
 """
 
 PAD_PAIR = Union[
-    Tuple[PAD_INDEX, PAD_INDEX],
-    Tuple[Union[PAD_INDEX, List[PAD_INDEX]], None],
-    Tuple[None, PAD_INDEX],
+    tuple[PAD_INDEX, PAD_INDEX],
+    tuple[Union[PAD_INDEX, list[PAD_INDEX]], None],
+    tuple[None, PAD_INDEX],
 ]
 """Specifies a filter pad linkage or labeling
 
