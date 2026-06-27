@@ -391,21 +391,27 @@ def parse_map_option(
     return out
 
 
-def is_map_option(spec: str, allow_missing_file_id: bool = False) -> bool:
+def is_map_option(
+    spec: str, allow_missing_file_id: bool = False, unique_stream: bool = False
+) -> bool:
     """True if valid map option string
 
     :param spec: map option string to be tested
-    :param allow_missing_file_id: True to allow missing input file id
-    :return: True if valid map option. The validity of stream_specifier is also tested.
+    :param allow_missing_file_id: ``True`` to allow missing input file id
+    :param unique_stream: ``True`` to require ``'stream_index'``
+    :return: ``True`` if valid map option. The validity of stream_specifier is also tested.
     """
 
     try:
-        parse_map_option(
+        opt = parse_map_option(
             spec, input_file_id=0 if allow_missing_file_id else None, parse_stream=True
         )
+        if unique_stream:
+            return "stream_id" in opt["stream_specifier"]
     except Exception:
         return False
-    return True
+    else:
+        return True
 
 
 def map_option(
