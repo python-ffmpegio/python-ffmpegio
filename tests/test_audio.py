@@ -1,13 +1,13 @@
-from ffmpegio import audio, probe, FilterGraph
-import tempfile
-import re
 import logging
+import re
+import tempfile
 from os import path
-import pytest
-import numpy as np
-from io import BytesIO
 
-from namedpipe import NPopen
+import numpy as np
+import pytest
+
+from ffmpegio import audio, probe
+from ffmpegio import filtergraph as fgb
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -84,6 +84,7 @@ def test_read_af():
     assert fs == 8000
     assert len(x["shape"]) == 1
 
+
 def test_read_filter():
 
     url = "tests/assets/testaudio-1m.mp3"
@@ -91,8 +92,13 @@ def test_read_filter():
     T = 0.51111
     T = 0.49805
     fs, x = audio.read(
-        [url,url], t=T, show_log=True, filter_complex="[0][1]amix[mixed]",map='[mixed]'
+        [url, url],
+        t=T,
+        show_log=True,
+        filter_complex="[0][1]amix[mixed]",
+        map="[mixed]",
     )
+
 
 def test_read_write():
     url = "tests/assets/testaudio-1m.mp3"
@@ -121,12 +127,12 @@ def test_filter():
         "dtype": "<i2",
         "shape": (input_rate, 1),
     }
-    expr = FilterGraph(
+    expr = fgb.Graph(
         [
             [
-                ("channelmap", {"channel_layout": "stereo", "map": "FC|FC"}),
-                ("bandpass", {"channels": "FL"}),
-                ("aresample", 22050),
+                fgb.channelmap(channel_layout="stereo", map="FC|FC"),
+                fgb.bandpass(channels="FL"),
+                fgb.aresample(22050),
             ]
         ],
     )
@@ -147,8 +153,8 @@ def test_filter():
     assert output["dtype"] == "<i2"
 
     # complex filtergraph
-    expr = FilterGraph(
-        [[("anoisesrc", 44100, {"color": "pink"}), ("amerge",)]],
+    expr = fgb.Graph(
+        [[fgb.anoisesrc(44100, color="pink"), fgb.amerge()]],
         {"in": [(0, 1, 0), None], "out": [None, (0, 1, 0)]},
     )
     output_rate, output = audio.filter(expr, input_rate, input)
@@ -196,7 +202,6 @@ def test_write_fileobj():
     fs = 16000
     x = np.random.randint(-(2**15), 2**15, fs, np.int16)
     with tempfile.TemporaryDirectory() as tmpdirname:
-
         url = path.join(tmpdirname, "test.flv")
         with open(url, "wb") as f:
             audio.write(f, fs, x, f="flv", acodec="aac", show_log=True)

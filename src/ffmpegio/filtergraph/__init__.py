@@ -101,8 +101,8 @@ from __future__ import annotations
 
 from .. import path
 from ..caps import filters as list_filters
-from . import abc
-from .build import attach, concatenate, connect, join, stack
+from . import abc, presets
+from .build import connect, join, stack
 from .Chain import Chain
 from .convert import (
     as_filter,
@@ -112,7 +112,12 @@ from .convert import (
     as_filtergraph_object_like,
     atleast_filterchain,
 )
-from .exceptions import FiltergraphInvalidIndex, FiltergraphPadNotFoundError
+from .exceptions import (
+    FiltergraphConversionError,
+    FiltergraphInvalidExpression,
+    FiltergraphInvalidIndex,
+    FiltergraphPadNotFoundError,
+)
 from .Filter import Filter
 from .Graph import Graph
 
@@ -120,6 +125,7 @@ from .Graph import Graph
 
 __all__ = [
     "abc",
+    "presets",
     "as_filter",
     "as_filterchain",
     "as_filtergraph",
@@ -136,6 +142,8 @@ __all__ = [
     "Graph",
     "FiltergraphInvalidIndex",
     "FiltergraphPadNotFoundError",
+    "FiltergraphConversionError",
+    "FiltergraphInvalidExpression",
 ]
 
 

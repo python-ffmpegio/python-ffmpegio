@@ -6,6 +6,7 @@ from fractions import Fraction
 
 from .. import filtergraph as fgb
 from .._typing import TYPE_CHECKING, Any, Literal, Sequence
+from ..path import check_version
 from ..stream_spec import StreamSpecDict
 
 if TYPE_CHECKING:
@@ -13,18 +14,53 @@ if TYPE_CHECKING:
     from .Graph import Graph
 
 
-def remove_video_alpha(
-    fill_color: str, input_label: str | None = None, output_label: str | None = None
+def remove_alpha(
+    fill_color: str,
+    pix_fmt: str | None = None,
+    *,
+    input_label: str | None = None,
+    output_label: str | None = None,
 ) -> Graph:
+    """generate a filter graph to remove alpha channel from a video
 
-    fg = fgb.Graph("scale2ref[l2],[l2]overlay=shortest=1").rconnect(
-        f"color=c={fill_color}", (0, 0, 0), (0, 0, 0)
-    )
+    :param fill_color: _description_
+    :param input_label: _description_, defaults to None
+    :param output_label: _description_, defaults to None
+    :return: Resulting filter graph in the form:
 
-    if input_label is not None:
-        fg.add_label(input_label, (1, 0, 1))
-    if output_label is not None:
-        fg.add_label(output_label, outpad=(1, 1, 0))
+        ```
+        color,[in]scale2ref[main],[main]overlay[out]
+        ```
+
+    """
+
+    if input_label is None:
+        input_label = "in"
+    if output_label is None:
+        output_label = "out"
+
+    if check_version("7.1.0", "<"):
+        expr = f"color=c={fill_color}[cout],[cout]scale2ref[l2],[l2]overlay=shortest=1"
+        inpad = (0, 1, 1)
+        outpad = (0, 2, 0)
+    else:
+        expr = (
+            "split[in1][in2];"
+            f"color=c={fill_color}[cout];"
+            "[cout][in1]scale=rw:rh[sout];"
+            "[sout][in2]overlay=shortest=1"
+        )
+        inpad = (0, 0, 0)
+        outpad = (3, 0, 0)
+
+    fg = fgb.Graph(expr)
+
+    if pix_fmt is not None:
+        fg += fgb.format(pix_fmts=pix_fmt)
+        outpad = (outpad[0], outpad[1] + 1, 0)
+
+    fg.add_label(input_label, inpad)
+    fg.add_label(output_label, outpad=outpad)
 
     return fg
 
@@ -34,26 +70,9 @@ def filter_video_basic(
     crop: str | Sequence | None = None,
     flip: Literal["horizontal", "vertical", "both"] | None = None,
     transpose: str | Sequence | None = None,
-    square_pixels: (
-        Literal["upscale", "downscale", "upscale_even", "downscale_even"] | None
-    ) = None,
 ) -> Chain:
 
     vfilters = []
-    if square_pixels == "upscale":
-        vfilters.append("scale='max(iw,ih*dar)':'max(iw/dar,ih)':eval=init,setsar=1/1")
-    elif square_pixels == "downscale":
-        vfilters.append("scale='min(iw,ih*dar)':'min(iw/dar,ih)':eval=init,setsar=1/1")
-    elif square_pixels == "upscale_even":
-        vfilters.append(
-            "scale='trunc(max(iw,ih*dar)/2)*2':'trunc(max(iw/dar,ih)/2)*2':eval=init,setsar=1/1"
-        )
-    elif square_pixels == "downscale_even":
-        vfilters.append(
-            "scale='trunc(min(iw,ih*dar)/2)*2':'trunc(min(iw/dar,ih)/2)*2':eval=init,setsar=1/1"
-        )
-    elif square_pixels is not None:
-        raise ValueError(f"unknown `square_pixels` option value given: {square_pixels}")
 
     if crop:
         try:
@@ -91,6 +110,30 @@ def filter_video_basic(
             vfilters.append(fgb.scale(scale))
 
     return sum(vfilters, start=fgb.Chain())
+
+
+def square_pixels(
+    mode: Literal["upscale", "downscale", "upscale_even", "downscale_even"],
+) -> Chain:
+    """a filter chain to square pixels of video frames
+
+    :param mode: whether to 'upscale' by preserving the long side and elongating
+                 the short side or 'downscale' by preserving the short side and
+                 shrinking the long side. Both modes can be made to force an even
+                 numbered frame size to accommodate video codecs like h264.
+    :return: a chain of `scale` and `setsar` filters
+    """
+    try:
+        expr = {
+            "upscale": "scale='max(iw,ih*dar)':'max(iw/dar,ih)':eval=init,setsar=1/1",
+            "downscale": "scale='min(iw,ih*dar)':'min(iw/dar,ih)':eval=init,setsar=1/1",
+            "upscale_even": "scale='trunc(max(iw,ih*dar)/2)*2':'trunc(max(iw/dar,ih)/2)*2':eval=init,setsar=1/1",
+            "downscale_even": "scale='trunc(min(iw,ih*dar)/2)*2':'trunc(min(iw/dar,ih)/2)*2':eval=init,setsar=1/1",
+        }[mode]
+    except KeyError as e:
+        raise ValueError(f"unknown mode: {mode}") from e
+
+    return fgb.Chain(expr)
 
 
 def merge_audio(

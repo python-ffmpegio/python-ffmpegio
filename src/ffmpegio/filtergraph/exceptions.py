@@ -14,11 +14,13 @@ class FilterOperatorTypeError(TypeError, FFmpegioError):
 
 
 class FiltergraphMismatchError(TypeError, FFmpegioError):
-    def __init__(self, n, m) -> None:
-        super().__init__(
-            f"cannot append mismatched filtergraphs: the first has {n} input "
-            f"while the second has {m} outputs available."
-        )
+    def __init__(self, n, m, reason: str | None = None):
+        msg = f"cannot append mismatched filtergraphs: the first has {n} input while the second has {m} outputs available."
+
+        if reason is not None:
+            msg = "\n".join([msg, reason])
+
+        super().__init__(msg)
 
 
 class FiltergraphInvalidIndex(TypeError, FFmpegioError):

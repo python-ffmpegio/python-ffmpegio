@@ -2,16 +2,12 @@ from __future__ import annotations
 
 from .. import filtergraph as fgb
 from . import utils as filter_utils
-from .exceptions import FiltergraphConversionError, FiltergraphInvalidExpression
 
 
-def as_filter(
-    filter_spec: str | fgb.abc.FilterGraphObject, copy: bool = False
-) -> fgb.Filter:
+def as_filter(filter_spec: str | fgb.abc.FilterGraphObject) -> fgb.Filter:
     """convert the input to a filter
 
     :param filter_spec: filtergraph expression or object.
-    :param copy: True to copy even if the input is a Filter object.
     :return: ``Filter`` object interpretation of ``filter_spec``. No copy is performed if the input is
              already a ``Filter`` and ``copy=False``.
 
@@ -20,29 +16,15 @@ def as_filter(
 
     If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
     """
-    if isinstance(filter_spec, fgb.Graph):
-        if len(filter_spec) != 1 and len(filter_spec[0]) != 1:
-            raise FiltergraphConversionError(
-                "Only a Graph object with a single one-element chain can be downconverted to Filter."
-            )
-        else:
-            return filter_spec[0, 0]
-    if isinstance(filter_spec, fgb.Chain):
-        if len(filter_spec) != 1:
-            raise FiltergraphConversionError(
-                "Only a Chain object with a single element can be downconverted to Filter."
-            )
-        else:
-            return filter_spec[0]
 
     try:
         return (
             filter_spec
-            if not copy and isinstance(filter_spec, fgb.Filter)
+            if isinstance(filter_spec, fgb.Filter)
             else fgb.Filter(filter_spec)
         )
-    except Exception as exc:
-        raise FiltergraphInvalidExpression from exc
+    except Exception as e:
+        raise fgb.FiltergraphInvalidExpression from e
 
 
 def as_filterchain(
@@ -60,23 +42,12 @@ def as_filterchain(
 
     If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
     """
-    if isinstance(filter_specs, fgb.Graph):
-        if len(filter_specs) != 1:
-            raise FiltergraphConversionError(
-                "Only a Graph object with a single chain can be downconverted to Chain."
-            )
-        return fgb.Chain(filter_specs[0])
 
-    try:
-        return (
-            filter_specs
-            if not copy and isinstance(filter_specs, fgb.Chain)
-            else fgb.Chain(
-                [filter_specs] if isinstance(filter_specs, fgb.Filter) else filter_specs
-            )
-        )
-    except Exception as exc:
-        raise FiltergraphInvalidExpression from exc
+    return (
+        filter_specs
+        if not copy and isinstance(filter_specs, fgb.Chain)
+        else fgb.Chain(filter_specs)
+    )
 
 
 def as_filtergraph(
@@ -91,14 +62,12 @@ def as_filtergraph(
 
     If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
     """
-    try:
-        return (
-            filter_specs
-            if not copy and isinstance(filter_specs, fgb.Graph)
-            else fgb.Graph(filter_specs)
-        )
-    except Exception as exc:
-        raise FiltergraphInvalidExpression from exc
+
+    return (
+        filter_specs
+        if not copy and isinstance(filter_specs, fgb.Graph)
+        else fgb.Graph(filter_specs)
+    )
 
 
 def as_filtergraph_object(
@@ -111,6 +80,8 @@ def as_filtergraph_object(
     :return: Depending on the complexity of the ``filter_spec``, ``Filter``,
              ``Chain``, or ``Graph`` object interpretation of ``filter_spec``.
              No copy is performed if the input is already a ``Graph`` and ``copy=False``.
+
+    If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
     """
 
     if not filter_specs:
@@ -120,16 +91,17 @@ def as_filtergraph_object(
         return type(filter_specs)(filter_specs) if copy else filter_specs
 
     try:
-        specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-        return (
-            fgb.Graph(specs, links, sws_flags)
-            if links or sws_flags or len(specs) > 1
-            else fgb.Filter(specs[0][0])
-            if len(specs[0]) == 1
-            else fgb.Chain(specs[0])
-        )
-    except Exception as exc:
-        raise FiltergraphInvalidExpression from exc
+        specs, links, sws_flags = filter_utils.parse_graph(filter_specs, False)
+    except Exception as e:
+        raise fgb.FiltergraphInvalidExpression from e
+
+    return (
+        fgb.Graph(specs, links, sws_flags)
+        if links or sws_flags or len(specs) > 1
+        else fgb.Filter(specs[0][0])
+        if len(specs[0]) == 1
+        else fgb.Chain(specs[0])
+    )
 
 
 def as_filtergraph_object_like(
@@ -141,9 +113,10 @@ def as_filtergraph_object_like(
 
     :param filter_spec: filtergraph expression or object.
     :param like: reference filtergraph object to match the type
-    :param copy: True to copy even if the input is a Filter object.
+    :param copy: ``True`` to copy if the input is a ``Chain`` or a ``Graph``.
+        ``Filter`` objects are immutable so they are always returned as is.
     :return: Filtergraph object of the same type as ``like`` object.
-             No copy is performed if the input is already a ``Graph`` and ``copy=False``.
+        No copy is performed if the input is already a ``Graph`` and ``copy=False``.
     """
     otype = type(like)
     return (
@@ -169,14 +142,12 @@ def atleast_filterchain(
         return type(filter_specs)(filter_specs) if copy else filter_specs
 
     if isinstance(filter_specs, fgb.Filter):
-        return fgb.Chain([filter_specs])
+        return fgb.Chain(filter_specs)
 
-    try:
-        specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-        return (
-            fgb.Graph(specs, links, sws_flags)
-            if links or sws_flags or len(specs) > 1
-            else fgb.Chain(specs[0])
-        )
-    except Exception as exc:
-        raise FiltergraphInvalidExpression from exc
+    # str input
+    specs, links, sws_flags = filter_utils.parse_graph(filter_specs, False)
+    return (
+        fgb.Graph(specs, links, sws_flags)
+        if links or sws_flags or len(specs) > 1
+        else fgb.Chain(specs[0])
+    )

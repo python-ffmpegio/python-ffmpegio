@@ -1,9 +1,31 @@
 from os import path
-from tempfile import TemporaryDirectory
-from ffmpegio import ffmpegprocess, filtergraph as fgb
-from ffmpegio.filtergraph import Chain
 from pprint import pprint
+from tempfile import TemporaryDirectory
+
 import pytest
+
+from ffmpegio import ffmpegprocess
+from ffmpegio import filtergraph as fgb
+from ffmpegio.filtergraph import Chain
+
+
+@pytest.mark.parametrize(
+    "expr, show_input, show_output, ret",
+    [
+        ("vstack", False, False, "vstack"),
+        ("vstack", True, False, "[UNC0][UNC1]vstack"),
+        ("vstack", False, True, "vstack[UNC0]"),
+        ("vstack", True, True, "[UNC0][UNC1]vstack[UNC2]"),
+    ],
+)
+def test_compose(expr, show_input, show_output, ret):
+    chain = fgb.Graph(expr)
+    assert (
+        chain.compose(
+            show_unconnected_inputs=show_input, show_unconnected_outputs=show_output
+        )
+        == ret
+    )
 
 
 @pytest.mark.parametrize(
@@ -164,22 +186,12 @@ def test_iter_output_pads(
 
 
 @pytest.mark.parametrize(
-    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
-    [
-        ("fps;scale", False, False, False, 2),
-        ("fps;scale", True, True, True, 2),
-        ("nullsrc;fps", False, False, False, 2),
-        ("nullsrc;fps", True, False, False, 1),
-        ("fps;nullsink", False, False, False, 2),
-        ("fps;nullsink", False, True, False, 1),
-        ("split[L1][L2];[L2]fps", True, False, False, 1),
-        ("split[L1][L2];[L2]fps", False, True, False, 1),
-        ("split[L1][L2];[L2]fps", False, True, True, 1),
-    ],
+    "expr, ret",
+    [(None, 0), ("fps;scale", 2)],
 )
-def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
+def test_iter_chains(expr, ret):
     f = fgb.Graph(expr)
-    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
+    chains = [*f.iter_chains()]
     assert len(chains) == ret
 
 
@@ -275,14 +287,14 @@ def test_resolve_pad_index(
             "trim",
             None,
             None,
-            "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]",
+            "[UNC0]split=2[C],trim[UNC1];[C]crop[UNC2]",
         ),
         (
             "split=2[C][out];[C]crop",
             "trim",
             "out",
             None,
-            "[UNC0]split=2[C][L0];[C]crop[UNC1];[L0]trim[UNC2]",
+            "[UNC0]split=2[C],trim[UNC1];[C]crop[UNC2]",
         ),
     ],
 )
@@ -309,13 +321,13 @@ def test_attach(fg, fc, left_on, right_on, out):
             "[C]overlay;crop[C]",
             "trim",
             None,
-            "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]",
+            "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]",
         ),
         (
             "[C][in]overlay;crop[C]",
             "trim",
             "in",
-            "[UNC0]trim[L0];[C][L0]overlay[UNC2];[UNC1]crop[C]",
+            "[UNC0]trim,[C]overlay[UNC2];[UNC1]crop[C]",
         ),
         # fmt: on
     ],
@@ -352,7 +364,7 @@ def test_rattach(right, left, right_on, out):
             "[lb]trim;scale[la]",
             False,
             None,
-            None,
+            "[la]fps[UNC2];[UNC0]crop[lb];[lb1]trim[UNC3];[UNC1]scale[la1]",
         ),
         (
             "[la]fps;crop[lb]",
@@ -361,20 +373,26 @@ def test_rattach(right, left, right_on, out):
             None,
             "[la]fps[UNC2];[UNC0]crop[lb];[lb]trim[UNC3];[UNC1]scale[la]",
         ),
-        ("sws_flags=w=200;fps;crop", "sws_flags=h=400;trim;scale", False, None, None),
         (
-            "sws_flags=w=200;fps;crop",
-            "sws_flags=h=400;trim;scale",
+            "sws_flags=fast_bilinear;fps;crop",
+            "sws_flags=bicubic;trim;scale",
             False,
-            False,
-            "sws_flags=w=200;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
+            None,
+            None,
         ),
         (
-            "sws_flags=w=200;fps;crop",
-            "sws_flags=h=400;trim;scale",
+            "sws_flags=fast_bilinear;fps;crop",
+            "sws_flags=bicubic;trim;scale",
             False,
-            True,
-            "sws_flags=h=400;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
+            "first",
+            "sws_flags=fast_bilinear;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
+        ),
+        (
+            "sws_flags=fast_bilinear;fps;crop",
+            "sws_flags=bicubic;trim;scale",
+            False,
+            "last",
+            "sws_flags=bicubic;[UNC0]fps[UNC4];[UNC1]crop[UNC5];[UNC2]trim[UNC6];[UNC3]scale[UNC7]",
         ),
     ],
 )
@@ -383,35 +401,12 @@ def test_stack(fg, other, auto_link, replace_sws_flags, out):
     fg = fgb.Graph(fg)
     if out is None:
         with pytest.raises(fgb.Graph.Error):
-            fg = fg.stack(other, auto_link, replace_sws_flags)
+            fg = fg.stack(
+                other, auto_link=auto_link, sws_flags_policy=replace_sws_flags
+            )
     else:
-        fg = fg.stack(other, auto_link, replace_sws_flags)
+        fg = fg.stack(other, auto_link=auto_link, sws_flags_policy=replace_sws_flags)
         assert fg.compose() == out
-
-
-@pytest.mark.parametrize(
-    "fg, id, out",
-    [
-        # fmt: off
-        ("fps;crop", (0, 0, 0), ((0, 0, 0), None)),
-        ("fps;crop", (1, 0, 0), ((1, 0, 0), None)),
-        ("fps;crop", (0, 1, 0), None),
-        ("fps;crop", "fake", None),
-        ("[la]fps;crop[lb]", "la", ((0, 0, 0), "la")),
-        ("[la]fps;crop[lb]", "lb", None),
-        ("[0:v]fps;[0:v]crop", (0, 0, 0), None),
-        ("[0:v]fps;[0:v]crop", "0:v", None),
-        # fmt: on
-    ],
-)
-def test_get_input_pad(fg, id, out):
-    # other, auto_link=False, replace_sws_flags=None,
-    fg = fgb.Graph(fg)
-    if out is None:
-        with pytest.raises(fgb.FiltergraphPadNotFoundError):
-            fg.get_input_pad(id)
-    else:
-        assert fg.get_input_pad(id) == out
 
 
 @pytest.mark.parametrize(
@@ -456,7 +451,7 @@ def test_get_output_pad(fg, id, out):
             ["lb"],
             ["lb"],
             None,
-            "[la]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[UNC4]",
+            "[la]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[la1]",
         ),
         (
             "[a1]fps;crop[b]",
@@ -464,7 +459,7 @@ def test_get_output_pad(fg, id, out):
             ["b"],
             ["c"],
             True,
-            "[a1]fps[UNC2];[UNC0]crop[L0];[L0]trim[UNC3];[UNC1]scale[d1]",
+            "[a1]fps[UNC2];[UNC0]crop,trim[UNC3];[UNC1]scale[d1]",
         ),
         # fmt: on
     ],
@@ -477,39 +472,6 @@ def test_connect(fg, r, to_l, to_r, chain, out):
             fg = fg.connect(r, to_l, to_r, chain)
     else:
         fg = fg.connect(r, to_l, to_r, chain_siso=chain)
-        assert fg.compose() == out
-
-
-@pytest.mark.parametrize(
-    "fg, r, how, unlabeled_only, out",
-    [
-        # fmt: off
-        (
-            "fps;crop",
-            "trim;scale",
-            None,
-            False,
-            "[UNC0]fps,trim[UNC2];[UNC1]crop,scale[UNC3]",
-        ),
-        (
-            "[in1]fps;crop[ou1]",
-            "[in2]trim;scale[out2]",
-            None,
-            True,
-            "[in1]fps[L0];[UNC0]crop[ou1];[in2]trim[UNC1];[L0]scale[out2]",
-        ),
-        ("fps", "overlay", "per_chain", False, "[UNC0]fps[L0];[L0][UNC1]overlay[UNC2]"),
-        # fmt: on
-    ],
-)
-def test_join(fg, r, how, unlabeled_only, out):
-    # other, auto_link=False, replace_sws_flags=None,
-    fg = fgb.Graph(fg)
-    if out is None:
-        with pytest.raises(fgb.Graph.Error):
-            fg = fg.join(r, how, unlabeled_only=unlabeled_only)
-    else:
-        fg = fg.join(r, how, unlabeled_only=unlabeled_only)
         assert fg.compose() == out
 
 
@@ -582,7 +544,7 @@ def test_filter_empty_handling():
     assert (fg4 * 2).compose() == ""
 
     assert (fg1 + fg3).compose() == "trim,crop"
-    assert (fg1 | fg3).compose() == "trim,crop"
+    assert (fg1 | fg3).compose() == "[UNC0]trim,crop[UNC1]"
 
     assert (fg2 + fg3).compose() == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
     assert (fg2 | fg3).compose() == "[UNC0]fps[UNC2];[UNC1]scale[UNC3]"
@@ -624,7 +586,7 @@ def test_readme():
         + fgb.drawbox(50, 50, 120, 120, "red", t=5)
     )
     print(v5)
-    assert v5.get_num_inputs() == 0
+    assert v5.get_num_inputs(exclude_input_streams=True) == 0
     #    <ffmpegio.filtergraph.Graph object at 0x1e67f955b80>
     #        FFmpeg expression: "[0]trim=start_frame=10:end_frame=20[L0];[0]trim=start_frame=30:end_frame=40[L1];[L0][L1]concat=2[L2];[1]hflip[L3];[L2][L3]overlay=eof_action=repeat,drawbox=50:50:120:120:red:t=5"
 
@@ -632,7 +594,7 @@ def test_readme():
 if __name__ == "__main__":
     from pprint import pprint
 
-    from ffmpegio.filtergraph import Graph, filter_info, FFmpegioError, list_filters
+    from ffmpegio.filtergraph import FFmpegioError, Graph, filter_info, list_filters
 
     for k, v in list_filters().items():
         if v.num_inputs is None or v.num_inputs:

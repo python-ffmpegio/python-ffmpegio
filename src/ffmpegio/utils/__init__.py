@@ -692,7 +692,7 @@ def analyze_complex_filtergraphs(
         filtergraphs[j] = fg
 
     # combine all filtergraphs
-    fg = fgb.stack(*filtergraphs, auto_link=True)
+    fg = fgb.as_filtergraph(fgb.stack(*filtergraphs, auto_link=True))
 
     # get list of connected input streams
     sources = []
@@ -719,28 +719,30 @@ def analyze_complex_filtergraphs(
             labels.add(label)
 
         if media_type == "audio":
-            src = temp_audio_src(
-                *analyze_audio_stream(
-                    sspec or "a:0", *inputs[file_id], inputs_info[file_id]
+            sources.append(
+                temp_audio_src(
+                    *analyze_audio_stream(
+                        sspec or "a:0", *inputs[file_id], inputs_info[file_id]
+                    )
                 )
             )
         elif media_type == "video":
-            src = temp_video_src(
-                *analyze_video_stream(
-                    sspec or "v:0", *inputs[file_id], inputs_info[file_id]
+            sources.append(
+                temp_video_src(
+                    *analyze_video_stream(
+                        sspec or "v:0", *inputs[file_id], inputs_info[file_id]
+                    )
                 )
             )
         else:
             raise FFmpegioError("unknown media type of a filter")
-
-        sources.append((src, (0, len(src) - 1, 0), padidx))
 
     # remove all the input labels
     for label in labels:
         fg.remove_label(label)
 
     # add sources to the filtergraph
-    fg = sources >> fg
+    fg = fgb.stack(*sources) + fg
 
     # rename the output
     fg_outputs = []

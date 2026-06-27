@@ -1,8 +1,10 @@
-from ffmpegio import transcode, FFmpegError, FilterGraph
-import tempfile
 import re
+import tempfile
 from os import path
+
 import pytest
+
+from ffmpegio import FFmpegError, FilterGraph, transcode
 
 
 def test_transcode():
@@ -38,7 +40,7 @@ def test_transcode_from_filter():
         out_url = path.join(tmpdirname, "test.png")
         transcode("color=r=1:d=1", out_url, f_in="lavfi", vframes=1, show_log=True)
         transcode(
-            FilterGraph([[("color", {"r": 1, "d": 1})]]),
+            FilterGraph("color=r=1:d=1"),
             out_url,
             f_in="lavfi",
             vframes=1,
@@ -46,7 +48,7 @@ def test_transcode_from_filter():
             overwrite=True,
         )
         transcode(
-            FilterGraph([[("color", {"r": 1, "d": 1})]]),
+            FilterGraph("color=r=1:d=1"),
             out_url,
             f_in="lavfi",
             pix_fmt="rgba",

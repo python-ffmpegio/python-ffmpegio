@@ -2,17 +2,25 @@ from __future__ import annotations
 
 from collections import UserList
 from collections.abc import Callable, Generator, Sequence
-from itertools import chain
+
+from typing_extensions import Iterable, Literal
 
 from .. import filtergraph as fgb
+from . import abc
 from . import utils as filter_utils
-from .exceptions import *
-from .typing import PAD_INDEX, Literal
+from .convert import as_filter, as_filterchain, as_filtergraph
+from .exceptions import (
+    FFmpegioError,
+    FiltergraphConversionError,
+    FiltergraphInvalidExpression,
+    FiltergraphInvalidIndex,
+)
+from .typing import PAD_INDEX
 
 __all__ = ["Chain"]
 
 
-class Chain(fgb.abc.FilterGraphObject, UserList):
+class Chain(abc.FilterGraphObject, UserList):
     """List of FFmpeg filters, connected in series
 
     Chain() to instantiate empty Graph object
@@ -29,31 +37,56 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
     class Error(FFmpegioError):
         pass
 
-    def __init__(self, filter_specs=None):
-        # convert str to a list of filter_specs
+    def __init__(
+        self,
+        filter_specs: str | abc.FilterGraphObject | Iterable[str | fgb.Filter] = None,
+    ):
+        """FFmpeg filterchain
 
-        if isinstance(filter_specs, fgb.Filter):
+        :param filter_specs: filtergraph specification, defaults to create an
+            empty graph. Acceptable formats include:
+
+            * ``str`` of a single-chain FFmpeg filtergraph expression without
+                any labels or the ``'[sws_flags=flags;]'`` clause.
+            * ``Chain`` object to copy-construct
+            * ``Filter`` object to create a single-filter chain
+            * ``Graph`` object with only one chain without any labels or
+                ``sws_flags``
+            * An iterable of ``Filter`` constructor arguments
+        """
+
+        if isinstance(filter_specs, str):
+            filter_specs, links, sws_flags = filter_utils.parse_graph(
+                filter_specs, False
+            )
+            if links:
+                raise FiltergraphInvalidExpression(
+                    "filter_specs with link labels cannot be represented by the Chain class. Use Graph instead."
+                )
+            if sws_flags:
+                raise FiltergraphInvalidExpression(
+                    "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph instead."
+                )
+            if len(filter_specs) != 1:
+                raise FiltergraphInvalidExpression(
+                    "filter_specs str must resolve to a single-chain filtergraph. Use Graph instead."
+                )
+            filter_specs = filter_specs[0]
+        elif isinstance(filter_specs, fgb.Graph):
+            if not filter_specs.is_simple_chain():
+                raise FiltergraphConversionError(
+                    "Cannot convert only a 'simple-chain' `Graph` object can be converted to a `Chain` object"
+                )
+            filter_specs = filter_specs[0] if len(filter_specs) > 0 else []
+        elif isinstance(filter_specs, fgb.Filter):
             filter_specs = [filter_specs]
-        elif filter_specs is not None:
-            if isinstance(filter_specs, str):
-                filter_specs, links, sws_flags = filter_utils.parse_graph(filter_specs)
-                if links:
-                    raise ValueError(
-                        "filter_specs with link labels cannot be represented by the Chain class. Use Graph."
-                    )
-                if sws_flags:
-                    raise ValueError(
-                        "filter_specs with sws_flags cannot be represented by the Chain class. Use Graph."
-                    )
-                if len(filter_specs) != 1:
-                    raise ValueError(
-                        "filter_specs str must resolve to a single-chain filtergraph. Use the Graph class instead."
-                    )
-                filter_specs = filter_specs[0]
+        elif filter_specs is None:
+            filter_specs = []
 
-            filter_specs = (fgb.as_filter(fspec) for fspec in filter_specs)
+        super().__init__([as_filter(spec) for spec in filter_specs])
 
-        UserList.__init__(self, () if filter_specs is None else filter_specs)
+    def copy(self) -> Chain:
+        return Chain(self)
 
     def compose(
         self,
@@ -94,7 +127,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         return UserList.__getitem__(self, key)
 
     def __setitem__(self, key, value):
-        UserList.__setitem__(self, key, fgb.as_filter(value))
+        UserList.__setitem__(self, key, as_filter(value))
 
     def get_num_chains(self) -> int:
         """get the number of chains"""
@@ -111,7 +144,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             raise ValueError(f"{chain=} is invalid. Filter object only has 1 chain.")
         return len(self)
 
-    def get_num_inputs(self) -> int:
+    def get_num_inputs(self, exclude_stream_specs: bool | None = None) -> int:
         return len(list(self.iter_input_pads()))
 
     def get_num_outputs(self) -> int:
@@ -174,16 +207,16 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         return fg.add_label(label, inpad, outpad, force)
 
     def append(self, item):
-        return UserList.append(self, fgb.as_filter(item))
+        return UserList.append(self, as_filter(item))
 
-    def extend(self, other: fgb.Chain | Sequence[fgb.Filter | str]):
-        return UserList.extend(self, [fgb.as_filter(f) for f in other])
+    def extend(self, other: Chain | Sequence[fgb.Filter | str]):
+        return UserList.extend(self, [as_filter(f) for f in other])
 
     def insert(self, i, item):
-        return UserList.insert(self, i, fgb.as_filter(item))
+        return UserList.insert(self, i, as_filter(item))
 
     def __contains__(self, item):
-        item = fgb.as_filter(item)
+        item = as_filter(item)
         return any((f == item for f in self.data))
 
     def __ior__(self, other):
@@ -212,37 +245,19 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             self.data = fg.data
             return self
 
-    def iter_chains(
-        self,
-        skip_if_no_input: bool = False,
-        skip_if_no_output: bool = False,
-        chainable_only: bool = False,
-    ) -> Generator[tuple[int, fgb.Chain]]:
+    def iter_chains(self) -> Generator[Chain]:
         """iterate over chains of the filtergraphobject
 
-        :param skip_if_no_input: True to skip chains without available input pads, defaults to False
-        :param skip_if_no_output: True to skip chains without available output pads, defaults to False
-        :param chainable_only: True to further restrict ``skip_if_no_input`` and ``skip_if_no_input``
-                               arguments to require chainable input or output, defaults to False to
-                               allow any input/output
-        :yield: chain id and chain object
+        :yields: chain object
         """
 
-        if not len(self):
-            return
-
-        if skip_if_no_input and self.next_input_pad() is None:
-            return
-
-        if skip_if_no_output and self.next_output_pad() is None:
-            return
-
-        yield (0, self)
+        if len(self):
+            yield self
 
     def _iter_pads(
         self,
         iter_filter_pad: Callable,
-        i_nochain: int,
+        filter_nochain: int,
         pad: int | None,
         filter: int | None,
         chain: Literal[0] | None,
@@ -255,12 +270,15 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
         :param filters: list of filters to iterate
         :param iter_filter_pad: Filter class function to iterate on filter pads
+        :param filter_nochain: index of the filter, which pads are not chained
+            (i.e., implicitly connected)
         :param pad: pad id
         :param filter: filter index
         :param chain: chain index
         :param exclude_chainable: True to leave out the last pads
         :param chainable_first: True to yield the last pad first then the rest
-        :param include_connected: True to include pads connected to input streams, defaults to False
+        :param include_connected: True to include pads connected to input
+            streams, defaults to False
         :yield: filter pad index, filter object, and True if no connection
         """
 
@@ -275,12 +293,12 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
             if filter is not None:
                 if filter < 0:
                     filter = len(self) + filter
-                if filter != i_nochain:
+                if filter != filter_nochain:
                     raise FiltergraphInvalidIndex(
                         f"{filter=} id is not chainable filter."
                     )
-            filters = [self.data[i_nochain]]
-            i_first = i_nochain
+            filters = [self.data[filter_nochain]]
+            i_first = filter_nochain
 
         elif filter is None:
             # iterate over all filters
@@ -295,8 +313,10 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
 
         # iterate over all filters
         for i, f in enumerate(filters):
-            no_chainables = (not include_connected and i != i_nochain) or (
-                exclude_chainable and i == i_nochain
+            fid = i_first + i
+            no_chainables = (
+                (not include_connected and fid != filter_nochain)  # chained filter
+                or (exclude_chainable and fid == filter_nochain)  #
             )
             try:
                 for pidx, f, other_pidx in iter_filter_pad(
@@ -306,7 +326,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
                     chainable_first=chainable_first,
                     chainable_only=chainable_only,
                 ):
-                    yield (i + i_first, *pidx), f, other_pidx
+                    yield (fid, *pidx), f, other_pidx
             except FiltergraphInvalidIndex:
                 pass
 
@@ -316,7 +336,7 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
         filter: int | None = None,
         chain: Literal[0] | None = None,
         *,
-        exclude_stream_specs: bool = False,
+        exclude_stream_specs: bool | None = False,
         only_stream_specs: bool = False,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
@@ -415,111 +435,256 @@ class Chain(fgb.abc.FilterGraphObject, UserList):
                 else (index, filter, in_index)
             )
 
-    def _connect(
+    def connect(
         self,
-        right: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        bwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
+        right: abc.FilterGraphObject,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        *,
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
         chain_siso: bool = True,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+        inplace: bool = False,
+    ) -> fgb.Graph | Chain | None:
         """combine another filtergraph object and make downstream connections (worker)
 
         :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing self's output pad and right's ipnut pad
-        :param bwd_links: a list of tuples, pairing right's output pad and self's ipnut pad
-        :param to_right: input pad ids or labels of the `right` fg
+        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
+        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
         :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param replace_sws_flags: True to use `right` sws_flags if present,
-                                  False to drop `right` sws_flags,
-                                  None to throw an exception (default)
+        :param sws_flags_policy: Defines how to set ``sws_flags``:
+
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
+        :param inplace: ``True`` to add the ``right`` graph in place.
         :return: new filtergraph object
 
         * link labels may be auto-renamed if there is a conflict
 
         """
 
-        if isinstance(right, fgb.Graph):
-            # right is more complex filtergraph object
-            return right._rconnect(
-                self, fwd_links, bwd_links, chain_siso, replace_sws_flags
-            )
-
-        right = fgb.as_filterchain(right)
-
-        if chain_siso and self.get_num_outputs() == 1 and right.get_num_inputs() == 1:
-            return fgb.Chain([*self, *right])
-
-        # create iterators to organize the links in (input, output) of the combined graph
-        it_fwd = (((1, *r[1:]), l) for (l, r) in fwd_links)
-        it_bwd = ((l, (1, *r[1:])) for (r, l) in bwd_links)
-
-        return fgb.Graph(
-            [[self], [right]],
-            {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
+        return self._connect(
+            fgb.Graph.connect,
+            right,
+            from_left,
+            to_right,
+            from_right,
+            to_left,
+            chain_siso,
+            sws_flags_policy,
+            inplace,
         )
 
-    def _rconnect(
+    def rconnect(
         self,
-        left: fgb.abc.FilterGraphObject,
-        fwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
-        bwd_links: list[tuple[PAD_INDEX, PAD_INDEX]],
+        left: abc.FilterGraphObject,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        *,
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
         chain_siso: bool = True,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """combine another filtergraph object and make upstream connections (worker)
+        sws_flags_policy: Literal["first", "last"] | int | None = None,
+    ) -> fgb.Graph | Chain | None:
+        """combine another filtergraph object and make downstream connections (worker)
 
-        :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing left's output pad and self's ipnut pad
-        :param bwd_links: a list of tuples, pairing self's output pad and left's ipnut pad
+        :param left: other filtergraph
+        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
+        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
         :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param replace_sws_flags: True to use `right` sws_flags if present,
-                                  False to drop `right` sws_flags,
-                                  None to throw an exception (default)
+        :param sws_flags_policy: Defines how to set ``sws_flags``:
+
+            * ``'first'``: to use the first ``sws_flags`` found among the
+              filtergraphs (searched ``self`` first then ``others``)
+            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+              not set).
+            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
+              refers to this object, ``1`` refers to ``others[0]``, etc.
+            * ``None``: if more than one have the ``sws_flags`` set, raises
+              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+              or none if none not found.
+
         :return: new filtergraph object
 
         * link labels may be auto-renamed if there is a conflict
 
         """
 
-        if isinstance(left, fgb.Graph):
-            # left is more complex filtergraph object
-            return left._connect(
-                self, fwd_links, bwd_links, chain_siso, replace_sws_flags
+        return self._connect(
+            fgb.Graph.rconnect,
+            left,
+            from_left,
+            to_right,
+            from_right,
+            to_left,
+            chain_siso,
+            sws_flags_policy,
+        )
+
+    def _connect(
+        self,
+        graph_connect,  # fgb.Graph.connect or fgb.Graph.rconnect
+        other: abc.FilterGraphObject,
+        from_left: PAD_INDEX | str | list[PAD_INDEX | str],
+        to_right: PAD_INDEX | str | list[PAD_INDEX | str],
+        from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None,
+        to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None,
+        chain_siso: bool,
+        sws_flags_policy: Literal["first", "last"] | int | None,
+        inplace: bool,
+    ) -> fgb.Graph | Chain | None:
+        """helper for connect and rconnect"""
+
+        fg = graph_connect(
+            fgb.Graph(self),
+            other,
+            from_left,
+            to_right,
+            from_right=from_right,
+            to_left=to_left,
+            chain_siso=chain_siso,
+            sws_flags_policy=sws_flags_policy,
+            inplace=False,
+        )
+
+        return self._convert_graph(inplace, fg)
+
+    def _convert_graph(self, inplace, fg):
+        if not inplace:
+            return fg[0] if fg.is_simple_chain() else fg
+
+        if isinstance(fg, Chain):
+            self.clear()
+            self.extend(fg)
+        elif fg.is_simple_chain():
+            self.clear()
+            if len(fg):
+                self.extend(fg[0])
+        else:
+            raise ValueError(
+                "'inplace=True' but resulting filtergraph is not a simple chain."
             )
 
-        left = fgb.as_filterchain(left)
-
-        if chain_siso and left.get_num_outputs() == 1 and self.get_num_inputs() == 1:
-            return fgb.Chain([*left, *self])
-
-        # create iterators to organize the links in (input, output) of the combined graph
-        it_fwd = (((1, *r[1:]), l) for (l, r) in fwd_links)
-        it_bwd = ((l, (1, *r[1:])) for (r, l) in bwd_links)
-
-        return fgb.Graph(
-            [[left], [self]],
-            {i: link for i, link in enumerate(chain(it_fwd, it_bwd))},
-        )
-
-    def _stack(
+    def attach(
         self,
-        other: fgb.abc.FilterGraphObject,
-        auto_link: bool = False,
-        replace_sws_flags: bool | None = None,
-    ) -> fgb.Graph:
-        """stack another Graph to this Graph (no var check)"""
+        right: abc.FilterGraphObject | str | list[str | tuple[str, PAD_INDEX]],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+        inplace: bool = False,
+    ) -> Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available output pads
 
-        other = fgb.atleast_filterchain(other)
+        :param right: output filtergraph or labels. If ``str``, the expression
+            is first attempted to be converted to a filtergraph object. If the
+            attempt fails, it is treated as a label.
+        :param left_on: pad_index, specify the output pad to connect ``right``
+            to, defaults to auto-detect (first available)
+        :param right_on: pad index, specifies the input pad of ``right`` to
+            connect to the ``left_on`` pad, defaults to auto-detect (first
+            available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :param inplace: ``True`` to store the output filtergraph in place.
+            If ``'inplace=True`` but the output is not of the same class type,
+            a ``ValueError` exception will be raised.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
 
-        # if other is not a filter, elevate self to match first
-        return (
-            fgb.Graph([self, other])
-            if isinstance(other, fgb.Chain)
-            else fgb.Graph(self)._stack(other, auto_link, replace_sws_flags)
+        """
+
+        if chainable_only == "auto":
+            chainable_only = True
+
+        try:
+            assert left_on is None and right_on is None and chainable_only is True
+            right_obj = as_filterchain(right)
+        except (AssertionError, FiltergraphInvalidExpression):
+            return self._convert_graph(
+                inplace,
+                as_filtergraph(self).attach(
+                    right,
+                    left_on,
+                    right_on,
+                    chainable_only=chainable_only,
+                    chain_siso=chain_siso,
+                    inplace=False,
+                ),
+            )
+
+        left_pad = next(self.iter_output_pads(chainable_only=True))[0]
+        right_pad = next(right_obj.iter_input_pads(chainable_only=True))[0]
+        return self.connect(
+            right_obj, left_pad, right_pad, chain_siso=chain_siso, inplace=inplace
         )
 
-        return fgb.as_filtergraph(self)._stack(other, auto_link, replace_sws_flags)
+    def rattach(
+        self,
+        left: abc.FilterGraphObject | str | list[str | tuple[str, PAD_INDEX]],
+        left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
+        *,
+        chainable_only: bool | Literal["left", "right", "auto"] = "auto",
+        chain_siso: bool = True,
+    ) -> Chain | fgb.Graph:
+        """attach filter, chain, graph, or labels to available input pads
+
+        :param left: input filtergraph or labels
+        :param left_on: pad_index, specify the output pad of ``left``,
+            defaults to auto-detect (first available)
+        :param right_on: pad index, specifies which input pad to connect
+            ``left`` to, defaults to auto-detect (first available)
+        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
+            ``righ_on`` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use ``'left'`` or
+            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
+            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
+            ``Graph`` defaults to ``False``
+        :param chain_siso: ``True`` (default) to chain the new connection,
+            ``False`` to stack attached filtergraph.
+        :return: new filtergraph object or ``None`` if ``inplace=True``
+
+        """
+
+        if chainable_only == "auto":
+            chainable_only = True
+
+        try:
+            assert left_on is None and right_on is None and chainable_only is True
+            left_obj = as_filterchain(left)
+        except (AssertionError, FiltergraphInvalidExpression):
+            return self._convert_graph(
+                False,
+                as_filtergraph(self).rattach(
+                    left,
+                    left_on,
+                    right_on,
+                    chainable_only=chainable_only,
+                    chain_siso=chain_siso,
+                ),
+            )
+
+        left_pad = next(left_obj.iter_output_pads(chainable_only=True))[0]
+        right_pad = next(self.iter_input_pads(chainable_only=True))[0]
+        return left_obj.connect(
+            self, left_pad, right_pad, chain_siso=chain_siso, inplace=False
+        )
 
     def _input_pad_is_available(self, index: tuple[int, int, int]) -> bool:
         """returns True if specified input pad index is available"""

@@ -1,21 +1,24 @@
-from ffmpegio import filtergraph as fgb, FFmpegioError
 import pytest
+
+from ffmpegio import FFmpegioError
+from ffmpegio import filtergraph as fgb
 
 
 @pytest.mark.parametrize(
     "left,right, from_left, to_right, chain_siso, ret",
     [
         # fmt: off
-        ("scale", "fps", (0, 0, 0), (0, 0, 0), True, "scale,fps"),
+        ("scale", "fps", (0, 0, 0), (0, 0, 0), True, "[UNC0]scale,fps[UNC1]"),
         ("scale", "fps", (0, 0, 0), (0, 0, 0), False, "[UNC0]scale[L0];[L0]fps[UNC1]"),
         (
             "split",
             "fps",
             (0, 0, 1),
             (0, 0, 0),
-            True,
+            False,
             "[UNC0]split[UNC1][L0];[L0]fps[UNC2]",
         ),
+        ("split", "fps", (0, 0, 1), (0, 0, 0), True, "[UNC0]split[UNC1],fps[UNC2]"),
         (
             "split",
             "vstack",
@@ -24,15 +27,15 @@ import pytest
             True,
             "[UNC0]split[L0][L1];[L1][L0]vstack[UNC1]",
         ),
-        ("scale", "fps,eq", (0, 0, 0), (0, 0, 0), True, "scale,fps,eq"),
-        ("scale,fps", "eq", (0, 1, 0), (0, 0, 0), True, "scale,fps,eq"),
+        ("scale", "fps,eq", (0, 0, 0), (0, 0, 0), True, "[UNC0]scale,fps,eq[UNC1]"),
+        ("scale,fps", "eq", (0, 1, 0), (0, 0, 0), True, "[UNC0]scale,fps,eq[UNC1]"),
         (
             "scale",
             "[0:v]vstack[out]",
             (0, 0, 0),
             (0, 0, 1),
             True,
-            "[UNC0]scale[L0];[0:v][L0]vstack[out]",
+            "[UNC0]scale,[0:v]vstack[out]",
         ),
         (
             "scale",
@@ -49,7 +52,9 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
 
     fg = fgb.connect(left, right, from_left, to_right, chain_siso=chain_siso)
 
-    assert fg.compose() == ret
+    assert (
+        fg.compose(show_unconnected_inputs=True, show_unconnected_outputs=True) == ret
+    )
 
 
 @pytest.mark.parametrize(
@@ -66,7 +71,7 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
             0,
             False,
             False,
-            "[UNC0]split[L0][L1];[L0][L1]vstack[UNC1]",
+            "[UNC0]split[L0],[L0]vstack[UNC1]",
         ),
         (
             "split",
@@ -78,13 +83,13 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
             "[UNC0]split[L0][UNC2];[L0][UNC1]vstack[UNC3]",
         ),
         (
-            "[vin]scale;[ain]asplit",
-            "vstack[vout];atrim[aout]",
+            "[vin1]scale;[vin2]split",
+            "vstack[vout1];trim[vout2]",
             "all",
             0,
             False,
             False,
-            "[vin]scale[L0];[ain]asplit[L1][L2];[L0][L1]vstack[vout];[L2]atrim[aout]",
+            "[vin1]scale[L0];[vin2]split[L1],trim[vout2];[L0][L1]vstack[vout1]",
         ),
         (
             "[vin]scale;[ain]asplit",
@@ -112,7 +117,7 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
             0,
             False,
             True,
-            "[UNC0]split[out][L0];[in][L0]vstack[UNC1]",
+            "[UNC0]split[out],[in]vstack[UNC1]",
         ),
         # fmt: on
     ],
@@ -127,24 +132,34 @@ def test_join(left, right, how, n_links, strict, unlabeled_only, ret):
         assert fg.compose() == ret
 
 
-@pytest.mark.parametrize(
-    "left,right,left_on,right_on,ret",
-    [
-        # fmt: off
-        ("scale", "fps", (0, 0, 0), (0, 0, 0), "scale,fps"),
-        ("scale", "fps", None, None, "scale,fps"),
-        ("scale", "[out]", None, None, "[UNC0]scale[out]"),
-        ("[in]", "scale", None, None, "[in]scale[UNC0]"),
-        ("[in]split", ["fps", "out"], None, None, "[in]split[L0][out];[L0]fps[UNC0]"),
-        (["in", "fps"], "vstack", None, None, "[UNC0]fps[L0];[in][L0]vstack[UNC1]"),
-        # fmt: on
-    ],
-)
-def test_attach(left, right, left_on, right_on, ret):
+# @pytest.mark.parametrize(
+#     "left,right,left_on,right_on,ret",
+#     [
+#         # fmt: off
+#         ("scale", "fps", (0, 0, 0), (0, 0, 0), "scale,fps"),
+#         ("scale", "fps", None, None, "scale,fps"),
+#         ("scale", "[out]", None, None, "[UNC0]scale[out]"),
+#         ("[in]", "scale", None, None, "[in]scale[UNC0]"),
+#         ("[in]split", ["fps", "out"], None, None, "[in]split[L0][out];[L0]fps[UNC0]"),
+#         (["in", "fps"], "vstack", None, None, "[UNC0]fps[L0];[in][L0]vstack[UNC1]"),
+#         # fmt: on
+#     ],
+# )
+# def test_attach(left, right, left_on, right_on, ret):
 
-    if ret is None:
-        with pytest.raises(ValueError):
-            fgb.attach(left, right, left_on, right_on)
-    else:
-        fg = fgb.attach(left, right, left_on, right_on)
-        assert fg.compose() == ret
+#     if ret is None:
+#         with pytest.raises(ValueError):
+#             fgb.attach(left, right, left_on, right_on)
+#     else:
+#         fg = fgb.attach(left, right, left_on, right_on)
+#         assert fg.compose() == ret
+
+
+def test_join_bug():
+    af1 = fgb.Chain("aevalsrc,aformat")
+    af2 = fgb.Graph("channelmap,bandpass,aresample")
+    af3 = fgb.Chain("channelmap,bandpass,aresample")
+    af_a = af1 + af2
+    af_b = af1 + af3
+
+    assert af_a == af_b

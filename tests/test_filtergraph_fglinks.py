@@ -2,8 +2,9 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio.filtergraph.GraphLinks import GraphLinks
 import pytest
+
+from ffmpegio.filtergraph.GraphLinks import GraphLinks
 
 
 @pytest.mark.parametrize(
@@ -21,7 +22,6 @@ def test_iter_inpad_ids(dsts, expects):
 @pytest.mark.parametrize(
     ("args", "ok"),
     [
-        (("0:v",), True),
         (("label",), True),
         ((0, True), True),
         ((0.0, True), False),
@@ -37,20 +37,37 @@ def test_validate_label(args, ok):
 
 
 @pytest.mark.parametrize(
-    ("id", "ok"),
+    ("args", "ok"),
     [
-        (None, True),
-        ((0, 0, 0), True),
-        ((0, 0, 0, 0), False),
-        ((0, 0, "0"), False),
+        (("0:v",), True),
+        (("a",), True),
+        (("in",), False),
     ],
 )
-def test_validate_pad_idx(id, ok):
+def test_validate_input_stream(args, ok):
     if ok:
-        GraphLinks.validate_pad_idx(id)
+        GraphLinks.validate_input_stream(*args)
     else:
         with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_pad_idx(id)
+            GraphLinks.validate_input_stream(*args)
+
+
+@pytest.mark.parametrize(
+    ("args", "ok"),
+    [
+        ((None, True), True),
+        ((None, False), False),
+        (((0, 0, 0),), True),
+        (((0, 0, 0, 0),), False),
+        (((0, 0, "0"),), False),
+    ],
+)
+def test_validate_pad_idx(args, ok):
+    if ok:
+        GraphLinks.validate_pad_idx(*args)
+    else:
+        with pytest.raises(GraphLinks.Error):
+            GraphLinks.validate_pad_idx(*args)
 
 
 @pytest.mark.parametrize(
@@ -103,32 +120,13 @@ def test_validate(data, ok):
             GraphLinks.validate(data)
 
 
-@pytest.mark.parametrize(
-    ("args", "expects"),
-    [
-        (((0, 0, 0), None), ((0, 0, 0), None)),
-        (([(0, 0, 0), (1, 0, 0)], None), (((0, 0, 0), (1, 0, 0)), None)),
-        (((0, 0, 0), None, lambda id: (id[0] + 1, *id[1:])), ((1, 0, 0), None)),
-        (
-            ((0, 0, 0), (0, 0, 0), lambda id: (id[0] + 1, *id[1:])),
-            ((1, 0, 0), (1, 0, 0)),
-        ),
-    ],
-)
-def test_format_value(args, expects):
-    if expects is None:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.format_value(*args)
-    else:
-        assert GraphLinks.format_value(*args) == expects
-
-
 # fixture links with one of each type of link items
-@pytest.fixture()
+@pytest.fixture(scope="function")
 def base_links():
     yield GraphLinks(
         {
             "l": ((0, 0, 0), (0, 0, 0)),  # regular link
+            "d": (1, None),  # regular link
             0: ((1, 1, 0), (0, 1, 0)),  # unnamed link
             "in": ((2, 1, 0), None),  # named input
             "0:v": ([(3, 0, 0), (3, 1, 0)], None),  # named inputs
@@ -142,25 +140,6 @@ def base_links():
 def test_init(base_links):
     GraphLinks()
     base_links
-
-
-@pytest.mark.parametrize(
-    ("labels", "expects"),
-    [
-        ([0, 3, None], [0, 1, 2]),
-        (["a", "b"], ["a", "b"]),
-    ],
-)
-def test_resolve_label(labels, expects):
-    links = GraphLinks()
-
-    def update(label):
-        links.data[links._resolve_label(label)] = None
-
-    for label in labels:
-        update(label)
-
-    assert list(links.keys()) == expects
 
 
 def test_iter_links(base_links):
@@ -180,6 +159,7 @@ def test_iter_links(base_links):
 def test_iter_inputs(base_links):
     res = {
         ("in", (2, 1, 0)),  # regular link
+        ("d", (0, 0, 1)),  # regular link
         ("0:v", (3, 0, 0)),  # unnamed link
         ("0:v", (3, 1, 0)),  # split output label#2
     }
@@ -204,31 +184,49 @@ def test_iter_outputs(base_links):
     assert not len(res)
 
 
-def test_iter_input_pads(base_links):
-    res = {
-        ("l", (0, 0, 0), (0, 0, 0)),  # regular link
-        (0, (1, 1, 0), (0, 1, 0)),  # unnamed link
-        ("in", (2, 1, 0), None),  # named input
-        ("0:v", (3, 0, 0), None),  # named inputs
-        ("0:v", (3, 1, 0), None),  # named inputs
-        ("out", None, (1, 1, 0)),  # named output
-        ("sout1", None, (6, 0, 0)),  # split output label#1
-        ("sout2", (2, 0, 0), (1, 0, 0)),  # split output label#2
-    }
+@pytest.mark.parametrize(
+    ("only_labels,only_links,input_streams_as_links,ret"),
+    [
+        (False, False, None, {"link", "label", "0:v", "a", "v"}),
+        (False, False, False, {"link", "label", "0:v", "a", "v"}),
+        (False, False, True, {"link", "label", "0:v", "a", "v"}),
+        (False, True, None, {"link", "0:v"}),
+        (False, True, False, {"link"}),
+        (False, True, True, {"link", "0:v", "a", "v"}),
+        (True, False, None, {"label", "a", "v"}),
+        (True, False, False, {"label", "0:v", "a", "v"}),
+        (True, False, True, {"label"}),
+        (True, True, None, set()),
+        (True, True, False, set()),
+        (True, True, True, set()),
+    ],
+)
+def test_iter_input_pads(only_labels, only_links, input_streams_as_links, ret):
+    links = GraphLinks(
+        {
+            "link": ((0, 0, 0), (0, 0, 0)),  # regular link
+            "label": ((1, 0, 0), None),  # regular input label
+            "out": (None, (1, 0, 0)),  # regular output label
+            "0:v": ((3, 0, 0), None),  # input stream connection
+            "a": (4, None),  # possible input stream
+            "v": ((5, 6), None),  # input stream with two connections
+        }
+    )
+    out = set(
+        (
+            l
+            for l, *_ in links.iter_input_pads(
+                only_labels, only_links, input_streams_as_links
+            )
+        )
+    )
 
-    for v in base_links.iter_input_pads():
-        assert v in res
-        res.discard(v)
-
-    assert not len(res)
+    assert ret == out
 
 
 @pytest.mark.parametrize(
     ("key", "expects"),
-    [
-        ("l", ((0, 0, 0), (0, 0, 0))),
-        ((1, 1, 0), (0, (0, 1, 0))),
-    ],
+    [("l", ((0, 0, 0), (0, 0, 0)))],
 )
 def test__getitem__(key, expects, base_links):
 
@@ -332,7 +330,8 @@ def test_unlink(base_links):
             None,
         ),  # links to inherit 'out' output label
         (((4, 0, 0), (1, 1, 0), None, True), 1, None),  # new label
-        (((3, 0, 0), (4, 0, 0)), 1, None),
+        (((3, 0, 0), (4, 0, 0), None, None, True), 1, None),
+        (((0, 0, 1), (1, 0, 2)), 1, None),
         # links to inherit 'in' input label
         # fmt:on
     ],
@@ -423,3 +422,80 @@ def test_remove_label(links, n, nin):
 # "out": (None, (1, 1, 0)),  # named output
 # "sout1": (None, (1, 0, 0)),  # split output label#1
 # "sout2": ((2, 0, 0), (1, 0, 0)),  # split output label#2
+
+
+@pytest.mark.parametrize(
+    ("link_objs,cumsum_chains,res"),
+    [
+        ([], [], ({}, [])),
+        ([None], [0], ({}, [None])),
+        (
+            [
+                GraphLinks(
+                    {
+                        "in": ((0, 0, 0), None),
+                        "out": (None, (1, 0, 0)),
+                        0: ((1, 0, 1), (0, 1, 0)),
+                    }
+                ),
+                GraphLinks(
+                    {
+                        "in": ((0, 0, 0), None),
+                        "link": ((1, 0, 0), (0, 0, 0)),
+                        0: ((1, 0, 1), (0, 1, 0)),
+                        1: ((0, 1, 0), (2, 0, 0)),
+                    }
+                ),
+            ],
+            [0, 2],
+            (
+                {
+                    "in": ((0, 0, 0), None),
+                    "in1": ((2, 0, 0), None),
+                    "out": (None, (1, 0, 0)),
+                    "link": ((3, 0, 0), (2, 0, 0)),
+                    0: ((1, 0, 1), (0, 1, 0)),
+                    1: ((3, 0, 1), (2, 1, 0)),
+                    2: ((2, 1, 0), (4, 0, 0)),
+                },
+                [
+                    {"in": "in", "out": "out", 0: 0},
+                    {"in": "in1", "link": "link", 0: 1, 1: 2},
+                ],
+            ),
+        ),
+        (
+            [
+                GraphLinks({"0:v:0": ((0, 0, 0), None)}),
+                GraphLinks({"0:v:0": (((0, 0, 0), (1, 0, 0)), None)}),
+            ],
+            [0, 2],
+            (
+                {
+                    "0:v:0": (((0, 0, 0), (2, 0, 0), (3, 0, 0)), None),
+                },
+                [{}, {}],
+            ),
+        ),
+    ],
+)
+def test_combine(link_objs, cumsum_chains, res):
+    out = GraphLinks.combine(link_objs, cumsum_chains)
+    assert out[1] == res[1]
+    assert out[0] == res[0]
+
+
+@pytest.mark.parametrize(
+    "links,res",
+    [
+        (
+            [
+                GraphLinks({"la": ((0, 0, 0), None), "lb": (None, (1, 0, 0))}),
+                GraphLinks({"lb": ((0, 0, 0), None), "la": (None, (1, 0, 0))}),
+            ],
+            [("la", 0, 1), ("lb", 1, 0)],
+        ),
+    ],
+)
+def test_pair_unconnected_labels(links, res):
+    assert res == GraphLinks.pair_unconnected_labels(links)

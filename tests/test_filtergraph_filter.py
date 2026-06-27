@@ -2,9 +2,11 @@ import logging
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio import filtergraph as fgb
-import pytest
 import operator
+
+import pytest
+
+from ffmpegio import filtergraph as fgb
 
 
 def test_Filter():
@@ -22,9 +24,9 @@ def test_Filter():
 @pytest.mark.parametrize(
     "filter_spec,option_name,expected",
     [
-        (("concat", {"n": 3}), "n", 3),
-        (("concat", 3), "n", 3),
-        (("concat",), "n", 2),
+        ("concat=n=3", "n", 3),
+        ("concat=3", "n", 3),
+        ("concat", "n", 2),
     ],
 )
 def test_filter_get_option_value(filter_spec, option_name, expected):
@@ -39,21 +41,21 @@ def test_filter_get_option_value(filter_spec, option_name, expected):
     "filter_spec,expected",
     [
         ("overlay", 2),
-        (["overlay", "no1"], 2),
-        (("hstack", {"inputs": 4}), 4),
-        (("afir", {"nbirs": 1}), 2),
-        (("concat", {"n": 3}), 3),
-        (("decimate", {"ppsrc": 1}), 2),
-        (("fieldmatch", {"ppsrc": 1}), 2),
-        (("headphone", "FL|FR|FC|LFE|BL|BR|SL|SR"), 9),
-        (("headphone", ["FL", "FR"]), 3),
-        (("headphone", {"map": "FL|FR|FC|LFE|BL|BR|SL|SR", "hrir": "multich"}), 2),
-        (("interleave", {"nb_inputs": 2}), 2),
-        (("mergeplanes", "0x001020", "yuv444p"), 3),
-        (("mergeplanes", "0x00010210", "yuv444p"), 2),
-        (("premultiply", {"inplace": 1}), 1),
-        (("unpremultiply", {"inplace": 0}), 2),
-        (("signature", {"nb_inputs": 2}), 2),
+        ("overlay=no1", 2),
+        ("hstack=inputs=4", 4),
+        ("afir=nbirs=1", 2),
+        ("concat=n=3", 3),
+        ("decimate=ppsrc=1", 2),
+        ("fieldmatch=ppsrc=1", 2),
+        ("headphone=FL|FR|FC|LFE|BL|BR|SL|SR", 9),
+        ("headphone=FL|FR", 3),
+        ("headphone=map=FL|FR|FC|LFE|BL|BR|SL|SR:hrir=multich", 2),
+        ("interleave=nb_inputs=2", 2),
+        ("mergeplanes=0x001020:yuv444p", 3),
+        ("mergeplanes=0x00010210:yuv444p", 2),
+        ("premultiply=inplace=1", 1),
+        ("unpremultiply=inplace=0", 2),
+        ("signature=nb_inputs=2", 2),
     ],
 )
 def test_filter_get_num_inputs(filter_spec, expected):
@@ -67,7 +69,7 @@ def test_filter_get_num_inputs(filter_spec, expected):
 @pytest.mark.parametrize(
     "filter_spec,expected",
     [
-        ("split", 2),
+        (["split"], 2),
         (["split", 3], 3),
         (("acrossover", {"split": "1500 8000", "order": "8th"}), 3),
         (("afir", {"response": 0}), 1),
@@ -89,7 +91,12 @@ def test_filter_get_num_inputs(filter_spec, expected):
 )
 def test_filter_get_num_outputs(filter_spec, expected):
 
-    f = fgb.Filter(filter_spec)
+    has_kws = isinstance(filter_spec[-1], dict)
+    if has_kws:
+        *filter_spec, kwargs = filter_spec
+    else:
+        kwargs = {}
+    f = fgb.Filter(*filter_spec, **kwargs)
     try:
         assert f.get_num_outputs() == expected
     except fgb.Filter.InvalidName:
@@ -190,21 +197,8 @@ def test_iter_output_pads(
             assert index == (r,) and f == fg and in_index == None
 
 
-@pytest.mark.parametrize(
-    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
-    [
-        ("fps", False, False, False, 1),
-        ("fps", True, True, True, 1),
-        ("nullsrc", False, False, False, 1),
-        ("nullsrc", True, False, False, 0),
-        ("nullsink", False, False, False, 1),
-        ("nullsink", False, True, False, 0),
-    ],
-)
-def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
-    f = fgb.Filter(expr)
-    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
-    assert len(chains) == ret
+def test_iter_chains():
+    assert len([*fgb.Filter("fps").iter_chains()]) == 1
 
 
 def test_apply():
@@ -222,7 +216,7 @@ def test_apply():
         # fmt:off
         (
             operator.__add__,
-            fgb.Filter("scale"),
+            fgb.scale(),
             "overlay",
             "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
         ),
@@ -236,61 +230,61 @@ def test_apply():
             operator.__rshift__,
             fgb.Filter("split"),
             "hflip",
-            "[UNC0]split[L0][UNC1];[L0]hflip[UNC2]",
+            "[UNC0]split[UNC1],hflip[UNC2]",
         ),
         (
             operator.__rshift__,
             fgb.Filter("split"),
             (1, "overlay"),
-            "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),
         (
             operator.__rshift__,
             fgb.Filter("split"),
             (1, "[in]overlay"),
-            "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]",
+            "[UNC0]split[UNC1],[in]overlay[UNC2]",
         ),  # X
         (
             operator.__rshift__,
             fgb.Filter("split"),
             (1, 1, "overlay"),
-            "[UNC0]split[UNC2][L0];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),
         (
             operator.__rshift__,
             fgb.Filter("split"),
             (None, "[over]", "[base][over]overlay"),
-            "[UNC0]split[L0][UNC1];[base][L0]overlay[UNC2]",
-        ),  # X
+            "[UNC0]split[UNC1],[base]overlay[UNC2]",
+        ),
         (
             operator.__rshift__,
             "hflip",
             fgb.Filter("overlay"),
-            "[UNC0]hflip[L0];[L0][UNC1]overlay[UNC2]",
+            "[UNC0]hflip,[UNC1]overlay[UNC2]",
         ),
         (
             operator.__rshift__,
             ("split", 1),
             fgb.Filter("overlay"),
-            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
-        ),  # X
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
+        ),
         (
             operator.__rshift__,
             ("split", (0, 1)),
             fgb.Filter("overlay"),
-            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),  # X
         (
             operator.__rshift__,
             ("split[out]", 1),
             fgb.Filter("overlay"),
-            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[out],[UNC1]overlay[UNC2]",
         ),  # X
         (
             operator.__rshift__,
             ("split[out]", "[out]", None),
             fgb.Filter("overlay"),
-            "[UNC0]split[L0][UNC2];[L0][UNC1]overlay[UNC3]",
+            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
         ),
         # X
         # (operator.__rshift__, fgb.Graph("split[out1][out2]"), ('[out1]', '[over]', "[base][over]overlay"), "split[out1][out2];[base][out1]overlay"),
@@ -298,7 +292,11 @@ def test_apply():
     ],
 )
 def test_ops(op, lhs, rhs, expected):
-    assert op(lhs, rhs).compose() == expected
+    fg = op(lhs, rhs)
+    assert (
+        fg.compose(show_unconnected_inputs=True, show_unconnected_outputs=True)
+        == expected
+    )
 
 
 if __name__ == "__name__":

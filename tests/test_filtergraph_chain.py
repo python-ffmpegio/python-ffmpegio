@@ -3,8 +3,9 @@ import operator
 
 logging.basicConfig(level=logging.INFO)
 
-from ffmpegio import filtergraph as fgb
 import pytest
+
+from ffmpegio import filtergraph as fgb
 
 
 def test_fchain():
@@ -13,6 +14,15 @@ def test_fchain():
     fchain.append("split=5")
     print(type(fchain[1]))
     print(fchain)
+
+
+def test_compose():
+    chain = fgb.Chain("split,hflip")
+    assert chain.compose() == "split,hflip"
+    assert (
+        chain.compose(show_unconnected_inputs=True, show_unconnected_outputs=True)
+        == "[UNC0]split[UNC1],hflip[UNC2]"
+    )
 
 
 @pytest.mark.parametrize(
@@ -142,106 +152,100 @@ def test_iter_output_pads(
                 assert out_index[0] == index[0] - 1
 
 
-@pytest.mark.parametrize(
-    "expr, skip_if_no_input, skip_if_no_output, chainable_only, ret",
-    [
-        ("fps,scale", False, False, False, 1),
-        ("fps,scale", True, True, True, 1),
-        ("nullsrc,fps", False, False, False, 1),
-        ("nullsrc,fps", True, False, False, 0),
-        ("fps,nullsink", False, False, False, 1),
-        ("fps,nullsink", False, True, False, 0),
-    ],
-)
-def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, ret):
-    f = fgb.Chain(expr)
-    chains = [*f.iter_chains(skip_if_no_input, skip_if_no_output, chainable_only)]
-    assert len(chains) == ret
+def test_iter_chains():
+    assert len([*fgb.Chain("fps,scale").iter_chains()]) == 1
+    assert len([*fgb.Chain().iter_chains()]) == 0
 
 
 @pytest.mark.parametrize(
     "op, lhs,rhs,expected",
     [
         # fmt:off
-        (
+        (  # 0
             operator.__add__,
             fgb.Chain("scale"),
             "overlay",
             "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
         ),
-        (
+        (  # 1
             operator.__add__,
             "scale",
             fgb.Chain("overlay"),
             "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
         ),
-        (
+        (  # 2
             operator.__rshift__,
             fgb.Chain("split"),
             "hflip",
-            "[UNC0]split[L0][UNC1];[L0]hflip[UNC2]",
+            "[UNC0]split[UNC1],hflip[UNC2]",
         ),
-        (
+        (  # 3
+            operator.__rshift__,
+            fgb.Chain("split"),
+            (0, "overlay"),
+            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+        ),
+        (  # 4
             operator.__rshift__,
             fgb.Chain("split"),
             (1, "overlay"),
-            "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),
-        (
+        (  # 5
             operator.__rshift__,
             fgb.Chain("split"),
             (1, "[in]overlay"),
-            "[UNC0]split[UNC2][L0];[L0][UNC1]overlay[UNC3]",
+            "[UNC0]split[UNC1],[in]overlay[UNC2]",
         ),
-        (
+        (  # 6
             operator.__rshift__,
             fgb.Chain("split"),
             (1, 1, "overlay"),
-            "[UNC0]split[UNC2][L0];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),
-        (
+        (  # 7
             operator.__rshift__,
             fgb.Chain("split"),
             (None, "[over]", "[base][over]overlay"),
-            "[UNC0]split[L0][UNC1];[base][L0]overlay[UNC2]",
+            "[UNC0]split[UNC1],[base]overlay[UNC2]",
         ),
-        (
+        (  # 8
             operator.__rshift__,
             "hflip",
             fgb.Chain("overlay"),
-            "[UNC0]hflip[L0];[L0][UNC1]overlay[UNC2]",
+            "[UNC0]hflip,[UNC1]overlay[UNC2]",
         ),
-        (
+        (  # 9
             operator.__rshift__,
             ("split", 1),
             fgb.Chain("overlay"),
-            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),
-        (
+        (  # 10
             operator.__rshift__,
             ("split", (0, 1)),
             fgb.Chain("overlay"),
-            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[UNC2],[UNC1]overlay[UNC3]",
         ),
-        (
+        (  # 11
             operator.__rshift__,
             ("split[out]", 1),
             fgb.Chain("overlay"),
-            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
+            "[UNC0]split[out],[UNC1]overlay[UNC2]",
         ),
-        (
+        (  # 12
             operator.__rshift__,
             ("split[out]", "[out]", None),
             fgb.Chain("overlay"),
-            "[UNC0]split[L0][UNC2];[L0][UNC1]overlay[UNC3]",
+            "[UNC0]split[L0][UNC2];[UNC1][L0]overlay[UNC3]",
         ),
-        (
+        (  # 13
             operator.__rshift__,
             ["scale", "fps"],
             fgb.Chain("hstack"),
-            "[UNC0]scale[L0];[UNC1]fps[L1];[L0][L1]hstack[UNC2]",
+            "[UNC0]scale,fps,[UNC1]hstack[UNC2]",
         ),
-        (
+        (  # 14
             operator.__rshift__,
             fgb.Chain("split"),
             ["[v1]", "[v2]"],
@@ -252,4 +256,8 @@ def test_iter_chains(expr, skip_if_no_input, skip_if_no_output, chainable_only, 
     ],
 )
 def test_ops(op, lhs, rhs, expected):
-    assert op(lhs, rhs).compose() == expected
+    fg = op(lhs, rhs)
+    assert (
+        fg.compose(show_unconnected_inputs=True, show_unconnected_outputs=True)
+        == expected
+    )
