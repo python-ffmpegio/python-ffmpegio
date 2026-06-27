@@ -986,7 +986,7 @@ def _get_filter_option(block: str, name: str) -> FilterOption:
 
     # first line is the main option definition
     m0 = re.match(
-        r"  (?: |-)(.+?)\s+\[?\<(.+?)\>\s*\]?[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
+        r"  (?: |-)([^ \n]+?) +(.+?)[.E][.D][.F]([.V])([.A])[.S][.X][.R][.B]([.T])[.P]",
         lines[0],
     )
     if not m0:
