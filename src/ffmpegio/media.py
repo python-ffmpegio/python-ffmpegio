@@ -117,7 +117,7 @@ def _gather_outputs(
 
 
 def read(
-    *urls: *tuple[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]],
+    *urls: tuple[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]],
     streams: (
         Sequence[str]
         | Sequence[FFmpegOptionDict]
@@ -185,7 +185,7 @@ def write(
         ]
     ),
     stream_types: Sequence[Literal["a", "v"]],
-    *stream_args: *tuple[RawStreamDef, ...],
+    *stream_args: tuple[RawStreamDef, ...],
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     stream_dtypes: list[DTypeString | None] | None = None,
     stream_shapes: list[ShapeTuple | None] | None = None,
@@ -260,7 +260,7 @@ def write(
 def filter(
     expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
     input_types: Sequence[Literal["a", "v"]],
-    *input_args: *tuple[RawStreamDef, ...],
+    *input_args: tuple[RawStreamDef, ...],
     extra_inputs: (
         list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     ) = None,

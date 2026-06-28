@@ -201,7 +201,7 @@ def compose_filter(
 
 def compose_filter(
     name: str | tuple[str, str],
-    *args: *tuple[str | int | float | Fraction],
+    *args: tuple[str | int | float | Fraction],
     **kwargs: dict[str, str | int | float | Fraction],
 ) -> str:
     """compose filter expression from expanded positional & keyword arguments
