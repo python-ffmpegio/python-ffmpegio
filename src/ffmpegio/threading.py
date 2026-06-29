@@ -400,7 +400,7 @@ class ReaderThread(Thread):
             try:
                 data = stream.read(blocksize)
                 # logger.debug("read %d bytes", len(data))
-            except ValueError:  # I/O operation on closed file
+            except Exception:  # I/O operation on closed file
                 # stdout stream closed/FFmpeg terminated, end the thread as well
                 data = None
 
@@ -442,7 +442,7 @@ class ReaderThread(Thread):
         try:
             while not self._halt.is_set():
                 stream.read(blocksize)
-        except ValueError:  # I/O operation on closed file
+        except Exception:  # I/O operation on closed file
             pass
 
         logger.info("ReaderThread exiting")
