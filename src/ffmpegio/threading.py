@@ -391,6 +391,7 @@ class ReaderThread(Thread):
         if is_npipe:
             self.stdout = self.pipe.wait()
         stream = self.stdout
+        assert stream is not None
         queue = self._queue
 
         logger.debug("starting to read")
@@ -399,7 +400,7 @@ class ReaderThread(Thread):
             try:
                 data = stream.read(blocksize)
                 # logger.debug("read %d bytes", len(data))
-            except:
+            except ValueError:  # I/O operation on closed file
                 # stdout stream closed/FFmpeg terminated, end the thread as well
                 data = None
 
@@ -438,8 +439,11 @@ class ReaderThread(Thread):
 
         # cooling loop (no queuing, flush all read)
         logger.info("ReaderThread enters cool-down mode")
-        while not self._halt.is_set():
-            stream.read(blocksize)
+        try:
+            while not self._halt.is_set():
+                stream.read(blocksize)
+        except ValueError:  # I/O operation on closed file
+            pass
 
         logger.info("ReaderThread exiting")
         self._running.clear()
