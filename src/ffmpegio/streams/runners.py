@@ -1597,15 +1597,15 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
 
             # yield the last read frames
-            yield out
+            if any(n > 0 for n in nread):
+                yield out
 
             # calculate how many frames to read next (fractional)
             nf = [nfi - nr + nnext for nfi, nr, nnext in zip(nf, nread, nperread)]
 
         # if there is any secondary streams with leftover frames, do the last yield
         if self.output_pending() and any(n > 0 for n in nread):
-            out = [self.read(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)]
-            yield out
+            yield [self.read(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)]
 
     @staticmethod
     def open_media_reader(
