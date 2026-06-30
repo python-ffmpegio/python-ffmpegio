@@ -505,6 +505,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         # find the primary output stream's rate
         if self._use_named_pipes:
+            logger.info("BaseFFmpegRunner._run_ffmpeg() - configure named pipes")
             configure.init_named_pipes(
                 input_pipes,
                 output_pipes,
@@ -520,6 +521,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         try:
             self._status = FFmpegStatus.RUNNING
             self._proc = ffmpegprocess.Popen(**self._args, on_exit=self._on_exit)
+            logger.info("BaseFFmpegRunner._run_ffmpeg() - started FFmpeg process")
         except:
             if self._stack is not None:
                 self._stack.close()
@@ -550,6 +552,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def _terminate(self):
         """Kill FFmpeg process and close the streams"""
 
+        logger.info("FFmpegRunner._terminate()...")
+
         if self._proc is None or self._proc.poll() is not None:
             return
 
@@ -569,6 +573,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         self._proc.terminate()
         if self._proc.poll() is None:
             self._proc.kill()
+
+        logger.info("FFmpegRunner._terminate()...completed")
 
     def open(self):
         """start FFmpeg processing

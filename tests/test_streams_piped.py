@@ -15,13 +15,62 @@ outext = ".mp4"
 
 def test_MediaReader():
     with streams.PipedFFmpegRunner.open_media_reader(
-        [(mult_url, {})], None, options={"t_in": 1}, squeeze=False
+        [(mult_url, {})], None, options={"t": 1}, squeeze=False
+    ) as reader:
+        nout = reader.num_output_streams
+        nframes = [0] * nout
+        nframes_expected = [30, 44100, 25, 44100]
+        logging.info("nframes_expected=%s", nframes_expected)
+        assert nout > 0 and not (
+            reader.decodable or reader.encodable or reader.writable
+        )
+
+        nperread = reader.output_frames()
+        count = [reader._output_info[i]["data_count"] for i in range(nout)]
+        nf = nperread.copy()
+        nread = [1] * nout
+
+        # loop while FFmpeg is running
+        while reader:
+            # read the next block of the reference stream
+            out = [
+                reader.read(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)
+            ]
+            nread = [counti(obj=Fi) for counti, Fi in zip(count, out)]
+
+            nframes = [a + b for a, b in zip(nframes, nread)]
+
+            # calculate how many frames to read next (fractional)
+            nf = [nfi - nr + nnext for nfi, nr, nnext in zip(nf, nread, nperread)]
+
+            if any(n > 0 for n in nread):
+                logging.info("MAIN LOOP: nread=%s|nframes=%s", nread, nframes)
+                logging.info("MAIN LOOP: %s", [round(max(ni, 0)) for ni in nf])
+
+        # if there is any secondary streams with leftover frames, do the last yield
+        if reader.output_pending() and any(n > 0 for n in nread):
+            out = [
+                reader.read(round(max(ni, 0)), st) for st, ni in zip(range(nout), nf)
+            ]
+
+            nframes = [a + counti(obj=Fi) for a, counti, Fi in zip(nframes, count, out)]
+            logging.info(f"SECONDARY LOOP: {nframes=}")
+
+    assert nframes == nframes_expected
+
+
+def test_MediaReader_iter():
+    with streams.PipedFFmpegRunner.open_media_reader(
+        [(mult_url, {})], None, options={"t": 1}, squeeze=False
     ) as reader:
         nframes = [0] * reader.num_output_streams
-        for i, data in enumerate(reader):
+        nframes_expected = [30, 44100, 25, 44100]
+        for data in reader:
             nframes = [n0 + v["shape"][0] for n0, v in zip(nframes, data)]
+            assert (n <= nmax for n, nmax in zip(nframes, nframes_expected))
+            logging.info(f"{nframes=}")
 
-    assert nframes == [30, 44100, 25, 44100]
+    assert nframes == nframes_expected
 
 
 def test_MediaWriter_audio():

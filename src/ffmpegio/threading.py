@@ -381,6 +381,9 @@ class ReaderThread(Thread):
         return False
 
     def run(self):
+
+        logger.info("ReaderThread starting")
+
         is_npipe = self.stdout is None
         blocksize = (
             self.nmin if self.nmin is not None else 1 if self.itemsize > 1024 else 1024
@@ -406,7 +409,9 @@ class ReaderThread(Thread):
 
             # print(f"reader thread: read {len(data)} bytes")
             if data:
-                logger.debug("ReaderThread putting data into the queue")
+                logger.debug(
+                    "ReaderThread putting data into the queue (%d bytes)", len(data)
+                )
                 while not self._cooling.is_set():
                     try:
                         queue.put(data, timeout=0.01)
@@ -415,7 +420,9 @@ class ReaderThread(Thread):
                         if self._cooling.is_set():
                             break
 
-                logger.debug("ReaderThread data in the reader queue")
+                logger.debug(
+                    "ReaderThread data in the reader queue (size=%d)", queue.qsize()
+                )
 
             elif stream.closed:  # just in case
                 logger.info("ReaderThread no data, stream is closed, exiting")
