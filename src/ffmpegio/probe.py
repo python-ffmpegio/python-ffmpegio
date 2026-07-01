@@ -8,7 +8,7 @@ from fractions import Fraction
 from functools import lru_cache
 from io import IOBase
 from numbers import Number
-from typing import Any, BinaryIO, Literal, Union
+from typing import Any, BinaryIO, Literal, TypeVar, Union
 
 from typing_extensions import IO, Buffer
 
@@ -60,6 +60,24 @@ def _add_select_streams(args, stream_specifier):
             stream_specifier = compose_stream_spec(**stream_specifier)
         args.extend(["-select_streams", str(stream_specifier)])
     return args
+
+
+SectionNameLiteral = Literal[
+    "chapter",
+    "data",
+    "data_hash",
+    "error",
+    "format",
+    "frame",
+    "log",
+    "packet",
+    "program",
+    "stream",
+    "stream_tags",
+    "stream_group",
+    "subtitle",
+]
+EntryDict = TypeVar(dict[SectionNameLiteral, bool | Sequence[str]])
 
 
 def _compose_entries(entries: dict[str, bool | Sequence[str]]) -> str:
