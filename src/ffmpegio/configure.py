@@ -1997,6 +1997,8 @@ def init_named_pipes(
                 else:
                     rate = info["raw_info"][-1]
                     kws["nmin"] = round(rate / ref_rate) or 1
+                    kws["queuesize"] = 0
+                    # secondary stream queue size implicitly controlled by ref_stream
             else:
                 # encoded output in bytes
                 kws["itemsize"] = 1
