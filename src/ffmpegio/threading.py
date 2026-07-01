@@ -417,6 +417,7 @@ class ReaderThread(Thread):
                         queue.put(data, timeout=0.01)
                         break
                     except Full:
+                        logger.info("ReaderThread QUEUE IS FULL")
                         if self._cooling.is_set():
                             break
 
@@ -441,6 +442,7 @@ class ReaderThread(Thread):
                 queue.put(None, timeout=0.01)
                 break
             except Full:
+                logger.info("ReaderThread QUEUE IS FULL")
                 if self._halt.is_set():
                     break
 
