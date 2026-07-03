@@ -74,7 +74,7 @@ jobs:
           pip install -U build pytest-github-actions-annotate-failures
 
       - name: Run tests
-        run: pytest -vv
+        run: pytest --capture=no --tb=short
 
   test_no_ffmpeg:
     name: Make sure ffmpegio imports when no ffmpeg installed
