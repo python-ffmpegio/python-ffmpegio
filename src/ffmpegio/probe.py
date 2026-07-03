@@ -256,26 +256,117 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
     return args
 
 
-def _exec(
-    url: str | IO | Buffer,
-    entries: str,
-    sp_kwargs: tuple[tuple[str, Any]] | None = None,
+DataHashLiteral = Literal[
+    "MD5",
+    "murmur3",
+    "RIPEMD128",
+    "RIPEMD160",
+    "RIPEMD256",
+    "RIPEMD320",
+    "SHA160",
+    "SHA224",
+    "SHA256",
+    "SHA512/224",
+    "SHA512/256",
+    "SHA384",
+    "SHA512",
+    "CRC32",
+    "adler32",
+]
+
+
+def run(
+    url: str | BinaryIO | memoryview,
+    entries: EntrySequence | EntryDict,
     streams: str | int | StreamSpecDict | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
-    count_frames: bool | None = False,
-    count_packets: bool | None = False,
-    keep_optional_fields: bool | None = None,
     *,
+    count_frames: bool = False,
+    count_packets: bool = False,
+    data: bool = False,
+    data_hash: DataHashLiteral | None = None,
+    data_dump_format: Literal["xxd", "base64"] | None = None,
+    log: Literal[-8, 0, 8, 16, 24, 32, 40, 48, 56] | None = None,
+    private_data: bool = False,
+    keep_optional_fields: bool = False,
+    analyze_frames: bool = False,
+    bitexact: bool = False,
+    find_stream_info: bool = False,
     f: str | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
+    **kwargs,
 ) -> dict[str, str]:
-    """execute ffprobe and return stdout as dict"""
+    """run ffprobe and parse its json output
 
+    :param url: media url to be probed
+    :param entries: Set list of entries to show. Use str to select only one
+        section, or a sequence to show all entries of the listed sections, or a
+        dict of sections, keyed by their names and a list of their local entries.
+        A dict value may be a bool to show/hide the section.
+    :param streams: A stream_specifier to select only specific streams, defaults
+        to probe all streams. This option affects only the sections related to
+        streams (e.g. streams, packets, etc.).
+    :param intervals: Specifies the intervals to probe, defaults to probe the
+        entire duration. Read_intervals must be an interval specification or a
+        sequence of interval specifications. FFprobe will seek to the interval
+        starting point and will continue reading from that.
+
+        Note that seeking is not accurate, thus the actual interval start point
+        may be different from the specified position. Also, when an interval
+        duration is specified, the absolute end time will be computed by adding
+        the duration to the interval start point found by seeking the file,
+        rather than to the specified start value.
+    :param count_frames: True to add the number of frames per stream in the
+        corresponding stream section, defaults to False
+    :param count_packets: True to add the number of packets per stream in the
+        corresponding stream section, defaults to False
+    :param data: True to probe payload data, defaults to False. Data are dumped
+        as a hexadecimal or ASCII dump (other formats can be selected using
+        ``data_dump_format``). Coupled with ``entries='packets'``, it will dump
+        the packets' data. Coupled with ``entries='streams'``, it will dump the
+        codec extradata. The dump is printed as the "data" field. It may contain
+        newlines.
+    :param data_hash: When specified, a hash of payload data is included,
+            for packets with ``entries='packets'`` and
+            for codec extradata with ``entries='streams'``.
+        Hashes are not provided by default.
+    :param data_dump_format: Specify a format used for the data dumps enabled
+        with ``data=True``. The default is ``'xxd'`` which is a hexdump format
+        compatible with the well-known xxd program. ``'base64'`` is also
+        supported.
+    :param log: Loglevel in an integer value, defaults to None to disable
+        logging. If provided, logging information from the decoder about each
+        frame according to the loglevel value. This option is only relevant for
+        ``entries='frames'``. The logged information in the ``'log'`` section.
+    :param private_data: True to include private data, that is data depending on
+        the format of the particular shown element, defaults to None
+    :param keep_optional_fields: False to omit the fields with invalid or non-
+        applicable values. True to include those fields with ``None`` as their
+        values.
+    :param analyze_frames: Analyze frames and/or their side data up to the
+        provided read interval, providing additional information that may be
+        useful at a stream level. Must be paired with the ``entries='streams'``
+        to have an effect, defaults to False
+    :param bitexact: True to force bitexact output, useful to produce output
+        which is not dependent on the specific build, defaults to False
+    :param find_stream_info: True to read and decode the streams to fill missing
+        information with heuristics, defaults to False
+    :param f: Use the specified media container format, defaults to auto-detect
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :return: parsed dict
+    """
+
+    if sp_kwargs is not None:
+        sp_kwargs = tuple(sp_kwargs.items())
+
+    # return run(url, entries, sp_kwargs, *args, **kwargs, f=f)
     sp_opts = {"stdout": PIPE, "stderr": PIPE}
 
     if sp_kwargs is not None:
         sp_opts = {**dict(sp_kwargs), **sp_opts}
 
-    args = ["-hide_banner", "-of", "json", "-show_entries", entries]
+    args = ["-hide_banner", "-of", "json", "-show_entries", _compose_entries(entries)]
 
     if f is not None:
         args.extend(("-f", f))
@@ -294,10 +385,40 @@ def _exec(
         args.append("-count_packets")
         # returns "nb_read_packets" item in each stream
 
+    if data is True:
+        args.append("-show_data")
+
+    if data_hash is not None:
+        args.extend(("-show_data_hash", data_hash))
+
+    if data_dump_format is not None:
+        args.extend(("-data_dump_format", data_dump_format))
+
+    if log is not None:
+        args.extend(("-log", log))
+
+    if private_data is True:
+        args.append("-show_private_data")
+
     if keep_optional_fields is not None:
         args.extend(
-            ["-show_optional_fields", "always" if keep_optional_fields else "never"]
+            ("-show_optional_fields", "always" if keep_optional_fields else "auto")
         )
+
+    if analyze_frames is True:
+        args.append("analyze_frames")
+
+    if bitexact is True:
+        args.append("-bitexact")
+
+    if find_stream_info is True:
+        args.append("-find_stream_info")
+
+    for k, v in kwargs.items():
+        if v is None:
+            args.append(f"-{k}")
+        else:
+            args.extend((f"-{k}", str(v)))
 
     if isinstance(url, Buffer):
         sp_opts["input"] = url
@@ -317,22 +438,6 @@ def _exec(
 
     # decode output JSON string
     return json.loads(ret.stdout)
-
-
-def _run(
-    url: str | BinaryIO | memoryview,
-    entries: dict[str, bool | Sequence[str]],
-    *args,
-    sp_kwargs: dict[str, Any] | None = None,
-    f: str | None = None,
-    **kwargs,
-) -> dict[str, str]:
-    """execute ffprobe, return stdout as dict, and cache its output"""
-
-    entries = _compose_entries(entries)
-    if sp_kwargs is not None:
-        sp_kwargs = tuple(sp_kwargs.items())
-    return _exec(url, entries, sp_kwargs, *args, **kwargs, f=f)
 
 
 def full_details(
@@ -380,7 +485,7 @@ def full_details(
         chapter=show_chapters,
     )
 
-    results = _run(url, modes, select_streams, sp_kwargs=sp_kwargs, f=f)
+    results = run(url, modes, select_streams, sp_kwargs=sp_kwargs, f=f)
 
     if not modes["stream"]:
         modes["streams"] = modes["stream"]
@@ -780,7 +885,7 @@ def query(
     if isinstance(streams, bool):
         streams = None
 
-    info = _run(
+    info = run(
         url,
         {"stream" if get_stream else "format": fields},
         streams,
@@ -865,13 +970,13 @@ def frames(
     if accurate_time and has_time:
         entries["stream"] = ["index", "time_base"]
 
-    res = _exec(
+    res = run(
         url,
         _compose_entries(entries),
-        sp_kwargs and tuple(sp_kwargs.items()),
         streams=streams,
         intervals=intervals,
         f=f,
+        sp_kwargs=sp_kwargs,
     )
 
     out = [_items_to_numeric(d) for d in res["frames"]]
