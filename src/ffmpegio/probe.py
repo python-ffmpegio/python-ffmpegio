@@ -61,14 +61,102 @@ def _add_select_streams(args, stream_specifier):
     return args
 
 
-def _compose_entries(entries: dict[str, bool | Sequence[str]]) -> str:
-    arg = []
-    for key, val in entries.items():
-        if isinstance(val, Sequence):
-            arg.append(f"{key}={','.join(val)}")
-        elif val is not False:
-            arg.append(key)
-    return ":".join(arg)
+SectionNameLiteral = Literal[
+    "block",
+    "blocks",
+    "chapter_tags",
+    "chapter",
+    "chapters",
+    "component",
+    "components",
+    "disposition",
+    "error",
+    "flags",
+    "format_tags",
+    "format",
+    "frame_side_data_component",
+    "frame_side_data_components",
+    "frame_side_data_list",
+    "frame_side_data_piece",
+    "frame_side_data_pieces",
+    "frame_side_data",
+    "frame_tags",
+    "frame",
+    "frames",
+    "library_version",
+    "library_versions",
+    "log",
+    "logs",
+    "packet_side_data_list",
+    "packet_side_data",
+    "packet_tags",
+    "packet",
+    "packets_and_frames",
+    "packets",
+    "piece",
+    "pieces",
+    "pixel_format_components",
+    "pixel_format_flags",
+    "pixel_format",
+    "pixel_formats",
+    "program_stream_disposition",
+    "program_stream_tags",
+    "program_stream",
+    "program_streams",
+    "program_tags",
+    "program_version",
+    "program",
+    "programs",
+    "root",
+    "side_data_list",
+    "side_data",
+    "stream_disposition",
+    "stream_group_component",
+    "stream_group_components",
+    "stream_group_disposition",
+    "stream_group_piece",
+    "stream_group_pieces",
+    "stream_group_stream_disposition",
+    "stream_group_stream_tags",
+    "stream_group_stream",
+    "stream_group_streams",
+    "stream_group_tags",
+    "stream_group",
+    "stream_groups",
+    "stream_side_data_list",
+    "stream_side_data",
+    "stream_tags",
+    "stream",
+    "streams",
+    "subcomponent",
+    "subcomponents",
+    "subpiece",
+    "subpieces",
+    "subtitle",
+    "tags",
+    "timecode",
+    "timecodes",
+]
+EntryDict = dict[SectionNameLiteral, bool | Sequence[str]]
+EntrySequence = Sequence[SectionNameLiteral]
+
+
+def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
+    """compose -show_entries argument from an EntrySequence or EntryDict object
+
+    :param entries: a sequence or a dict of entries, or a single-entry string
+    :return: section_entries expression for ffprobe -show_entries
+    """
+
+    if isinstance(entries, str):
+        return entries
+    if isinstance(entries, dict):
+        entries = [
+            f"{key}={','.join(val)}" if isinstance(val, Sequence) else key
+            for key, val in entries.items()
+            if val is not False
+        ]
+    return ":".join(entries)
 
 
 IntervalSpec = Union[
