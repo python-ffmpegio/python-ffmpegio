@@ -21,7 +21,7 @@ logger = logging.getLogger("ffmpegio")
 
 # fmt:off
 __all__ = ['full_details', 'format_basic', 'streams_basic',
-'video_streams_basic', 'audio_streams_basic', 'query', 'frames']
+'video_streams_basic', 'audio_streams_basic', 'query', 'frames', 'packets']
 # fmt:on
 
 _re_ratio = re.compile(r"^(\d+)\:(\d+)$")
@@ -906,3 +906,111 @@ def frames(
         return [d[entry] for d in out] if is_single else out
     except:
         raise ValueError(f"invalid frame attribute: {entry}")
+
+
+def packets(
+    url: str | BinaryIO | memoryview,
+    entries: Sequence[str] | None = None,
+    streams: str | int | StreamSpecDict | None = None,
+    intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
+    accurate_time: bool | None = False,
+    data: bool = False,
+    data_hash: DataHashLiteral | None = None,
+    data_dump_format: Literal["xxd", "base64", "bytes"] | None = None,
+    sp_kwargs: dict[str, Any] | None = None,
+    *,
+    f: str | None = None,
+) -> list[dict] | list[str | int | float]:
+    """get packet information
+
+    :param url: URL of the media file/stream
+    :param entries: names of packet attributes, defaults to None (get all attributes)
+    :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
+    :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
+    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
+                          stream timebase, defaults to False (= us accuracy)
+    :param data: True to probe payload data, defaults to False. Data are dumped
+        as a hexadecimal or ASCII dump (other formats can be selected using
+        ``data_dump_format``). Coupled with ``entries='packets'``, it will dump
+        the packets' data. Coupled with ``entries='streams'``, it will dump the
+        codec extradata. The dump is printed as the "data" field. It may contain
+        newlines.
+    :param data_hash: When specified, a hash of payload data is included,
+            for packets with ``entries='packets'`` and
+            for codec extradata with ``entries='streams'``.
+        Hashes are not provided by default.
+    :param data_dump_format: Specify a format used for the data dumps enabled
+        with ``data=True``. The default is ``'xxd'`` which is a hexdump format
+        compatible with the well-known xxd program. ``'base64'`` is also
+        supported.
+    :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
+                      default to None
+    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :return: packet information. a list of dictionary if entries is None or
+        a sequence; list of the selected entry if entries is str (i.e., a single entry)
+
+    """
+
+    is_single = isinstance(entries, str)
+    if is_single:
+        entry = entries
+        entries = [entries]
+
+    pick_entries = entries is not None
+
+    if accurate_time:
+        has_time = not pick_entries
+        if pick_entries:
+            time_entries = []
+            other_entries = set(("stream_index",))
+            for e in entries:
+                if e.endswith("_time"):
+                    has_time = True
+                    time_entries.append(e)
+                    other_entries.add(e[:-5])
+                else:
+                    other_entries.add(e)
+            if has_time:
+                orig_entries = entries
+                entries = other_entries
+
+    entries = {"packet": (entries is None) or entries}
+    if accurate_time and has_time:
+        entries["stream"] = ["index", "time_base"]
+
+    res = run(
+        url,
+        _compose_entries(entries),
+        streams=streams,
+        intervals=intervals,
+        data=data,
+        data_hash=data_hash,
+        data_dump_format=data_dump_format,
+        f=f,
+        sp_kwargs=sp_kwargs,
+    )
+
+    out = [_items_to_numeric(d) for d in res["packets"]]
+
+    if len(out) == 0:
+        return out
+
+    if accurate_time and has_time:
+        time_bases = {d["index"]: Fraction(d["time_base"]) for d in res["streams"]}
+
+        if not pick_entries:
+            time_entries = [e for e in out[0].keys() if e.endswith("_time")]
+
+        ts_entries = [e[:-5] for e in time_entries]
+
+        for d in out:
+            tb = time_bases[d["stream_index"]]
+            for e, e_ts in zip(time_entries, ts_entries):
+                d[e] = d[e_ts] * tb
+                if pick_entries and e_ts not in orig_entries:
+                    del d[e_ts]
+
+    try:
+        return [d[entry] for d in out] if is_single else out
+    except KeyError:
+        raise ValueError(f"invalid packet attribute: {entry}")

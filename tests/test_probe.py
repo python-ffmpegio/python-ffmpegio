@@ -120,6 +120,21 @@ def test_frames():
     print(info)
 
 
+def test_packets():
+    url = "tests/assets/testmulti-1m.mp4"
+    info = probe.packets(
+        url,
+        streams="a:0",
+        intervals=10,
+        data=True,
+        data_hash="MD5",
+        data_dump_format="base64",
+        # intervals='%+#20,30%+#15'
+        # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
+    )
+    print(info)
+
+
 if __name__ == "__main__":
     test_all()
     pass
