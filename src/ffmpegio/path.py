@@ -7,8 +7,8 @@ from os import devnull
 from os import name as _os_name
 from os import path as _path
 from shutil import which
-from subprocess import DEVNULL, PIPE, STDOUT, run
-from typing import Literal
+from subprocess import DEVNULL, PIPE, STDOUT, CompletedProcess, Popen, run
+from typing import Callable, Literal, Sequence
 
 from packaging.version import Version
 
@@ -47,24 +47,17 @@ shlex_join = (
 )
 
 
-def found():
-    """`True` if ffmpeg and ffprobe binaries are located
-
-    :return: True if both ffmpeg and ffprobe are found
-    :rtype: bool
-
-    """
+def found() -> bool:
+    """Returns ``True`` if ffmpeg and ffprobe binaries are located"""
 
     return bool(FFMPEG_BIN and FFPROBE_BIN)
 
 
-def where(probe=False):
+def where(probe: bool = False) -> str | None:
     """Get the path to FFmpeg/FFprobe executable
 
     :param probe: True to return FFprobe path instead, defaults to False
-    :type probe: bool, optional
     :return: Path to FFmpeg/FFprobe exectutable
-    :rtype: str or None
     """
 
     path = FFPROBE_BIN if probe else FFMPEG_BIN
@@ -75,16 +68,17 @@ def where(probe=False):
     return path
 
 
-def find(ffmpeg_path=None, ffprobe_path=None):
+def find(
+    ffmpeg_path: str | None = None, ffprobe_path: str | None = None
+) -> tuple[str, str, str]:
     """Set FFmpeg and FFprobe executables
 
     :param ffmpeg_path: Full path to either the ffmpeg executable file or
                         to the folder housing both ffmpeg and ffprobe, defaults to None
-    :type ffmpeg_path: str, optional
     :param ffprobe_path: Full path to the ffprobe executable file, defaults to None
-    :type ffprobe_path: str, optional
-    :returns: ffmpeg path, ffprobe path, and ffmpeg version
-    :rtype: Tuple[str,str,str]
+    :returns ffmpeg_path: path to ffmpeg binary
+    :returns ffprobe_path: Path to ffprobe binary
+    :returns ffmpeg_version: ffmpeg version string
 
     If `ffmpeg_path` specifies a directory, the names of the executables are
     auto-set to `ffmpeg` and `ffprobe`.
@@ -153,19 +147,16 @@ def find(ffmpeg_path=None, ffprobe_path=None):
     return FFMPEG_BIN, FFPROBE_BIN, FFMPEG_VER
 
 
-def ffmpeg(args, sp_run=None, *sp_args, **other_sp_args):
+def ffmpeg(
+    args: Sequence[str], sp_run: Callable = None, *sp_args, **other_sp_args
+) -> CompletedProcess | Popen:
     """just run ffmpeg without bells-n-whistles
 
     :param args: FFmpeg command arguments without `ffmpeg`
-    :type args: str or Sequence[str]
     :param sp_run: command runner, defaults to subprocess.run
-    :param sp_run: Callable, optional
     :param *sp_args: sp_run arguments
-    :type *sp_args: tuple, optional
     :param **other_sp_args: sp_run keyword arguments
-    :type **other_sp_args: dict, optional
     :returns: sp_run output
-    :rtype: subprocess.CompletedProcess or subprocess.Popen or others
     """
 
     if isinstance(args, str):
@@ -179,17 +170,15 @@ def ffmpeg(args, sp_run=None, *sp_args, **other_sp_args):
         raise FFmpegNotFound()
 
 
-def ffprobe(args, sp_run=None, *sp_args, **other_sp_args):
+def ffprobe(
+    args: Sequence[str], sp_run: Callable | None = None, *sp_args, **other_sp_args
+) -> CompletedProcess | Popen:
     """just run ffprobe without bells-n-whistles
 
     :param sp_run: command runner, defaults to subprocess.run
-    :param sp_run: Callable, optional
     :param *sp_args: sp_run arguments
-    :type *sp_args: tuple, optional
     :param **other_sp_args: sp_run keyword arguments
-    :type **other_sp_args: dict, optional
     :returns: sp_run output
-    :rtype: subprocess.CompletedProcess or subprocess.Popen or others
     """
 
     if isinstance(args, str):
@@ -202,11 +191,10 @@ def ffprobe(args, sp_run=None, *sp_args, **other_sp_args):
         raise FFmpegNotFound()
 
 
-def versions():
+def versions() -> dict:
     """Get FFmpeg version and configuration information
 
     :return: versions of ffmpeg and its av libraries as well as build configuration
-    :rtype: dict
 
     ==================  ====  =========================================
     key                 type  description
