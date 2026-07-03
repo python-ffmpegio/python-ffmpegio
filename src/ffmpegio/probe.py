@@ -5,7 +5,6 @@ import logging
 import re
 from collections.abc import Sequence
 from fractions import Fraction
-from functools import lru_cache
 from io import IOBase
 from numbers import Number
 from typing import Any, BinaryIO, Literal, Union
@@ -232,36 +231,20 @@ def _exec(
     return json.loads(ret.stdout)
 
 
-@lru_cache()
-def _exec_cached(*args, **kwargs) -> dict[str, str]:
-    """execute ffprobe, return stdout as dict, and cache its output"""
-    return _exec(*args, **kwargs)
-
-
 def _run(
     url: str | BinaryIO | memoryview,
     entries: dict[str, bool | Sequence[str]],
     *args,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     f: str | None = None,
     **kwargs,
 ) -> dict[str, str]:
     """execute ffprobe, return stdout as dict, and cache its output"""
 
-    # TODO - enable caching
-    if cache_output:
-        logger.warning("caching of previous ffprobe outputs is disabled.")
-        cache_output = False
-
     entries = _compose_entries(entries)
     if sp_kwargs is not None:
         sp_kwargs = tuple(sp_kwargs.items())
-    return (
-        _exec_cached(url, entries, sp_kwargs, *args, **kwargs, f=f)
-        if cache_output
-        else _exec(url, entries, sp_kwargs, *args, **kwargs, f=f)
-    )
+    return _exec(url, entries, sp_kwargs, *args, **kwargs, f=f)
 
 
 def full_details(
@@ -272,7 +255,6 @@ def full_details(
     show_chapters: bool | None = False,
     select_streams: str | int | None = None,
     keep_str_values: bool | None = False,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
@@ -294,8 +276,6 @@ def full_details(
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
     :type keep_str_values: bool, optional
-    :param cache_output: True to cache FFprobe output, defaults to False
-    :type cache_output: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :type sp_kwargs: dict[str, Any], optional
@@ -312,9 +292,7 @@ def full_details(
         chapter=show_chapters,
     )
 
-    results = _run(
-        url, modes, select_streams, cache_output=cache_output, sp_kwargs=sp_kwargs, f=f
-    )
+    results = _run(url, modes, select_streams, sp_kwargs=sp_kwargs, f=f)
 
     if not modes["stream"]:
         modes["streams"] = modes["stream"]
@@ -349,7 +327,6 @@ def format_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
@@ -367,8 +344,6 @@ def format_basic(
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
     :type keep_str_values: bool, optional
-    :param cache_output: True to cache FFprobe output, defaults to False
-    :type cache_output: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :type sp_kwargs: dict[str, Any], optional
@@ -405,7 +380,6 @@ def format_basic(
         _resolve_entries("basic format", entries, default_entries),
         keep_optional_fields,
         keep_str_values,
-        cache_output,
         sp_kwargs,
         f=f,
     )
@@ -416,7 +390,6 @@ def streams_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     stream_spec: str | int | StreamSpecDict | None = None,
     *,
@@ -431,7 +404,6 @@ def streams_basic(
                         is True) as its value
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
-    :param cache_output: True to cache FFprobe output, defaults to False
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :param stream_spec: Specify stream specification, defaults to None
@@ -459,7 +431,6 @@ def streams_basic(
         _resolve_entries("basic streams", entries, default_entries),
         keep_optional_fields,
         keep_str_values,
-        cache_output,
         sp_kwargs,
         f=f,
     )
@@ -471,7 +442,6 @@ def video_streams_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
@@ -486,7 +456,6 @@ def video_streams_basic(
                         is True) as its value
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
-    :param cache_output: True to cache FFprobe output, defaults to False
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :param f: Use the specified media container format, defaults to None (auto-detect)
@@ -542,7 +511,6 @@ def video_streams_basic(
         _resolve_entries("basic video", entries, default_entries, default_dep_entries),
         keep_optional_fields,
         keep_str_values,
-        cache_output,
         sp_kwargs,
         f=f,
     )
@@ -584,7 +552,6 @@ def audio_streams_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
@@ -599,7 +566,6 @@ def audio_streams_basic(
                         is True) as its value
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
-    :param cache_output: True to cache FFprobe output, defaults to False
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :param f: Use the specified media container format, defaults to None (auto-detect)
@@ -648,7 +614,6 @@ def audio_streams_basic(
         _resolve_entries("basic audio", entries, default_entries, default_dep_entries),
         keep_optional_fields,
         keep_str_values,
-        cache_output,
         sp_kwargs,
         f=f,
     )
@@ -686,7 +651,6 @@ def query(
     fields: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    cache_output: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
@@ -710,8 +674,6 @@ def query(
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
     :type keep_str_values: bool, optional
-    :param cache_output: True to cache FFprobe output, defaults to False
-    :type cache_output: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :type sp_kwargs: dict[str, Any], optional
@@ -735,7 +697,6 @@ def query(
         {"stream" if get_stream else "format": fields},
         streams,
         sp_kwargs=sp_kwargs,
-        cache_output=cache_output,
         keep_optional_fields=keep_optional_fields,
         f=f,
     )

@@ -529,7 +529,6 @@ def analyze_input_file(
             fields,
             keep_optional_fields=True,
             keep_str_values=False,
-            cache_output=True,
             sp_kwargs=sp_kwargs,
             f=input_opts.get("f", None),
         )
