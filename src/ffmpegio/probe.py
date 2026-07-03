@@ -168,20 +168,26 @@ IntervalSpec = Union[
 ]
 """ Union type to specify the FFprobe read_intervals option
 
-    FFprobe will seek to the interval starting point and will continue reading from that.
-    An IntervalSpec argument can be specified in multiple ways to form the FFprobe read_intervals option:
+    FFprobe will seek to the interval starting point and will continue reading 
+    from that. An IntervalSpec argument can be specified in multiple ways to 
+    form the FFprobe read_intervals option:
 
     #. ``str`` - pass through the argument as-is to ffprobe
-    #. ``int`` - read this numbers of packets to read from the beginning of the file
-    #. ``float`` - read packets over this duration in seconds from the beginning of the file
+    #. ``int`` - read this numbers of packets to read from the beginning of the 
+    #               file
+    #. ``float`` - read packets over this duration in seconds from the beginning 
+    #               of the file
     #. ``tuple[str|float, str|int|float]`` - sets (start, end) points
         * start: ``str`` = as-is, ``float`` = starting time in seconds
-        * end: ``str`` = as-is, ``int`` = offset in # of packets, ``float`` = offset in seconds
+        * end: ``str`` = as-is, ``int`` = offset in # of packets, 
+                ``float`` = offset in seconds
     #. ``dict`` - specifies start and end points with the following keys:
         * ``'start'``        - (``str|float``) start time
-        * ``'start_offset'`` - (``str|float``) start time offset from the previous read. Ignored if ``'start'`` is present.
+        * ``'start_offset'`` - (``str|float``) start time offset from the 
+                                previous read. Ignored if ``'start'`` is present.
         * ``'end'``          - (``str|float``) end time
-        * ``'end_offset'``   - (``str|float|int``) end time offset from the start time. Ignored if ``'end'`` is present.
+        * ``'end_offset'``   - (``str|float|int``) end time offset from the start
+                                time. Ignored if ``'end'`` is present.
 """
 
 
@@ -455,26 +461,18 @@ def full_details(
     """Retrieve full details of a media file or stream
 
     :param url: URL of the media file/stream
-    :type url: str or seekable file-like object or bytes-like object
     :param show_format: True to return format info, defaults to True
-    :type show_format: bool, optional
     :param show_streams: True to return stream info, defaults to True
-    :type show_streams: bool, optional
     :param show_programs: True to return program info, defaults to False
-    :type show_programs: bool, optional
     :param show_chapters: True to return chapter info, defaults to False
-    :type show_chapters: bool, optional
-    :param select_streams: Stream specifier of the streams to get info of, defaults to None to retrieve all
-    :type select_streams: str, int, optional
+    :param select_streams: Stream specifier of the streams to get info of,
+        defaults to None to retrieve all
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
-    :type keep_str_values: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :type sp_kwargs: dict[str, Any], optional
     :param f: Use the specified media container format, defaults to None (auto-detect)
     :return: media file information
-    :rtype: dict[str, str|Number|Fraction]
 
     """
 
@@ -527,22 +525,17 @@ def format_basic(
     """Retrieve basic media format info
 
     :param url: URL of the media file/stream
-    :type url: str or seekable file-like object or bytes-like object
-    :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
-    :type entries: seq of str
+    :param entries: specify to narrow which information entries to retrieve.
+        Default to None, to return all entries
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
-    :type keep_optional_fields: bool, optional
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
-    :type keep_str_values: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :type sp_kwargs: dict[str, Any], optional
     :param f: Use the specified media container format, defaults to None (auto-detect)
     :return: set of media format information.
-    :rtype: dict
 
 
     Media Format Information Entries
@@ -591,7 +584,8 @@ def streams_basic(
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
-    :param entries: specify to narrow which stream entries to retrieve. Default to None, returning all entries
+    :param entries: specify to narrow which stream entries to retrieve. Default
+        to None, returning all entries
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
@@ -642,8 +636,10 @@ def video_streams_basic(
     """Retrieve basic info of video streams
 
     :param url: URL of the media file/stream
-    :param index: video stream index. 0=first video stream. Defaults to None, which returns info of all video streams
-    :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
+    :param index: video stream index. 0=first video stream. Defaults to None,
+        which returns info of all video streams
+    :param entries: specify to narrow which information entries to retrieve.
+        Default to None, to return all entries
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
@@ -752,8 +748,10 @@ def audio_streams_basic(
     """Retrieve basic info of audio streams
 
     :param url: URL of the media file/stream
-    :param index: audio stream index. 0=first audio stream. Defaults to None, which returns info of all audio streams
-    :param entries: specify to narrow which information entries to retrieve. Default to None, to return all entries
+    :param index: audio stream index. 0=first audio stream. Defaults to None,
+        which returns info of all audio streams
+    :param entries: specify to narrow which information entries to retrieve.
+        Default to None, to return all entries
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
@@ -855,25 +853,18 @@ def query(
     """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
-    :type url: str or seekable file-like object or bytes-like object
     :param streams: stream specifier, defaults to None to get format
-    :type streams: str, int, bool, optional
     :param fields: list of format/stream fields to retrieve, defaults to None (all fields)
-    :type fields: sequence of str, optional
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
-    :type keep_optional_fields: bool, optional
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
-    :type keep_str_values: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :type sp_kwargs: dict[str, Any], optional
     :param f: Use the specified media container format, defaults to None (auto-detect)
     :return: field name-value dict. If streams argument is given but does not specify
              index, a list of dict is returned instead
-    :rtype: dict or list or dict
 
     Note: Unlike :py:func:`video_stream_basic()` and :py:func:`audio_stream_basic()`,
           :py:func:`query()` does not process ffprobe output except for the conversion
@@ -923,23 +914,16 @@ def frames(
     """get frame information
 
     :param url: URL of the media file/stream
-    :type url: str or seekable file-like object or bytes-like object
     :param entries: names of frame attributes, defaults to None (get all attributes)
-    :type entries: str or seq[str], optional
     :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
-    :type stream: str or int, optional
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :type intervals: :py:class:`IntervalSpec` or Sequence[:py:class:`IntervalSpec`], optional
     :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
-    :param accurate_time: bool, optional
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :type sp_kwargs: dict[str, Any], optional
     :param f: Use the specified media container format, defaults to None (auto-detect)
     :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
              if entries is str (i.e., a single entry)
-    :rtype: list[dict] or list[str|int|float]
 
     """
 
@@ -1030,10 +1014,13 @@ def packets(
 
     :param url: URL of the media file/stream
     :param entries: names of packet attributes, defaults to None (get all attributes)
-    :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
-    :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
-                          stream timebase, defaults to False (= us accuracy)
+    :param stream: stream specifier of the stream to retrieve the data of,
+        defaults to None to get all streams
+    :param intervals: time intervals to retrieve the data, see below for the
+        details, defaults to None (get all)
+    :param accurate_time: True to return all '\*_time' attributes to be computed
+        from associated timestamps and stream timebase, defaults to False
+        (= us accuracy)
     :param data: True to probe payload data, defaults to False. Data are dumped
         as a hexadecimal or ASCII dump (other formats can be selected using
         ``data_dump_format``). Coupled with ``entries='packets'``, it will dump
