@@ -448,9 +448,13 @@ def run(
 
 def full_details(
     url: str | BinaryIO | memoryview,
+    show_format: bool = True,
+    show_streams: bool = True,
+    show_programs: bool = False,
+    show_chapters: bool = False,
     show_stream_groups: bool = False,
     select_streams: str | int | None = None,
-    keep_str_values: bool | None = False,
+    keep_str_values: bool = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
@@ -515,8 +519,8 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
 def format_basic(
     url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
-    keep_optional_fields: bool | None = None,
-    keep_str_values: bool | None = False,
+    keep_optional_fields: bool = False,
+    keep_str_values: bool = False,
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
