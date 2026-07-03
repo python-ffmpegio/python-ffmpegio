@@ -216,17 +216,17 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
         s = ""
         try:
             s = compose_time(intv["start"], False)
-        except:
+        except KeyError:
             try:
                 s = "+" + compose_time(intv["start_offset"], False)
-            except:
+            except KeyError:
                 pass
         try:
             s += "%" + compose_time(intv["end"], False)
-        except:
+        except KeyError:
             try:
                 s += "%+" + compose_time(intv["end_offset"], True)
-            except:
+            except KeyError:
                 pass
         return s
 
@@ -238,7 +238,7 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
                 try:
                     # try to set duration
                     intervals = f"%+{compose_time(intervals, True)}"
-                except:
+                except ValueError:
                     n = len(intervals)
                     if n and isinstance(intervals[0], dict):
                         # multiple intervals
@@ -904,7 +904,7 @@ def frames(
 
     try:
         return [d[entry] for d in out] if is_single else out
-    except:
+    except KeyError:
         raise ValueError(f"invalid frame attribute: {entry}")
 
 
