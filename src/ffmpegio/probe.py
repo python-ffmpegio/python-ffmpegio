@@ -448,10 +448,7 @@ def run(
 
 def full_details(
     url: str | BinaryIO | memoryview,
-    show_format: bool | None = True,
-    show_streams: bool | None = True,
-    show_programs: bool | None = False,
-    show_chapters: bool | None = False,
+    show_stream_groups: bool = False,
     select_streams: str | int | None = None,
     keep_str_values: bool | None = False,
     sp_kwargs: dict[str, Any] | None = None,
@@ -465,6 +462,7 @@ def full_details(
     :param show_streams: True to return stream info, defaults to True
     :param show_programs: True to return program info, defaults to False
     :param show_chapters: True to return chapter info, defaults to False
+    :param show_streams: True to return stream group info, defaults to False
     :param select_streams: Stream specifier of the streams to get info of,
         defaults to None to retrieve all
     :param keep_str_values: True to keep all field values as str,
@@ -481,6 +479,7 @@ def full_details(
         stream=show_streams,
         program=show_programs,
         chapter=show_chapters,
+        stream_group=show_stream_groups,
     )
 
     results = run(url, modes, select_streams, sp_kwargs=sp_kwargs, f=f)
