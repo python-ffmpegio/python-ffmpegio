@@ -1,3 +1,4 @@
+import operator
 from os import path
 from pprint import pprint
 from tempfile import TemporaryDirectory
@@ -6,7 +7,6 @@ import pytest
 
 from ffmpegio import ffmpegprocess
 from ffmpegio import filtergraph as fgb
-from ffmpegio.filtergraph import Chain
 
 
 @pytest.mark.parametrize(
@@ -264,7 +264,7 @@ def test_resolve_pad_index(
     "fg,fc,left_on,right_on,out",
     [
         ("fps;crop", "trim", None, None, "[UNC0]fps,trim[UNC2];[UNC1]crop[UNC3]"),
-        ("fps[out];crop", "trim", None, None, "[UNC0]fps,trim[UNC2];[UNC1]crop[UNC3]"),
+        ("fps[out];crop", "trim", None, None, "[UNC0]fps[out];[UNC1]crop,trim[UNC2]"),
         ("fps;crop", "trim", (1, 0, 0), None, "[UNC0]fps[UNC2];[UNC1]crop,trim[UNC3]"),
         ("fps;crop[out]", "trim", "out", None, "[UNC0]fps[UNC2];[UNC1]crop,trim[UNC3]"),
         (
@@ -313,7 +313,7 @@ def test_attach(fg, fc, left_on, right_on, out):
     [
         # fmt: off
         ("fps;crop", "trim", None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
-        ("[in]fps;crop", "trim", None, "[UNC0]trim,fps[UNC2];[UNC1]crop[UNC3]"),
+        ("[in]fps;crop", "trim", None, "[in]fps[UNC1];[UNC0]trim,crop[UNC2]"),
         ("fps;crop", "trim", (1, 0, 0), "[UNC0]fps[UNC2];[UNC1]trim,crop[UNC3]"),
         ("fps;[in]crop", "trim", "in", "[UNC0]fps[UNC2];[UNC1]trim,crop[UNC3]"),
         ("[L]fps;crop[L]", "trim", None, "[L]fps[UNC1];[UNC0]trim,crop[L]"),
@@ -564,13 +564,31 @@ def test_script():
     assert not out.returncode
 
 
-def test_ops():
-    assert (
-        Chain("scale") + "overlay"
-    ).compose() == "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"
-    assert (
-        "scale" + Chain("overlay")
-    ).compose() == "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]"
+@pytest.mark.parametrize(
+    "op, left,right,ret",
+    [
+        (
+            operator.__add__,
+            fgb.Chain("scale"),
+            "overlay",
+            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
+        ),
+        (
+            operator.__add__,
+            "scale",
+            fgb.Chain("overlay"),
+            "[UNC0]scale[L0];[L0][UNC1]overlay[UNC2]",
+        ),
+        (
+            operator.__rshift__,
+            "[vout]",
+            fgb.Graph("[vraw]overlay"),
+            "[vraw][vout]overlay[UNC0]",
+        ),
+    ],
+)
+def test_ops(op, left, right, ret):
+    assert (op(left, right)).compose() == ret
 
 
 def test_readme():

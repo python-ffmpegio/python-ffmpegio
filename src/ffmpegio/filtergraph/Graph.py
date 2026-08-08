@@ -1376,7 +1376,7 @@ class Graph(abc.FilterGraphObject, UserList):
         chain_siso: bool = True,
         inplace: bool = False,
     ) -> Chain | Graph:
-        """attach filter, chain, graph, or labels to available output pads
+        """attach filter, chain, graph, or labels to available unlabeled output pads
 
         :param right: output filtergraph or labels. If ``str``, the expression
             is first attempted to be converted to a filtergraph object. If the
@@ -1417,6 +1417,7 @@ class Graph(abc.FilterGraphObject, UserList):
                 for c in self.iter_output_pads(
                     chainable_only=not right_is_label
                     and (chainable_only is True or chainable_only == "left"),
+                    unlabeled_only=True,
                     full_pad_index=True,
                 )
             )
@@ -1510,7 +1511,7 @@ class Graph(abc.FilterGraphObject, UserList):
         chainable_only: bool | Literal["left", "right", "auto"] = "auto",
         chain_siso: bool = True,
     ) -> Chain | Graph:
-        """attach filter, chain, graph, or labels to available input pads
+        """attach filter, chain, graph, or labels to available unlabeled input pads
 
         :param left: input filtergraph or labels
         :param left_on: pad_index, specify the output pad of ``left``,
@@ -1545,6 +1546,7 @@ class Graph(abc.FilterGraphObject, UserList):
                 for c in self.iter_input_pads(
                     chainable_only=not left_is_label
                     and (chainable_only is True or chainable_only == "right"),
+                    unlabeled_only=True,
                     full_pad_index=True,
                 )
             )
