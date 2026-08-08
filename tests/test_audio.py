@@ -207,6 +207,14 @@ def test_write_fileobj():
             audio.write(f, fs, x, f="flv", acodec="aac", show_log=True)
 
 
+def test_filter_empty():
+    fs, y = audio.filter(
+        "aresample=8000,pan=mono|c0=c0", 44100, np.empty((0, 2)), squeeze=False
+    )
+    assert fs == 8000
+    assert y["shape"] == (0, 1)
+
+
 if __name__ == "__main__":
     import logging
 

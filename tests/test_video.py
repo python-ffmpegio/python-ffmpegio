@@ -1,7 +1,10 @@
-from ffmpegio import video, probe, utils
-import tempfile
 import re
+import tempfile
 from os import path
+
+import numpy as np
+
+from ffmpegio import probe, utils, video
 
 
 def test_create():
@@ -92,6 +95,17 @@ def test_filter():
     print(r, output["shape"], output["dtype"])
 
 
+def test_filter_empty():
+    fs, y = video.filter(
+        "format=pix_fmts=gray,fps=10,scale=40x40",
+        30,
+        np.empty((0, 100, 100, 3), dtype="uint8"),
+        squeeze=False,
+    )
+    assert fs == 10
+    assert y["shape"] == (0, 40, 40, 1)
+
+
 def test_two_pass_write():
     url = "tests/assets/testmulti-1m.mp4"
     fs, A = video.read(url, vframes=100)
@@ -105,6 +119,7 @@ def test_two_pass_write():
             **{"c:v": "libx264", "b:v": "500k"},
             show_log=True,
         )
+
 
 if __name__ == "__main__":
     # test_create()

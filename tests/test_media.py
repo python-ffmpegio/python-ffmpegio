@@ -81,3 +81,24 @@ def test_media_filter():
     assert all(k in ("out0", "out1", "out2") for k in outrates)
 
     print(outrates)
+
+
+def test_filter_empty():
+    import numpy as np
+
+    outrates, outdata = ff.media.filter(
+        [
+            "[0]format=pix_fmts=gray,fps=10,scale=40x40[v]",
+            "[1]aresample=8000,pan=mono|c0=c0[a]",
+        ],
+        "va",
+        (30, np.empty((0, 100, 100, 3), dtype="uint8")),
+        (44100, np.empty((0, 2))),
+        output_streams=["v", "a"],
+        squeeze=False,
+    )
+
+    assert outrates["v"] == 10
+    assert outrates["a"] == 8000
+    assert outdata["v"]["shape"] == (0, 40, 40, 1)
+    assert outdata["a"]["shape"] == (0, 1)
