@@ -32,14 +32,23 @@ from tempfile import TemporaryDirectory
 from threading import Thread
 
 from .configure import move_global_options
-from .path import DEVNULL, PIPE, devnull, ffmpeg
+from .path import DEVNULL, PIPE, TimeoutExpired, devnull, ffmpeg
 from .threading import ProgressMonitorThread
 from .utils.parser import FLAG, compose, parse
 
 logger = logging.getLogger("ffmpegio")
 
 
-__all__ = ["versions", "run", "Popen", "FLAG", "PIPE", "DEVNULL", "devnull"]
+__all__ = [
+    "versions",
+    "run",
+    "Popen",
+    "FLAG",
+    "PIPE",
+    "DEVNULL",
+    "devnull",
+    "TimeoutExpired",
+]
 
 
 def exec(

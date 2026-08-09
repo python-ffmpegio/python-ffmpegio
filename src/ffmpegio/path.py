@@ -7,7 +7,15 @@ from os import devnull
 from os import name as _os_name
 from os import path as _path
 from shutil import which
-from subprocess import DEVNULL, PIPE, STDOUT, CompletedProcess, Popen, run
+from subprocess import (
+    DEVNULL,
+    PIPE,
+    STDOUT,
+    CompletedProcess,
+    Popen,
+    TimeoutExpired,
+    run,
+)
 from typing import Callable, Literal, Sequence
 
 from packaging.version import Version
@@ -21,7 +29,7 @@ logger = logging.getLogger("ffmpegio")
 # fmt:off
 __all__ = [
     "found", "where", "find", "ffmpeg", "ffprobe", "versions", "DEVNULL", 
-    "PIPE", "STDOUT", "devnull", "FFmpegNotFound"
+    "PIPE", "STDOUT", "devnull", "FFmpegNotFound", "TimeoutExpired"
 ]
 # fmt:on
 
