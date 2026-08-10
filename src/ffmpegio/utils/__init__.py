@@ -877,6 +877,17 @@ def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option 
     return valid
 
 
+def is_valid_input(url_or_tuple: FFmpegInputUrlComposite | tuple) -> bool:
+    if is_valid_input_url(url_or_tuple):
+        return True
+    return (
+        isinstance(url_or_tuple, tuple)
+        and len(url_or_tuple) == 2
+        and is_valid_input_url(url_or_tuple[0])
+        and isinstance(url_or_tuple[1], (dict, type(None)))
+    )
+
+
 def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
     valid = isinstance(url, str)
 
@@ -885,6 +896,17 @@ def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
         valid = is_fileobj(url, writable=True)
 
     return valid
+
+
+def is_valid_output(url_or_tuple: FFmpegOutputUrlComposite | tuple) -> bool:
+    if is_valid_output_url(url_or_tuple):
+        return True
+    return (
+        isinstance(url_or_tuple, tuple)
+        and len(url_or_tuple) == 2
+        and is_valid_output_url(url_or_tuple[0])
+        and isinstance(url_or_tuple[1], (dict, type(None)))
+    )
 
 
 def find_filter_simple_option(

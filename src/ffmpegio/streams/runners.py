@@ -560,19 +560,18 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         writers = [pinfo["writer"] for pinfo in self._input_pipes.values()]
         readers = [pinfo["reader"] for pinfo in self._output_pipes.values()]
 
-        # switch the readers to the cool-down (auto-flushing) mode
+        # switch the readers to the cool-down (auto-flushing) mode and clear the queue
         for reader in readers:
             reader.cool_down()
+            reader.clear()
 
         # write the sentinel to each input queue (if not already closed)
         for writer in writers:
             if not writer.closed():
                 writer.write(None)
 
-        # kill the ffmpeg runtime
-        self._proc.terminate()
-        if self._proc.poll() is None:
-            self._proc.kill()
+        # wait for the ffmpeg runtime to terminate
+        self._proc.wait()
 
         logger.info("FFmpegRunner._terminate()...completed")
 
@@ -1425,7 +1424,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         """
 
         init_kws: MediaReadKwsDict = {
-            "input_urls": input_urls,
+            "input_urls": [input_urls]
+            if utils.is_valid_input(input_urls)
+            else input_urls,
             "output_streams": [output_stream],
             "options": options,
             "extra_outputs": extra_outputs,
@@ -1496,7 +1497,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
 
         init_kws: MediaWriteKwsDict = {
             "input_options": [input_options],
-            "output_urls": output_urls,
+            "output_urls": [output_urls]
+            if utils.is_valid_output(output_urls)
+            else output_urls,
             "extra_inputs": extra_inputs,
             "options": options,
             "input_dtypes": None if input_dtype is None else [input_dtype],
@@ -1639,7 +1642,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
             output_streams, input_urls, options
         )
         init_kws: MediaReadKwsDict = {
-            "input_urls": input_urls,
+            "input_urls": [input_urls]
+            if utils.is_valid_input(input_urls)
+            else input_urls,
             "output_streams": output_streams,
             "options": options,
             "squeeze": squeeze,
@@ -1683,7 +1688,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         init_kws: MediaWriteKwsDict = {
-            "output_urls": output_urls,
+            "output_urls": [output_urls]
+            if utils.is_valid_output(output_urls)
+            else output_urls,
             "input_options": input_options,
             "options": options,
             "input_dtypes": input_dtypes,

@@ -381,7 +381,6 @@ class ReaderThread(Thread):
         return False
 
     def run(self):
-
         logger.info("ReaderThread starting")
 
         is_npipe = self.stdout is None
@@ -612,6 +611,15 @@ class ReaderThread(Thread):
 
         """
         return self._queue.full()
+
+    def clear(self):
+        """clear the queue"""
+
+        q = self._queue
+
+        with q.mutex:
+            q.queue.clear()
+            q.unfinished_tasks = 0
 
 
 class WriterThread(Thread):

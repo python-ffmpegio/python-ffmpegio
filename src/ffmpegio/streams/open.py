@@ -1205,13 +1205,14 @@ def _open_reader(
     out_types: str,
     urls: FFmpegInputUrlComposite
     | FFmpegInputOptionTuple
-    | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
+    | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
     kwargs: dict,
     runner_kws: dict,
 ) -> StdFFmpegRunner | PipedFFmpegRunner:
 
     # need to resolve if multiple input urls are given
-    urls = [urls] if utils.is_valid_input_url(urls) or isinstance(urls, tuple) else urls
+    if utils.is_valid_input(urls):
+        urls = [urls]
     nin = len(urls)
 
     used_kws, single_output, output_streams, extra_outputs, squeeze = (
@@ -1255,6 +1256,9 @@ def _open_writer(
     used_kws, single_input, input_options, extra_inputs = _process_raw_input_args(
         in_types, args, kwargs
     )
+
+    if utils.is_valid_output(urls):
+        urls = [urls]
 
     open_kws = _open_kws_set() - used_kws
     for k in open_kws:

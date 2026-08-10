@@ -2041,13 +2041,15 @@ def init_named_pipes(
 
 class StdWriter:
     def __init__(self, proc: fp.Popen) -> None:
-        self._proc = proc
+        self._proc: fp.Popen = proc
 
     def write(self, data: bytes | None):
         if data is None:
             self.join()
-        else:
+        elif self._proc.stdin:
             self._proc.stdin.write(data)
+        else:
+            raise FFmpegioError("FFmpeg process does not have an stdin pipe.")
 
     def join(self):
         # no thread, just close the stdin
@@ -2055,19 +2057,30 @@ class StdWriter:
         self._proc.stdin.close()
 
     def closed(self) -> bool:
-        return self._proc.stdin.closed
+        return self._proc.stdin is not None and self._proc.stdin.closed
 
 
 class StdReader:
     def __init__(self, proc: fp.Popen, itemsize: int) -> None:
-        self._proc = proc
-        self._itemsize = itemsize
+        self._proc: fp.Popen = proc
+        self._itemsize: int = itemsize
 
     def read(self, n: int = -1) -> bytes:
-        return self._proc.stdout.read(n if n <= 0 else n * self._itemsize)
+        return (
+            self._proc.stdout.read(n if n <= 0 else n * self._itemsize)
+            if self._proc.stdout
+            else b""
+        )
+
+    def full(self) -> bool:
+        return False
+
+    def clear(self):
+        pass
 
     def cool_down(self):
-        pass
+        if self._proc.stdout:
+            self._proc.stdout.close()
 
     def join(self):
         pass
