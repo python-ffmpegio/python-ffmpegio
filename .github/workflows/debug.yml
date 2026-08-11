@@ -14,7 +14,7 @@ on:
         default: macos-latest
       python_version:
         type: choice
-        description: 'Select OS'
+        description: 'Select Python Version'
         required: true
         options: 
         - "3.10"
