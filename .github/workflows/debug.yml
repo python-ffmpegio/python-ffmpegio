@@ -35,11 +35,10 @@ jobs:
       - name: Setup FFmpeg
         uses: AnimMouse/setup-ffmpeg@v1
 
-      - name: Setup Python ${{ matrix.python-version }}
+      - name: Setup Python ${{ github.event.inputs.python_version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.arch }}
+          python-version: ${{ github.event.inputs.python_version }}
 
       - name: Setup Python dependencies
         run: |
