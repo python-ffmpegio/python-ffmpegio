@@ -7,6 +7,7 @@ import pytest
 
 from ffmpegio import ffmpegprocess
 from ffmpegio import filtergraph as fgb
+from ffmpegio.path import check_version
 
 
 @pytest.mark.parametrize(
@@ -103,7 +104,6 @@ def test_iter_input_pads(
     unlabeled_only,
     ret,
 ):
-
     fg = fgb.Graph(expr)
 
     out_links = fg._links.output_dict()
@@ -159,7 +159,6 @@ def test_iter_output_pads(
     unlabeled_only,
     ret,
 ):
-
     fg = fgb.Graph(expr)
 
     in_links = fg._links.input_dict()
@@ -552,13 +551,12 @@ def test_filter_empty_handling():
 
 def test_script():
     fg = fgb.Graph("trim=duration=1")
+    filter_script = "/filter:v" if check_version("7.0") else "filter_script:v"
     with fg.as_script_file() as script, TemporaryDirectory() as dir:
         out = ffmpegprocess.run(
             {
                 "inputs": [(path.join("tests", "assets", "sample.mp4"), None)],
-                "outputs": [
-                    (path.join(dir, "output.mp4"), {"filter_script:v": script})
-                ],
+                "outputs": [(path.join(dir, "output.mp4"), {filter_script: script})],
             },
         )
     assert not out.returncode

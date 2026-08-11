@@ -331,7 +331,6 @@ class Graph(abc.FilterGraphObject, UserList):
     def get_input_pad(
         self, index_or_label: PAD_INDEX | str
     ) -> tuple[PAD_INDEX, str | None]:
-
         index = self.resolve_pad_index(index_or_label, is_input=True)
         if index is None:
             raise FiltergraphPadNotFoundError(
@@ -349,7 +348,6 @@ class Graph(abc.FilterGraphObject, UserList):
         return index, self._get_label(True, index)
 
     def _get_label(self, input: bool, index: PAD_INDEX):
-
         index = self.normalize_pad_index(input, index)
 
         return getattr(
@@ -459,7 +457,6 @@ class Graph(abc.FilterGraphObject, UserList):
                 )
 
     def append(self, item: Chain | str):
-
         fc = as_filterchain(item, copy=True)
         if not len(fc):
             raise ValueError("Empty filterchain cannot be appended to filtergraph.")
@@ -487,7 +484,6 @@ class Graph(abc.FilterGraphObject, UserList):
         self._links.adjust_chains(i, 1)
 
     def __delitem__(self, i: int):
-
         if i < 0:
             i += len(self)
 
@@ -1107,7 +1103,6 @@ class Graph(abc.FilterGraphObject, UserList):
         sws_flags: Sequence[str] | None,
         insert_at: int = 0,
     ) -> Graph:
-
         if inplace:
             # extend self.data and replace its links and sws_flags
             self.data = [
@@ -1281,7 +1276,6 @@ class Graph(abc.FilterGraphObject, UserList):
         def get_pads(
             fg: abc.FilterGraphObject, pad: PAD_INDEX | str, is_input: bool
         ) -> tuple[int, int, int] | str:
-
             is_second = (fg == right) ^ (insert_at == 0)
             if isinstance(pad, str):
                 pad = new_links[link_mappings[is_second][pad]][not is_input]
@@ -1638,8 +1632,9 @@ class Graph(abc.FilterGraphObject, UserList):
         :yield: path of a temporary text file with filtergraph description
         :rtype: str
 
-        This method is intended to work with the `filter_script` and
-        `filter_complex_script` FFmpeg options, by creating a temporary text file
+        This method is intended to work with the `/filter` and `/filter_complex`
+         FFmpeg options (for FFmpeg 6 or earlier, `filter_script` and
+        `filter_complex_script`). FFmpeg options, by creating a temporary text file
         containing the filtergraph description.
 
         .. note::
@@ -1771,7 +1766,6 @@ class Graph(abc.FilterGraphObject, UserList):
         return self
 
     def __iadd__(self, other):
-
         if len(other):
             fg = self + other if len(self) else Graph(other)
             self.data = fg.data
@@ -1779,7 +1773,6 @@ class Graph(abc.FilterGraphObject, UserList):
         return self
 
     def __irshift__(self, other):
-
         if len(other):
             fg = self >> other if len(self) else Graph(other)
             self.data = fg.data
