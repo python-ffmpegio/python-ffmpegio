@@ -42,10 +42,10 @@ def _runner(
     args: FFmpegArgs,
     input_info: list[InputInfoDict],
     output_info: list[OutputInfoDict],
-    show_log: bool | None,
-    progress: ProgressCallable | None,
+    show_log: Optional[bool],
+    progress: Optional[ProgressCallable],
     sp_kwargs: dict | None,
-    overwrite: bool | None = None,
+    overwrite: Optional[bool] = None,
 ) -> tuple[
     ffmpegprocess.Popen, dict[int, InputPipeInfoDict], dict[int, OutputPipeInfoDict]
 ]:
@@ -128,8 +128,8 @@ def read(
         Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
+    show_log: Optional[bool] = None,
+    progress: Optional[ProgressCallable] = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
@@ -189,9 +189,9 @@ def write(
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     stream_dtypes: list[DTypeString | None] | None = None,
     stream_shapes: list[ShapeTuple | None] | None = None,
-    overwrite: bool | None = None,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
+    overwrite: Optional[bool] = None,
+    show_log: Optional[bool] = None,
+    progress: Optional[ProgressCallable] = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ):
@@ -271,8 +271,8 @@ def filter(
     squeeze: bool = False,
     input_dtypes: list[DTypeString | None] | None = None,
     input_shapes: list[ShapeTuple | None] | None = None,
-    show_log: bool | None = None,
-    progress: ProgressCallable | None = None,
+    show_log: Optional[bool] = None,
+    progress: Optional[ProgressCallable] = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:

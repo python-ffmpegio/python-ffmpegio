@@ -144,7 +144,7 @@ class Chain(abc.FilterGraphObject, UserList):
             raise ValueError(f"{chain=} is invalid. Filter object only has 1 chain.")
         return len(self)
 
-    def get_num_inputs(self, exclude_stream_specs: bool | None = None) -> int:
+    def get_num_inputs(self, exclude_stream_specs: Optional[bool] = None) -> int:
         return len(list(self.iter_input_pads()))
 
     def get_num_outputs(self) -> int:
@@ -336,7 +336,7 @@ class Chain(abc.FilterGraphObject, UserList):
         filter: int | None = None,
         chain: Literal[0] | None = None,
         *,
-        exclude_stream_specs: bool | None = False,
+        exclude_stream_specs: Optional[bool] = False,
         only_stream_specs: bool = False,
         exclude_chainable: bool = False,
         chainable_first: bool = False,

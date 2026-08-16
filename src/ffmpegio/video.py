@@ -8,6 +8,9 @@ from ._typing import (
     Any,
     DTypeString,
     FFmpegOptionDict,
+    Literal,
+    NamedTuple,
+    Optional,
     ProgressCallable,
     RawDataBlob,
     ShapeTuple,
@@ -32,9 +35,9 @@ def create(
     expr: str | fgb.abc.FilterGraphObject,
     *args,
     squeeze: bool = True,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> tuple[Fraction | int, RawDataBlob]:
     """Create a video using a source video filter
@@ -102,9 +105,9 @@ def read(
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = True,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> tuple[Fraction | int, RawDataBlob]:
     """Read video frames
@@ -175,13 +178,13 @@ def write(
     ) = None,
     dtype: DTypeString | None = None,
     shape: ShapeTuple | None = None,
-    progress: ProgressCallable | None = None,
-    overwrite: bool | None = None,
-    show_log: bool | None = None,
+    progress: Optional[ProgressCallable] = None,
+    overwrite: Optional[bool] = None,
+    show_log: Optional[bool] = None,
     two_pass: bool = False,
     pass1_omits: list[str] | None = None,
     pass1_extras: list[FFmpegOptionDict] | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> bytes | None:
     """Write raw video data blob
@@ -252,9 +255,9 @@ def filter(
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = True,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> tuple[Fraction | int, RawDataBlob]:
     """Filter video frames.
@@ -302,23 +305,22 @@ def filter(
 
 
 def detect(
-    url,
-    *features,
-    ss=None,
-    t=None,
-    to=None,
-    start_at_zero=False,
-    time_units=None,
-    progress=None,
-    show_log=None,
-    scene_all_scores=False,
-    **options,
-):
+    url: str,
+    *features: tuple[Literal["scene", "black", "blackframe", "freeze"]],
+    ss: Optional[int | float | str] = None,
+    t: Optional[int | float | str] = None,
+    to: Optional[int | float | str] = None,
+    start_at_zero: Optional[bool] = False,
+    time_units: Optional[Literal["seconds", "frames", "pts"]] = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    scene_all_scores: Optional[bool] = False,
+    **options: dict[str, Any],
+) -> tuple[NamedTuple]:
     """detect video frame features
 
     :param url: video file url
-    :type url: str
-    :param \*features: specify frame features to detect:
+    :param features: specify frame features to detect:
 
         ============  ===============  =========================================================
         feature       FFmpeg filter    description
@@ -330,30 +332,20 @@ def detect(
         ============  ===============  =========================================================
 
         defaults to include all the features
-    :type \*features: tuple, a subset of ('scene', 'black', 'blackframe', 'freeze'), optional
     :param ss: start time to process, defaults to None
-    :type ss: int, float, str, optional
     :param t: duration of data to process, defaults to None
-    :type t: int, float, str, optional
     :param to: stop processing at this time (ignored if t is also specified), defaults to None
-    :type to: int, float, str, optional
     :param start_at_zero: ignore start time, defaults to False
-    :type start_at_zero: bool, optional
     :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
-    :type time_units: 'seconds', 'frames', 'pts', optional
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_log: bool, optional
     :param scene_all_scores: (only for 'scene' feature) True to return scores for all frames, defaults to False
-    :type scene_all_scores: bool, optional
-    :param \**options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
+    :param options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
         of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
         options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
         Any other arguments are treated as a common option to all FFmpeg filters. For the available options
         for each filter, follow the link on the feature table above to the FFmpeg documentation.
-    :type \**options: dict, optional
     :return: detection outcomes. A namedtuple is returned for each feature in the order specified.
         All namedtuple fields contain a list with the element specified as below:
 
@@ -398,7 +390,6 @@ def detect(
              - (numeric, numeric)
              - Interval of frozen frames
 
-    :rtype: tuple of namedtuples
 
     Examples
     --------

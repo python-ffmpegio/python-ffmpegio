@@ -31,16 +31,30 @@ from os import path
 from tempfile import TemporaryDirectory
 from threading import Thread
 
-from .configure import move_global_options
+from ._typing import (
+    IO,
+    Any,
+    Callable,
+    FFmpegOptionDict,
+    Optional,
+    ProgressCallable,
+    Sequence,
+    TypedDict,
+)
 from .path import DEVNULL, PIPE, TimeoutExpired, devnull, ffmpeg
 from .threading import ProgressMonitorThread
+from .utils import (
+    FFmpegInputUrlComposite,
+    FFmpegInputUrlNoPipe,
+    FFmpegOutputUrlComposite,
+    FFmpegOutputUrlNoPipe,
+)
 from .utils.parser import FLAG, compose, parse
 
 logger = logging.getLogger("ffmpegio")
 
 
 __all__ = [
-    "versions",
     "run",
     "Popen",
     "FLAG",
@@ -48,47 +62,129 @@ __all__ = [
     "DEVNULL",
     "devnull",
     "TimeoutExpired",
+    "FFmpegArgs",
 ]
 
 
+##############################
+## ffmpegprocess argument dict
+##############################
+
+FFmpegInputOptionTuple = tuple[FFmpegInputUrlComposite, FFmpegOptionDict]
+"""tuple pair of FFmpeg input url compatible objects and its option dict
+
+Supported input url objects:
+
+- `str`
+- `os.Path`
+- `urllib.UrlParseResult`
+- `FFConcat`
+- `FilterGraphObject`
+- `IO` 
+- `Buffer`
+"""
+
+FFmpegOutputOptionTuple = tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
+"""tuple pair of FFmpeg output url compatible objects and its option dict
+
+Supported output url objects:
+
+- `str`
+- `IO`
+- `Buffer`
+"""
+
+FFmpegNoPipeInputOptionTuple = tuple[FFmpegInputUrlNoPipe, FFmpegOptionDict]
+"""tuple pair of FFmpeg input non-pipe url compatible objects and its option dict
+
+Supported input url objects:
+
+- `str`
+- `FFConcat`
+- `FilterGraphObject`
+"""
+
+FFmpegNoPipeOutputOptionTuple = tuple[FFmpegOutputUrlNoPipe, FFmpegOptionDict]
+"""tuple pair of FFmpeg output non-pipe url compatible objects and its option dict
+"""
+
+
+class FFmpegArgs(TypedDict):
+    """FFmpeg arguments
+
+
+    ==============  ===============
+    key             description
+    ==============  ===============
+    inputs          list of input definitions (pairs of url and options)
+    outputs         list of output definitions (pairs of url and options)
+    global_options  FFmpeg global options
+    ==============  ===============
+    """
+
+    inputs: list[FFmpegInputOptionTuple]
+    """list of input definitions (pairs of url and options)"""
+    outputs: list[FFmpegOutputOptionTuple]
+    """list of output definitions (pairs of url and options)"""
+    global_options: FFmpegOptionDict
+    """FFmpeg global options"""
+
+
+def move_global_options(args: FFmpegArgs) -> FFmpegArgs:
+    """move global options from the output options dicts
+
+    :param args: FFmpeg arguments
+    :returns: FFmpeg arguments (the same object as the input)
+    """
+
+    from .caps import options
+
+    _global_options = options("global", name_only=True)
+
+    global_options = args.get("global_options", None) or {}
+
+    # global options may be given as output options
+    for _, inopts in args.get("inputs", ()):
+        if inopts:
+            for k in (*(k for k in inopts.keys() if k in _global_options),):
+                global_options[k] = inopts.pop(k)
+    for _, outopts in args.get("outputs", ()):
+        if outopts:
+            for k in (*(k for k in outopts.keys() if k in _global_options),):
+                global_options[k] = outopts.pop(k)
+    if len(global_options):
+        args["global_options"] = global_options
+
+    return args
+
+
 def exec(
-    ffmpeg_args,
-    hide_banner=True,
-    progress=None,
-    overwrite=None,
-    capture_log=None,
-    stdin=None,
-    stdout=None,
-    stderr=None,
-    sp_run=sp.run,
-    **sp_kwargs,
-):
+    ffmpeg_args: FFmpegArgs,
+    hide_banner: Optional[bool] = True,
+    progress: Optional[ProgressCallable] = None,
+    overwrite: Optional[bool] = None,
+    capture_log: Optional[bool] = None,
+    stdin: Optional[IO] = None,
+    stdout: Optional[IO] = None,
+    stderr: Optional[IO] = None,
+    sp_run: Optional[Callable] = sp.run,
+    **sp_kwargs: dict[str, Any],
+) -> Any:
     """run ffmpeg command
 
     :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict, seq(str), or str
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :type hide_banner: bool, optional
     :param progress: progress monitor object, defaults to None
-    :type progress: ProgressMonitorThread, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :type overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to suppress
                         console log messages, defaults to None (show on console)
-    :type capture_log: bool or None, optional
     :param stdin: source file object, defaults to None
-    :type stdin: readable file-like object, optional
     :param stdout: sink file object, defaults to None
-    :type stdout: writable file-like object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
-    :type stderr: writable file-like object, optional
     :param sp_run: function to run FFmpeg as a subprocess, defaults to subprocess.run
-    :type sp_run: Callable, optional
-    :param **sp_kwargs: additional keyword arguments for sp_run, optional
-    :type **sp_kwargs: dict
+    :param sp_kwargs: additional keyword arguments for sp_run, optional
     :return: depends on sp_run
-    :rtype: depends on sp_run
     """
 
     # convert to FFmpeg argument dict if str or seq(str) given
@@ -142,7 +238,7 @@ def exec(
     def isreadable(f):
         try:
             return f.fileno() and f.readable()
-        except:
+        except AttributeError:
             return False
 
     inpipe = (
@@ -165,7 +261,7 @@ def exec(
     def iswritable(f):
         try:
             return f == DEVNULL or (f.fileno() and f.writable())
-        except:
+        except AttributeError:
             return False
 
     outpipe = (
@@ -199,16 +295,21 @@ def exec(
     )
 
 
-def monitor_process(proc, on_exit=None):
+OnExitCallable = Callable[[int], None]
+"""Signature of the callback function to be assigned to `monitor_process()`"""
+
+
+def monitor_process(
+    proc: sp.Popen, on_exit: Optional[OnExitCallable | Sequence[OnExitCallable]] = None
+):
     """thread function to monitor subprocess termination
 
     :param proc: subprocess to be monitored
-    :type proc: subprocess.Popen
-    :param on_exit: callback function(s) to be called after process is terminated and
-                    all auto-closing streams are closed
-    :type on_exit: Callable or seq(Callables), optional
+    :param on_exit: callback function(s) to be called after process is terminated
+        and all auto-closing streams are closed. The signature of a callback
+        function is:
 
-        on_exit(returncode)
+            on_exit(returncode:int)
 
     """
 
@@ -228,57 +329,46 @@ def monitor_process(proc, on_exit=None):
 
 
 class Popen(sp.Popen):
-    """Execute FFmpeg in a new process.
-
-    :param ffmpeg_args: FFmpeg arguments
-    :type ffmpeg_args: dict
-    :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :type hide_banner: bool, optional
-    :param progress: progress callback function, defaults to None. This function
-                     takes two arguments and may return True to terminate execution::
-
-                        progress(data:dict, done:bool) -> bool|None
-
-    :type progress: Callable, optional
-    :param overwrite: True to overwrite if output url exists, defaults to None
-                      (auto-select)
-    :type overwrite: bool, optional
-    :param capture_log: True to capture log messages on stderr, False to send
-                    logs to console, defaults to None (no show/capture)
-    :type capture_log: bool, optional
-    :param stdin: source file object, defaults to None
-    :type stdin: readable file object, optional
-    :param stdout: sink file object, defaults to None
-    :type stdout: writable file object, optional
-    :param stderr: file to log ffmpeg messages, defaults to None
-    :type stderr: writable file object, optional
-    :param on_exit: function(s) to execute when FFmpeg process terminates, defaults to None
-    :type on_exit: Callable or seq(Callable), optional
-    :param \\**other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
-    :type \\**other_popen_args: dict, optional
-
-    If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen`
-    automatically sets `stdin=PIPE` or `stdout=PIPE`. Alternately, a file-stream object could be
-    specified in the argument for each of :code:`stdin`, :code:`stdout`, and :code:`stderr`
-    to redirect pipes to existing file streams. If files aren't already open in Python,
-    specify their urls in :ref:`ffmpeg_args<adv_args>` instead of using the pipes.
-
-    """
-
     def __init__(
         self,
-        ffmpeg_args,
+        ffmpeg_args: FFmpegArgs,
         *,
-        hide_banner=True,
-        progress=None,
-        overwrite=None,
-        capture_log=None,
-        stdin=None,
-        stdout=None,
-        stderr=None,
-        on_exit=None,
-        **other_popen_args,
+        hide_banner: Optional[bool] = True,
+        progress: Optional[ProgressCallable] = None,
+        overwrite: Optional[bool] = None,
+        capture_log: Optional[bool] = None,
+        stdin: Optional[IO] = None,
+        stdout: Optional[IO] = None,
+        stderr: Optional[IO] = None,
+        on_exit: Optional[OnExitCallable | Sequence[OnExitCallable]] = None,
+        **other_popen_args: dict[str, Any],
     ):
+        """Execute FFmpeg in a new process.
+
+        :param ffmpeg_args: FFmpeg arguments
+        :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
+        :param progress: progress callback function, defaults to None. This function
+                        takes two arguments and may return True to terminate execution::
+
+                            progress(data:dict, done:bool) -> bool|None
+
+        :param overwrite: True to overwrite if output url exists, defaults to None
+                        (auto-select)
+        :param capture_log: True to capture log messages on stderr, False to send
+                        logs to console, defaults to None (no show/capture)
+        :param stdin: source file object, defaults to None
+        :param stdout: sink file object, defaults to None
+        :param stderr: file to log ffmpeg messages, defaults to None
+        :param on_exit: function(s) to execute when FFmpeg process terminates, defaults to None
+        :param other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
+
+        If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen`
+        automatically sets `stdin=PIPE` or `stdout=PIPE`. Alternately, a file-stream object could be
+        specified in the argument for each of :code:`stdin`, :code:`stdout`, and :code:`stderr`
+        to redirect pipes to existing file streams. If files aren't already open in Python,
+        specify their urls in :ref:`ffmpeg_args<adv_args>` instead of using the pipes.
+
+        """
         if any(
             (
                 k
@@ -390,13 +480,13 @@ class Popen(sp.Popen):
         except:
             pass
 
-    def send_signal(self, sig: int = None, kill_monitor: bool = False):
+    def send_signal(
+        self, sig: Optional[int] = None, kill_monitor: Optional[bool] = False
+    ):
         """Sends the signal signal to the FFmpeg process
 
         :param sig: signal id, default SIGINT (POSIX) / CTRL_C_EVENT (Windows)
-        :type sig: int, optional
         :param kill_monitor: True to kill the monitor thread, default False
-        :type kill_monitor: bool, optional
 
         Without any argument, `send_signal()` will perform control-C to initiate
         soft-terminate FFmpeg. FFmpeg may output additional frames before exits.
@@ -420,49 +510,38 @@ class Popen(sp.Popen):
 
 
 def run(
-    ffmpeg_args,
+    ffmpeg_args: FFmpegArgs,
     *,
-    hide_banner=True,
-    progress=None,
-    overwrite=None,
-    capture_log=None,
-    stdin=None,
-    stdout=None,
-    stderr=None,
-    input=None,
-    **other_popen_kwargs,
-):
+    hide_banner: Optional[bool] = True,
+    progress: Optional[ProgressCallable] = None,
+    overwrite: Optional[bool] = None,
+    capture_log: Optional[bool] = None,
+    stdin: Optional[IO] = None,
+    stdout: Optional[IO] = None,
+    stderr: Optional[IO] = None,
+    input: Optional[bytes] = None,
+    **other_popen_kwargs: dict[str, Any],
+) -> sp.CompletedProcess:
     """run FFmpeg subprocess with standard pipes with a single transaction
 
     :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :type hide_banner: bool, optional
     :param progress: progress callback function, defaults to None. This function
                      takes two arguments:
 
                         progress(data:dict, done:bool) -> None
 
-    :type progress: callable object, optional
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :type overwrite: bool, optional
     :param capture_log: True to capture log messages on stderr, False to send
                         logs to console, defaults to None (no show/capture)
-    :type capture_log: bool, optional
     :param stdin: source file object, defaults to None
-    :type stdin: readable file-like object, optional
     :param stdout: sink file object, defaults to None
-    :type stdout: writable file-like object, optional
     :param stderr: file to log ffmpeg messages, defaults to None
-    :type stderr: writable file-like object, optional
     :param input: input data buffer must be given if FFmpeg is configured to receive
                     data stream from Python. It must be bytes convertible to bytes.
-    :type input: bytes-convertible object, optional
-    :param \\**other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
-    :type \\**other_popen_kwargs: dict, optional
-    :rparam: completed process
-    :rtype: subprocess.CompleteProcess
+    :param other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
+    :rparam: completed subprocess object
     """
 
     with ProgressMonitorThread(progress) as progmon:
@@ -488,25 +567,27 @@ def run(
 
 
 def run_two_pass(
-    ffmpeg_args,
-    pass1_omits=None,
-    pass1_extras=None,
-    overwrite=None,
-    stdin=None,
-    **other_run_kwargs,
-):
+    ffmpeg_args: FFmpegArgs,
+    *,
+    pass1_omits: Optional[
+        Sequence[str, Sequence[str], dict[int, Sequence[str]]]
+    ] = None,
+    pass1_extras: Optional[
+        dict[str, str] | Sequence[dict[str, str]] | dict[int, dict[str, str]]
+    ] = None,
+    overwrite: Optional[bool] = None,
+    stdin: Optional[IO] = None,
+    **other_run_kwargs: dict[str, Any],
+) -> sp.CompletedProcess:
     """run FFmpeg subprocess with standard pipes with a single transaction twice for 2-pass encoding
 
     :param ffmpeg_args: FFmpeg argument options
-    :type ffmpeg_args: dict
     :param pass1_omits: per-file list of output arguments to ignore in pass 1. If not applicable to every
                         output file, use a nested dict with int keys to specify which output,
                         defaults to None (remove 'c:a' or 'acodec').
-    :type pass1_omits: seq(str) or seq(seq(str)) or dict(int:seq(str)) optional
     :param pass1_extras: per-file list of additional output arguments to include in pass 1. If it does
                          not apply to every output files, use a nested dict with int keys to specify
                          which output, defaults to None (add 'an' if `pass1_omits` also None)
-    :type pass1_extras: dict(str) or seq(dict(str)) or dict(int:dict(str)), optional
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :type hide_banner: bool, optional
     :param progress: progress callback function, defaults to None. This function
@@ -528,10 +609,9 @@ def run_two_pass(
     :param input: input data buffer must be given if FFmpeg is configured to receive
                     data stream from Python. It must be bytes convertible to bytes.
     :type input: bytes-convertible object, optional
-    :param \\**other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
-    :type \\**other_popen_kwargs: dict, optional
+    :param other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
+    :type other_popen_kwargs: dict, optional
     :rparam: completed process
-    :rtype: subprocess.CompleteProcess
     """
 
     # TODO allow multiple stream 2-pass encoding

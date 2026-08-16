@@ -579,7 +579,7 @@ class Graph(abc.FilterGraphObject, UserList):
         filter: int | None = None,
         chain: int | None = None,
         *,
-        exclude_stream_specs: bool | None = True,
+        exclude_stream_specs: Optional[bool] = True,
         only_stream_specs: bool = False,
         exclude_chainable: bool = False,
         chainable_first: bool = False,
@@ -676,7 +676,7 @@ class Graph(abc.FilterGraphObject, UserList):
         ):
             yield v
 
-    def get_num_inputs(self, exclude_input_streams: bool | None = None) -> int:
+    def get_num_inputs(self, exclude_input_streams: Optional[bool] = None) -> int:
         return len(
             list(
                 self.iter_input_pads(
@@ -689,7 +689,7 @@ class Graph(abc.FilterGraphObject, UserList):
         return len(list(self.iter_output_pads(chainable_only=chainable_only)))
 
     def iter_input_labels(
-        self, exclude_stream_specs: bool | None = False
+        self, exclude_stream_specs: Optional[bool] = False
     ) -> Generator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled input pads of the filtergraph object
 
@@ -714,7 +714,7 @@ class Graph(abc.FilterGraphObject, UserList):
         self,
         inpad: PAD_INDEX | None,
         outpad: PAD_INDEX | None,
-        check_input_stream: bool | None = None,
+        check_input_stream: Optional[bool] = None,
     ) -> bool:
         """True if given pads are linked
 

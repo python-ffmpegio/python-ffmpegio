@@ -65,6 +65,7 @@ from ._typing import (
     RawStreamInfoTuple,
     ShapeTuple,
     ToBytesCallable,
+    TypeAlias,
     TypedDict,
     cast,
 )
@@ -74,6 +75,7 @@ from .errors import (
     FFmpegioInsufficientInputData,
     FFmpegioNoPipeAllowed,
 )
+from .ffmpegprocess import FFmpegArgs
 from .filtergraph.abc import FilterGraphObject
 from .stream_spec import parse_map_option, stream_type_to_media_type
 from .threading import CopyFileObjThread, ReaderThread, WriterThread
@@ -90,7 +92,7 @@ logger = logging.getLogger("ffmpegio")
 #################################
 ## module types
 
-UrlType = Literal["input", "output"]
+UrlType: TypeAlias = Literal["input", "output"]
 
 FFmpegInputOptionTuple = tuple[FFmpegInputUrlComposite, FFmpegOptionDict]
 """tuple pair of FFmpeg input url compatible objects and its option dict
@@ -134,17 +136,7 @@ FFmpegNoPipeOutputOptionTuple = tuple[FFmpegOutputUrlNoPipe, FFmpegOptionDict]
 raw_formats = ("rawvideo", *(formats for _, formats in utils.audio_codecs.values()))
 
 
-class FFmpegArgs(TypedDict):
-    """FFmpeg arguments"""
-
-    inputs: list[FFmpegInputOptionTuple]
-    # list of input definitions (pairs of url and options)
-    outputs: list[FFmpegOutputOptionTuple]
-    # list of output definitions (pairs of url and options)
-    global_options: dict  # FFmpeg global options
-
-
-InitMediaOutputsCallable = Callable[
+InitMediaOutputsCallable: TypeAlias = Callable[
     [
         FFmpegArgs,
         list[RawInputInfoDict | EncodedInputInfoDict],
@@ -933,34 +925,6 @@ def gather_audio_read_opts(
 
 
 ################################################################################
-
-
-def move_global_options(args: FFmpegArgs) -> FFmpegArgs:
-    """move global options from the output options dicts
-
-    :param args: FFmpeg arguments
-    :returns: FFmpeg arguments (the same object as the input)
-    """
-
-    from .caps import options
-
-    _global_options = options("global", name_only=True)
-
-    global_options = args.get("global_options", None) or {}
-
-    # global options may be given as output options
-    for _, inopts in args.get("inputs", ()):
-        if inopts:
-            for k in (*(k for k in inopts.keys() if k in _global_options),):
-                global_options[k] = inopts.pop(k)
-    for _, outopts in args.get("outputs", ()):
-        if outopts:
-            for k in (*(k for k in outopts.keys() if k in _global_options),):
-                global_options[k] = outopts.pop(k)
-    if len(global_options):
-        args["global_options"] = global_options
-
-    return args
 
 
 def config_input_fg(

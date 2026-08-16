@@ -34,7 +34,7 @@ class FilterGraphObject(ABC):
         """(deep) copy filtergraph object"""
 
     @abstractmethod
-    def get_num_inputs(self, exclude_stream_specs: bool | None = None) -> int:
+    def get_num_inputs(self, exclude_stream_specs: Optional[bool] = None) -> int:
         """get the number of input pads of the filter
 
         :param exclude_stream_specs: True to not include pads connected to input
@@ -77,7 +77,7 @@ class FilterGraphObject(ABC):
         filter: int | None = None,
         chain: int | None = None,
         *,
-        exclude_stream_specs: bool | None = False,
+        exclude_stream_specs: Optional[bool] = False,
         only_stream_specs: bool = False,
         exclude_chainable: bool = False,
         chainable_first: bool = False,

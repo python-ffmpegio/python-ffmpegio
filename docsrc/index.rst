@@ -442,6 +442,7 @@ High-level API Reference
     filtergraph
     caps
     analysis
+    plugins
     devices
     concat
 

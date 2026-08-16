@@ -3,7 +3,14 @@ from fractions import Fraction
 
 from . import configure, utils
 from . import filtergraph as fgb
-from ._typing import Any, DTypeString, ProgressCallable, RawDataBlob, ShapeTuple
+from ._typing import (
+    Any,
+    DTypeString,
+    Optional,
+    ProgressCallable,
+    RawDataBlob,
+    ShapeTuple,
+)
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
@@ -15,7 +22,7 @@ from .configure import (
 from .errors import FFmpegioError
 from .std_runners import run_and_return_encoded, run_and_return_raw
 
-__all__ = ["create", "read", "write", "filter", "detect"]
+__all__ = ["create", "read", "write", "filter"]
 
 logger = logging.getLogger("ffmpegio")
 
@@ -23,9 +30,9 @@ logger = logging.getLogger("ffmpegio")
 def create(
     expr: str | fgb.abc.FilterGraphObject,
     *args,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> RawDataBlob:
     """Create an image using a source video filter
@@ -79,9 +86,9 @@ def read(
     extra_outputs: (
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> RawDataBlob:
     """Read an image file or a snapshot of a video frame
@@ -102,7 +109,7 @@ def read(
                   The output shape is 3D (row x column x comp) if colored/transparent.
                   or 2D (row x column) if it is a grayscale image.
 
-    Note on \\**options: To specify the video frame capture time, use `time`
+    Note on options: To specify the video frame capture time, use `time`
     option which is an alias of `start` standard option.
     """
 
@@ -151,10 +158,10 @@ def write(
     ) = None,
     dtype: DTypeString | None = None,
     shape: ShapeTuple | None = None,
-    progress: ProgressCallable | None = None,
-    overwrite: bool | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    overwrite: Optional[bool] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> bytes | None:
     """Write a NumPy array to an image file.
@@ -217,9 +224,9 @@ def filter(
     extra_outputs: (
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **options,
 ) -> tuple[Fraction | int, RawDataBlob]:
     """Filter image pixels.

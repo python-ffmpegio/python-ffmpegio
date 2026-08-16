@@ -28,9 +28,9 @@ def transcode(
         | Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
     ),
     *,
-    progress: ProgressCallable | None = None,
-    overwrite: bool | None = None,
-    show_log: bool | None = None,
+    progress: Optional[ProgressCallable] = None,
+    overwrite: Optional[bool] = None,
+    show_log: Optional[bool] = None,
     two_pass: bool = False,
     pass1_omits: (
         Sequence[str] | Sequence[Sequence[str]] | dict[int, Sequence[str]] | None

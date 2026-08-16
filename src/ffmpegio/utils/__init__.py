@@ -27,6 +27,7 @@ from .._typing import (
     RawDataBlob,
     RawStreamDef,
     ShapeTuple,
+    TypeAlias,
 )
 from .._utils import (
     as_multi_option,
@@ -51,20 +52,50 @@ from .concat import FFConcat
 logger = logging.getLogger("ffmpegio")
 
 
-FFmpegInputUrlComposite = FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
+FFmpegInputUrlComposite: TypeAlias = (
+    FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
+)
 """all input types supported by ffmpegio"""
-FFmpegOutputUrlComposite = FFmpegUrlType | IO
+FFmpegOutputUrlComposite: TypeAlias = FFmpegUrlType | IO
 """all output types supported by ffmpegio"""
 
-FFmpegInputUrlNoPipe = FFmpegUrlType | FFConcat | FilterGraphObject
+FFmpegInputUrlNoPipe: TypeAlias = FFmpegUrlType | FFConcat | FilterGraphObject
 """all non-piped input types supported by ffmpegio"""
 
-FFmpegOutputUrlNoPipe = FFmpegUrlType
+FFmpegOutputUrlNoPipe: TypeAlias = FFmpegUrlType
 """all non-piped output types supported by ffmpegio"""
 
 # TODO: auto-detect endianness
 # import sys
 # sys.byteorder
+
+
+def move_global_options(args: FFmpegArgs) -> FFmpegArgs:
+    """move global options from the output options dicts
+
+    :param args: FFmpeg arguments
+    :returns: FFmpeg arguments (the same object as the input)
+    """
+
+    from .caps import options
+
+    _global_options = options("global", name_only=True)
+
+    global_options = args.get("global_options", None) or {}
+
+    # global options may be given as output options
+    for _, inopts in args.get("inputs", ()):
+        if inopts:
+            for k in (*(k for k in inopts.keys() if k in _global_options),):
+                global_options[k] = inopts.pop(k)
+    for _, outopts in args.get("outputs", ()):
+        if outopts:
+            for k in (*(k for k in outopts.keys() if k in _global_options),):
+                global_options[k] = outopts.pop(k)
+    if len(global_options):
+        args["global_options"] = global_options
+
+    return args
 
 
 def get_pixel_config(input_pix_fmt: str) -> tuple[str, int, DTypeString, bool]:

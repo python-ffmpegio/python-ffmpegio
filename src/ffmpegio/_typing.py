@@ -4,7 +4,28 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from typing_extensions import *
+from typing_extensions import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    Buffer,  # noqa:F401
+    Callable,
+    Iterator,  # noqa: F401
+    Literal,
+    LiteralString,
+    NamedTuple,  # noqa: F401
+    NotRequired,
+    Optional,  # noqa: F401
+    Protocol,
+    Sequence,  # noqa:F401
+    TypeAlias,
+    TypedDict,
+    Unpack,  # noqa:F401
+    cast,  # noqa:F401
+    get_args,  # noqa:F401
+    overload,  # noqa:F401
+    override,  # noqa:F401
+)
 
 if TYPE_CHECKING:
     from namedpipe import NPopen
@@ -18,10 +39,10 @@ FFmpegOptionDict = dict[str, Any]
 """FFmpeg options with their values keyed by the option names without preceding dash. 
 For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
 
-RawDataBlob = Any
+RawDataBlob: TypeAlias = Any
 """any object to represent raw binary data supported by a data I/O plugin."""
 
-DTypeString = LiteralString
+DTypeString: TypeAlias = LiteralString
 """Numpy array interface protocol typestr string
 
 The string format consists of 3 parts: a character describing the byteorder of the data 
@@ -42,11 +63,13 @@ See https://numpy.org/doc/stable/reference/arrays.interface.html for Numpy's
 official documentation.
 """
 
-ShapeTuple = tuple[int, ...]
+ShapeTuple: TypeAlias = tuple[int, ...]
 """Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int)."""
 
 
-RawStreamDef = tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+RawStreamDef: TypeAlias = (
+    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+)
 """2-element tuple to define a raw stream data
 
     It comes in two forms: rate-data or data-option. The rate-data form specifies
@@ -57,10 +80,10 @@ RawStreamDef = tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOpt
 
 """
 
-RawStreamInfoTuple = tuple[DTypeString, ShapeTuple, int | Fraction]
+RawStreamInfoTuple: TypeAlias = tuple[DTypeString, ShapeTuple, int | Fraction]
 """3-element tuple (dtype, shape, rate) to characterize raw data stream"""
 
-ProgressCallable = Callable[[dict[str, Any], bool], bool]
+ProgressCallable: TypeAlias = Callable[[dict[str, Any], bool], bool]
 """FFmpeg progress callback function
 
     callback(status, done)
@@ -71,7 +94,7 @@ ProgressCallable = Callable[[dict[str, Any], bool], bool]
     The callback may return True to cancel the FFmpeg execution.
 """
 
-MediaType = Literal["audio", "video"]
+MediaType: TypeAlias = Literal["audio", "video"]
 """supported media stream types
 
 =============== ================================================================
@@ -82,7 +105,9 @@ value           description
 =============== ================================================================
 """
 
-FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
+FFmpegMediaType: TypeAlias = Literal[
+    "video", "audio", "subtitle", "data", "attachments"
+]
 """FFmpeg media stream types
 
 =============== ================================================================
@@ -96,11 +121,11 @@ value           description
 =============== ================================================================
 """
 
-FFmpegUrlType = str
+FFmpegUrlType: TypeAlias = str
 """input and output file/stream urls (str or a stringifiable object)
 """
 
-FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
+FFmpegInputType: TypeAlias = Literal["url", "filtergraph", "buffer", "fileobj"]
 """mechanisms to feed encoded input data to FFmpeg input pipe
 
 =============== ================================================================
@@ -113,7 +138,7 @@ value           description
 =============== ================================================================
 """
 
-FFmpegOutputType = Literal["url", "fileobj", "buffer"]
+FFmpegOutputType: TypeAlias = Literal["url", "fileobj", "buffer"]
 """mechanisms to extract encoded output data from FFmpeg output pipe
 
 =============== ============================================================================
@@ -202,6 +227,8 @@ class IsEmptyCallable(Protocol):
     def __call__(self, *, obj: object) -> bool: ...
 
 
+UrlType = Literal["input", "output"]
+
 ######
 
 
@@ -254,17 +281,23 @@ class PipedEncodedInputInfoDict(TypedDict):
     """piped encoded input source info"""
 
     src_type: Literal["buffer"]
-    buffer: NotRequired[bytes]  # index of the source index
+    '''source type, must be "buffer"'''
+
+    buffer: NotRequired[bytes]
+    """buffer data"""
 
 
 class FileObjEncodedInputInfoDict(TypedDict):
     """fileobj encoded input info"""
 
     src_type: Literal["fileobj"]
-    fileobj: IO  # file object
+    """source type, must be "fileobj"""
+
+    fileobj: IO
+    """input file stream object"""
 
 
-EncodedInputInfoDict = (
+EncodedInputInfoDict: TypeAlias = (
     UrlEncodedInputInfoDict | PipedEncodedInputInfoDict | FileObjEncodedInputInfoDict
 )
 """encoded input container stream information
@@ -278,7 +311,7 @@ key             description
 =============== ================================================================
 """
 
-InputInfoDict = RawInputInfoDict | EncodedInputInfoDict
+InputInfoDict: TypeAlias = RawInputInfoDict | EncodedInputInfoDict
 
 
 class PipeWriter(Protocol):
@@ -376,7 +409,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     linklabel: str
 
 
-RawOutputInfoDict = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
+RawOutputInfoDict: TypeAlias = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
 """raw output media stream info
 
 =================== ================================================================
@@ -411,7 +444,9 @@ class FileObjEncodedOutputInfoDict(TypedDict):
     fileobj: IO  # file object
 
 
-EncodedOutputInfoDict = UrlOrPipedEncodedOutputInfoDict | FileObjEncodedOutputInfoDict
+EncodedOutputInfoDict: TypeAlias = (
+    UrlOrPipedEncodedOutputInfoDict | FileObjEncodedOutputInfoDict
+)
 """encoded output container stream information
 
 =============== ================================================================
@@ -428,7 +463,7 @@ key             description
 """
 
 
-OutputInfoDict = RawOutputInfoDict | EncodedOutputInfoDict
+OutputInfoDict: TypeAlias = RawOutputInfoDict | EncodedOutputInfoDict
 """combined output info"""
 
 
@@ -464,4 +499,4 @@ class VideoFilterGraphInfoDict(TypedDict):
     pix_fmt: str
 
 
-FilterGraphInfoDict = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict
+FilterGraphInfoDict: TypeAlias = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict

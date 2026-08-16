@@ -299,7 +299,7 @@ def run(
     bitexact: bool = False,
     find_stream_info: bool = False,
     f: str | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     **kwargs,
 ) -> dict[str, str]:
     """run ffprobe and parse its json output
@@ -455,7 +455,7 @@ def full_details(
     show_stream_groups: bool = False,
     select_streams: str | int | None = None,
     keep_str_values: bool = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> dict[str, str | Number | Fraction]:
@@ -521,7 +521,7 @@ def format_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool = False,
     keep_str_values: bool = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> dict[str, str | Number | Fraction]:
@@ -577,9 +577,9 @@ def format_basic(
 def streams_basic(
     url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
-    keep_optional_fields: bool | None = None,
-    keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    keep_optional_fields: Optional[bool] = None,
+    keep_str_values: Optional[bool] = False,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     stream_spec: str | int | StreamSpecDict | None = None,
     *,
     f: str | None = None,
@@ -630,9 +630,9 @@ def video_streams_basic(
     url: str | BinaryIO | memoryview,
     index: int | None = None,
     entries: Sequence[str] | None = None,
-    keep_optional_fields: bool | None = None,
-    keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    keep_optional_fields: Optional[bool] = None,
+    keep_str_values: Optional[bool] = False,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> list[dict[str, str | Number | Fraction]]:
@@ -742,9 +742,9 @@ def audio_streams_basic(
     url: str | BinaryIO | memoryview,
     index: int | None = None,
     entries: Sequence[str] | None = None,
-    keep_optional_fields: bool | None = None,
-    keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    keep_optional_fields: Optional[bool] = None,
+    keep_str_values: Optional[bool] = False,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> list[dict[str, str | Number | Fraction]]:
@@ -841,11 +841,11 @@ def audio_streams_basic(
 
 def query(
     url: str | BinaryIO | memoryview,
-    streams: str | int | StreamSpecDict | bool | None = None,
+    streams: str | int | StreamSpecDict | Optional[bool] = None,
     fields: Sequence[str] | None = None,
-    keep_optional_fields: bool | None = None,
-    keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    keep_optional_fields: Optional[bool] = None,
+    keep_str_values: Optional[bool] = False,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> (
@@ -909,24 +909,27 @@ def frames(
     entries: Sequence[str] | None = None,
     streams: str | int | StreamSpecDict | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
-    accurate_time: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    accurate_time: Optional[bool] = False,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> list[dict] | list[str | int | float]:
     """get frame information
 
     :param url: URL of the media file/stream
-    :param entries: names of frame attributes, defaults to None (get all attributes)
-    :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
-    :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
-                          stream timebase, defaults to False (= us accuracy)
+    :param entries: names of frame attributes, defaults to `None` (get all attributes)
+    :param stream: stream specifier of the stream to retrieve the data of, defaults
+        to `None` to get all streams
+    :param intervals: time intervals to retrieve the data, see below for the
+        details, defaults to `None` (get all)
+    :param accurate_time: `True` to return all `'*_time'` attributes to be
+        computed from associated timestamps and stream timebase, defaults to
+        `False` (= us accuracy)
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :param f: Use the specified media container format, defaults to None (auto-detect)
-    :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
-             if entries is str (i.e., a single entry)
+    :return: frame information. list of dictionary if entries is None or a
+        sequence; list of the selected entry if entries is str (i.e., a single entry)
 
     """
 
@@ -1005,26 +1008,27 @@ def packets(
     entries: Sequence[str] | None = None,
     streams: str | int | StreamSpecDict | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
-    accurate_time: bool | None = False,
+    accurate_time: Optional[bool] = False,
     data: bool = False,
     data_hash: DataHashLiteral | None = None,
     data_dump_format: Literal["xxd", "base64", "bytes"] | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
     *,
     f: str | None = None,
 ) -> list[dict] | list[str | int | float]:
     """get packet information
 
     :param url: URL of the media file/stream
-    :param entries: names of packet attributes, defaults to None (get all attributes)
+    :param entries: names of packet attributes, defaults to ``None`` (get all
+        attributes)
     :param stream: stream specifier of the stream to retrieve the data of,
-        defaults to None to get all streams
+        defaults to ``None`` to get all streams
     :param intervals: time intervals to retrieve the data, see below for the
-        details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed
-        from associated timestamps and stream timebase, defaults to False
-        (= us accuracy)
-    :param data: True to probe payload data, defaults to False. Data are dumped
+        details, defaults to ``None`` (get all)
+    :param accurate_time: ``True`` to return all ``'*_time'`` attributes to be
+        computed from associated timestamps and stream timebase, defaults to
+        ``False`` (= us accuracy)
+    :param data: ``True`` to probe payload data, defaults to False. Data are dumped
         as a hexadecimal or ASCII dump (other formats can be selected using
         ``data_dump_format``). Coupled with ``entries='packets'``, it will dump
         the packets' data. Coupled with ``entries='streams'``, it will dump the

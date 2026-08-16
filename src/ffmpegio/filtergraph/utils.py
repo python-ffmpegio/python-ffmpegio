@@ -467,8 +467,8 @@ def compose_graph(
     side-injections:
 
     ```
-        [2:v]hflip[b]; \\ 
-        [1:v]negate, [0:v]hstack=inputs=2[top]; \\ 
+        [2:v]hflip[b]; 
+        [1:v]negate, [0:v]hstack=inputs=2[top]; 
         [3:v]edgedetect, [b]hstack=inputs=2, [top]vstack=inputs=2[out]
     ```
 

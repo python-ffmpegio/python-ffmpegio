@@ -29,9 +29,9 @@ def run_and_return_raw(
     args: FFmpegArgs,
     input_info: list[RawInputInfoDict | EncodedInputInfoDict],
     output_info: list[RawOutputInfoDict | EncodedOutputInfoDict],
-    progress: ProgressCallable | None,
-    show_log: bool | None,
-    sp_kwargs: dict[str, Any] | None,
+    progress: Optional[ProgressCallable],
+    show_log: Optional[bool],
+    sp_kwargs: Optional[dict[str, Any]],
 ):
     # check configuration yields at most one piped input
     # check configuration yields at most one piped output

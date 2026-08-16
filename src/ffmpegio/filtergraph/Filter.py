@@ -5,28 +5,24 @@ from collections.abc import Generator, Sequence
 from functools import cached_property, partial
 
 from .. import filtergraph as fgb
+from .._typing import Literal, Optional
 from ..caps import FilterInfo, filter_info, layouts
 from ..stream_spec import parse_stream_spec
 from . import abc
 from . import utils as filter_utils
 from .convert import as_filterchain
-from .exceptions import *
-from .typing import PAD_INDEX, Literal
+from .exceptions import (
+    FFmpegioError,
+    FiltergraphConversionError,
+    FiltergraphInvalidExpression,
+    FiltergraphInvalidIndex,
+)
+from .typing import PAD_INDEX
 
 __all__ = ["Filter"]
 
 
 class Filter(abc.FilterGraphObject, tuple):
-    """FFmpeg filter definition immutable class
-
-    :param filter_spec: _description_
-    :param filter_id: _description_, defaults to None
-    :param \\*opts: filter option values assigned in the order options are
-                    declared
-    :param \\*\\*kwopts: filter options in key=value pairs
-
-    """
-
     class Error(FFmpegioError):
         pass
 
@@ -71,9 +67,11 @@ class Filter(abc.FilterGraphObject, tuple):
             * ``Chain`` Must be a single-filter chain.
             * ``Graph`` Must be a single-filter graph without any labels or
                 ``sws_flags``
-
+        :param args: filter option values assigned in the order options are
+            declared
         :param filter_id: Optional id string to distinguish multiple instances
             of a same filter.
+        :param kwargs: filter options in key=value pairs
 
         FFmpeg filter class arguments can be specified by position and keyword
         arguments.
@@ -353,7 +351,7 @@ class Filter(abc.FilterGraphObject, tuple):
                 # if nothing fits, use the default value (maybe undefined/None)
                 return opt_info.default
 
-    def get_num_inputs(self, exclude_stream_specs: bool | None = None):
+    def get_num_inputs(self, exclude_stream_specs: Optional[bool] = None):
 
         name = self.name
         if not isinstance(name, str):
@@ -632,7 +630,7 @@ class Filter(abc.FilterGraphObject, tuple):
         filter: Literal[0] | None = None,
         chain: Literal[0] | None = None,
         *,
-        exclude_stream_specs: bool | None = False,
+        exclude_stream_specs: Optional[bool] = False,
         only_stream_specs: bool = False,
         exclude_chainable: bool = False,
         chainable_first: bool = False,

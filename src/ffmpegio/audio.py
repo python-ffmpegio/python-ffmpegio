@@ -7,13 +7,23 @@ import warnings
 
 from . import analyze, configure, utils
 from . import filtergraph as fgb
-from ._typing import Any, ProgressCallable, RawDataBlob
+from ._typing import (
+    Any,
+    FFmpegOptionDict,
+    Literal,
+    NamedTuple,
+    Optional,
+    ProgressCallable,
+    RawDataBlob,
+)
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
     FFmpegInputUrlNoPipe,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputOptionTuple,
+    FFmpegOutputUrlComposite,
     FFmpegOutputUrlNoPipe,
 )
 from .errors import FFmpegioError
@@ -27,13 +37,13 @@ __all__ = ["create", "read", "write", "filter", "detect"]
 
 def create(
     expr: str | fgb.abc.FilterGraphObject,
-    *args,
+    *args: tuple[Any],
     squeeze: bool = True,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
-    **options,
-):
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
+    **options: FFmpegOptionDict,
+) -> tuple[int, RawDataBlob]:
     """Create audio data using an audio source filter
 
     :param expr: name of the source filter or full filter expression
@@ -50,7 +60,7 @@ def create(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
         `subprocess.Popen()` call used to run the FFmpeg, defaults
         to None
-    :param options: Named filter options or FFmpeg options. Items are
+    :param kwargs: Named filter options or FFmpeg options. Items are
         only considered as the filter options if expr is a
         single-filter graph, and take the precedents over
         general FFmpeg options. Append '_in' for input
@@ -107,11 +117,11 @@ def read(
     extra_outputs: (
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
-    squeeze: bool = True,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
-    **options,
+    squeeze: Optional[bool] = True,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
+    **options: FFmpegOptionDict,
 ) -> tuple[int, RawDataBlob]:
     """Read audio samples.
 
@@ -180,21 +190,21 @@ def read(
 
 def write(
     url: (
-        FFmpegInputUrlComposite
-        | FFmpegInputOptionTuple
-        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+        FFmpegOutputUrlComposite
+        | FFmpegOutputOptionTuple
+        | list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
     ),
     rate_in: int,
     data: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        Optional[list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple]]
     ) = None,
-    progress: ProgressCallable | None = None,
-    overwrite: bool | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
-    **options,
+    progress: Optional[ProgressCallable] = None,
+    overwrite: Optional[bool] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
+    **options: FFmpegOptionDict,
 ):
     """Write a raw audio data blob to an audio file.
 
@@ -246,16 +256,16 @@ def filter(
     input: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        Optional[list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple]]
     ) = None,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        Optional[list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple]]
     ) = None,
-    squeeze: bool = True,
-    progress: ProgressCallable | None = None,
-    show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
-    **options,
+    squeeze: Optional[bool] = True,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    sp_kwargs: Optional[dict[str, Any]] = None,
+    **options: FFmpegOptionDict,
 ) -> tuple[int, RawDataBlob]:
     """Filter audio samples.
 
@@ -314,22 +324,21 @@ def filter(
 
 
 def detect(
-    url,
-    *features,
-    ss=None,
-    t=None,
-    to=None,
-    start_at_zero=False,
-    time_units=None,
-    progress=None,
-    show_log=None,
-    **options,
-):
+    url: str,
+    *features: tuple[Literal["silence"]],
+    ss: Optional[int | float | str] = None,
+    t: Optional[int | float | str] = None,
+    to: Optional[int | float | str] = None,
+    start_at_zero: Optional[bool] = False,
+    time_units: Optional[Literal["seconds", "frames", "pts"]] = None,
+    progress: Optional[ProgressCallable] = None,
+    show_log: Optional[bool] = None,
+    **options: FFmpegOptionDict,
+) -> NamedTuple:
     """detect audio stream features
 
     :param url: audio file url
-    :type url: str
-    :param \*features: specify features to detect:
+    :param features: specify features to detect:
 
         ============  ================  =========================================================
         feature       FFmpeg filter     description
@@ -338,28 +347,19 @@ def detect(
         ============  ================  =========================================================
 
         defaults to include all the features
-    :type \*features: tuple, a subset of ('silence',), optional
     :param ss: start time to process, defaults to None
-    :type ss: int, float, str, optional
     :param t: duration of data to process, defaults to None
-    :type t: int, float, str, optional
     :param to: stop processing at this time (ignored if t is also specified), defaults to None
-    :type to: int, float, str, optional
     :param start_at_zero: ignore start time, defaults to False
-    :type start_at_zero: bool, optional
     :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
-    :type time_units: 'seconds', 'frames', 'pts', optional
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
-    :type show_log: bool, optional
-    :param \**options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
+    :param options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
         of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
         options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
         Any other arguments are treated as a common option to all FFmpeg filters. For the available options
         for each filter, follow the link on the feature table above to the FFmpeg documentation.
-    :type \**options: dict, optional
     :return: detection outcomes. A namedtuple is returned for each feature in the order specified.
         All namedtuple fields contain a list with the element specified as below:
 

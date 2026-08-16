@@ -13,13 +13,12 @@ from ._typing import (
     Literal,
     MediaType,
     NotRequired,
-    Tuple,
+    TypeAlias,
     TypedDict,
-    Union,
     get_args,
 )
 
-StreamSpecStreamType = Literal["v", "a", "s", "d", "t", "V"]
+StreamSpecStreamType: TypeAlias = Literal["v", "a", "s", "d", "t", "V"]
 # libavformat/avformat.c:match_stream_specifier()
 
 
@@ -36,19 +35,19 @@ class StreamSpecDict_Index(StreamSpecDict_Options):
 
 
 class StreamSpecDict_Tag(StreamSpecDict_Options):
-    tag: Union[str, Tuple[str, str]]
+    tag: str | tuple[str, str]
 
 
 class StreamSpecDict_Usable(StreamSpecDict_Options):
     usable: bool
 
 
-StreamSpecDict = Union[
-    StreamSpecDict_Index,
-    StreamSpecDict_Tag,
-    StreamSpecDict_Usable,
-    StreamSpecDict_Options,
-]
+StreamSpecDict: TypeAlias = (
+    StreamSpecDict_Index
+    | StreamSpecDict_Tag
+    | StreamSpecDict_Usable
+    | StreamSpecDict_Options
+)
 
 
 class InputMapOptionDict(TypedDict):
@@ -69,7 +68,7 @@ class GraphMapOptionDict(TypedDict):
     linklabel: str | None  # link label of output of a filtergraph
 
 
-MapOptionDict = Union[InputMapOptionDict, GraphMapOptionDict]
+MapOptionDict = InputMapOptionDict | GraphMapOptionDict
 """Parsed dict of FFmpeg -map option string"""
 
 #################################
@@ -228,7 +227,7 @@ def stream_spec(
     program_id: int | None = None,
     stream_id: int | None = None,
     tag: str | tuple[str, str] | None = None,
-    usable: bool | None = None,
+    usable: Optional[bool] = None,
     *,
     no_join: bool = False,
 ) -> str:
@@ -418,9 +417,9 @@ def map_option(
     input_file_id: int | None = None,
     linklabel: str | None = None,
     stream_specifier: str | StreamSpecDict | None = None,
-    negative: bool | None = None,
+    negative: Optional[bool] = None,
     view_specifier: str | None = None,
-    optional: bool | None = None,  # True if optional mapping
+    optional: Optional[bool] = None,  # True if optional mapping
 ) -> str:
     """compose map option str
 

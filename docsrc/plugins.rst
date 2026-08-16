@@ -1,8 +1,47 @@
 .. highlight:: python
-.. _options:
+.. _plugins:
 
-Creating Videos from Matplotlib figure
-======================================
+Plugin Support
+==============
+
+There are three types of :py:mod:`ffmpegio` plugins:
+
+.. table:: 
+  :class: tight-table
+
+  ===================== =====================================================
+  FFmpeg Binary Finder  Search and return the path of the FFmpeg binary files
+  Raw Media Output      Convert FFmpeg raw media bytes to a Python object
+  Raw Media Input       Convert a Python object to FFmpeg raw media bytes
+  ===================== =====================================================
+
+Built-in Plugins
+----------------
+
+There are five built-in plugins, each interfacing with third-party Python packages:
+
+.. table:: 
+  :class: tight-table
+
+  ==========================  ======  ==========================================================================
+  Distro package name         Type    :code:`ffmpegio` features                                                 
+  ==========================  ======  ==========================================================================
+  :code:`numpy`               Out|In  Support Numpy array inputs and outputs instead of bytes                   
+  :code:`matplotlib`          In      Support generation of images or videos from Matplotlib figure             
+  :code:`pillow`              Out|In  Support :code:`PIL.Image.Image` as the input and output video frames     
+  :code:`ffmepeg-downloader`  Find    Support the FFmpeg binaries installed by the :code:`ffdl install` command 
+  :code:`static-ffmpeg`       Find    Support the FFmpeg binaries installed by :code:`static-ffmpeg`            
+  ==========================  ======  ==========================================================================
+
+Numpy
+^^^^^
+
+:py:mod:`ffmpegio` was originally designed to work with Numpy arrays, and as such
+this plugin is chosen by default for media output over the  default ``bytes``-``dict``.
+
+
+Matplotlib
+^^^^^^^^^^
 
 While Matplotlib supports video creation via its 
 `animation module <https://matplotlib.org/stable/users/explain/animations/animations.html>`__,
@@ -13,10 +52,7 @@ saving it as a video.
 :code:`ffmpegio` provides a direct method to write Matplotlib figure to a video write stream with 
 the same streaming interface as feeding the RGB frame data to FFmpeg.
 
-Example
--------
-
-Create an MP4 video of `Matplotlib's animation example <https://matplotlib.org/stable/gallery/animation/simple_anim.html>`__.
+For example, to create an MP4 video of `Matplotlib's animation example <https://matplotlib.org/stable/gallery/animation/simple_anim.html>`__.
 
 .. code-block:: python
 
@@ -77,3 +113,25 @@ but let's use :code:`ffmpegio.filtergraph` submodule to construct it instead:
           animate(n) # update figure
           f.write(fig) # write new video frame
   
+
+ffmepeg-downloader
+^^^^^^^^^^^^^^^^^^
+
+To use this plugin, install the `ffmpeg-downloader` package by
+
+.. code-block:: bash
+
+  pip install ffmpeg_downloader
+
+Then run the downloader's pip-like command-line tool to install FFmpeg:
+
+.. code-block: bash
+
+  ffdl install
+  
+
+
+Writing Custom Plugin
+---------------------
+
+TBD

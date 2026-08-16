@@ -1335,7 +1335,7 @@ class GraphLinks(UserDict):
         self,
         only_labels: bool = False,
         only_links: bool = False,
-        input_streams_as_links: bool | None = None,
+        input_streams_as_links: Optional[bool] = None,
         only_input_streams: bool = False,
         exclude_input_streams: bool = False,
     ) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
@@ -1426,7 +1426,7 @@ class GraphLinks(UserDict):
                 yield v
 
     def iter_inputs(
-        self, exclude_stream_specs: bool | None = True
+        self, exclude_stream_specs: Optional[bool] = True
     ) -> Iterator[tuple[str, PAD_INDEX_]]:
         """Iterate over only input labels, possibly repeating the same label if shared among
            multiple input pad ids
@@ -1472,7 +1472,7 @@ class GraphLinks(UserDict):
         self,
         only_labels: bool = False,
         only_links: bool = False,
-        input_streams_as_links: bool | None = None,
+        input_streams_as_links: Optional[bool] = None,
         only_input_streams: bool = False,
         exclude_input_streams: bool = False,
     ) -> dict[PAD_INDEX_, PAD_INDEX_ | str]:
@@ -1558,7 +1558,7 @@ class GraphLinks(UserDict):
         self,
         inpad: PAD_INDEX | None,
         outpad: PAD_INDEX | None,
-        check_input_stream: bool | None = None,
+        check_input_stream: Optional[bool] = None,
     ) -> bool:
         """True if given pads are linked
 

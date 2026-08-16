@@ -322,9 +322,9 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ):
         """Streaming FFmpeg runner using std pipes and/or named pipes
@@ -880,7 +880,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     ##########################################################
 
     @cached_property
-    def readable(self) -> bool | None:
+    def readable(self) -> Optional[bool]:
         """Return ``True`` if there is at least one raw media stream to read from.
         If ``False``, ``read()`` will raise ``FFmpegioError``."""
         nout = self.num_output_streams
@@ -1273,9 +1273,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         init_func: Callable,
         init_kws: MediaReadKwsDict | MediaWriteKwsDict,
         blocksize: int | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ):
         """FFmpeg runner with only 1 buffered std pipe
@@ -1388,9 +1388,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         ) = None,
         *,
         blocksize: int | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> StdFFmpegRunner:
         """create a single-pipe media reader
@@ -1457,9 +1457,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         *,
         input_dtype: DTypeString | None = None,
         input_shape: ShapeTuple | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> StdFFmpegRunner:
         """single-pipe media writer
@@ -1633,9 +1633,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         output_streams = utils.expand_raw_output_streams(
@@ -1682,9 +1682,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         init_kws: MediaWriteKwsDict = {
@@ -1727,9 +1727,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         init_kws: MediaFilterKwsDict = {
@@ -1773,9 +1773,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         output_urls: list[FFmpegOutputOptionTuple] = [
@@ -1822,9 +1822,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         input_urls: list[FFmpegInputOptionTuple] = [
@@ -1867,9 +1867,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         enc_blocksize: int | None = None,
         queuesize: int | None = None,
         timeout: float | None = None,
-        progress: ProgressCallable | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        progress: Optional[ProgressCallable] = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> PipedFFmpegRunner:
         input_urls = [("pipe", opts) for opts in input_options]
@@ -1928,8 +1928,8 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         queuesize: int | None = None,
         timeout: float | None = None,
         progress: Callable[[dict[str, Any], bool], bool] | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ) -> SISOFFmpegFilter:
         runner = SISOFFmpegFilter(
@@ -1975,8 +1975,8 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
         queuesize: int | None = None,
         timeout: float | None = None,
         progress: Callable[[dict[str, Any], bool], bool] | None = None,
-        show_log: bool | None = None,
-        overwrite: bool | None = None,
+        show_log: Optional[bool] = None,
+        overwrite: Optional[bool] = None,
         sp_kwargs: dict | None = None,
     ):
         init_func = configure.init_media_filter

@@ -102,7 +102,7 @@ def is_pipe(value: Any) -> bool:
 
 
 def is_namedpipe(
-    value: Any, *, readable: bool | None = None, writable: bool | None = None
+    value: Any, *, readable: Optional[bool] = None, writable: Optional[bool] = None
 ) -> bool:
     """True if named pipe object
 
@@ -119,9 +119,9 @@ def is_namedpipe(
 def is_fileobj(
     value: Any,
     *,
-    seekable: bool | None = None,
-    readable: bool | None = None,
-    writable: bool | None = None,
+    seekable: Optional[bool] = None,
+    readable: Optional[bool] = None,
+    writable: Optional[bool] = None,
 ) -> bool:
     """True if file object
 
