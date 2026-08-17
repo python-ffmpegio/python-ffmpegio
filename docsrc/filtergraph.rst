@@ -123,16 +123,16 @@ Other useful filtergraph manipulation class methods are:
    :nosignatures:
    :recursive:
 
-   ffmpegio.filtergraph.Filter.apply
-   ffmpegio.filtergraph.Chain.append
-   ffmpegio.filtergraph.Chain.extend
-   ffmpegio.filtergraph.Graph.link
-   ffmpegio.filtergraph.Graph.add_label
-   ffmpegio.filtergraph.Graph.stack
-   ffmpegio.filtergraph.Graph.connect
-   ffmpegio.filtergraph.Graph.join
-   ffmpegio.filtergraph.Graph.attach
-   ffmpegio.filtergraph.Graph.rattach
+   Filter.apply
+   Chain.append
+   Chain.extend
+   Graph.link
+   Graph.add_label
+   Graph.stack
+   Graph.connect
+   Graph.join
+   Graph.attach
+   Graph.rattach
 
 This section mainly describes the operators, leaving the details of the class methods to the API
 reference section later on this page.
@@ -539,16 +539,16 @@ temporary script file. The previous example can also run as follows:
 Filtergraph API Reference
 =========================
 
-.. autofunction:: ffmpegio.filtergraph.as_filter
-.. autofunction:: ffmpegio.filtergraph.as_filterchain
-.. autofunction:: ffmpegio.filtergraph.as_filtergraph
-.. autofunction:: ffmpegio.filtergraph.as_filtergraph_object
-.. autoclass:: ffmpegio.filtergraph.Filter
+.. autofunction:: as_filter
+.. autofunction:: as_filterchain
+.. autofunction:: as_filtergraph
+.. autofunction:: as_filtergraph_object
+.. autoclass:: Filter
    :members:
    :inherited-members:
-.. autoclass:: ffmpegio.filtergraph.Chain
+.. autoclass:: Chain
    :members:
    :inherited-members:
-.. autoclass:: ffmpegio.filtergraph.Graph
+.. autoclass:: Graph
    :members:
    :inherited-members:

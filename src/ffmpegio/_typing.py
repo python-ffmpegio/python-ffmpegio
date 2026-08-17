@@ -25,6 +25,7 @@ from typing_extensions import (
     get_args,  # noqa:F401
     overload,  # noqa:F401
     override,  # noqa:F401
+    Iterable, # noqa:F401
 )
 
 if TYPE_CHECKING:

@@ -37,7 +37,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
     # "sphinx.ext.graphviz",
-    # "sphinxcontrib.repl",
+    "sphinxcontrib.repl",
     "matplotlib.sphinxext.plot_directive",
 ]
 # Looks for objects in external projects
