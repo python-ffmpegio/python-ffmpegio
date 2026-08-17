@@ -49,7 +49,6 @@ from ffmpegio import filtergraph as fgb
     ],
 )
 def test_connect(left, right, from_left, to_right, chain_siso, ret):
-
     fg = fgb.connect(left, right, from_left, to_right, chain_siso=chain_siso)
 
     assert (
@@ -123,7 +122,6 @@ def test_connect(left, right, from_left, to_right, chain_siso, ret):
     ],
 )
 def test_join(left, right, how, n_links, strict, unlabeled_only, ret):
-
     if ret is None:
         with pytest.raises(FFmpegioError):
             fgb.join(left, right, how, n_links, strict, unlabeled_only)

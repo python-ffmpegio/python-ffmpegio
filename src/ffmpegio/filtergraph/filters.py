@@ -311,7 +311,6 @@ class Filter(abc.FilterGraphObject, tuple):
             )
 
     def get_option_value(self, option_name):
-
         # first check the named options as-is
         named_opts = self.named_options
         try:
@@ -352,7 +351,6 @@ class Filter(abc.FilterGraphObject, tuple):
                 return opt_info.default
 
     def get_num_inputs(self, exclude_stream_specs: Optional[bool] = None):
-
         name = self.name
         if not isinstance(name, str):
             # name@id

@@ -3,9 +3,8 @@ from __future__ import annotations
 from collections import UserList
 from collections.abc import Callable, Generator, Sequence
 
-from .._typing import Iterable, Literal
-
 from .. import filtergraph as fgb
+from .._typing import Iterable, Literal
 from . import abc
 from . import utils as filter_utils
 from .convert import as_filter, as_filterchain, as_filtergraph
@@ -223,7 +222,6 @@ class Chain(abc.FilterGraphObject, UserList):
         raise Chain.Error("cannot assign operation outcome which is not a filterchain")
 
     def __iadd__(self, other):
-
         if len(other):
             fg = self + other if len(self) else Chain(other)
 

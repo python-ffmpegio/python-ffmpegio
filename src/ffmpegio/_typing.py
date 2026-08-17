@@ -10,6 +10,7 @@ from typing_extensions import (
     Any,
     Buffer,  # noqa:F401
     Callable,
+    Iterable,  # noqa:F401
     Iterator,  # noqa: F401
     Literal,
     LiteralString,
@@ -17,6 +18,7 @@ from typing_extensions import (
     NotRequired,
     Optional,  # noqa: F401
     Protocol,
+    Self,  # noqa:F401
     Sequence,  # noqa:F401
     TypeAlias,
     TypedDict,
@@ -25,7 +27,6 @@ from typing_extensions import (
     get_args,  # noqa:F401
     overload,  # noqa:F401
     override,  # noqa:F401
-    Iterable, # noqa:F401
 )
 
 if TYPE_CHECKING:

@@ -49,7 +49,6 @@ def test_read_url():
 
 
 def test_read():
-
     url = "tests/assets/testaudio-1m.mp3"
 
     T = 0.51111
@@ -73,7 +72,6 @@ def test_read():
 
 
 def test_read_af():
-
     url = "tests/assets/testaudio-1m.mp3"
 
     T = 0.51111
@@ -86,7 +84,6 @@ def test_read_af():
 
 
 def test_read_filter():
-
     url = "tests/assets/testaudio-1m.mp3"
 
     T = 0.51111
@@ -166,7 +163,6 @@ def test_filter():
 
 
 def test_read_buffin():
-
     url = "tests/assets/testaudio-1m.mp3"
 
     T = 0.49805
@@ -179,7 +175,6 @@ def test_read_buffin():
 
 
 def test_read_fileobj():
-
     url = "tests/assets/testaudio-1m.mp3"
 
     T = 0.49805
@@ -190,7 +185,6 @@ def test_read_fileobj():
 
 
 def test_write_buffout():
-
     fs = 16000
     x = np.random.randint(-(2**15), 2**15, fs, np.int16)
     out = audio.write("-", fs, x, f="flv", acodec="aac", show_log=True)
@@ -198,7 +192,6 @@ def test_write_buffout():
 
 
 def test_write_fileobj():
-
     fs = 16000
     x = np.random.randint(-(2**15), 2**15, fs, np.int16)
     with tempfile.TemporaryDirectory() as tmpdirname:

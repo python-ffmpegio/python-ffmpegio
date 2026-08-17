@@ -3,11 +3,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
 
-from typing_extensions import Literal, Self, get_args
-
 from .. import filtergraph as fgb
+from .._typing import Literal, Optional, Self, get_args
 from .exceptions import FiltergraphMismatchError, FiltergraphPadNotFoundError
-from .GraphLinks import GraphLinks
+from .graph_links import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX
 
 __all__ = ["FilterGraphObject"]
@@ -707,7 +706,6 @@ class FilterGraphObject(ABC):
 
     # def __eq__(self, value: FilterGraphObject | str) -> bool:
     def __eq__(self, value: object) -> bool:
-
         try:
             value = fgb.convert.as_filtergraph_object_like(value, self)
         except Exception:

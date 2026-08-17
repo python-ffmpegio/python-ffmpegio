@@ -3,8 +3,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import pytest
-
-from ffmpegio.filtergraph.GraphLinks import GraphLinks
+from ffmpegio.filtergraph.graph_links import GraphLinks
 
 
 @pytest.mark.parametrize(
@@ -229,7 +228,6 @@ def test_iter_input_pads(only_labels, only_links, input_streams_as_links, ret):
     [("l", ((0, 0, 0), (0, 0, 0)))],
 )
 def test__getitem__(key, expects, base_links):
-
     assert base_links[key] == expects
 
 
@@ -238,7 +236,6 @@ def test__getitem__(key, expects, base_links):
     [("l", 0), (0, 0), ("in", 1), ("0:v", 1), ("sout1", 2)],
 )
 def test_label_checks(key, expects, base_links):
-
     for i, ans in enumerate(
         [base_links.is_linked(key), base_links.is_input(key), base_links.is_output(key)]
     ):
@@ -268,7 +265,6 @@ def test_find_inpad_labels(id, label, input, base_links):
     ],
 )
 def test_find_outpad_labels(id, label, output, base_links):
-
     retval = base_links.find_outpad_label(id)
     if label is None:
         assert retval is None
@@ -287,7 +283,6 @@ def test_find_outpad_labels(id, label, output, base_links):
     ],
 )
 def test_links(src, dst, res, base_links):
-
     assert base_links.are_linked(dst, src) == res
 
 
@@ -337,7 +332,6 @@ def test_unlink(base_links):
     ],
 )
 def test_link(args, ok, unlinked, base_links):
-
     # link(label=None, dst, src, force=False, validate=True):
     if ok:
         label = base_links.link(*args)  # ok link
@@ -364,7 +358,6 @@ def test_link(args, ok, unlinked, base_links):
     ],
 )
 def test_create_label(args, ok, unlinked, base_links):
-
     # create_label(label, dst=None, src=None, force):
     if ok:
         label = base_links.create_label(*args)  # ok link
@@ -378,7 +371,6 @@ def test_create_label(args, ok, unlinked, base_links):
 
 
 def test_update(base_links):
-
     base_links.update({})  # no action``
 
     base_links.update({"test": ((4, 0, 0), (4, 0, 0))})

@@ -96,7 +96,6 @@ def test_as_filtergraph_object_like(filter_spec, like, copy):
     ],
 )
 def test_atleast_filterchain(filter_spec, copy, res):
-
     obj = fgb.atleast_filterchain(filter_spec, copy)
     assert isinstance(obj, res)
     if copy:

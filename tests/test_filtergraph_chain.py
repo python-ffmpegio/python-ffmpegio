@@ -79,7 +79,6 @@ def test_iter_input_pads(
     include_connected,
     ret,
 ):
-
     fg = fgb.Chain(expr)
 
     it = fg.iter_input_pads(
@@ -129,7 +128,6 @@ def test_iter_output_pads(
     include_connected,
     ret,
 ):
-
     fg = fgb.Chain(expr)
 
     it = fg.iter_output_pads(

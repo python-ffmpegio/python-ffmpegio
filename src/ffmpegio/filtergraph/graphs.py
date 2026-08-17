@@ -8,21 +8,20 @@ from itertools import accumulate, chain
 from math import floor, log10
 from tempfile import NamedTemporaryFile
 
-from typing_extensions import Iterable, Literal
-
+from .._typing import Iterable, Literal
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
 from . import abc
 from . import utils as filter_utils
-from .Chain import Chain
+from .chains import Chain
 from .convert import as_filterchain, as_filtergraph, as_filtergraph_object
 from .exceptions import (
     FiltergraphInvalidExpression,
     FiltergraphInvalidIndex,
     FiltergraphPadNotFoundError,
 )
-from .Filter import Filter
-from .GraphLinks import GraphLinks
+from .filters import Filter
+from .graph_links import GraphLinks
 from .typing import PAD_INDEX
 
 __all__ = ["Graph"]
