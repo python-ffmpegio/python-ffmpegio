@@ -8,7 +8,7 @@ from itertools import accumulate, chain
 from math import floor, log10
 from tempfile import NamedTemporaryFile
 
-from .._typing import Iterable, Literal
+from .._typing import Iterable, Literal, Optional
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
 from . import abc
@@ -391,8 +391,8 @@ class Graph(abc.FilterGraphObject, UserList):
         nchains = len(self.data)
         pos = [0] * nchains
         i = n = 0
-        for j, chain in enumerate(self):
-            for k, filter in enumerate(chain):
+        for j, fc in enumerate(self):
+            for k, filter in enumerate(fc):
                 fstr = str(filter)
                 i += n
                 i = expr[i:].find(fstr) + i

@@ -8,20 +8,22 @@ from typing_extensions import (
     IO,
     TYPE_CHECKING,
     Any,
+    BinaryIO,  # noqa:F401
     Buffer,  # noqa:F401
     Callable,
     Iterable,  # noqa:F401
     Iterator,  # noqa: F401
-    Literal,
+    Literal,  # noqa:F401
     LiteralString,
     NamedTuple,  # noqa: F401
     NotRequired,
-    Optional,  # noqa: F401
+    Optional,  # noqa:F401
     Protocol,
     Self,  # noqa:F401
     Sequence,  # noqa:F401
     TypeAlias,
     TypedDict,
+    Union,  # noqa:F401
     Unpack,  # noqa:F401
     cast,  # noqa:F401
     get_args,  # noqa:F401

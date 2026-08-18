@@ -7,10 +7,8 @@ from collections.abc import Sequence
 from fractions import Fraction
 from io import IOBase
 from numbers import Number
-from typing import Any, BinaryIO, Literal, Union
 
-from typing_extensions import Buffer
-
+from ._typing import Any, BinaryIO, Buffer, Literal, Optional, TypeAlias
 from .errors import FFmpegError
 from .path import PIPE, ffprobe
 from .stream_spec import StreamSpecDict
@@ -61,7 +59,7 @@ def _add_select_streams(args, stream_specifier):
     return args
 
 
-SectionNameLiteral = Literal[
+SectionNameLiteral: TypeAlias = Literal[
     "block",
     "blocks",
     "chapter_tags",
@@ -137,8 +135,8 @@ SectionNameLiteral = Literal[
     "timecode",
     "timecodes",
 ]
-EntryDict = dict[SectionNameLiteral, bool | Sequence[str]]
-EntrySequence = Sequence[SectionNameLiteral]
+EntryDict: TypeAlias = dict[SectionNameLiteral, bool | Sequence[str]]
+EntrySequence: TypeAlias = Sequence[SectionNameLiteral]
 
 
 def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
@@ -159,13 +157,13 @@ def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
     return ":".join(entries)
 
 
-IntervalSpec = Union[
-    str,
-    int,
-    float,
-    tuple[str | float, str | int | float],
-    dict[Literal["start", "start_offset", "end"], str | float],
-]
+IntervalSpec: TypeAlias = (
+    str
+    | int
+    | float
+    | tuple[str | float, str | int | float]
+    | dict[Literal["start", "start_offset", "end"], str | float]
+)
 """ Union type to specify the FFprobe read_intervals option
 
     FFprobe will seek to the interval starting point and will continue reading 
@@ -173,33 +171,28 @@ IntervalSpec = Union[
     form the FFprobe read_intervals option:
 
     #. ``str`` - pass through the argument as-is to ffprobe
-    #. ``int`` - read this numbers of packets to read from the beginning of the 
-    #               file
-    #. ``float`` - read packets over this duration in seconds from the beginning 
-    #               of the file
+    #. ``int`` - read this numbers of packets to read from the beginning of the file
+    #. ``float`` - read packets over this duration in seconds from the beginning of the file
     #. ``tuple[str|float, str|int|float]`` - sets (start, end) points
         * start: ``str`` = as-is, ``float`` = starting time in seconds
         * end: ``str`` = as-is, ``int`` = offset in # of packets, 
                 ``float`` = offset in seconds
     #. ``dict`` - specifies start and end points with the following keys:
         * ``'start'``        - (``str|float``) start time
-        * ``'start_offset'`` - (``str|float``) start time offset from the 
-                                previous read. Ignored if ``'start'`` is present.
+        * ``'start_offset'`` - (``str|float``) start time offset from the previous read. Ignored if ``'start'`` is present.
         * ``'end'``          - (``str|float``) end time
-        * ``'end_offset'``   - (``str|float|int``) end time offset from the start
-                                time. Ignored if ``'end'`` is present.
+        * ``'end_offset'``   - (``str|float|int``) end time offset from the start time. Ignored if ``'end'`` is present.
 """
 
 
-def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
+def _add_read_intervals(
+    args: list[str], intervals: IntervalSpec | Sequence[IntervalSpec]
+) -> list[str]:
     """add -read_intervals option to ffprobe argumnets
 
     :param args: argument list under construction
-    :type args: list[str]
     :param intervals: interval specification
-    :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
     :return: same as args input
-    :rtype: list[str]
 
     """
 
@@ -262,7 +255,7 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
     return args
 
 
-DataHashLiteral = Literal[
+DataHashLiteral: TypeAlias = Literal[
     "MD5",
     "murmur3",
     "RIPEMD128",

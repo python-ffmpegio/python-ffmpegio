@@ -33,7 +33,7 @@ Main Features
 * Media writers can write a new media file from either data given in a Numpy array or :code:`bytes` 
   objects in a :code:`dict`. 
 * Write Matplotlib figures to images or to a video (a simpler interface than Matplotlib's Animation writers). 
-* Read video data as a list of Pillow :code:`Image`s and write Pillow :code:`Image`s to a video stream.
+* Read video data as a list of Pillow :code:`Image` and write Pillow :code:`Image` to a video stream.
 * Probe media file information
 * Accepts all FFmpeg options including filter graphs
 * Transcode a media file to another in Python
@@ -94,20 +94,20 @@ To import `ffmpegio`
 
   >>> import ffmpegio
 
-- `Transcoding <transcoding_>`_
-- `Read Audio Files <Read Audio Files_>`_
-- `Read Image Files / Capture Video Frames <Read Image Files / Capture Video Frames_>`_
-- `Read Video Files <Read Video Files_>`_
-- `Read Multiple Files or Streams <Read Multiple Files or Streams_>`_
-- `Write Audio, Image, & Video Files <Write Audio, Image, & Video Files_>`_
-- `Filter Audio, Image, & Video Data <Filter Audio, Image, & Video Data_>`_
-- `Stream I/O <Stream I/O_>`_
-- `Video from Matplotlib Figure <Video from Matplotlib Figure_>`_
-- `Video to/from Pillow Images <Video to/from Pillow Images_>`_
-- `Device I/O Enumeration <Device I/O Enumeration_>`_
-- `Progress Callback <Progress Callback_>`_
+- `Transcoding`_
+- `Read Audio Files`_
+- `Read Image Files / Capture Video Frames`_
+- `Read Video Files`_
+- `Read Multiple Files or Streams`_
+- `Write Audio, Image, & Video Files`_
+- `Filter Audio, Image, & Video Data`_
+- `Stream I/O`_
+- `Video from Matplotlib Figure`_
+- `Video to/from Pillow Images`_
+- `Device I/O Enumeration`_
+- `Progress Callback`_
 - `Filtergraph Builder`_
-- `Run FFmpeg and FFprobe Directly <Run FFmpeg and FFprobe Directly_>`_
+- `Run FFmpeg and FFprobe Directly`_
 
 Transcoding
 ^^^^^^^^^^^
