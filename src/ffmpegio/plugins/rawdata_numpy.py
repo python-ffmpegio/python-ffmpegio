@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 import numpy as np
 from numpy.typing import ArrayLike
 from pluggy import HookimplMarker
 
 from .._typing import DTypeString, ShapeTuple
+
+logger = logging.getLogger("ffmpegio")
 
 hookimpl = HookimplMarker("ffmpegio")
 
@@ -31,16 +34,24 @@ def video_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     :return dtype: data type in numpy dtype str expression
     """
     try:
-        a = np.asarray(obj)
-        if a.ndim == 2:
-            shape = (*a.shape, 1)
-        elif a.ndim == 3 and a.shape[-1] > 4:
-            shape = (*a.shape[1:], 1)
-        else:
-            shape = a.shape[-3:]
-        return shape, a.dtype.str
-    except:
+        memoryview(obj)  # Will raise TypeError if not supported
+    except TypeError:
+        logger.info('rawdata_numpy.video_info::not a memoryview object')
+        return None # No buffer protocol
+
+    a = np.asarray(obj)
+    if a.ndim == 2:
+        shape = (*a.shape, 1)
+    elif a.ndim == 3 and a.shape[-1] > 4:
+        shape = (*a.shape[1:], 1)
+    else:
+        shape = a.shape[-3:]
+
+    if len(shape) not in (2,3,4) or a.dtype.char not in "BHf":
+        logger.info('rawdata_numpy.video_info::incompatible memoryview shape or dtype')
         return None
+
+    return shape, a.dtype.str
 
 
 @hookimpl
@@ -51,11 +62,20 @@ def audio_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     :return ac: number of channels
     :return dtype: sample data type in numpy dtype str expression
     """
+
     try:
-        a = np.asarray(obj)
-        return a.shape[-1:] if a.ndim > 1 else [1], a.dtype.str
-    except:
+        memoryview(obj)  # Will raise TypeError if not supported
+    except TypeError:
+        logger.info('rawdata_numpy.video_info::not a memoryview object')
+        return None # No buffer protocol
+
+    a = np.asarray(obj)
+
+    if len(a.shape) not in (1,2) or a.dtype.char not in "Bhifd":
+        logger.info('rawdata_numpy.video_info::incompatible memoryview shape or dtype')
         return None
+
+    return a.shape[-1:] if a.ndim > 1 else [1], a.dtype.str
 
 
 @hookimpl
