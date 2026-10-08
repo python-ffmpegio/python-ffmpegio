@@ -23,7 +23,8 @@ def video_info(obj: Figure) -> tuple[ShapeTuple, DTypeString]:
     :return dtype: data type in numpy dtype str expression
     """
     try:
-        return (int(obj.bbox.bounds[3]), int(obj.bbox.bounds[2]), 4), "|u1"
+        w, h = obj.canvas.get_width_height(physical=True)
+        return (h, w, 4), "|u1"
     except:
         return None
 
