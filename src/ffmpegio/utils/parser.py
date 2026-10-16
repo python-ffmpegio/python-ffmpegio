@@ -4,6 +4,8 @@ import os
 import re
 import shlex
 from collections import abc
+from decimal import Context, Decimal
+from fractions import Fraction
 
 from .. import devices
 from ..filtergraph import Chain, Filter, Graph
@@ -170,16 +172,31 @@ def compose(args, command="", shell_command=False):
                 opts_parsed[oname] = o = {}
             o[sspec[0] if len(sspec) else None] = v
 
+        def stringify(karg, val):
+            if isinstance(val, Fraction) and karg in (
+                "-ss",
+                "-sseof",
+                "-t",
+                "-to",
+                "-itsoffset",
+            ):
+                # FFmpeg time options accept decimal seconds, not rational strings.
+                seconds = Context(prec=28).divide(
+                    Decimal(val.numerator), Decimal(val.denominator)
+                )
+                return format(seconds, "f")
+            return str(val)
+
         def set_arg(karg, val):
             if not isinstance(val, (str, Graph, Chain, Filter)) and isinstance(
                 val, abc.Sequence
             ):
                 for v in val:
-                    args.extend([karg, str(v)])
+                    args.extend([karg, stringify(karg, v)])
             else:
                 args.append(karg)
                 if val is not FLAG:
-                    args.append(str(val))
+                    args.append(stringify(karg, val))
 
         args = []
         for key, vals in opts_parsed.items():

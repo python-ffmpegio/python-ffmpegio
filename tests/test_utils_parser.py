@@ -1,3 +1,7 @@
+from fractions import Fraction
+
+import pytest
+
 from ffmpegio.utils import parser
 from ffmpegio import FilterGraph
 
@@ -97,3 +101,27 @@ def test_compose():
         )
         == "ffmpeg -i /tmp/a.wav -map 0:a -b:a 64k '/tmp/a test.mp2' -map 0:a -b:a 128k /tmp/b.mp2"
     )
+
+
+@pytest.mark.parametrize("option", ["ss", "sseof", "t", "to", "itsoffset"])
+@pytest.mark.parametrize("value", [Fraction(1, 2), Fraction(-1, 2), Fraction(1, 10**7)])
+def test_compose_fractional_times(option, value):
+    args = parser.compose({"inputs": [("input.mkv", {option: value})]})
+    assert "/" not in args[1]
+    assert "e" not in args[1]
+    assert Fraction(args[1]) == value
+
+
+def test_compose_preserves_fractional_rates():
+    rate = Fraction(30000, 1001)
+    assert parser.compose({"outputs": [("out.mkv", {"r": rate})]}) == [
+        "-r",
+        "30000/1001",
+        "out.mkv",
+    ]
+
+
+def test_compose_repeated_fractional_times():
+    assert parser.compose(
+        {"outputs": [("out.mkv", {"t": [Fraction(1, 4), Fraction(1, 2)]})]}
+    ) == ["-t", "0.25", "-t", "0.5", "out.mkv"]
