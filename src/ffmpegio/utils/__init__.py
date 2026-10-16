@@ -394,7 +394,7 @@ def pop_extra_options_multi(
     :param suffix: matching suffix regex expression with one group, capturing the (int) id
     :return: dict of popped options with int id key
 
-    example:
+    example::
 
         pop_extra_options_multi({...},r'_in(\d+)$')
 

@@ -81,18 +81,18 @@ define the pixel format (FFmpeg pix_fmt option):
 =====  =====  =========  ===================================
 ncomp  dtype  pix_fmt    Description
 =====  =====  =========  ===================================
-    1     \|u8   gray       grayscale
-    1     <u2   gray10le   10-bit grayscale
-    1     <u2   gray12le   12-bit grayscale
-    1     <u2   gray14le   14-bit grayscale
-    1     <u2   gray16le   16-bit grayscale (default <u2 choice)
-    1     <f4   grayf32le  floating-point grayscale
-    2     \|u1   ya8        grayscale with alpha channel
-    2     <u2   ya16le     16-bit grayscale with alpha channel
-    3     \|u1   rgb24      RGB
-    3     <u2   rgb48le    16-bit RGB
-    4     \|u1   rgba       RGB with alpha transparency channel
-    4     <u2   rgba64le   16-bit RGB with alpha channel
+    1    |u8  gray       grayscale
+    1    <u2  gray10le   10-bit grayscale
+    1    <u2  gray12le   12-bit grayscale
+    1    <u2  gray14le   14-bit grayscale
+    1    <u2  gray16le   16-bit grayscale (default <u2 choice)
+    1    <f4  grayf32le  floating-point grayscale
+    2    |u1  ya8        grayscale with alpha channel
+    2    <u2  ya16le     16-bit grayscale with alpha channel
+    3    |u1  rgb24      RGB
+    3    <u2  rgb48le    16-bit RGB
+    4    |u1  rgba       RGB with alpha transparency channel
+    4    <u2  rgba64le   16-bit RGB with alpha channel
 =====  =====  =========  ===================================
 
 For audio stream, single-element seq argument, `shape` or `input_shape`,
@@ -102,11 +102,11 @@ the sample format (FFmpeg sample_fmt option):
 ======  ==========
 dtype   sample_fmt
 ======  ==========
-    \|u1     u8
-    <i2     s16
-    <i4     s32
-    <f4     flt
-    <f8     dbl
+   |u1     u8
+   <i2     s16
+   <i4     s32
+   <f4     flt
+   <f8     dbl
 ======  ==========
 
 If dtypes and shapes are not specified at the time of opening, they will
@@ -188,7 +188,7 @@ mode (regexp)             description
 ========================= ================================================
 ``'f'``                   according to input and output filtergraph labels
 ``'f[va]{2,}'``           specify the input media types
-``'[va]{2,}-\>[va]{2,}'`` specify the input and output media types
+``'[va]{2,}->[va]{2,}'``  specify the input and output media types
 ========================= ================================================
 """
 
@@ -200,7 +200,7 @@ To configure FFmpeg as a decoder (encoded input, raw output), use
 ================ =================================
 mode (regexp)    description
 ================ =================================
-``'e+-\>[va]+'`` repeat ``'e'`` if multiple inputs
+``'e+->[va]+'``  repeat ``'e'`` if multiple inputs
 ================ =================================
 
 For example, ``'ee->vva'`` takes 2 encoded input streams and produces 3 raw 
@@ -215,7 +215,7 @@ To configure FFmpeg as an encoder (raw input, encoded output), use
 ================ ==================================
 mode (regexp)    description
 ================ ==================================
-``'[va]+-\>e+'`` repeat ``'e'`` if multiple outputs
+``'[va]+->e+'``  repeat ``'e'`` if multiple outputs
 ================ ==================================
 
 For example, ``'vva->ee'`` takes 2 3 raw media output streams (video, video, 
@@ -230,7 +230,7 @@ To specify FFmpeg to transcode, use
 ============= =========================================
 mode (regexp) description
 ============= =========================================
-``'e+-\>e+'`` repeat ``'e'`` if multiple inputs/outputs
+``'e+->e+'``  repeat ``'e'`` if multiple inputs/outputs
 ============= =========================================
 """
 
