@@ -52,7 +52,7 @@ def create(
                   The output shape is 3D (row x column x comp) if colored/transparent.
                   or 2D (row x column) if it is a grayscale image.
 
-    .. seealso::
+    .. seealso:: 
         See https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for
         available video source filters
 
@@ -102,7 +102,7 @@ def read(
                   The output shape is 3D (row x column x comp) if colored/transparent.
                   or 2D (row x column) if it is a grayscale image.
 
-    Note on \\**options: To specify the video frame capture time, use `time`
+    Note on :code:``options`` To specify the video frame capture time, use `time`
     option which is an alias of `start` standard option.
     """
 

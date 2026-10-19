@@ -68,7 +68,7 @@ def create(
                   (since v0.12.0) With `squeeze=True` the shape dimensions with
                   length 1 are removed.
 
-    ...seealso::
+    .. seealso:: 
       https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for available
       video source filters
 

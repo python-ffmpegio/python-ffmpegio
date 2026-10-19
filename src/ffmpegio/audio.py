@@ -65,7 +65,7 @@ def create(
         axis in the first dimension. (since v0.12.0) The shape is default to 1D
         if data is monaural.
 
-    .. seealso::
+    .. seealso:: 
         https://ffmpeg.org/ffmpeg-filters.html#Audio-Sources for available
         audio source filters
 
