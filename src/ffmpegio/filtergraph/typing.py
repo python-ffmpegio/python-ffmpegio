@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from typing_extensions import Literal, Union
+from typing import Literal
 
-PAD_INDEX = Union[
-    tuple[Union[int, None], Union[int, None], int],
-    tuple[Union[int, None], Union[int, None]],
-    tuple[Union[int, None]],
-    int,
-]
+PAD_INDEX = (
+    tuple[int | None, int | None, int]
+    | tuple[int | None, int | None]
+    | tuple[int | None]
+    | int
+)
 """Filter pad index. 
 
 - 3-element tuple = (chain, filter, pad)]
@@ -19,11 +19,11 @@ A None item indicates not specified and
 usually means to assign first available
 """
 
-PAD_PAIR = Union[
-    tuple[PAD_INDEX, PAD_INDEX],
-    tuple[Union[PAD_INDEX, list[PAD_INDEX]], None],
-    tuple[None, PAD_INDEX],
-]
+PAD_PAIR = (
+    tuple[PAD_INDEX, PAD_INDEX]
+    | tuple[PAD_INDEX | list[PAD_INDEX], None]
+    | tuple[None, PAD_INDEX]
+)
 """Specifies a filter pad linkage or labeling
 
 A tuple pair of input pad and output pad. 

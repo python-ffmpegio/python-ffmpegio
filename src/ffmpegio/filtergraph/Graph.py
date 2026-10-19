@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import os
 from collections import UserList
-from collections.abc import Callable, Generator, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from itertools import accumulate, chain
 from math import floor, log10
 from tempfile import NamedTemporaryFile
-
-from typing_extensions import Iterable, Literal
+from typing import Literal
 
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option

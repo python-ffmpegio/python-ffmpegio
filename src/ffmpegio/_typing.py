@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from typing_extensions import *
+try:
+    from collections.abc import Buffer
+except ImportError:
+    Buffer = bytes | bytearray | memoryview
+
+from typing import *
+
 
 if TYPE_CHECKING:
     from namedpipe import NPopen

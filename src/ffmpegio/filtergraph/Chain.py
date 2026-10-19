@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 from collections import UserList
-from collections.abc import Callable, Generator, Sequence
-
-from typing_extensions import Iterable, Literal
+from collections.abc import Callable, Generator, Iterable, Sequence
+from typing import Literal
 
 from .. import filtergraph as fgb
 from . import abc

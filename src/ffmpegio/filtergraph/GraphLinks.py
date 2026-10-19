@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import re
 from collections import UserDict, defaultdict
-from collections.abc import Callable, Mapping, Sequence
-
-from typing_extensions import Iterator, Literal, cast
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from typing import Literal, cast
 
 from ..errors import FFmpegioError
 from ..stream_spec import is_map_option

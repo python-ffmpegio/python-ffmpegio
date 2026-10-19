@@ -7,9 +7,7 @@ from collections.abc import Sequence
 from fractions import Fraction
 from io import IOBase
 from numbers import Number
-from typing import Any, BinaryIO, Literal, Union
-
-from typing_extensions import Buffer
+from ._typing import Buffer
 
 from .errors import FFmpegError
 from .path import PIPE, ffprobe

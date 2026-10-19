@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
-
-from typing_extensions import Literal, Self, get_args
+from typing import Literal, Self, get_args
 
 from .. import filtergraph as fgb
 from .exceptions import FiltergraphMismatchError, FiltergraphPadNotFoundError
