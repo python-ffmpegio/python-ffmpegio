@@ -17,17 +17,17 @@ if TYPE_CHECKING:
 
     from .threading import CopyFileObjThread
 
-# from typing_extensions import *
 
+FFmpegOptionDict: TypeAlias = dict[str, Any]
+"""dict that hold FFmpeg option name-value pairs
 
-FFmpegOptionDict = dict[str, Any]
-"""FFmpeg options with their values keyed by the option names without preceding dash. 
+FFmpeg options with their values keyed by the option names without preceding dash. 
 For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
 
-RawDataBlob = Any
+RawDataBlob: TypeAlias = Any
 """any object to represent raw binary data supported by a data I/O plugin."""
 
-DTypeString = LiteralString
+DTypeString: TypeAlias = LiteralString
 """Numpy array interface protocol typestr string
 
 The string format consists of 3 parts: a character describing the byteorder of the data 
@@ -48,7 +48,7 @@ See https://numpy.org/doc/stable/reference/arrays.interface.html for Numpy's
 official documentation.
 """
 
-ShapeTuple = tuple[int, ...]
+ShapeTuple: TypeAlias = tuple[int, ...]
 """Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int)."""
 
 

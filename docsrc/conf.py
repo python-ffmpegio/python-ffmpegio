@@ -32,13 +32,15 @@ release = ffmpegio.__version__
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",
+    # "sphinx_autodoc_typehints",
+    # "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
     # "sphinx.ext.graphviz",
     # "sphinxcontrib.repl",
     "matplotlib.sphinxext.plot_directive",
+    # 'sphinx_toolbox.more_autodoc.overloads',
 ]
 # Looks for objects in external projects
 
@@ -50,13 +52,24 @@ autodoc_type_aliases = {
     "NDArray": "~numpy.typing.NDArray",
     "ff": "ffmpegio",
 }
-autodoc_mock_imports = ["builtins"]
-autodoc_typehints_format = "short"
-# autodoc_class_signature = "separated"
-autodoc_default_options = {"exclude-members": "__new__", "class-doc-from": "init"}
 autodoc_typehints = "description"
-
-overloads_location = "signature"
+autodoc_type_aliases = {
+    "ShapeTuple": "ffmpegio.typing.ShapeTuple",
+    "DTypeString": "ffmpegio.typing.DTypeString",
+    "MapString": "ffmpegio.typing.MapString",
+    "FFmpegOptionDict": "ffmpegio.typing.FFmpegOptionDict",
+    "ProgressCallback": "ffmpegio.typing.ProgressCallback",
+    "FFmpegInputUrlComposite": "ffmpegio.typing.FFmpegInputUrlComposite",
+    "FFmpegInputOptionTuple": "ffmpegio.typing.FFmpegInputOptionTuple",
+    "FFmpegOutputUrlComposite": "ffmpegio.typing.FFmpegOutputUrlComposite",
+    "FFmpegOutputOptionTuple": "ffmpegio.typing.FFmpegOutputOptionTuple",
+    "FilterGraphObject": "ffmpegio.filtergraph.FilterGraphObject",
+}
+# autodoc_mock_imports = ["builtins"]
+# autodoc_typehints_format = "short"
+# # autodoc_class_signature = "separated"
+# autodoc_default_options = {"exclude-members": "__new__", "class-doc-from": "init"}
+# overloads_location = "top"
 
 # Intersphinx configuration
 intersphinx_mapping = {
@@ -64,11 +77,8 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
-    "python": ("https://docs.python.org/3/", None),
 }
 
-autodoc_typehints = "description"
-# autodoc_type_aliases = {'AgentAssignment': 'AgentAssignment'}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -105,7 +115,7 @@ html_theme_options = {
     #     "image_dark": "images/wave-reflection-model-dark.png",
     # },
     "path_to_docs": "docs/",
-    "repository_url": "https://github.com/tikuma-lsuhsc/pyLeTalker",
+    "repository_url": "https://github.com/ffmpegio/ffmpegio",
     # "repository_branch": branch_or_commit,
     "use_repository_button": True,
     "use_source_button": True,

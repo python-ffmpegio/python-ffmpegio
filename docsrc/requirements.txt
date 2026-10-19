@@ -1,5 +1,6 @@
 Pillow==12.3.0
 sphinx
+sphinx-autodoc-typehints
 sphinx-rtd-theme
 sphinx-autopackagesummary
 sphinxcontrib-repl
@@ -9,3 +10,4 @@ sphinx-book-theme
 sphinx-copybutton
 matplotlib
 numpy
+sphinx_toolbox

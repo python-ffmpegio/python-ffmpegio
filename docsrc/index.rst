@@ -444,6 +444,7 @@ High-level API Reference
     analysis
     devices
     concat
+    typing
 
 Advanced Topics
 ---------------
