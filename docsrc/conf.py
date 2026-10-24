@@ -34,13 +34,17 @@ extensions = [
     "sphinx.ext.autodoc",
     # "sphinx_autodoc_typehints",
     # "sphinx.ext.napoleon",
+    "sphinx_toolbox.more_autodoc.overloads",
+    "sphinx_toolbox.more_autodoc.autonamedtuple",
+    "sphinx_toolbox.more_autodoc.autoprotocol",
+    "sphinx_toolbox.more_autodoc.autotypeddict",
+    "sphinx_toolbox.more_autodoc.genericalias",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
     "sphinx.ext.todo",
     # "sphinx.ext.graphviz",
     # "sphinxcontrib.repl",
     "matplotlib.sphinxext.plot_directive",
-    # 'sphinx_toolbox.more_autodoc.overloads',
 ]
 # Looks for objects in external projects
 

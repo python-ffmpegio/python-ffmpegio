@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sys import version_info as _ver
 from fractions import Fraction
 
 try:
@@ -17,14 +18,14 @@ if TYPE_CHECKING:
 
     from .threading import CopyFileObjThread
 
-
-FFmpegOptionDict: TypeAlias = dict[str, Any]
+# dict that hold FFmpeg option name-value pairs
+FFmpegOptionDict = NewType('FFmpegOptionDict',dict[str, Any])
 """dict that hold FFmpeg option name-value pairs
 
 FFmpeg options with their values keyed by the option names without preceding dash. 
 For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
 
-RawDataBlob: TypeAlias = Any
+RawDataBlob = NewType("RawDataBlob",Any)
 """any object to represent raw binary data supported by a data I/O plugin."""
 
 DTypeString: TypeAlias = LiteralString
