@@ -1,5 +1,6 @@
 import re
 import tempfile
+from fractions import Fraction
 from os import path
 
 import pytest
@@ -96,3 +97,54 @@ def test_transcode_vf():
 
 if __name__ == "__main__":
     test_transcode_from_filter()
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"ss": Fraction(1, 4), "to": Fraction(3, 4)},
+        {"ss_in": Fraction(1, 4), "t": Fraction(1, 2)},
+        {"sseof_in": Fraction(-1, 2)},
+    ],
+)
+def test_transcode_fractional_times(tmp_path, options):
+    from ffmpegio import probe
+
+    source = str(tmp_path / "source.mkv")
+    output = str(tmp_path / "output.mkv")
+    transcode(
+        "color=size=16x16:rate=20:duration=1", source, f_in="lavfi", vcodec="ffv1"
+    )
+    transcode(source, output, vcodec="ffv1", **options)
+    assert (
+        int(
+            probe.run(output, {"stream": ["nb_read_frames"]}, count_frames=True)[
+                "streams"
+            ][0]["nb_read_frames"]
+        )
+        == 10
+    )
+
+
+def test_transcode_probed_fractional_frame_rate(tmp_path):
+    from ffmpegio import probe
+
+    source = str(tmp_path / "source.mkv")
+    output = str(tmp_path / "output.mkv")
+    transcode(
+        "color=size=16x16:rate=30000/1001:duration=2",
+        source,
+        f_in="lavfi",
+        vcodec="ffv1",
+    )
+    fps = probe.video_streams_basic(source)[0]["frame_rate"]
+    assert fps == Fraction(30000, 1001)
+    transcode(source, output, t=10 / fps, vcodec="ffv1")
+    assert (
+        int(
+            probe.run(output, {"stream": ["nb_read_frames"]}, count_frames=True)[
+                "streams"
+            ][0]["nb_read_frames"]
+        )
+        == 10
+    )
