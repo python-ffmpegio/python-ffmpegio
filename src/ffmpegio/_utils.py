@@ -5,20 +5,13 @@ from __future__ import annotations
 import re
 import urllib.parse
 from io import IOBase
+from math import prod
 from pathlib import Path
 from typing import Any, Sequence
 
 from namedpipe import NPopen
 
 from ._typing import DTypeString, ShapeTuple
-
-try:
-    from math import prod
-except:
-    from functools import reduce
-    from operator import mul
-
-    prod = lambda seq: reduce(mul, seq, 1)
 
 
 def is_non_str_sequence(
