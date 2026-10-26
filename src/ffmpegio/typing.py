@@ -47,3 +47,12 @@ from .plugins.rawdata_bytes import BytesRawDataBlob
 from .probe import VideoStreamInfoDict
 from .stream_spec import StreamSpecDict, StreamSpecStreamType
 from .probe import VideoStreamInfoDict
+
+__all__ = [
+    "RawDataBlob",
+    "BytesRawDataBlob",
+    "DTypeString",
+    "ShapeTuple",
+    "FFmpegMediaType",
+    "MediaType",
+]

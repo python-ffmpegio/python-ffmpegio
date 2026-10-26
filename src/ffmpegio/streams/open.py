@@ -1,121 +1,5 @@
 from __future__ import annotations
 
-"""Open a multimedia file/stream for read/write
-
-:param url_fg: URL of the media source/destination for file read/write or filtergraph definition
-                for filter operation.
-:type url_fg: str or seq(str)
-:param mode: specifies the mode in which the FFmpeg is used, see below
-:type mode: str
-
-Start FFmpeg and open I/O link to it to perform read/write/filter operation and return
-a corresponding stream object. If the file cannot be opened, an error is raised.
-See :ref:`quick-streamio` for more examples of how to use this function.
-
-Just like built-in `open()`, it is good practice to use the with keyword when dealing with
-ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are
-properly closed after ffmpeg terminates, even if an exception is raised at some point.
-Using with is also much shorter than writing equivalent try-finally blocks.
-
-:Examples:
-
-Open an MP4 file and process all the frames::
-
-    with ffmpegio.open('video_source.mp4', 'rv') as f:
-        frame = f.read()
-        while frame:
-            # process the captured frame data
-            frame = f.read()
-
-Read an audio stream of MP4 file and write it to a FLAC file as samples
-are decoded::
-
-    with ffmpegio.open('video_source.mp4','ra') as rd:
-        fs = rd.sample_rate
-        with ffmpegio.open('video_dst.flac','wa',input_rate=fs) as wr:
-            frame = rd.read()
-            while frame:
-                wr.write(frame)
-                frame = rd.read()
-
-:Additional Notes:
-
-`urls_fgs` can be a string specifying either the path name (absolute or relative to the current
-working directory) of the media target (file or streaming media) to be opened or a string describing
-the filtergraph to be implemented. Its interpretation depends on the `mode` argument.
-
-`mode` is an optional string that specifies the mode in which the FFmpeg is opened.
-
-====  =======================================================
-Mode  Description
-====  =======================================================
-'r'   read from encoded url/file/stream
-'w'   write to encoded url/file/stream
-'f'   filter data defined by fg
-'t'   transcode data
-'->'  I/O operator
-'v'   operate on video stream, 'vv' if multiple video streams
-'a'   operate on audio stream, 'aa' if multiple audio streams
-'e'   encoded data stream, 'ee' if multiple encoded streams
-====  =======================================================
-
-Each mode string is has one and only one operation specifier
-(`'r'`, `'w'`, `'f'`, `'t'`, or `'->'`). For the operators `'rwf'`, accompany
-them with a combination of the media specifiers `'v'` and `'a'` (repeated as
-necessary). For the `'r'` operation, media specifiers specify the output
-streams while they specify the input streams for `'w'` and `'f'`.
-
-"""
-
-"""`open()` module
-
-`rate` and `input_rate`: Video frame rates shall be given in frames/second and
-may be given as a number, string, or `fractions.Fraction`. Audio sample rate in
-samples/second (per channel) and shall be given as an integer or string.
-
-Optional `shape` or `input_shape` for video defines the video frame size and
-number of components with a 2 or 3 element sequence: `(width, height[, ncomp])`.
-The number of components and other optional `dtype` (or `input_dtype`) implicitly
-define the pixel format (FFmpeg pix_fmt option):
-
-=====  =====  =========  ===================================
-ncomp  dtype  pix_fmt    Description
-=====  =====  =========  ===================================
-    1    |u8  gray       grayscale
-    1    <u2  gray10le   10-bit grayscale
-    1    <u2  gray12le   12-bit grayscale
-    1    <u2  gray14le   14-bit grayscale
-    1    <u2  gray16le   16-bit grayscale (default <u2 choice)
-    1    <f4  grayf32le  floating-point grayscale
-    2    |u1  ya8        grayscale with alpha channel
-    2    <u2  ya16le     16-bit grayscale with alpha channel
-    3    |u1  rgb24      RGB
-    3    <u2  rgb48le    16-bit RGB
-    4    |u1  rgba       RGB with alpha transparency channel
-    4    <u2  rgba64le   16-bit RGB with alpha channel
-=====  =====  =========  ===================================
-
-For audio stream, single-element seq argument, `shape` or `input_shape`,
-specifies the number of channels while `dtype` and `input_dtype` determines
-the sample format (FFmpeg sample_fmt option):
-
-======  ==========
-dtype   sample_fmt
-======  ==========
-   |u1     u8
-   <i2     s16
-   <i4     s32
-   <f4     flt
-   <f8     dbl
-======  ==========
-
-If dtypes and shapes are not specified at the time of opening, they will
-be set during the first write/filter operation using the input data.
-
-In addition, `open()` accepts the standard FFmpeg option keyword arguments.
-"""
-
-
 import logging
 import re
 from fractions import Fraction
@@ -266,7 +150,316 @@ def open(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> StdFFmpegRunner:
-    """open a single-stream reader
+    ...
+
+@overload
+def open(
+    urls_fgs: FFmpegOutputUrlNoPipe
+    | FFmpegNoPipeOutputOptionTuple
+    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
+    mode: Literal["wv", "wa"],
+    /,
+    input_rate: int | Fraction,
+    *,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    overwrite: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> StdFFmpegRunner:
+    ...
+
+@overload
+def open(
+    urls_fgs: str | FilterGraphObject | Literal["-"],
+    mode: Literal["fv", "fa", "v->v", "a->a", "v->a", "a->v"],
+    /,
+    input_rate: int | Fraction,
+    *,
+    squeeze: bool = False,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    extra_outputs: (
+        list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
+    ) = None,
+    input_shape: ShapeTuple | None = None,
+    input_dtype: DTypeString | None = None,
+    blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> SISOFFmpegFilter:
+    ...
+
+@overload
+def open(
+    urls_fgs: FFmpegInputUrlComposite
+    | FFmpegInputOptionTuple
+    | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
+    mode: MultiReaderModeLiteral,
+    /,
+    *,
+    output_streams: Sequence[MapString | FFmpegOptionDict] | None = None,
+    squeeze: bool = False,
+    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
+    primary_output: int | None = None,
+    blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> PipedFFmpegRunner:
+    ...
+
+@overload
+def open(
+    urls_fgs: FFmpegOutputUrlNoPipe
+    | FFmpegNoPipeOutputOptionTuple
+    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
+    mode: MultiWriterModeLiteral,
+    /,
+    input_rates: list[int | Fraction],
+    *,
+    input_options: Sequence[FFmpegOptionDict] | None = None,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    input_shapes: Sequence[ShapeTuple] | None = None,
+    input_dtypes: Sequence[DTypeString] | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    overwrite: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> PipedFFmpegRunner:
+    ...
+
+@overload
+def open(
+    urls_fgs: str | FilterGraphObject | list[str | FilterGraphObject] | Literal["-"],
+    mode: MIMOFilterModeLiteral,
+    /,
+    input_rates: list[int | Fraction],
+    *,
+    input_shapes: list[ShapeTuple] | None = None,
+    input_dtypes: list[DTypeString] | None = None,
+    input_options: Sequence[FFmpegOptionDict] | None = None,
+    output_streams: Sequence[MapString | FFmpegOptionDict]
+    | dict[str, MapString | FFmpegOptionDict]
+    | None = None,
+    squeeze: bool = False,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    primary_output: int | None = None,
+    blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> PipedFFmpegRunner:
+    ...
+
+@overload
+def open(
+    urls_fgs: Literal["-"],
+    mode: DecoderModeLiteral,  # r"e+-\>[av]+",
+    /,
+    *,
+    output_streams: Sequence[MapString | FFmpegOptionDict]
+    | dict[str, MapString | FFmpegOptionDict]
+    | None = None,
+    squeeze: bool = False,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    primary_output: int | None = None,
+    blocksize: int | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> PipedFFmpegRunner:
+    ...
+
+@overload
+def open(
+    urls_fgs: Literal["-"],
+    mode: EncoderModeLiteral,
+    /,
+    input_rates: list[int | Fraction],
+    *,
+    input_shapes: list[ShapeTuple] | None = None,
+    input_dtypes: list[DTypeString] | None = None,
+    input_options: list[FFmpegOptionDict] | None = None,
+    output_options: list[FFmpegOptionDict],
+    extra_inputs: list[FFmpegInputOptionTuple] | None = None,
+    extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: FFmpegOptionDict,
+) -> PipedFFmpegRunner:
+    ...
+
+@overload
+def open(
+    urls_fgs: Literal["-"],
+    mode: TranscoderModeLiteral,  # r"e+-\>e+",
+    /,
+    *,
+    input_options: list[FFmpegOptionDict] | None = None,
+    output_options: list[FFmpegOptionDict] | None = None,
+    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
+    enc_blocksize: int | None = None,
+    queuesize: int | None = None,
+    timeout: float | None = None,
+    progress: ProgressCallable | None = None,
+    show_log: bool = False,
+    sp_kwargs: dict | None = None,
+    **options: Unpack[FFmpegOptionDict],
+) -> PipedFFmpegRunner:
+    ...
+
+def open(
+    urls_fgs,
+    mode,
+    /,
+    *args,
+    **kwargs,
+) -> PipedFFmpegRunner | SISOFFmpegFilter | StdFFmpegRunner:
+
+    """Open a multimedia file/stream for read/write/filter/encode/decode
+
+    :param url_fg: URL of the media source/destination for file read/write or filtergraph definition
+                    for filter operation.
+    :param mode: specifies the mode in which the FFmpeg is used, see below
+
+    Start FFmpeg and open I/O link to it to perform read/write/filter operation and return
+    a corresponding stream object. If the file cannot be opened, an error is raised.
+    See :ref:`quick-streamio` for more examples of how to use this function.
+
+    Just like built-in `open()`, it is good practice to use the with keyword when dealing with
+    ffmpegio stream objects. The advantage is that the ffmpeg process and associated threads are
+    properly closed after ffmpeg terminates, even if an exception is raised at some point.
+    Using with is also much shorter than writing equivalent try-finally blocks.
+
+    :Examples:
+
+    Open an MP4 file and process all the frames::
+
+        with ffmpegio.open('video_source.mp4', 'rv') as f:
+            frame = f.read()
+            while frame:
+                # process the captured frame data
+                frame = f.read()
+
+    Read an audio stream of MP4 file and write it to a FLAC file as samples
+    are decoded::
+
+        with ffmpegio.open('video_source.mp4','ra') as rd:
+            fs = rd.sample_rate
+            with ffmpegio.open('video_dst.flac','wa',input_rate=fs) as wr:
+                frame = rd.read()
+                while frame:
+                    wr.write(frame)
+                    frame = rd.read()
+
+    :Additional Notes:
+
+    `urls_fgs` can be a string specifying either the path name (absolute or relative to the current
+    working directory) of the media target (file or streaming media) to be opened or a string describing
+    the filtergraph to be implemented. Its interpretation depends on the `mode` argument.
+
+    `mode` is an optional string that specifies the mode in which the FFmpeg is opened.
+
+    ====  =======================================================
+    Mode  Description
+    ====  =======================================================
+    'r'   read from encoded url/file/stream
+    'w'   write to encoded url/file/stream
+    'f'   filter data defined by fg
+    't'   transcode data
+    '->'  I/O operator
+    'v'   operate on video stream, 'vv' if multiple video streams
+    'a'   operate on audio stream, 'aa' if multiple audio streams
+    'e'   encoded data stream, 'ee' if multiple encoded streams
+    ====  =======================================================
+
+    Each mode string is has one and only one operation specifier
+    (`'r'`, `'w'`, `'f'`, `'t'`, or `'->'`). For the operators `'rwf'`, accompany
+    them with a combination of the media specifiers `'v'` and `'a'` (repeated as
+    necessary). For the `'r'` operation, media specifiers specify the output
+    streams while they specify the input streams for `'w'` and `'f'`.
+
+    old
+    ---
+
+    `rate` and `input_rate`: Video frame rates shall be given in frames/second and
+    may be given as a number, string, or `fractions.Fraction`. Audio sample rate in
+    samples/second (per channel) and shall be given as an integer or string.
+
+    Optional `shape` or `input_shape` for video defines the video frame size and
+    number of components with a 2 or 3 element sequence: `(width, height[, ncomp])`.
+    The number of components and other optional `dtype` (or `input_dtype`) implicitly
+    define the pixel format (FFmpeg pix_fmt option):
+
+    =====  =====  =========  ===================================
+    ncomp  dtype  pix_fmt    Description
+    =====  =====  =========  ===================================
+        1    |u8  gray       grayscale
+        1    <u2  gray10le   10-bit grayscale
+        1    <u2  gray12le   12-bit grayscale
+        1    <u2  gray14le   14-bit grayscale
+        1    <u2  gray16le   16-bit grayscale (default <u2 choice)
+        1    <f4  grayf32le  floating-point grayscale
+        2    |u1  ya8        grayscale with alpha channel
+        2    <u2  ya16le     16-bit grayscale with alpha channel
+        3    |u1  rgb24      RGB
+        3    <u2  rgb48le    16-bit RGB
+        4    |u1  rgba       RGB with alpha transparency channel
+        4    <u2  rgba64le   16-bit RGB with alpha channel
+    =====  =====  =========  ===================================
+
+    For audio stream, single-element seq argument, `shape` or `input_shape`,
+    specifies the number of channels while `dtype` and `input_dtype` determines
+    the sample format (FFmpeg sample_fmt option):
+
+    ======  ==========
+    dtype   sample_fmt
+    ======  ==========
+    |u1     u8
+    <i2     s16
+    <i4     s32
+    <f4     flt
+    <f8     dbl
+    ======  ==========
+
+    If dtypes and shapes are not specified at the time of opening, they will
+    be set during the first write/filter operation using the input data.
+
+    In addition, `open()` accepts the standard FFmpeg option keyword arguments.
+    
+    open a single-stream reader
+    ---------------------------
 
     :param urls_fgs: Specify encoded input file(s)/devices/filters in one of the
         following styles:
@@ -308,28 +501,9 @@ def open(
         global options. For input options, append ``'_in'`` to the end of
         FFmpeg option names.
     :return: a reader stream object
-    """
 
-
-@overload
-def open(
-    urls_fgs: FFmpegOutputUrlNoPipe
-    | FFmpegNoPipeOutputOptionTuple
-    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
-    mode: Literal["wv", "wa"],
-    /,
-    input_rate: int | Fraction,
-    *,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    input_shape: ShapeTuple | None = None,
-    input_dtype: DTypeString | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    overwrite: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> StdFFmpegRunner:
-    """open a single-stream media writer
+    open a single-stream media writer
+    ---------------------------------
 
     :param urls_fgs: Specify encoded output file(s) in one of the following
         styles:
@@ -363,33 +537,8 @@ def open(
         FFmpeg option names.
     :return: writer stream object
 
-    """
-
-
-@overload
-def open(
-    urls_fgs: str | FilterGraphObject | Literal["-"],
-    mode: Literal["fv", "fa", "v->v", "a->a", "v->a", "a->v"],
-    /,
-    input_rate: int | Fraction,
-    *,
-    squeeze: bool = False,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    extra_outputs: (
-        list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
-    ) = None,
-    input_shape: ShapeTuple | None = None,
-    input_dtype: DTypeString | None = None,
-    blocksize: int | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> SISOFFmpegFilter:
-    """open a single-input single-output media filter
+    open a single-input single-output media filter
+    ----------------------------------------------
 
     :param urls_fgs: Specify the filtergraph to be used with an FFmpeg
         filtergraph expression or an ``ffmpegio.FilterGraphObject`` object. Use
@@ -437,31 +586,8 @@ def open(
         FFmpeg option names.
     :return: audio writer stream object
 
-    """
-
-
-@overload
-def open(
-    urls_fgs: FFmpegInputUrlComposite
-    | FFmpegInputOptionTuple
-    | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple],
-    mode: MultiReaderModeLiteral,
-    /,
-    *,
-    output_streams: Sequence[MapString | FFmpegOptionDict] | None = None,
-    squeeze: bool = False,
-    extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None,
-    primary_output: int | None = None,
-    blocksize: int | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> PipedFFmpegRunner:
-    """open a multi-stream reader
+    open a multi-stream reader
+    --------------------------
 
     :param urls_fgs: Specify encoded input file(s)/devices/filters in one of the
         following styles:
@@ -529,32 +655,9 @@ def open(
         global options. For input options, append ``'_in'`` to the end of
         FFmpeg option names.
     :return: reader stream object
-    """
-
-
-@overload
-def open(
-    urls_fgs: FFmpegOutputUrlNoPipe
-    | FFmpegNoPipeOutputOptionTuple
-    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
-    mode: MultiWriterModeLiteral,
-    /,
-    input_rates: list[int | Fraction],
-    *,
-    input_options: Sequence[FFmpegOptionDict] | None = None,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    input_shapes: Sequence[ShapeTuple] | None = None,
-    input_dtypes: Sequence[DTypeString] | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    overwrite: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> PipedFFmpegRunner:
-    """open a multi-stream media writer
+    
+    open a multi-stream media writer
+    --------------------------------
 
     :param urls_fgs: Specify encoded output file(s) in one of the following
         styles:
@@ -603,36 +706,8 @@ def open(
         FFmpeg option names.
     :return: writer stream object
 
-    """
-
-
-@overload
-def open(
-    urls_fgs: str | FilterGraphObject | list[str | FilterGraphObject] | Literal["-"],
-    mode: MIMOFilterModeLiteral,
-    /,
-    input_rates: list[int | Fraction],
-    *,
-    input_options: Sequence[FFmpegOptionDict] | None = None,
-    output_streams: Sequence[MapString | FFmpegOptionDict]
-    | dict[str, MapString | FFmpegOptionDict]
-    | None = None,
-    squeeze: bool = False,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    input_shapes: list[ShapeTuple] | None = None,
-    input_dtypes: list[DTypeString] | None = None,
-    primary_output: int | None = None,
-    blocksize: int | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> PipedFFmpegRunner:
-    """Open a multiple-input-multiple-output media filter
+    Open a multiple-input-multiple-output media filter
+    --------------------------------------------------
 
     :param urls_fgs: Specify the filtergraph to be used with an FFmpeg
         filtergraph expression or an ``ffmpegio.FilterGraphObject`` object. Use
@@ -714,30 +789,6 @@ def open(
         sequence will overwrite those specified here.
     :return: reader stream object
     """
-
-
-@overload
-def open(
-    urls_fgs: Literal["-"],
-    mode: DecoderModeLiteral,  # r"e+-\>[av]+",
-    /,
-    *,
-    output_streams: Sequence[MapString | FFmpegOptionDict]
-    | dict[str, MapString | FFmpegOptionDict]
-    | None = None,
-    squeeze: bool = False,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    primary_output: int | None = None,
-    blocksize: int | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> PipedFFmpegRunner:
     """open a media decoder (encoded streams in, raw streams out)
 
     :param urls_fgs: ``'-'`` to indicate pipe-in pipe-out operation
@@ -798,31 +849,8 @@ def open(
         sequence will overwrite those specified here.
     :return: writer stream object
 
-    """
-
-
-@overload
-def open(
-    urls_fgs: Literal["-"],
-    mode: EncoderModeLiteral,
-    /,
-    input_rates: list[int | Fraction],
-    *,
-    input_options: list[FFmpegOptionDict] | None = None,
-    output_options: list[FFmpegOptionDict],
-    extra_inputs: list[FFmpegInputOptionTuple] | None = None,
-    extra_outputs: list[FFmpegOutputOptionTuple] | None = None,
-    input_shapes: list[ShapeTuple] | None = None,
-    input_dtypes: list[DTypeString] | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: FFmpegOptionDict,
-) -> PipedFFmpegRunner:
-    """open a media encoder (raw streams in, encoded streams out)
+    open a media encoder (raw streams in, encoded streams out)
+    ----------------------------------------------------------
 
     :param urls_fgs: ``'-'`` to indicate pipe-in pipe-out operation
     :param mode: Specify the encoder mode by an arrow notation (``'->'``) with
@@ -869,28 +897,8 @@ def open(
                     sequence will overwrite those specified here.
     :return: writer stream object
 
-    """
-
-
-@overload
-def open(
-    urls_fgs: Literal["-"],
-    mode: TranscoderModeLiteral,  # r"e+-\>e+",
-    /,
-    *,
-    input_options: list[FFmpegOptionDict] | None = None,
-    output_options: list[FFmpegOptionDict] | None = None,
-    extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    extra_outputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    enc_blocksize: int | None = None,
-    queuesize: int | None = None,
-    timeout: float | None = None,
-    progress: ProgressCallable | None = None,
-    show_log: bool = False,
-    sp_kwargs: dict | None = None,
-    **options: Unpack[FFmpegOptionDict],
-) -> PipedFFmpegRunner:
-    """open a media transcoder (encoded streams in, encoded streams out)
+    open a media transcoder (encoded streams in, encoded streams out)
+    -----------------------------------------------------------------
 
     :param urls_fgs: ``'-'`` to indicate pipe-in pipe-out operation
     :param mode: Specify the transcoder mode by an arrow notation (``'->'``)
@@ -930,15 +938,6 @@ def open(
     :return: writer stream object
 
     """
-
-
-def open(
-    urls_fgs,
-    mode,
-    /,
-    *args,
-    **kwargs,
-) -> PipedFFmpegRunner | SISOFFmpegFilter | StdFFmpegRunner:
 
     # possible keywords, excluding FFmpeg options
     # 'input_shape', 'input_dtype', 'input_rate', 'input_rates',

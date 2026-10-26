@@ -21,9 +21,8 @@ class Filter(abc.FilterGraphObject, tuple):
 
     :param filter_spec: _description_
     :param filter_id: _description_, defaults to None
-    :param \\*opts: filter option values assigned in the order options are
-                    declared
-    :param \\*\\*kwopts: filter options in key=value pairs
+    :param opts: filter option values assigned in the order options are
+        declared
 
     """
 

@@ -133,7 +133,7 @@ def read(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
-    """Read video and audio data from multiple media files
+    """Read multiple raw media data from multiple media files
 
     :param *urls: URLs of the media files to read or a tuple of the URL and its input option dict.
     :param streams: a list of FFmpeg output stream map options. Alternately, the list
@@ -195,7 +195,7 @@ def write(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ):
-    """write multiple streams to a url/file
+    """Write multiple raw media streams to a url/file
 
     :param url: output url
     :param stream_types: list/string of input stream media types, each element
@@ -276,7 +276,7 @@ def filter(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
-    """write multiple streams to a url/file
+    """Filter multiple raw media streams
 
     :param expr: complex filtergraph expression or a list of expressions
     :param input_types: list/string of input stream media types, each element is

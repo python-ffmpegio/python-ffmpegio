@@ -932,7 +932,7 @@ def frames(
     :param entries: names of frame attributes, defaults to None (get all attributes)
     :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
+    :param accurate_time: True to return all :code:``*_time`` attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
@@ -1033,7 +1033,7 @@ def packets(
         defaults to None to get all streams
     :param intervals: time intervals to retrieve the data, see below for the
         details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed
+    :param accurate_time: True to return all :code:``*_time`` attributes to be computed
         from associated timestamps and stream timebase, defaults to False
         (= us accuracy)
     :param data: True to probe payload data, defaults to False. Data are dumped
