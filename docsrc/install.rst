@@ -91,3 +91,24 @@ It is a bit more complicated in Windows.
    be placed in an arbitrary location and use :py:func:`ffmpegio.set_path` to
    specify the location. The latter feature is especially useful when `ffmpegio` is 
    bundled in a package (e.g., PyInstaller).
+
+Basic Configuration Function References
+=======================================
+
+Basic Functions
+---------------
+
+.. autosummary::
+   :nosignatures:
+   :recursive:
+
+   ffmpegio.ffmpeg_info
+   ffmpegio.set_path
+   ffmpegio.get_path
+   ffmpegio.is_ready
+   ffmpegio.uses
+
+.. autofunction:: ffmpegio.ffmpeg_info
+.. autofunction:: ffmpegio.get_path
+.. autofunction:: ffmpegio.set_path   
+.. autofunction:: ffmpegio.is_ready

@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from fractions import Fraction
 from io import IOBase
 from numbers import Number
+from ._typing import Any, BinaryIO, Literal, Union
 from ._typing import Buffer
 
 from .errors import FFmpegError
@@ -157,13 +158,13 @@ def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
     return ":".join(entries)
 
 
-IntervalSpec = Union[
-    str,
-    int,
-    float,
-    tuple[str | float, str | int | float],
-    dict[Literal["start", "start_offset", "end"], str | float],
-]
+IntervalSpec = (
+    str
+    | int
+    | float
+    | tuple[str | float, str | int | float]
+    | dict[Literal["start", "start_offset", "end"], str | float]
+)
 """ Union type to specify the FFprobe read_intervals option
 
     FFprobe will seek to the interval starting point and will continue reading 
@@ -918,7 +919,7 @@ def frames(
     :param entries: names of frame attributes, defaults to None (get all attributes)
     :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
+    :param accurate_time: True to return all :code:``*_time`` attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
@@ -1019,7 +1020,7 @@ def packets(
         defaults to None to get all streams
     :param intervals: time intervals to retrieve the data, see below for the
         details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed
+    :param accurate_time: True to return all :code:``*_time`` attributes to be computed
         from associated timestamps and stream timebase, defaults to False
         (= us accuracy)
     :param data: True to probe payload data, defaults to False. Data are dumped

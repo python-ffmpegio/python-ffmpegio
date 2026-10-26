@@ -437,6 +437,7 @@ High-level API Reference
     :maxdepth: 1
 
     basicio
+    streamio
     probe
     options
     filtergraph
@@ -444,6 +445,7 @@ High-level API Reference
     analysis
     devices
     concat
+    typing
 
 Advanced Topics
 ---------------

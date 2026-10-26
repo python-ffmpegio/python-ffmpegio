@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import re
 import urllib.parse
+from collections.abc import Sequence
 from io import IOBase
 from math import prod
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from namedpipe import NPopen
 
