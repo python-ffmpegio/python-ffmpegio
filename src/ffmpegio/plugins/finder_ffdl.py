@@ -19,7 +19,11 @@ def finder():
 
     ffmpeg_path, ffprobe_path = ffdl.ffmpeg_path, ffdl.ffprobe_path
 
-    if path.exists(ffmpeg_path) and path.exists(ffprobe_path):
+    if (
+        ffmpeg_path is not None
+        and path.exists(ffmpeg_path)
+        and path.exists(ffprobe_path)
+    ):
         return ffmpeg_path, ffprobe_path
 
     logging.warning(
