@@ -7,8 +7,8 @@ from collections.abc import Sequence
 from fractions import Fraction
 from io import IOBase
 from numbers import Number
-from ._typing import Buffer
 
+from ._typing import Buffer, Literal
 from .errors import FFmpegError
 from .path import PIPE, ffprobe
 from .stream_spec import StreamSpecDict
@@ -157,13 +157,13 @@ def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
     return ":".join(entries)
 
 
-IntervalSpec = Union[
-    str,
-    int,
-    float,
-    tuple[str | float, str | int | float],
-    dict[Literal["start", "start_offset", "end"], str | float],
-]
+IntervalSpec = (
+    str
+    | int
+    | float
+    | tuple[str | float, str | int | float]
+    | dict[Literal["start", "start_offset", "end"], str | float]
+)
 """ Union type to specify the FFprobe read_intervals option
 
     FFprobe will seek to the interval starting point and will continue reading 
