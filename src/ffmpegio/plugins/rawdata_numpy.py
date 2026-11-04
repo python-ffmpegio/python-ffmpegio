@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import numpy as np
-from numpy.typing import ArrayLike
+from numpy.typing import ArrayLike, NDArray
 from pluggy import HookimplMarker
 
 from .._typing import DTypeString, ShapeTuple
@@ -186,9 +186,9 @@ def bytes_to_audio(
 
 
 @hookimpl
-def is_empty(obj: bytes) -> bool:
+def is_empty(obj: NDArray) -> bool:
     """True if data blob object has no data
 
     :param obj: object containing media data
     """
-    return not bool(obj)
+    return obj.size == 0
