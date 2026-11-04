@@ -36,8 +36,8 @@ def video_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     try:
         memoryview(obj)  # Will raise TypeError if not supported
     except TypeError:
-        logger.info('rawdata_numpy.video_info::not a memoryview object')
-        return None # No buffer protocol
+        logger.info("rawdata_numpy.video_info::not a memoryview object")
+        return None  # No buffer protocol
 
     a = np.asarray(obj)
     if a.ndim == 2:
@@ -47,8 +47,8 @@ def video_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     else:
         shape = a.shape[-3:]
 
-    if len(shape) not in (2,3,4) or a.dtype.char not in "BHf":
-        logger.info('rawdata_numpy.video_info::incompatible memoryview shape or dtype')
+    if len(shape) not in (2, 3, 4) or a.dtype.char not in "BHf":
+        logger.info("rawdata_numpy.video_info::incompatible memoryview shape or dtype")
         return None
 
     return shape, a.dtype.str
@@ -66,13 +66,13 @@ def audio_info(obj: ArrayLike) -> tuple[ShapeTuple, DTypeString]:
     try:
         memoryview(obj)  # Will raise TypeError if not supported
     except TypeError:
-        logger.info('rawdata_numpy.video_info::not a memoryview object')
-        return None # No buffer protocol
+        logger.info("rawdata_numpy.video_info::not a memoryview object")
+        return None  # No buffer protocol
 
     a = np.asarray(obj)
 
-    if len(a.shape) not in (1,2) or a.dtype.char not in "Bhifd":
-        logger.info('rawdata_numpy.video_info::incompatible memoryview shape or dtype')
+    if len(a.shape) not in (1, 2) or a.dtype.char not in "Bhifd":
+        logger.info("rawdata_numpy.video_info::incompatible memoryview shape or dtype")
         return None
 
     return a.shape[-1:] if a.ndim > 1 else [1], a.dtype.str
@@ -148,7 +148,7 @@ def audio_bytes(obj: ArrayLike) -> memoryview:
 @hookimpl
 def bytes_to_video(
     b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
-) -> ArrayLike:
+) -> NDArray:
     """convert bytes to rawvideo NumPy array
 
     :param b: byte data of arbitrary number of video frames
@@ -168,7 +168,7 @@ def bytes_to_video(
 @hookimpl
 def bytes_to_audio(
     b: bytes, dtype: DTypeString, shape: ShapeTuple, squeeze: bool
-) -> ArrayLike:
+) -> NDArray:
     """convert bytes to rawaudio NumPy array
 
     :param b: byte data of arbitrary number of video frames
