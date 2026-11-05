@@ -8,7 +8,7 @@ from fractions import Fraction
 from io import IOBase
 from numbers import Number
 
-from ._typing import Buffer, Literal, TypedDict
+from ._typing import Any, BinaryIO, Buffer, Literal, TypedDict
 from .errors import FFmpegError
 from .path import PIPE, ffprobe
 from .stream_spec import StreamSpecDict
