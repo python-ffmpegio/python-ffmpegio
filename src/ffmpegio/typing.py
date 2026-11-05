@@ -10,3 +10,4 @@ from ._typing import *
 from .configure import FFmpegArgs, FFmpegUrlType
 from .filtergraph.abc import FilterGraphObject
 from .stream_spec import StreamSpecDict, StreamSpecStreamType
+from .probe import VideoStreamInfoDict

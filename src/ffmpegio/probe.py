@@ -8,7 +8,7 @@ from fractions import Fraction
 from io import IOBase
 from numbers import Number
 
-from ._typing import Buffer, Literal
+from ._typing import Buffer, Literal, TypedDict
 from .errors import FFmpegError
 from .path import PIPE, ffprobe
 from .stream_spec import StreamSpecDict
@@ -624,6 +624,20 @@ def streams_basic(
     )
 
 
+class VideoStreamInfoDict(TypedDict):
+    index: int
+    codec_name: str
+    width: int
+    height: int
+    sample_aspect_ratio: Fraction
+    display_aspect_ratio: Fraction
+    pix_fmt: str
+    start_time: float
+    duration: float
+    frame_rate: Fraction
+    nb_frames: int
+
+
 def video_streams_basic(
     url: str | BinaryIO | memoryview,
     index: int | None = None,
@@ -633,7 +647,7 @@ def video_streams_basic(
     sp_kwargs: dict[str, Any] | None = None,
     *,
     f: str | None = None,
-) -> list[dict[str, str | Number | Fraction]]:
+) -> list[VideoStreamInfoDict]:
     """Retrieve basic info of video streams
 
     :param url: URL of the media file/stream
@@ -661,12 +675,12 @@ def video_streams_basic(
     codec_name            str
     width                 int
     height                int
-    sample_aspect_ratio   Fractions
-    display_aspect_ratio  Fractions
+    sample_aspect_ratio   Fraction
+    display_aspect_ratio  Fraction
     pix_fmt               str
     start_time            float
     duration              float
-    frame_rate            Fractions
+    frame_rate            Fraction
     nb_frames             int
     ====================  =========
 
