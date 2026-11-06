@@ -17,7 +17,8 @@ from docutils import nodes
 from sphinx.application import Sphinx
 
 sys.path.insert(0, os.path.abspath("../src/ffmpegio"))
-import ffmpegio
+import ffmpegio as ff
+import ffmpegio.typing as fftyping
 
 # -- Project information -----------------------------------------------------
 
@@ -26,7 +27,7 @@ copyright = (
     "2021-2026, Takeshi (Kesh) Ikuma, Louisiana State University Health Sciences Center"
 )
 author = "Takeshi (Kesh) Ikuma"
-release = ffmpegio.__version__
+release = ff.__version__
 
 # -- General configuration ---------------------------------------------------
 
@@ -47,31 +48,28 @@ extensions = [
     "sphinx.ext.todo",
     # "sphinx.ext.graphviz",
     # "sphinxcontrib.repl",
-    "matplotlib.sphinxext.plot_directive",
+    # "matplotlib.sphinxext.plot_directive",
 ]
 # Looks for objects in external projects
 
 
 # Autodoc configuration
 autodoc_member_order = "groupwise"
+autodoc_typehints = "description"
 autodoc_type_aliases = {
     "ArrayLike": "~numpy.typing.ArrayLike",
     "NDArray": "~numpy.typing.NDArray",
-    "ff": "ffmpegio",
-}
-autodoc_typehints = "description"
-autodoc_type_aliases = {
-    "RawDataBlob": "ffmpegio.typing.RawDataBlob",
-    "ShapeTuple": "ffmpegio.typing.ShapeTuple",
-    "DTypeString": "ffmpegio.typing.DTypeString",
-    "MapString": "ffmpegio.typing.MapString",
-    "FFmpegOptionDict": "ffmpegio.typing.FFmpegOptionDict",
-    "ProgressCallback": "ffmpegio.typing.ProgressCallback",
-    "FFmpegInputUrlComposite": "ffmpegio.typing.FFmpegInputUrlComposite",
-    "FFmpegInputOptionTuple": "ffmpegio.typing.FFmpegInputOptionTuple",
-    "FFmpegOutputUrlComposite": "ffmpegio.typing.FFmpegOutputUrlComposite",
-    "FFmpegOutputOptionTuple": "ffmpegio.typing.FFmpegOutputOptionTuple",
-    "FilterGraphObject": "ffmpegio.filtergraph.FilterGraphObject",
+    "fftyping.RawDataBlob": "ffmpegio.typing.RawDataBlob",
+    "fftyping.ShapeTuple": "ffmpegio.typing.ShapeTuple",
+    "fftyping.DTypeString": "ffmpegio.typing.DTypeString",
+    "fftyping.MapString": "ffmpegio.typing.MapString",
+    "fftyping.FFmpegOptionDict": "ffmpegio.typing.FFmpegOptionDict",
+    "fftyping.ProgressCallback": "ffmpegio.typing.ProgressCallback",
+    "fftyping.FFmpegInputUrlComposite": "ffmpegio.typing.FFmpegInputUrlComposite",
+    "fftyping.FFmpegInputOptionTuple": "ffmpegio.typing.FFmpegInputOptionTuple",
+    "fftyping.FFmpegOutputUrlComposite": "ffmpegio.typing.FFmpegOutputUrlComposite",
+    "fftyping.FFmpegOutputOptionTuple": "ffmpegio.typing.FFmpegOutputOptionTuple",
+    "fftyping.FilterGraphObject": "ffmpegio.filtergraph.FilterGraphObject",
 }
 # autodoc_mock_imports = ["builtins"]
 # autodoc_typehints_format = "short"

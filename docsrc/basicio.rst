@@ -1,10 +1,12 @@
 .. highlight:: python
-.. currentmodule:: ffmpegio
 
 .. _basicio:
 
 Basic I/O Function References
 =============================
+
+.. py:function:: test(RawDataBlob|None=None)
+
 
 Basic Functions
 ---------------

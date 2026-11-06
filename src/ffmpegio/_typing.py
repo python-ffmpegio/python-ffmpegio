@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from sys import version_info as _ver
 from fractions import Fraction
+from sys import version_info as _ver
 
 try:
     from collections.abc import Buffer
@@ -11,7 +11,6 @@ except ImportError:
     Buffer = bytes | bytearray | memoryview
 
 from typing import *
-
 
 if TYPE_CHECKING:
     from namedpipe import NPopen
@@ -95,8 +94,9 @@ FFmpeg options with their values keyed by the option names without preceding das
 For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
 
 
-
-RawStreamDef: TypeAlias = tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+RawStreamDef: TypeAlias = (
+    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+)
 """2-element tuple to define a raw stream data
 
     It comes in two forms: rate-data or data-option. The rate-data form specifies

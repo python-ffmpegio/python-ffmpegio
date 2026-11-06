@@ -49,6 +49,7 @@ def create(
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
