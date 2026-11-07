@@ -1,3 +1,5 @@
+.. py:module:`ffmpegio`
+
 `ffmpegio-core`: Media I/O with FFmpeg in Python
 ===================================================
 
@@ -446,6 +448,7 @@ High-level API Reference
     devices
     concat
     typing
+    plugins
 
 Advanced Topics
 ---------------

@@ -10,8 +10,25 @@ hookspec = pluggy.HookspecMarker("ffmpegio")
 
 
 @hookspec(firstresult=True)
-def finder() -> tuple[str, str]:
-    """find ffmpeg and ffprobe executable"""
+def finder() -> tuple[str, str] | None:
+    """find ffmpeg and ffprobe executables
+
+    :return: a tuple containing
+    
+        - (str) ffmpeg executable path
+        - (str) ffprobe executable path
+
+        or None if the plugin could not resolve these paths
+
+    Built-in Plugins
+    ----------------
+
+    - syspath
+    - ffdl
+    - static
+
+
+    """
     ...
 
 

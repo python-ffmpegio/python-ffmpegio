@@ -36,6 +36,7 @@ release = ff.__version__
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
     # "sphinx_autodoc_typehints",
     # "sphinx.ext.napoleon",
     # "sphinx_toolbox.more_autodoc.overloads",
@@ -59,17 +60,17 @@ autodoc_typehints = "description"
 autodoc_type_aliases = {
     "ArrayLike": "~numpy.typing.ArrayLike",
     "NDArray": "~numpy.typing.NDArray",
-    "fftyping.RawDataBlob": "ffmpegio.typing.RawDataBlob",
-    "fftyping.ShapeTuple": "ffmpegio.typing.ShapeTuple",
-    "fftyping.DTypeString": "ffmpegio.typing.DTypeString",
-    "fftyping.MapString": "ffmpegio.typing.MapString",
-    "fftyping.FFmpegOptionDict": "ffmpegio.typing.FFmpegOptionDict",
-    "fftyping.ProgressCallback": "ffmpegio.typing.ProgressCallback",
-    "fftyping.FFmpegInputUrlComposite": "ffmpegio.typing.FFmpegInputUrlComposite",
-    "fftyping.FFmpegInputOptionTuple": "ffmpegio.typing.FFmpegInputOptionTuple",
-    "fftyping.FFmpegOutputUrlComposite": "ffmpegio.typing.FFmpegOutputUrlComposite",
-    "fftyping.FFmpegOutputOptionTuple": "ffmpegio.typing.FFmpegOutputOptionTuple",
-    "fftyping.FilterGraphObject": "ffmpegio.filtergraph.FilterGraphObject",
+    "RawDataBlob": "ffmpegio.typing.RawDataBlob",
+    "ShapeTuple": "ffmpegio.typing.ShapeTuple",
+    "DTypeString": "ffmpegio.typing.DTypeString",
+    "MapString": "ffmpegio.typing.MapString",
+    "FFmpegOptionDict": "ffmpegio.typing.FFmpegOptionDict",
+    "ProgressCallback": "ffmpegio.typing.ProgressCallback",
+    "FFmpegInputUrlComposite": "ffmpegio.typing.FFmpegInputUrlComposite",
+    "FFmpegInputOptionTuple": "ffmpegio.typing.FFmpegInputOptionTuple",
+    "FFmpegOutputUrlComposite": "ffmpegio.typing.FFmpegOutputUrlComposite",
+    "FFmpegOutputOptionTuple": "ffmpegio.typing.FFmpegOutputOptionTuple",
+    "FilterGraphObject": "ffmpegio.filtergraph.FilterGraphObject",
 }
 # autodoc_mock_imports = ["builtins"]
 # autodoc_typehints_format = "short"

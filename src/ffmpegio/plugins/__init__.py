@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-__all__ = ["initialize", "get_hook"]
+__all__ = ["get_hook", "initialize"]
 
 pm = pluggy.PluginManager("ffmpegio")
 pm.add_hookspecs(hookspecs)
@@ -54,7 +54,7 @@ def register(plugin: object, name: str | None = None) -> str | None:
 
 
 def unregister(name: str) -> Any | None:
-    """Register a plugin and return its name.
+    """Unregister a plugin.
 
     :param name: The name of the plugin to unregister .
     :returns: The plugin name. If the name is blocked from registering, returns None.
@@ -64,7 +64,8 @@ def unregister(name: str) -> Any | None:
     return pm.unregister(name)
 
 
-def list_plugins() -> list:
+def list_plugins() -> list[str]:
+    """Get a list of the names of registered plugin"""
     return [pm.get_name(p) for p in pm.get_plugins()]
 
 

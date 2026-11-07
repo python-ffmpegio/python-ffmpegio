@@ -129,6 +129,7 @@ def read(
         channels, defaults to True to reduce monaural data to 1D, eliminating
         the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable
     :param show_log: True to show FFmpeg log messages on the console, defaults
         to None (no show/capture). Ignored if stream format must be retrieved
         automatically.
@@ -136,12 +137,17 @@ def read(
         `subprocess.Popen()` call used to run the FFmpeg, defaults to None
     :param options: FFmpeg options, append '_in' for input option names
         (see :doc:`options`)
-    :return rate: sample rate in samples/second
-    :return data: audio data object specified by selected `bytes_to_audio`
+    :return: a tuple containing
+
+        - (:py:type:`int`) sample rate in samples/second
+    
+        - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) audio data 
+        object. Its format depends on the selected :py:func:`bytes_to_audio`
         plugin hook. (pre v0.12.0) the output shape is always 2D with the time
         axis in the first dimension. (since v0.12.0) The shape is default to 1D
         data is monaural.
-
+    :rtype: tuple[int, RawDataBlob]
+    
     .. note:: Even if :code:`start_time` option is set, all the prior samples will be read.
         The retrieved data will be truncated before returning it to the caller.
         This is to ensure the timing accuracy. As such, do not use this function
@@ -150,6 +156,7 @@ def read(
 
 
     """
+
 
     # use user-specified map or default '0:a:0' map
     output_map = options.pop("map", "0:a:0")
