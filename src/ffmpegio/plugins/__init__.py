@@ -152,6 +152,7 @@ def initialize():
 
     for name in [
         "rawdata_bytes",
+        "finder_static",
         "finder_ffdl",
         "rawdata_mpl",
         "rawdata_pillow",
