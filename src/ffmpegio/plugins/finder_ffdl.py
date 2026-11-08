@@ -12,6 +12,7 @@ hookimpl = HookimplMarker("ffmpegio")
 
 __all__ = ["finder"]
 
+logger = logging.getLogger("ffmpegio.plugins")
 
 @hookimpl
 def finder():
@@ -26,7 +27,7 @@ def finder():
     ):
         return ffmpeg_path, ffprobe_path
 
-    logging.warning(
+    logger.warning(
         """FFmpeg binaries not found in the ffmpeg-downloader's install directory. To install, run the following in the terminal:
     
       ffdl install

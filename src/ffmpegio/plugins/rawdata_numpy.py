@@ -9,7 +9,7 @@ from pluggy import HookimplMarker
 
 from .._typing import DTypeString, ShapeTuple
 
-logger = logging.getLogger("ffmpegio")
+logger = logging.getLogger("ffmpegio.plugins")
 
 hookimpl = HookimplMarker("ffmpegio")
 

@@ -9,6 +9,8 @@ hookimpl = HookimplMarker("ffmpegio")
 
 __all__ = ["finder"]
 
+logger = logging.getLogger("ffmpegio.plugins")
+
 
 @hookimpl
 def finder():
@@ -17,7 +19,7 @@ def finder():
     try:
         paths = run.get_or_fetch_platform_executables_else_raise()
     except Exception as e:
-        logging.warn(
+        logger.warn(
             f"""static-ffmpeg binary paths could not be resolved. Error message:
             
               {e}"""
