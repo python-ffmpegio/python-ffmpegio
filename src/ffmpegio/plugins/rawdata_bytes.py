@@ -1,6 +1,8 @@
+"""Read/write bytes-like Python :py:type:`dict <ffmpegio.typing.BytesRawDataBlob>` objects (video & audio)"""
+
 from __future__ import annotations
 
-from typing import Tuple, TypedDict
+from typing import TypedDict
 
 from pluggy import HookimplMarker
 
@@ -9,34 +11,34 @@ from .._utils import get_samplesize
 
 __all__ = [
     "BytesRawDataBlob",
-    "video_info",
-    "audio_info",
-    "video_frames",
-    "audio_samples",
-    "video_bytes",
     "audio_bytes",
-    "bytes_to_video",
+    "audio_info",
+    "audio_samples",
     "bytes_to_audio",
+    "bytes_to_video",
+    "video_bytes",
+    "video_frames",
+    "video_info",
 ]
 
 hookimpl = HookimplMarker("ffmpegio")
 
 
 class BytesRawDataBlob(TypedDict):
-    """raw data blob in bytes"""
+    """Data blob representation of media data frame supported by the built-in raw data I/O plugin."""
 
-    buffer: bytes
-    """data buffer"""
+    buffer: memoryview
+    """Raw binary data object (typically :py:type:`bytes` or :py:type:`bytearray`)"""
 
     dtype: DTypeString
-    """numpy-style data type string"""
+    """Numpy-style data type string"""
 
     shape: ShapeTuple
-    """data shape"""
+    """Media data frame shape"""
 
 
 @hookimpl
-def video_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
+def video_info(obj: BytesRawDataBlob) -> tuple[ShapeTuple, DTypeString]:
     """get video frame info
 
     :param obj: dict containing video frame data with arbitrary number of frames
@@ -62,7 +64,7 @@ def video_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
 
 
 @hookimpl
-def audio_info(obj: BytesRawDataBlob) -> Tuple[ShapeTuple, DTypeString]:
+def audio_info(obj: BytesRawDataBlob) -> tuple[ShapeTuple, DTypeString]:
     """get audio sample info
 
     :param obj: dict containing audio data (with interleaving channels) with arbitrary number of samples

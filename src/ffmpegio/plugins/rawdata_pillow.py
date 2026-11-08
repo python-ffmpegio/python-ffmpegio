@@ -1,7 +1,9 @@
-"""ffmpegio plugin to use `Pillow.Image.Image` objects for media data I/O"""
+"""Read/write Pillow :py:class:`Image <PIL.Image.Image>` objects (video only)"""
 
-from collections.abc import Sequence
+from __future__ import annotations
+
 import sys
+from collections.abc import Sequence
 from math import prod
 
 from PIL import Image, ImageSequence
@@ -74,9 +76,12 @@ def _video_info(obj: Image.Image) -> tuple[tuple[int, int, int], str]:
     elif mode == "I;16B":  # (16-bit big endian unsigned integer pixels)
         ncomp = 1
         dtype = "<u2"
-    elif mode in (
-        "I;16",
-        "I;16N",
+    elif (
+        mode
+        in (
+            "I;16",
+            "I;16N",
+        )
     ):  # (16-bit unsigned integer pixels) | (16-bit native endian unsigned integer pixels)
         ncomp = 1
         dtype = ">u2" if sys.byteorder == "big" else "<u2"
