@@ -1,3 +1,5 @@
+"""search additional paths in Windows"""
+
 from __future__ import annotations
 
 import os
@@ -17,8 +19,7 @@ def finder():
     :type dir: str, optional
     :raises Exception: if failed to find ffmpeg or ffprobe binary
 
-    In Linux and Mac, only the specified directory or the system path are
-    checked. In Windows, the following additional paths are tested in this order:
+    The following paths are tested in the order appeared:
 
     * ``%PROGRAMFILES%\\ffmpeg\\bin``
     * ``%PROGRAMFILES(X86)%\\ffmpeg\\bin``

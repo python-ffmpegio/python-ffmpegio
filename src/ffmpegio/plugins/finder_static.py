@@ -1,4 +1,6 @@
-"""ffmpegio plugin to find ffmpeg and ffprobe installed by static-ffmpeg package"""
+"""find FFmpeg and FFprobe installed by `static-ffmpeg <https://github.com/zackees/static_ffmpeg>`_ package"""
+
+from __future__ import annotations
 
 import logging
 

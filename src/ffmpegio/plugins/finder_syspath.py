@@ -1,4 +1,4 @@
-"""ffmpegio plugin to find ffmpeg and ffprobe on system path"""
+"""find FFmpeg and FFprobe on the system path"""
 
 from __future__ import annotations
 

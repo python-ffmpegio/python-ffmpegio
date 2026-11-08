@@ -1,8 +1,9 @@
-"""ffmpegio plugin to use `numpy.ndarray` objects for media data I/O"""
+"""Read/write Numpy :py:class:`ndarray <numpy.ndarray>` objects (video & audio)"""
 
 from __future__ import annotations
 
 import logging
+
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from pluggy import HookimplMarker
@@ -14,14 +15,14 @@ logger = logging.getLogger("ffmpegio.plugins")
 hookimpl = HookimplMarker("ffmpegio")
 
 __all__ = [
-    "video_info",
-    "audio_info",
-    "video_frames",
-    "audio_samples",
-    "video_bytes",
     "audio_bytes",
-    "bytes_to_video",
+    "audio_info",
+    "audio_samples",
     "bytes_to_audio",
+    "bytes_to_video",
+    "video_bytes",
+    "video_frames",
+    "video_info",
 ]
 
 

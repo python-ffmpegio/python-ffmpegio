@@ -9,12 +9,13 @@ from typing import Any, Literal
 import pluggy
 
 from . import hookspecs
+from .._typing import MediaType
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-__all__ = ["initialize", "get_hook"]
+__all__ = ["get_hook", "initialize"]
 
 pm = pluggy.PluginManager("ffmpegio")
 pm.add_hookspecs(hookspecs)
@@ -24,7 +25,7 @@ def _try_register_builtin(plugin_name: str, reregister: bool = False) -> str | N
     module_package, module_name = plugin_name.rsplit(".", 1)
     try:
         module = import_module(f".{module_name}", module_package)
-    except ModuleNotFoundError:
+    except (ModuleNotFoundError, ImportError):
         logger.info(
             "Skip importing %s builtin-plugin module, likely missing dependency",
             module_name,
@@ -54,7 +55,7 @@ def register(plugin: object, name: str | None = None) -> str | None:
 
 
 def unregister(name: str) -> Any | None:
-    """Register a plugin and return its name.
+    """Unregister a plugin.
 
     :param name: The name of the plugin to unregister .
     :returns: The plugin name. If the name is blocked from registering, returns None.
@@ -64,34 +65,37 @@ def unregister(name: str) -> Any | None:
     return pm.unregister(name)
 
 
-def list_plugins() -> list:
+def list_plugins() -> list[str]:
+    """Get a list of the names of registered plugin"""
     return [pm.get_name(p) for p in pm.get_plugins()]
 
 
 def use(name: Literal["read_numpy", "read_bytes", "read_pillow"] | str):
     """Select the plugin to use (among contentious plugins)
 
-    :param name: The plugin to use. This can either be ``'read_numpy'``,
-                 ``'read_bytes'``, ``'read_pillow'``, or a plugin module name:
+    :param name: The plugin to use. This can either be :code:`'read_numpy'`,
+        :code:`'read_bytes'`, :code:`'read_pillow'`, or a custom plugin module name
 
-                 - ``"read_numpy"`` - All the media readers to output a Numpy array.
-                               Also, reverts Numpy array input processing by
-                               all the writers to the default. Numpy must be
-                               installed for this plugin to be activated.
-                 - ``"read_bytes"`` - All the media readers to output a dict with keys:
-                                    ``"buffer"`` (``bytes``) of the retrieved data,
-                                    ``"dtype"`` (``str``) Numpy dtype string of ``'"buffer"'``,
-                                    and ``"shape"`` (``tuple`` of ``int``s) the data array shape
-                                    of ``'"buffer"'``
-                 - ``"read_pillow"`` - All the video/image readers to output Pillow Image
-                   or a list of Pillow Images if the matching pixel format is found.
-                   Pillow must be installed for this plugin to be activated.
+        - :code:`"read_numpy"` - All the media readers to output a Numpy array.
+            Also, reverts Numpy array input processing by
+            all the writers to the default. Numpy must be
+            installed for this plugin to be activated.
+        - :code:`"read_bytes"` - All the media readers to output a dict with keys:
+            :code:`"buffer"` (:py:type:`bytes`) of the retrieved data,
+            :code:`"dtype"` (:py:type:`str`) Numpy dtype string of :code:`"buffer"`,
+            and :code:`"shape"` (:py:type:`tuple` of :py:type:`int` s) the data array shape
+            of :code:`"buffer"`
+        - :code:`"read_pillow"` - All the video/image readers to output Pillow Image
+            or a list of Pillow Images if the matching pixel format is found.
+            Pillow must be installed for this plugin to be activated.
 
-                 If a plugin name is given, it must be in the form:
-                 `plugin://my.plugin.name`.
+        If a custom plugin name is given, it must be in the form:
+        :code:`"plugin://my.plugin.name"`.
 
-    The reader plugins are checked in the reverse registration order. So, ``use()``
-    maybe called twice to set the backup conversions. For example ..
+    The reader plugins are checked in the reverse registration order. So, :py:func:`use()`
+    maybe called twice to set the backup conversions. For example: 
+    
+    .. code-block:: Python
 
       use('read_numpy')
       use('read_pillow')
@@ -119,11 +123,13 @@ def use(name: Literal["read_numpy", "read_bytes", "read_pillow"] | str):
 
 
 def using(
-    media_type: Literal["video", "audio"],
-) -> Literal["read_numpy", "read_bytes"] | str:
-    """Returns current rawdata primary read mode
+    media_type: MediaType,
+) -> Literal["read_numpy", "read_bytes", "read_pillow"] | str:
+    """Returns the current rawdata primary read mode
 
-    :para media_type: Specifies the target media stream type
+    :param media_type: Specifies the target media stream type
+    :type media_type: MediaType
+    :returns: the name of the plugin currently selected
 
     """
 

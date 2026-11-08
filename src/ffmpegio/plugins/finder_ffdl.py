@@ -1,4 +1,4 @@
-"""ffmpegio plugin to find ffmpeg and ffprobe installed by ffmpeg-downloader (ffdl) package"""
+"""find FFmpeg and FFprobe installed by `ffmpeg-downloader <https://github.com/python-ffmpegio/python-ffmpeg-downloader>`_ package"""
 
 from __future__ import annotations
 
