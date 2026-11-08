@@ -8,10 +8,9 @@ name = "ffmpegio"
 description = "Media I/O with FFmpeg"
 readme = "README.rst"
 keywords = ["multimedia", "ffmpeg"]
-license = { text = "GPL-2.0 License" }
+license = "GPL-2.0-only"
 classifiers = [
     "Development Status :: 4 - Beta",
-    "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Multimedia :: Sound/Audio :: Capture/Recording",
     "Topic :: Multimedia :: Sound/Audio :: Conversion",
