@@ -3,8 +3,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 import pytest
-
-from ffmpegio.filtergraph.GraphLinks import GraphLinks
+from ffmpegio import filtergraph as fgb
 
 
 @pytest.mark.parametrize(
@@ -16,7 +15,7 @@ from ffmpegio.filtergraph.GraphLinks import GraphLinks
     ],
 )
 def test_iter_inpad_ids(dsts, expects):
-    assert len(list(GraphLinks.iter_inpad_ids(dsts))) == expects
+    assert len(list(fgb.GraphLinks.iter_inpad_ids(dsts))) == expects
 
 
 @pytest.mark.parametrize(
@@ -30,10 +29,10 @@ def test_iter_inpad_ids(dsts, expects):
 )
 def test_validate_label(args, ok):
     if ok:
-        GraphLinks.validate_label(*args)
+        fgb.GraphLinks.validate_label(*args)
     else:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_label(*args)
+        with pytest.raises(fgb.GraphLinks.Error):
+            fgb.GraphLinks.validate_label(*args)
 
 
 @pytest.mark.parametrize(
@@ -46,10 +45,10 @@ def test_validate_label(args, ok):
 )
 def test_validate_input_stream(args, ok):
     if ok:
-        GraphLinks.validate_input_stream(*args)
+        fgb.GraphLinks.validate_input_stream(*args)
     else:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_input_stream(*args)
+        with pytest.raises(fgb.GraphLinks.Error):
+            fgb.GraphLinks.validate_input_stream(*args)
 
 
 @pytest.mark.parametrize(
@@ -64,10 +63,10 @@ def test_validate_input_stream(args, ok):
 )
 def test_validate_pad_idx(args, ok):
     if ok:
-        GraphLinks.validate_pad_idx(*args)
+        fgb.GraphLinks.validate_pad_idx(*args)
     else:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_pad_idx(*args)
+        with pytest.raises(fgb.GraphLinks.Error):
+            fgb.GraphLinks.validate_pad_idx(*args)
 
 
 @pytest.mark.parametrize(
@@ -82,10 +81,10 @@ def test_validate_pad_idx(args, ok):
 )
 def test_validate_pad_idx_pair(ids, ok):
     if ok:
-        GraphLinks.validate_pad_idx_pair(ids)
+        fgb.GraphLinks.validate_pad_idx_pair(ids)
     else:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_pad_idx_pair(ids)
+        with pytest.raises(fgb.GraphLinks.Error):
+            fgb.GraphLinks.validate_pad_idx_pair(ids)
 
 
 @pytest.mark.parametrize(
@@ -99,10 +98,10 @@ def test_validate_pad_idx_pair(ids, ok):
 )
 def test_validate_item(label, ids, ok):
     if ok:
-        GraphLinks.validate_item(label, ids)
+        fgb.GraphLinks.validate_item(label, ids)
     else:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate_item(label, ids)
+        with pytest.raises(fgb.GraphLinks.Error):
+            fgb.GraphLinks.validate_item(label, ids)
 
 
 @pytest.mark.parametrize(
@@ -114,16 +113,16 @@ def test_validate_item(label, ids, ok):
 )
 def test_validate(data, ok):
     if ok:
-        GraphLinks.validate(data)
+        fgb.GraphLinks.validate(data)
     else:
-        with pytest.raises(GraphLinks.Error):
-            GraphLinks.validate(data)
+        with pytest.raises(fgb.GraphLinks.Error):
+            fgb.GraphLinks.validate(data)
 
 
 # fixture links with one of each type of link items
 @pytest.fixture(scope="function")
 def base_links():
-    yield GraphLinks(
+    yield fgb.GraphLinks(
         {
             "l": ((0, 0, 0), (0, 0, 0)),  # regular link
             "d": (1, None),  # regular link
@@ -138,7 +137,7 @@ def base_links():
 
 
 def test_init(base_links):
-    GraphLinks()
+    fgb.GraphLinks()
     base_links
 
 
@@ -202,7 +201,7 @@ def test_iter_outputs(base_links):
     ],
 )
 def test_iter_input_pads(only_labels, only_links, input_streams_as_links, ret):
-    links = GraphLinks(
+    links = fgb.GraphLinks(
         {
             "link": ((0, 0, 0), (0, 0, 0)),  # regular link
             "label": ((1, 0, 0), None),  # regular input label
@@ -347,7 +346,7 @@ def test_link(args, ok, unlinked, base_links):
             assert unlinked not in base_links
 
     else:
-        with pytest.raises(GraphLinks.Error):
+        with pytest.raises(fgb.GraphLinks.Error):
             base_links.link(*args)
 
 
@@ -364,7 +363,6 @@ def test_link(args, ok, unlinked, base_links):
     ],
 )
 def test_create_label(args, ok, unlinked, base_links):
-
     # create_label(label, dst=None, src=None, force):
     if ok:
         label = base_links.create_label(*args)  # ok link
@@ -373,12 +371,11 @@ def test_create_label(args, ok, unlinked, base_links):
             assert unlinked not in base_links
 
     else:
-        with pytest.raises(GraphLinks.Error):
+        with pytest.raises(fgb.GraphLinks.Error):
             base_links.create_label(*args)
 
 
 def test_update(base_links):
-
     base_links.update({})  # no action``
 
     base_links.update({"test": ((4, 0, 0), (4, 0, 0))})
@@ -386,7 +383,7 @@ def test_update(base_links):
     assert "test" in base_links
 
     # existing dst
-    with pytest.raises(GraphLinks.Error):
+    with pytest.raises(fgb.GraphLinks.Error):
         base_links.update({"test": ((4, 0, 0), (4, 0, 0))})
 
     base_links.update({"l": ((4, 0, 0), (4, 0, 0))}, force=True)
@@ -408,7 +405,7 @@ def test_update(base_links):
 )
 def test_remove_label(links, n, nin):
     label = "label" if links[0] is None or len(links[0]) < 2 else "0:v"
-    o = GraphLinks({label: links})
+    o = fgb.GraphLinks({label: links})
     o.remove_label(label)
     assert len(o) == n
     assert len(list(o.iter_inputs())) == nin
@@ -431,14 +428,14 @@ def test_remove_label(links, n, nin):
         ([None], [0], ({}, [None])),
         (
             [
-                GraphLinks(
+                fgb.GraphLinks(
                     {
                         "in": ((0, 0, 0), None),
                         "out": (None, (1, 0, 0)),
                         0: ((1, 0, 1), (0, 1, 0)),
                     }
                 ),
-                GraphLinks(
+                fgb.GraphLinks(
                     {
                         "in": ((0, 0, 0), None),
                         "link": ((1, 0, 0), (0, 0, 0)),
@@ -466,8 +463,8 @@ def test_remove_label(links, n, nin):
         ),
         (
             [
-                GraphLinks({"0:v:0": ((0, 0, 0), None)}),
-                GraphLinks({"0:v:0": (((0, 0, 0), (1, 0, 0)), None)}),
+                fgb.GraphLinks({"0:v:0": ((0, 0, 0), None)}),
+                fgb.GraphLinks({"0:v:0": (((0, 0, 0), (1, 0, 0)), None)}),
             ],
             [0, 2],
             (
@@ -480,7 +477,7 @@ def test_remove_label(links, n, nin):
     ],
 )
 def test_combine(link_objs, cumsum_chains, res):
-    out = GraphLinks.combine(link_objs, cumsum_chains)
+    out = fgb.GraphLinks.combine(link_objs, cumsum_chains)
     assert out[1] == res[1]
     assert out[0] == res[0]
 
@@ -490,12 +487,12 @@ def test_combine(link_objs, cumsum_chains, res):
     [
         (
             [
-                GraphLinks({"la": ((0, 0, 0), None), "lb": (None, (1, 0, 0))}),
-                GraphLinks({"lb": ((0, 0, 0), None), "la": (None, (1, 0, 0))}),
+                fgb.GraphLinks({"la": ((0, 0, 0), None), "lb": (None, (1, 0, 0))}),
+                fgb.GraphLinks({"lb": ((0, 0, 0), None), "la": (None, (1, 0, 0))}),
             ],
             [("la", 0, 1), ("lb", 1, 0)],
         ),
     ],
 )
 def test_pair_unconnected_labels(links, res):
-    assert res == GraphLinks.pair_unconnected_labels(links)
+    assert res == fgb.GraphLinks.pair_unconnected_labels(links)
