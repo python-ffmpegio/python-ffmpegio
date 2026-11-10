@@ -118,8 +118,7 @@ from .exceptions import (
     FiltergraphInvalidIndex,
     FiltergraphPadNotFoundError,
 )
-from .Filter import Filter
-from .Graph import Graph
+from .GraphLinks import GraphLinks
 
 # chain | filter | pad
 
@@ -140,6 +139,7 @@ __all__ = [
     "Filter",
     "Chain",
     "Graph",
+    "GraphLinks",
     "FiltergraphInvalidIndex",
     "FiltergraphPadNotFoundError",
     "FiltergraphConversionError",
