@@ -6,7 +6,7 @@ from typing import Literal, Self, get_args
 
 from .. import filtergraph as fgb
 from .exceptions import FiltergraphMismatchError, FiltergraphPadNotFoundError
-from .GraphLinks import GraphLinks
+from .graph_links import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX
 
 __all__ = ["FilterGraphObject"]

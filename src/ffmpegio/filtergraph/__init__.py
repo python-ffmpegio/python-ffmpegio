@@ -103,7 +103,7 @@ from .. import path
 from ..caps import filters as list_filters
 from . import abc, presets
 from .build import connect, join, stack
-from .Chain import Chain
+from .chains import Chain
 from .convert import (
     as_filter,
     as_filterchain,
@@ -118,7 +118,9 @@ from .exceptions import (
     FiltergraphInvalidIndex,
     FiltergraphPadNotFoundError,
 )
-from .GraphLinks import GraphLinks
+from .filters import Filter
+from .graphs import Graph
+from .graph_links import GraphLinks
 
 # chain | filter | pad
 
