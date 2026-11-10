@@ -47,6 +47,7 @@ from ._typing import (
     DTypeString,
     EncodedInputInfoDict,
     EncodedOutputInfoDict,
+    FFmpegArgs,
     FFmpegOptionDict,
     FFmpegUrlType,
     FilterGraphInfoDict,
@@ -133,15 +134,6 @@ FFmpegNoPipeOutputOptionTuple = tuple[FFmpegOutputUrlNoPipe, FFmpegOptionDict]
 
 raw_formats = ("rawvideo", *(formats for _, formats in utils.audio_codecs.values()))
 
-
-class FFmpegArgs(TypedDict):
-    """FFmpeg arguments"""
-
-    inputs: list[FFmpegInputOptionTuple]
-    # list of input definitions (pairs of url and options)
-    outputs: list[FFmpegOutputOptionTuple]
-    # list of output definitions (pairs of url and options)
-    global_options: dict  # FFmpeg global options
 
 
 InitMediaOutputsCallable = Callable[
