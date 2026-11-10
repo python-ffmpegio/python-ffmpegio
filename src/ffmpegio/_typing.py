@@ -27,6 +27,17 @@ For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio
 RawDataBlob = Any
 """any object to represent raw binary data supported by a data I/O plugin."""
 
+class FFmpegArgs(TypedDict):
+    """FFmpeg arguments"""
+
+    inputs: list[tuple[str, FFmpegOptionDict]]
+    """list of input definitions (pairs of url and options)"""
+    outputs: list[tuple[str, FFmpegOptionDict]]
+    """list of output definitions (pairs of url and options)"""
+    global_options: FFmpegOptionDict
+    """FFmpeg global options"""
+
+
 DTypeString = LiteralString
 """Numpy array interface protocol typestr string
 

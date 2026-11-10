@@ -34,12 +34,10 @@ from threading import Thread
 from ._typing import (
     ProgressCallable,
     Callable,
-    TextIO,
-    BinaryIO,
-    Buffer,
+    FFmpegArgs,
     FFmpegOptionDict,
 )
-from .configure import FFmpegArgs, move_global_options
+from .configure import move_global_options
 from .path import DEVNULL, PIPE, TimeoutExpired, devnull, ffmpeg
 from .threading import ProgressMonitorThread
 from .utils.parser import FLAG, compose, parse
