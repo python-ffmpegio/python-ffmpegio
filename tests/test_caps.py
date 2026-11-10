@@ -70,3 +70,6 @@ def test_filters():
     for f in caps.filters():
         print(f)
         pprint(caps.filter_info(f))
+
+def test_dispositions():
+    assert len(caps.dispositions())>1

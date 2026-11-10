@@ -1263,9 +1263,19 @@ def bsfilter_info(name: str) -> BSFInfo:
         m[3],  # "options"
     )
 
+@cache
+def dispositions()->list[str]:
+    """get a list of supported stream dispositions
 
-#:dict: list of video size presets with their sizes
-video_size_presets = {
+    The list is obtained by parsing the output of::
+
+        ffmpeg -dispositions
+
+    """
+    stdout = _("dispositions")
+
+    return stdout.splitlines(keepends=False)
+
     "ntsc": (720, 480),
     "pal": (720, 576),
     "qntsc": (352, 240),
