@@ -10,8 +10,8 @@ from ..path import check_version
 from ..stream_spec import StreamSpecDict
 
 if TYPE_CHECKING:
-    from .Chain import Chain
-    from .Graph import Graph
+    from .chains import Chain
+    from .graphs import Graph
 
 
 def remove_alpha(
