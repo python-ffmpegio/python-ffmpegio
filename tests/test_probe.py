@@ -133,8 +133,3 @@ def test_packets():
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
     print(info)
-
-
-if __name__ == "__main__":
-    test_all()
-    pass

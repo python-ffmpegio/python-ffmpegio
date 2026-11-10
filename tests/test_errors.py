@@ -31,27 +31,3 @@ def test_caps_errors():
         caps.decoder_info("bogus")
     with pytest.raises(FFmpegError):
         caps.filter_info("bogus")
-
-
-if __name__ == "__main__":
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        out = run(
-            {
-                "inputs": [(url, {}), (srt, None)],
-                "outputs": [
-                    (
-                        out_url,
-                        {"vf": "scale=dstw=100", "c:s": "mov_text"},
-                    )
-                ],
-                "global_options": {},
-            },
-            capture_log=True,
-        )
-
-    print(out.stderr)
-    if out.returncode:
-        raise FFmpegError(out.stderr)
-    else:
-        print("noerror")  # print(out.returncode)
-    # assert str(FFmpegError(out.stderr)) == "Output file #0 does not contain any stream"

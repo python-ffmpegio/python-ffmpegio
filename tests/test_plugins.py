@@ -62,7 +62,3 @@ def test_use():
     plugins.use("read_pillow")
     assert plugins.using("video") == "read_pillow"
     assert plugins.using("audio") != "read_pillow"
-
-
-if __name__ == "__main__":
-    print(plugins.pm.get_plugins())

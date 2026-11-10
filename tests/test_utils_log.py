@@ -21,7 +21,3 @@ def test_log_completed():
 
         pprint(log.extract_output_stream(logs))
         pprint(log.extract_output_stream(logs, 0, 1))
-
-
-if __name__ == "__main__":
-    pass

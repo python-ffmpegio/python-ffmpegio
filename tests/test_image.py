@@ -124,19 +124,3 @@ def test_square_pixels(nonsquarepix_url, mode):
 
     vf = fgb.presets.square_pixels(mode)
     image.read(nonsquarepix_url, vf=vf, show_log=None)
-
-
-if __name__ == "__main__":
-    from matplotlib import pyplot as plt
-
-    # logging.basicConfig(level=logging.DEBUG)
-
-    url = "tests/assets/ffmpeg-logo.png"
-    B = image.read(
-        url,
-        show_log=True,
-        fill_color="red",
-    )
-
-    plt.imshow(B)
-    plt.show()
