@@ -22,16 +22,3 @@ def test_dshow():
         print(dshow._list_options(spec))
     if devs:
         print(dshow._resolve([dev for dev in devs.values()]))
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)
-
-
-    # if ffmpegio.path.FFMPEG_VER!='5.0':
-    #     v5 = r"C:\Users\tikuma\AppData\Local\Programs\ffmpeg-5.0\bin"
-    #     ffmpegio.set_path(fr"{v5}\ffmpeg.exe", fr"{v5}\ffprobe.exe")
-    #     print(ffmpegio.path.FFMPEG_VER)
-
-    print(os.name)
-    test_dshow()

@@ -121,7 +121,3 @@ def test_popen_progress():
         for j in range(10):
             out = proc.stdout.read(samplesize)
             assert len(out) == samplesize
-
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG)

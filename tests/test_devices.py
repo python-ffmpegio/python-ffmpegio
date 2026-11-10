@@ -69,15 +69,3 @@ def try_devices():
             t_in=1,
             show_log=True,
         )
-
-
-if __name__ == "__main__":
-    # logging.basicConfig(level=logging.DEBUG)
-
-    # if ffmpegio.path.FFMPEG_VER != "5.0":
-    #     v5 = r"C:\Users\tikuma\AppData\Local\Programs\ffmpeg-5.0\bin"
-    #     ffmpegio.set_path(fr"{v5}\ffmpeg.exe", fr"{v5}\ffprobe.exe")
-    #     print(ffmpegio.path.FFMPEG_VER)
-
-    # test_devices()
-    try_devices()

@@ -119,25 +119,3 @@ def test_two_pass_write():
             **{"c:v": "libx264", "b:v": "500k"},
             show_log=True,
         )
-
-
-if __name__ == "__main__":
-    # test_create()
-
-    # ffmpeg -y -i input -c:v libx264 -b:v 2600k -pass 1 -an -f null /dev/null && \
-    # ffmpeg -i input -c:v libx264 -b:v 2600k -pass 2 -c:a aac -b:a 128k output.mp4
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-
-    #     B = video.read(url, show_log=True, s=(100, -2))
-    #     print(B["shape"])
-
-    #     url = "tests/assets/ffmpeg-logo.png"
-    #     B = video.read(
-    #         url,
-    #         show_log=True,
-    #         fill_color="red",
-    #     )
-
-    #     B = video.read(url, show_log=True, fill_color="red", pix_fmt="rgb24")

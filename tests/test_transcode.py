@@ -92,7 +92,3 @@ def test_transcode_vf():
         out_url = path.join(tmpdirname, path.basename(url))
         transcode(url, out_url, t="0.1", vf="scale=in_w:in_h*9/10", show_log=True)
         assert path.isfile(out_url)
-
-
-if __name__ == "__main__":
-    test_transcode_from_filter()

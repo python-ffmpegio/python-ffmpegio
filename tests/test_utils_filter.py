@@ -180,7 +180,3 @@ def test_compose_graph():
             },
         )
     )
-
-
-if __name__ == "__main__":
-    from pprint import pprint

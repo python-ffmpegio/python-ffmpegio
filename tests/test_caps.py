@@ -70,9 +70,3 @@ def test_filters():
     for f in caps.filters():
         print(f)
         pprint(caps.filter_info(f))
-
-if __name__ == '__main__':
-    caps.filter_info('aresample')
-
-if __name__ == "__main__":
-    caps.encoder_info("mpeg1video")

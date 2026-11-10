@@ -182,12 +182,3 @@ def test_transcode():
             capture_log=None,
             overwrite=True,
         )
-
-
-if __name__ == "__main__":
-    import logging
-
-    logging.basicConfig(level=logging.DEBUG)
-    # test_concat_demux()
-    # test_concat_demux()
-    test_transcode()
