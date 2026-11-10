@@ -128,7 +128,7 @@ def test_packets():
         intervals=10,
         data=True,
         data_hash="MD5",
-        data_dump_format="base64",
+        # data_dump_format="base64",
         # intervals='%+#20,30%+#15'
         # intervals=[{"end_offset": 20}, {"start": 30, "end_offset": 12}],
     )
