@@ -46,5 +46,5 @@ testpaths = ["tests"]
 # minversion = "6.0"
 # addopts = "-ra -q"
 
-[tool.ruff]
+[tool.ruff.lint]
 typing-modules = ["ffmpegio._typing", "ffmpegio.filtergraph.typing"]
