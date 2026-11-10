@@ -927,34 +927,6 @@ def gather_audio_read_opts(
 ################################################################################
 
 
-def move_global_options(args: FFmpegArgs) -> FFmpegArgs:
-    """move global options from the output options dicts
-
-    :param args: FFmpeg arguments
-    :returns: FFmpeg arguments (the same object as the input)
-    """
-
-    from .caps import options
-
-    _global_options = options("global", name_only=True)
-
-    global_options = args.get("global_options", None) or {}
-
-    # global options may be given as output options
-    for _, inopts in args.get("inputs", ()):
-        if inopts:
-            for k in (*(k for k in inopts.keys() if k in _global_options),):
-                global_options[k] = inopts.pop(k)
-    for _, outopts in args.get("outputs", ()):
-        if outopts:
-            for k in (*(k for k in outopts.keys() if k in _global_options),):
-                global_options[k] = outopts.pop(k)
-    if len(global_options):
-        args["global_options"] = global_options
-
-    return args
-
-
 def config_input_fg(
     expr: str | FilterGraphObject, args: tuple, kwargs: dict
 ) -> tuple[str | fgb.Filter, float | None, dict]:
