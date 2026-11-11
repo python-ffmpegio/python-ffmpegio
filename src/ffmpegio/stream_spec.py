@@ -7,19 +7,28 @@ parse & compose FFmpeg stream spec string from/to StreamSpec object
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 from ._typing import (
     FFmpegMediaType,
     Literal,
     MediaType,
     NotRequired,
-    Tuple,
+    TypeAlias,
     TypedDict,
-    Union,
     get_args,
 )
 
-StreamSpecStreamType = Literal["v", "a", "s", "d", "t", "V"]
+StreamSpecString: TypeAlias = str
+"""FFmpeg stream specifier expression
+
+.. seealso: https://ffmpeg.org/ffmpeg.html#Stream-specifiers
+"""
+
+MapOptionString: TypeAlias = str
+"""ffmpeg map option value"""
+
+StreamSpecStreamType: TypeAlias = Literal["v", "a", "s", "d", "t", "V"]
 # libavformat/avformat.c:match_stream_specifier()
 
 
@@ -29,6 +38,7 @@ class StreamSpecDict_Options(TypedDict):
     group_index: NotRequired[int]
     group_id: NotRequired[int]
     stream_id: NotRequired[int]
+    dispositions: NotRequired[list[str]]
 
 
 class StreamSpecDict_Index(StreamSpecDict_Options):
@@ -36,19 +46,19 @@ class StreamSpecDict_Index(StreamSpecDict_Options):
 
 
 class StreamSpecDict_Tag(StreamSpecDict_Options):
-    tag: Union[str, Tuple[str, str]]
+    tag: str | tuple[str, str]
 
 
 class StreamSpecDict_Usable(StreamSpecDict_Options):
     usable: bool
 
 
-StreamSpecDict = Union[
-    StreamSpecDict_Index,
-    StreamSpecDict_Tag,
-    StreamSpecDict_Usable,
-    StreamSpecDict_Options,
-]
+StreamSpecDict: TypeAlias = (
+    StreamSpecDict_Index
+    | StreamSpecDict_Tag
+    | StreamSpecDict_Usable
+    | StreamSpecDict_Options
+)
 
 
 class InputMapOptionDict(TypedDict):
@@ -69,7 +79,7 @@ class GraphMapOptionDict(TypedDict):
     linklabel: str | None  # link label of output of a filtergraph
 
 
-MapOptionDict = Union[InputMapOptionDict, GraphMapOptionDict]
+MapOptionDict = InputMapOptionDict | GraphMapOptionDict
 """Parsed dict of FFmpeg -map option string"""
 
 #################################
@@ -170,6 +180,9 @@ def parse_stream_spec(spec: str | int) -> StreamSpecDict:
             elif spec == "p":
                 out["program_id"] = get_id(i, "program_id")
                 i += 2
+            elif spec == "disp":
+                out["dispositions"] = spec_parts[i + 1].split("+")
+                i += 2
             else:
                 # final primary specifier
                 if spec.startswith("#"):
@@ -229,40 +242,42 @@ def stream_spec(
     stream_id: int | None = None,
     tag: str | tuple[str, str] | None = None,
     usable: bool | None = None,
+    dispositions: Sequence[str] | None = None,
     *,
     no_join: bool = False,
 ) -> str:
     """Get stream specifier string
 
     :param index: Matches the stream with this index. If stream_index is used as
-    an additional stream specifier, then it selects stream number stream_index
-    from the matching streams. Stream numbering is based on the order of the
-    streams as detected by libavformat except when a program ID is also
-    specified. In this case it is based on the ordering of the streams in the
-    program., defaults to None
+        an additional stream specifier, then it selects stream number stream_index
+        from the matching streams. Stream numbering is based on the order of the
+        streams as detected by libavformat except when a program ID is also
+        specified. In this case it is based on the ordering of the streams in the
+        program., defaults to None
     :param stream_type: One of following: 'v' or 'V' for video, 'a' for audio, 's' for
-    subtitle, 'd' for data, and 't' for attachments. 'v' matches all video
-    streams, 'V' only matches video streams which are not attached pictures,
-    video thumbnails or cover arts. If additional stream specifier is used, then
-    it matches streams which both have this type and match the additional stream
-    specifier. Otherwise, it matches all streams of the specified type, defaults
-    to None
+        subtitle, 'd' for data, and 't' for attachments. 'v' matches all video
+        streams, 'V' only matches video streams which are not attached pictures,
+        video thumbnails or cover arts. If additional stream specifier is used, then
+        it matches streams which both have this type and match the additional stream
+        specifier. Otherwise, it matches all streams of the specified type, defaults
+        to None
     :param group_index: Matches streams which are in the group with this group index.
-                        Can be combined with other stream_specifiers, except for `group_index`.
+        Can be combined with other stream_specifiers, except for `group_index`.
     :param group_index: Matches streams which are in the group with this group id.
-                        Can be combined with other stream_specifiers, except for `group_id`.
+        Can be combined with other stream_specifiers, except for `group_id`.
     :param program_id: Selects streams which are in the program with this id. If
-    additional_stream_specifier is used, then it matches streams which both are
-    part of the program and match the additional_stream_specifier, defaults to
-    None
+        additional_stream_specifier is used, then it matches streams which both are
+        part of the program and match the additional_stream_specifier, defaults to
+        None
     :param stream_id: stream id given by the container (e.g. PID in MPEG-TS
-    container), defaults to None
+        container), defaults to None
     :param tag: metadata tag key having the specified value. If value is not
-    given, matches streams that contain the given tag with any value, defaults
-    to None
+        given, matches streams that contain the given tag with any value, defaults
+        to None
     :param usable: streams with usable configuration, the codec must be defined
-    and the essential information such as video dimension or audio sample rate
-    must be present, defaults to None
+        and the essential information such as video dimension or audio sample rate
+        must be present, defaults to None
+    :param dispositions: a sequence of dispositions to match, defaults to None.
     :param filter_output: True to append "out" to stream type, defaults to False
     :param no_join: True to return list of stream specifier elements, defaults to False
     :return: stream specifier string or empty string if all arguments are None
@@ -303,6 +318,8 @@ def stream_spec(
         spec.append(f"m:{tag}" if isinstance(tag, str) else f"m:{tag[0]}:{tag[1]}")
     elif usable is not None and usable:
         spec.append("u")
+    elif dispositions is not None:
+        spec.append(f"disp:{'+'.join(dispositions)}")
 
     return spec if no_join else ":".join(spec)
 
@@ -397,9 +414,9 @@ def is_map_option(
     """True if valid map option string
 
     :param spec: map option string to be tested
-    :param allow_missing_file_id: ``True`` to allow missing input file id
-    :param unique_stream: ``True`` to require ``'stream_index'``
-    :return: ``True`` if valid map option. The validity of stream_specifier is also tested.
+    :param allow_missing_file_id: :code:`True` to allow missing input file id
+    :param unique_stream: :code:`True` to require :code:`'stream_index'`
+    :return: :code:`True` if valid map option. The validity of stream_specifier is also tested.
     """
 
     try:

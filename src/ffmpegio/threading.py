@@ -17,6 +17,7 @@ from namedpipe import NPopen
 
 from .errors import FFmpegError
 from .utils.log import extract_output_stream as _extract_output_stream
+from ._typing import ProgressCallable, CancelActionCallable
 
 logger = logging.getLogger("ffmpegio")
 
@@ -36,21 +37,22 @@ class NotEmpty(Exception):
 class ThreadNotActive(RuntimeError):
     pass
 
-
 class ProgressMonitorThread(Thread):
     """FFmpeg progress monitor class
 
-    :param callback: [description]
-    :type callback: function
-    :param cancel_fun: [description], defaults to None
-    :type cancel_fun: [type], optional
-    :param url: [description], defaults to None
-    :type url: [type], optional
-    :param timeout: [description], defaults to 10e-3
-    :type timeout: [type], optional
+    :param callback: progress callback function, defaults to None
+    :param cancel_fun: cancel action callback function, defaults to None
+    :param url: temporary directory to read FFmpeg's progress information file path, defaults to None
+    :param timeout: timeout in seconds to wait for FFMpeg to update the progress file, defaults to 10e-3
     """
 
-    def __init__(self, callback, cancelfun=None, url=None, timeout=10e-3):
+    def __init__(
+        self,
+        callback: ProgressCallable,
+        cancelfun: CancelActionCallable | None = None,
+        url: str | None = None,
+        timeout: float = 10e-3,
+    ):
         if callback is None:
             self.url = self.cancelfun = self._thread = None
         else:
@@ -281,7 +283,6 @@ class LoggerThread(Thread):
         """wait till thread terminates and raise exception based on the log
 
         :param timeout: specifying a timeout for the operation in seconds if present, defaults to None
-        :type timeout: float | None, optional
         :raises e: FFmpegError only if log is present
 
         Note: This method throws the exception regardless of the thread's status if log is available.
@@ -660,7 +661,7 @@ class WriterThread(Thread):
         super().join(timeout or self._timeout)
 
     def closed(self) -> bool:
-        """``True`` if thread no longer accepts data to write"""
+        """:code:`True` if thread no longer accepts data to write"""
         return self._no_more
 
     def __enter__(self):

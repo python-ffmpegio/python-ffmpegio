@@ -9,6 +9,8 @@ from ..errors import FFmpegioError
 from ..stream_spec import is_map_option
 from .typing import PAD_INDEX, PAD_PAIR
 
+__all__ = ["PAD_INDEX", "PAD_PAIR", "GraphLinks"]
+
 PAD_INDEX_ = tuple[int, int, int]
 """proper pad index, exclusively used in GraphLinks    """
 
@@ -19,10 +21,10 @@ PAD_PAIR = tuple[PAD_INDEX | tuple[PAD_INDEX], PAD_INDEX]
     input pad index, may be a tuple of pad indices ONLY when the associated
     label is an input stream.    
 
-    Only one of input or output pad maybe ``None``, indicating the associated
+    Only one of input or output pad maybe :code:`None`, indicating the associated
     pad label is an input/output label.
 
-    Unlike ``PAD_PAIR_`` the pad indices in this tuple may contain a partial pad
+    Unlike :code:`PAD_PAIR_` the pad indices in this tuple may contain a partial pad
     index.
     """
 
@@ -34,7 +36,7 @@ PAD_PAIR_ = tuple[PAD_INDEX_ | tuple[PAD_INDEX_] | None, PAD_INDEX_ | None]
     input pad index, may be a tuple of pad indices ONLY when the associated
     label is an input stream.    
 
-    Only one of input or output pad maybe ``None``, indicating the associated
+    Only one of input or output pad maybe :code:`None`, indicating the associated
     pad label is an input/output label.
 
     """
@@ -46,11 +48,11 @@ Filtergraph Link Rules:
 - Output labels must be unique, no duplicates
 
 GraphLinks class design:
-- Organize the links as a ``dict[str, tuple[PAD_INDEX|list[PAD_INDEX]|None,PAD_INDEX|None]]``
-- key: link label, value=(``inpad``, ``output``): a tuple of the linked input and output pad indices
-- If label is an input stream and links to input pads, ``inpad`` maybe a list of input pad and, 
-  ``outpad`` is always ``None``
-- To represent a link is not yet connected, ``inpad`` or ``outpad`` may be ``None`` but not both
+- Organize the links as a :code:`dict[str, tuple[PAD_INDEX|list[PAD_INDEX]|None,PAD_INDEX|None]]`
+- key: link label, value=(:code:`inpad`, :code:`output`): a tuple of the linked input and output pad indices
+- If label is an input stream and links to input pads, :code:`inpad` maybe a list of input pad and, 
+  :code:`outpad` is always :code:`None`
+- To represent a link is not yet connected, :code:`inpad` or :code:`outpad` may be :code:`None` but not both
   at the same time
 
 """
@@ -67,8 +69,8 @@ class GraphLinks(UserDict):
         """helper generator to work inpads ids
 
         :param inpads: inpads pad id or ids
+        :type inpads: PAD_INDEX | list[PAD_INDEX] | None
         :param include_labels: True to yield None for each unconnected labels, defaults to False to skip None inpads
-        :param include_labels: bool, optional
         :yield: individual inpad id, immediately exits if None
         """
 
@@ -146,8 +148,17 @@ class GraphLinks(UserDict):
         none_ok: bool = False,
         default_chain_pos: int = 0,
         default_filter_pos: int = 0,
-    ) -> PAD_INDEX_:
+    ) -> PAD_INDEX_ | None:
+        """validate filter pad index
 
+        :param index: pad index
+        :type index: PAD_INDEX | None
+        :param none_ok: True if :code:`index=None` is a valid option, defaults to False
+        :param default_chain_pos: if :code:`index` is missing chain index, use this number, defaults to 0
+        :param default_filter_pos: if :code:`index` is missing filter index, use this number, defaults to 0
+        :return: 3-element pad index
+        :rtype: PAD_INDEX | None
+        """
         if index is None:
             if none_ok:
                 return
@@ -197,7 +208,21 @@ class GraphLinks(UserDict):
         default_chain_pos: int = 0,
         default_filter_pos: int = 0,
     ) -> tuple[PAD_INDEX_ | tuple[PAD_INDEX_] | None, PAD_INDEX_ | None]:
+        """validate an input-output pair of filter pad indices
 
+        :param ids: a pair of pad indices:
+
+            - input pad(s) of destination filter(s)
+            - output pad of source filter
+
+            Either input or output may be None, but not both.
+        :type ids: tuple[PAD_INDEX | Sequence[PAD_INDEX] | None, PAD_INDEX | None]
+        :param none_pos_ok: True if any pad index can be missing, defaults to False
+        :param default_chain_pos: if :code:`index` is missing chain index, use this number, defaults to 0
+        :param default_filter_pos: if :code:`index` is missing filter index, use this number, defaults to 0
+        :return: a pair of input-output pair of full 3-element filter pad indices
+        :rtype: tuple[PAD_INDEX | Sequence[PAD_INDEX] | None, PAD_INDEX | None]
+        """
         try:
             assert len(ids) == 2
         except (TypeError, AssertionError):
@@ -246,16 +271,16 @@ class GraphLinks(UserDict):
     ) -> tuple[str | int | None, PAD_PAIR_]:
         """validate and format a graph link pair of a label and a pair of pads
 
-        :param label: link label or ``None`` to be auto-numbered
-        :param pads: input-output pad pair. One of the pad may be ``None`` to
-            specify an input/output label. If ``label`` is an input stream
+        :param label: link label or :code:`None` to be auto-numbered
+        :param pads: input-output pad pair. One of the pad may be :code:`None` to
+            specify an input/output label. If :code:`label` is an input stream
             specifier string, multiple input pads may be provided with output
-            pad as ``None``.
-        :param none_label_ok: ``True`` to allow ``label`` to be ``None``,
-            defaults to ``False``
-        :param link_only: ``True`` to raise an exception if the item is not a
+            pad as :code:`None`.
+        :param none_label_ok: :code:`True` to allow :code:`label` to be :code:`None`,
+            defaults to :code:`False`
+        :param link_only: :code:`True` to raise an exception if the item is not a
             link
-        :param label_only: ``True`` to raise an exception if the item is a
+        :param label_only: :code:`True` to raise an exception if the item is a
             link
         :param default_chain_pos: default chain position to use if chain
             position is missing in a pad index, defaults to 0
@@ -287,16 +312,16 @@ class GraphLinks(UserDict):
     ) -> tuple[str | int | None, PAD_PAIR_]:
         """validate and format a graph link pair of a label and a pair of pads
 
-        :param label: link label or ``None`` to be auto-numbered
-        :param pads: input-output pad pair. One of the pad may be ``None`` to
-            specify an input/output label. If ``label`` is an input stream
+        :param label: link label or :code:`None` to be auto-numbered
+        :param pads: input-output pad pair. One of the pad may be :code:`None` to
+            specify an input/output label. If :code:`label` is an input stream
             specifier string, multiple input pads may be provided with output
-            pad as ``None``.
-        :param none_label_ok: ``True`` to allow ``label`` to be ``None``,
-            defaults to ``False``
-        :param link_only: ``True`` to raise an exception if the item is not a
+            pad as :code:`None`.
+        :param none_label_ok: :code:`True` to allow :code:`label` to be :code:`None`,
+            defaults to :code:`False`
+        :param link_only: :code:`True` to raise an exception if the item is not a
             link
-        :param label_only: ``True`` to raise an exception if the item is a
+        :param label_only: :code:`True` to raise an exception if the item is a
             link
         :param default_chain_pos: default chain position to use if chain
             position is missing in a pad index, defaults to 0
@@ -333,16 +358,16 @@ class GraphLinks(UserDict):
     ) -> tuple[str, PAD_PAIR_]:
         """validate and format a graph link pair of a label and a pair of pads
 
-        :param label: link label or ``None`` to be auto-numbered
-        :param pads: input-output pad pair. One of the pad may be ``None`` to
-            specify an input/output label. If ``label`` is an input stream
+        :param label: link label or :code:`None` to be auto-numbered
+        :param pads: input-output pad pair. One of the pad may be :code:`None` to
+            specify an input/output label. If :code:`label` is an input stream
             specifier string, multiple input pads may be provided with output
-            pad as ``None``.
-        :param none_label_ok: ``True`` to allow ``label`` to be ``None``,
-            defaults to ``False``
-        :param link_only: ``True`` to raise an exception if the item is not a
+            pad as :code:`None`.
+        :param none_label_ok: :code:`True` to allow :code:`label` to be :code:`None`,
+            defaults to :code:`False`
+        :param link_only: :code:`True` to raise an exception if the item is not a
             link
-        :param label_only: ``True`` to raise an exception if the item is a
+        :param label_only: :code:`True` to raise an exception if the item is a
             link
         :param default_chain_pos: default chain position to use if chain
             position is missing in a pad index, defaults to 0
@@ -399,8 +424,8 @@ class GraphLinks(UserDict):
             position is missing in a pad index, defaults to 0
         :param default_filter_pos: default filter position to use if filter
             position is missing in a pad index, defaults to 0
-        :return: equivalent dict of ``data`` but its content are guaranteed to
-            be used as ``GraphLinks`` items.
+        :return: equivalent dict of :code:`data` but its content are guaranteed to
+            be used as :code:`GraphLinks` items.
         """
         # pads must be unique for both input and output
         used_inpads = set()
@@ -502,11 +527,11 @@ class GraphLinks(UserDict):
         :param outpad: output pad id
         :param label: desired label name, defaults to None (=reuse inpad/outpad
             label or unnamed link)
-        :param preserve_label: ``False`` to remove the labels of the input and
-            output pads (default) or ``'input'`` to prefer the input label or
-            ``'output'`` to prefer the output label.
-        :param force: ``True`` to drop conflicting existing link, defaults to
-            ``False``
+        :param preserve_label: :code:`False` to remove the labels of the input and
+            output pads (default) or :code:`'input'` to prefer the input label or
+            :code:`'output'` to prefer the output label.
+        :param force: :code:`True` to drop conflicting existing link, defaults to
+            :code:`False`
         :return: assigned label of the created link. Unnamed links gets a
                  unique integer value assigned to it.
 
@@ -731,7 +756,7 @@ class GraphLinks(UserDict):
         :param inpad: specify the link with this inpad pad, defaults to None
         :param outpad: specify all the links with this outpad pad, defaults to None
 
-        Only one of ``label``, ``inpad``, ``outpad`` should be specified. If
+        Only one of :code:`label`, :code:`inpad`, :code:`outpad` should be specified. If
         more than one input argument is given, the preference is given in the
         order listed.
 
@@ -894,9 +919,9 @@ class GraphLinks(UserDict):
         """check if given input pad index is already linked
 
         :param pad: output pad index to check
-        :return: ``True`` if ``pad`` is already connected to an input pad, or
-            the input label ``str`` if the pad has a label but not connected
-            yet, or ``False`` if no record is found.
+        :return: :code:`True` if :code:`pad` is already connected to an input pad, or
+            the input label :code:`str` if the pad has a label but not connected
+            yet, or :code:`False` if no record is found.
         """
 
         for label, (inpads, outpad) in self.items():
@@ -909,9 +934,9 @@ class GraphLinks(UserDict):
         """check if given output pad index is already linked
 
         :param pad: output pad index to check
-        :return: ``True`` if ``pad`` is already connected to an input pad, or
-            the output label ``str`` if the pad has a label but not connected
-            yet, or ``False`` if no record is found.
+        :return: :code:`True` if :code:`pad` is already connected to an input pad, or
+            the output label :code:`str` if the pad has a label but not connected
+            yet, or :code:`False` if no record is found.
         """
         for label, (inpad, outpad) in self.items():
             if pad == outpad:
@@ -937,20 +962,20 @@ class GraphLinks(UserDict):
     def combine(
         link_objs: Sequence[GraphLinks | None], cumsum_chains: Sequence[int]
     ) -> tuple[GraphLinks, list[dict[tuple[int, str | int], str | int]] | None]:
-        """combine ``GraphLinks`` objects into one, resolving duplicate labels
+        """combine :code:`GraphLinks` objects into one, resolving duplicate labels
 
-        :params link_objs: ``GraphLinks`` objects to be combined. If ``None``,
+        :params link_objs: :code:`GraphLinks` objects to be combined. If :code:`None`,
             the entry is ignored.
         :param cumsum_chains: cumulative sum of the number of chains of the
-            filtergraphs that are associated with ``link_objs``
-        :return combined_link_obj: a new ``GraphLinks`` object of all the links
+            filtergraphs that are associated with :code:`link_objs`
+        :return combined_link_obj: a new :code:`GraphLinks` object of all the links
             combined. Input streams are not linked, and they are returned
             separately as the third output below.
         :return mapping: list of mapping pairs for each element of
-            ``link_objs``. Each mapping links ``link_objs`` item's old labels to
-            its new labels in ``combined_link_obj``. If a ``link_objs`` element
-            is a ``None``, a ``None`` is returned in ``mapping`` instead of a
-            ``dict``.
+            :code:`link_objs`. Each mapping links :code:`link_objs` item's old labels to
+            its new labels in :code:`combined_link_obj`. If a :code:`link_objs` element
+            is a :code:`None`, a :code:`None` is returned in :code:`mapping` instead of a
+            :code:`dict`.
         """
 
         # create mapping of old labels to new labels
@@ -1022,12 +1047,12 @@ class GraphLinks(UserDict):
     ) -> list[tuple[str, int, int]]:
         """pair matched input and output labels and gather matched input streams
 
-        :params link_objs: ``GraphLinks`` objects to be combined. If ``None``,
+        :params link_objs: :code:`GraphLinks` objects to be combined. If :code:`None`,
             the entry is ignored.
-        :return combined_link_obj: a new ``GraphLinks`` object of all links
+        :return combined_link_obj: a new :code:`GraphLinks` object of all links
             combined
-        :return: a list of tuples ``(label, in_index, out_index)`` of the pairs.
-            ``in_index`` and ``out_index`` are indices to ``link_objs``.
+        :return: a list of tuples :code:`(label, in_index, out_index)` of the pairs.
+            :code:`in_index` and :code:`out_index` are indices to :code:`link_objs`.
 
         Note
         ----
@@ -1183,8 +1208,8 @@ class GraphLinks(UserDict):
 
         .. warning::
            this operation does not check for the existence of a link between the
-           last output pad of the last filter of the ``cid_out`` chain and the
-           last input pad of the first filter of the ``cid_in`` chain. The
+           last output pad of the last filter of the :code:`cid_out` chain and the
+           last input pad of the first filter of the :code:`cid_in` chain. The
            caller must remove such link if it exists.
 
         """
@@ -1292,9 +1317,9 @@ class GraphLinks(UserDict):
         """True if label specifies an input
 
         :param label: link label
-        :param exclude_stream_specs: ``True`` to return ``False`` if the label
+        :param exclude_stream_specs: :code:`True` to return :code:`False` if the label
             is an input stream spec.
-        :return: ``True`` if label is an input
+        :return: :code:`True` if label is an input
         """
         lnk = self.data.get(label, None)
         return (
@@ -1305,10 +1330,10 @@ class GraphLinks(UserDict):
         )
 
     def is_input_stream(self, label: str) -> bool:
-        """``True`` if label specifies an input stream map
+        """:code:`True` if label specifies an input stream map
 
         :param label: input stream map specifier
-        :return: ``True`` if label is an input
+        :return: :code:`True` if label is an input
         """
 
         lnk = self.data.get(label, None)
@@ -1320,10 +1345,10 @@ class GraphLinks(UserDict):
         )
 
     def is_output(self, label: str) -> bool:
-        """``True`` if label specifies an output
+        """:code:`True` if label specifies an output
 
         :param label: link label
-        :return: ``True`` if label is an output
+        :return: :code:`True` if label is an output
 
         If multi-inpad label, True if any inpad is None
         """
@@ -1340,20 +1365,20 @@ class GraphLinks(UserDict):
     ) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
         """Iterate over all link elements with assigned input pad index
 
-        :param only_labels: ``True`` to exclude links
-        :param only_links: ``True`` to exclude unconnected input labels
-        :param input_stream_as_links: ``None`` (default) to treat only
-            undisputable input stream specifier as links, e.g., ``'a'`` or
-            ``'v'`` is treated as a label if it is assigned to only one pad
-            while ``'0:a:0'`` is treated as a link. Set ``False`` to treat all
-            input stream labels as unconnected labels, and ``True`` to treat all
+        :param only_labels: :code:`True` to exclude links
+        :param only_links: :code:`True` to exclude unconnected input labels
+        :param input_stream_as_links: :code:`None` (default) to treat only
+            undisputable input stream specifier as links, e.g., :code:`'a'` or
+            :code:`'v'` is treated as a label if it is assigned to only one pad
+            while :code:`'0:a:0'` is treated as a link. Set :code:`False` to treat all
+            input stream labels as unconnected labels, and :code:`True` to treat all
             likely input streams as links.
-        :param only_input_streams: ``True`` to include only input stream labels
-        :param exclude_input_streams: ``True`` to exclude input stream labels
+        :param only_input_streams: :code:`True` to include only input stream labels
+        :param exclude_input_streams: :code:`True` to exclude input stream labels
             (unless it is disputable)
         :yield label: link label
         :yield inpad: input pad index
-        :yield outpad: output pad index or ``None`` if input label
+        :yield outpad: output pad index or :code:`None` if input label
         """
 
         if only_input_streams and exclude_input_streams:
@@ -1386,7 +1411,7 @@ class GraphLinks(UserDict):
                     yield label, inp, outpad
 
     def iter_output_pads(self) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
-        """Iterate over all ``GraphLinks`` items with an assigned output pad
+        """Iterate over all :code:`GraphLinks` items with an assigned output pad
 
         :param label: to iterate only on this label, defaults to None (all frames)
         :yield label: a full link definition (inpad or outpad may be None if input or output label, respectively)
@@ -1430,13 +1455,19 @@ class GraphLinks(UserDict):
         """Iterate over only input labels, possibly repeating the same label if shared among
            multiple input pad ids
 
-        :param exclude_input_streams: ``False`` (default) to include all  pads,
-            ``True`` to exclude input pads (possibly) connected to an input
-            stream, and ``None`` to exclude input pads definitively connected to
-            an input stream. For example, ``'a'`` or ``'v'`` may be an input
+        :param exclude_input_streams: :code:`False` (default) to include all  pads,
+            :code:`True` to exclude input pads (possibly) connected to an input
+            stream, and :code:`None` to exclude input pads definitively connected to
+            an input stream. For example, :code:`'a'` or :code:`'v'` may be an input
             stream specifier but can also be a link label.
         :param only_stream_specs: True to only include input streams
-        :yield: label and pad index
+        :yield: a tuple containing
+
+            - (str) pad label
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) pad index
+              
+        :rtype: Iterator[tuple]
+        
         """
         for label, (inpad, outpad) in self.data.items():
             if outpad is None and not (
@@ -1459,7 +1490,12 @@ class GraphLinks(UserDict):
     def iter_outputs(self) -> Iterator[tuple[str, PAD_INDEX_]]:
         """Iterate over only output labels
 
-        :yield: output label and pad index
+        :yield: a tuple containing
+
+            - (str) pad label
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) pad index
+              
+        :rtype: Iterator[tuple]
         """
 
         # iterate over all labels
@@ -1477,22 +1513,22 @@ class GraphLinks(UserDict):
     ) -> dict[PAD_INDEX_, PAD_INDEX_ | str]:
         """Return the link table sorted by the input pad indices
 
-        :param only_labels: ``True`` to exclude links
-        :param only_links: ``True`` to exclude unconnected input labels
-        :param input_stream_as_links: ``None`` (default) to treat only
-            undisputable input stream specifier as links, e.g., ``'a'`` or
-            ``'v'`` is treated as a label if it is assigned to only one pad
-            while ``'0:a:0'`` is treated as a link. Set ``False`` to treat all
-            input stream labels as unconnected labels, and ``True`` to treat all
+        :param only_labels: :code:`True` to exclude links
+        :param only_links: :code:`True` to exclude unconnected input labels
+        :param input_stream_as_links: :code:`None` (default) to treat only
+            undisputable input stream specifier as links, e.g., :code:`'a'` or
+            :code:`'v'` is treated as a label if it is assigned to only one pad
+            while :code:`'0:a:0'` is treated as a link. Set :code:`False` to treat all
+            input stream labels as unconnected labels, and :code:`True` to treat all
             likely input streams as links.
-        :param only_input_streams: ``True`` to include only input stream labels
-        :param exclude_input_streams: ``True`` to exclude input stream labels
+        :param only_input_streams: :code:`True` to include only input stream labels
+        :param exclude_input_streams: :code:`True` to exclude input stream labels
             (unless it is disputable)
         :return: a dict mapping input pad index to either the connected output
             pad index if linked or a string if input pad is unconnected.
 
         :see also:
-        ``Graph.iter_input_pads``
+        :code:`Graph.iter_input_pads`
         """
 
         return {
@@ -1561,17 +1597,17 @@ class GraphLinks(UserDict):
     ) -> bool:
         """True if given pads are linked
 
-        :param inpad: input pad index, default to ``None`` to check if
-            ``outpad`` is connected to any input pad.
-        :param outpad: output pad index, defaults to ``None`` to check if
-            ``inpad`` is connected to any output pad or an input stream.
-        :param check_input_stream: ``True`` to check inpad is connected to an
-            input stream, or the default (``None``) behavior to return ``False``
-            for an ambiguous label such as ``'a'`` or ``'v'``, and ``True`` for
-            definitive label such as ``'0:v:0'``.
+        :param inpad: input pad index, default to :code:`None` to check if
+            :code:`outpad` is connected to any input pad.
+        :param outpad: output pad index, defaults to :code:`None` to check if
+            :code:`inpad` is connected to any output pad or an input stream.
+        :param check_input_stream: :code:`True` to check inpad is connected to an
+            input stream, or the default (:code:`None`) behavior to return :code:`False`
+            for an ambiguous label such as :code:`'a'` or :code:`'v'`, and :code:`True` for
+            definitive label such as :code:`'0:v:0'`.
 
-        ``ValueError`` will be raised if both ``inpad`` and ``outpad`` ``None`` or
-        if ``include_input_stream!=False`` and ``outpad`` is ``None``.
+        :code:`ValueError` will be raised if both :code:`inpad` and :code:`outpad` :code:`None` or
+        if :code:`include_input_stream!=False` and :code:`outpad` is :code:`None`.
 
         """
 

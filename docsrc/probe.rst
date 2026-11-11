@@ -1,10 +1,16 @@
+.. :py:module:: ffmpegio.probe
+.. highlight:: python
+
 .. _probe:
 
-Media Probe Function References
-===============================
+Media Probe Functions (:code:`ffmpegio.probe`)
+==============================================
 
-:py:mod:`ffmpegio.probe` module contains a full-featured ffprobe wrapper function
-:py:func:`ffmpegio.probe.full_details` and its derivative functions, which are
+Overview
+--------
+
+:code:`ffmpegio.probe` module contains a full-featured ffprobe wrapper function
+:py:func:`full_details <ffmpegio.probe.full_details>` and its derivative functions, which are
 tailored to retrieve specific type of information from a media file or stream.
 
 List of Functions
@@ -26,6 +32,12 @@ Argument Type References
 ------------------------
 
 .. autoclass:: ffmpegio.probe.IntervalSpec
+.. autoclass:: ffmpegio.probe.VideoStreamInfoDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.probe.AudioStreamInfoDict
+    :members:
+    :undoc-members:    
 
 Function References
 -------------------
@@ -37,3 +49,4 @@ Function References
 .. autofunction:: ffmpegio.probe.full_details
 .. autofunction:: ffmpegio.probe.query
 .. autofunction:: ffmpegio.probe.frames
+.. autofunction:: ffmpegio.probe.packets

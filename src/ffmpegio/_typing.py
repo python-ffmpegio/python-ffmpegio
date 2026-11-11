@@ -10,22 +10,43 @@ except ImportError:
     Buffer = bytes | bytearray | memoryview
 
 from typing import *
-
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+        Literal,
+        LiteralString,
+        Protocol,
+        TypeAlias,
+        TypedDict,
+    )
+
     from namedpipe import NPopen
 
     from .threading import CopyFileObjThread
 
-# from typing_extensions import *
+FFmpegOptionDict: TypeAlias = dict[str, Any]
+"""dict that hold FFmpeg option name-value pairs
 
+    FFmpeg options with their values keyed by the option names without preceding dash. 
+    For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`
 
-FFmpegOptionDict = dict[str, Any]
-"""FFmpeg options with their values keyed by the option names without preceding dash. 
-For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
+    For example,
 
-RawDataBlob = Any
-"""any object to represent raw binary data supported by a data I/O plugin."""
+    .. code-block: bash
+
+        ffmpeg -i input.mp4 -ss 00:01:30 -t 30 -an -c:v copy output.mp4
+
+    comprises 4 output options and can be defined in
+
+    .. code-block: python
+
+        output_opts = {"ss": "00:01:30", "t": 30, "an": ffmpegio.FLAG, "c:v": :copy"}
+
+"""
+
 
 class FFmpegArgs(TypedDict):
     """FFmpeg arguments"""
@@ -38,46 +59,81 @@ class FFmpegArgs(TypedDict):
     """FFmpeg global options"""
 
 
-DTypeString = LiteralString
+# typedef above
+RawDataBlob: TypeAlias = Any
+"""Python object representing media data frame.
+
+    A :py:type:`RawDataBlob` must contain the shape and data format of the media data as well as the binary data.
+    Any data frame format could be used if user provides a custom data I/O plugin for it. 
+    The table below lists the natively supported data object types (each enabled by one of built-in plugins):
+
+    =========================================================================================================== =========================================
+    Raw Data Blob Object Type                                                                                   Plugin                                   
+    =========================================================================================================== =========================================
+    :py:class:`ffmpegio.typing.BytesRawDataBlob`                                                                :py:mod:`ffmpegio.plugins.rawdata_bytes`
+    :py:type:`numpy.typing.ArrayLike`                                                                           :py:mod:`ffmpegio.plugins.rawdata_numpy`
+    :py:class:`matplotlib.figure.Figure`                                                                        :py:mod:`ffmpegio.plugins.rawdata_mpl`
+    :py:class:`PIL.Image.Image` | :py:class:`PIL.ImageSequence.Iterator` | :py:type:`Sequence[PIL.Image.Image]` :py:mod:`ffmpegio.plugins.rawdata_pillow`
+    =========================================================================================================== =========================================
+"""
+
+DTypeString: TypeAlias = LiteralString
 """Numpy array interface protocol typestr string
 
-The string format consists of 3 parts: a character describing the byteorder of the data 
-(`'<'`: little-endian, `'>'`: big-endian, `'|'`: not-relevant), a character code giving 
-the basic type of the array, and an integer providing the number of bytes the type uses.
+    The string format consists of 3 parts: a character describing the byteorder of the data 
+    (:code:`'<'`: little-endian, :code:`'>'`: big-endian, :code:`'|'`: not-relevant), a character code giving 
+    the basic type of the array, and an integer providing the number of bytes the type uses.
 
-Three basic type character codes are relevant to `ffmpegio` package:
+    Three basic type character codes are relevant to :code:`ffmpegio` package:
 
-===== ================
-code  description
-===== ================
-`'i'` Integer
-`'u'` Unsigned integer
-`'f'` Floating point
-===== ================
-
-See https://numpy.org/doc/stable/reference/arrays.interface.html for Numpy's
-official documentation.
+    =========== ================
+    code        description
+    =========== ================
+    :code:`'i'` Integer
+    :code:`'u'` Unsigned integer
+    :code:`'f'` Floating point
+    =========== ================
+    
+    See https://numpy.org/doc/stable/reference/arrays.interface.html for Numpy's
+    official documentation.
 """
 
-ShapeTuple = tuple[int, ...]
-"""Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int)."""
+ShapeTuple: TypeAlias = tuple[int, ...]
+"""Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int).
 
-
-RawStreamDef = tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
-"""2-element tuple to define a raw stream data
-
-    It comes in two forms: rate-data or data-option. The rate-data form specifies
-    a pair of the frame rate (video) or sampling rate (audio) and the data blob.
-    The data-option form specifies the data blob and its FFmpeg options. Note 
-    that a data-option tuple is only valid if its option dict contains the rate
-    field: `r` for video or `ar` for audio.
-
+A video frame typically has 2 to 4 entries: :code:`([time, ]height, width[, color])`. 
+An audio frame has either 1 or 2 entries: :code:`(time[, channel])`. 
 """
 
-RawStreamInfoTuple = tuple[DTypeString, ShapeTuple, int | Fraction]
+FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
+"""FFmpeg media stream types
+
+    ===================== ==================
+    value                 description
+    ===================== ==================
+    :code:`'video'`       video stream
+    :code:`'audio'`       audio stream
+    :code:`'subtitle'`    subtitle stream
+    :code:`'data'`        data stream
+    :code:`'attachments'` attachments stream
+    ===================== ==================
+"""
+
+MediaType: TypeAlias = Literal["audio", "video"]
+"""A subset of :py:type:`FFmpegMediaType` which is supported by :code:`ffmpegio`
+
+    =============== ============
+    value           description
+    =============== ============
+    :code:`'video'` video stream
+    :code:`'audio'` audio stream
+    =============== ============
+"""
+
+RawStreamInfoTuple: TypeAlias = tuple[DTypeString, ShapeTuple, int | Fraction]
 """3-element tuple (dtype, shape, rate) to characterize raw data stream"""
 
-ProgressCallable = Callable[[dict[str, Any], bool], bool]
+ProgressCallable: TypeAlias = Callable[[dict[str, Any], bool], bool]
 """FFmpeg progress callback function
 
     callback(status, done)
@@ -88,36 +144,17 @@ ProgressCallable = Callable[[dict[str, Any], bool], bool]
     The callback may return True to cancel the FFmpeg execution.
 """
 
-MediaType = Literal["audio", "video"]
-"""supported media stream types
+CancelActionCallable: TypeAlias = Callable[[], None]
+"""Callback function to be executed when FFmpeg terminated by user via :py:type:`ProgressCallable`
 
-=============== ================================================================
-value           description
-=============== ================================================================
-`'video'`       video stream
-`'audio'`       audio stream
-=============== ================================================================
+    This callback type takes no input and produces no output.
 """
 
-FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
-"""FFmpeg media stream types
-
-=============== ================================================================
-value           description
-=============== ================================================================
-`'video'`       video stream
-`'audio'`       audio stream
-`'subtitle'`    subtitle stream
-`'data'`        data stream
-`'attachments'` attachments stream
-=============== ================================================================
-"""
-
-FFmpegUrlType = str
+FFmpegUrlString: TypeAlias = Any
 """input and output file/stream urls (str or a stringifiable object)
 """
 
-FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
+FFmpegInputType: TypeAlias = Literal["url", "filtergraph", "buffer", "fileobj"]
 """mechanisms to feed encoded input data to FFmpeg input pipe
 
 =============== ================================================================
@@ -130,7 +167,7 @@ value           description
 =============== ================================================================
 """
 
-FFmpegOutputType = Literal["url", "fileobj", "buffer"]
+FFmpegOutputType: TypeAlias = Literal["url", "fileobj", "buffer"]
 """mechanisms to extract encoded output data from FFmpeg output pipe
 
 =============== ============================================================================
@@ -141,6 +178,7 @@ value           description
 `'fileobj'`     open readable file object
 =============== ============================================================================
 """
+
 
 ##################
 # Plugin protocols
@@ -219,6 +257,8 @@ class IsEmptyCallable(Protocol):
     def __call__(self, *, obj: object) -> bool: ...
 
 
+UrlType = Literal["input", "output"]
+
 ######
 
 
@@ -271,17 +311,23 @@ class PipedEncodedInputInfoDict(TypedDict):
     """piped encoded input source info"""
 
     src_type: Literal["buffer"]
-    buffer: NotRequired[bytes]  # index of the source index
+    '''source type, must be "buffer"'''
+
+    buffer: NotRequired[bytes]
+    """buffer data"""
 
 
 class FileObjEncodedInputInfoDict(TypedDict):
     """fileobj encoded input info"""
 
     src_type: Literal["fileobj"]
-    fileobj: IO  # file object
+    """source type, must be "fileobj"""
+
+    fileobj: IO
+    """input file stream object"""
 
 
-EncodedInputInfoDict = (
+EncodedInputInfoDict: TypeAlias = (
     UrlEncodedInputInfoDict | PipedEncodedInputInfoDict | FileObjEncodedInputInfoDict
 )
 """encoded input container stream information
@@ -295,7 +341,7 @@ key             description
 =============== ================================================================
 """
 
-InputInfoDict = RawInputInfoDict | EncodedInputInfoDict
+InputInfoDict: TypeAlias = RawInputInfoDict | EncodedInputInfoDict
 
 
 class PipeWriter(Protocol):
@@ -393,7 +439,7 @@ class RawFilteredOutputInfoDict(TypedDict):
     linklabel: str
 
 
-RawOutputInfoDict = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
+RawOutputInfoDict: TypeAlias = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
 """raw output media stream info
 
 =================== ================================================================
@@ -428,7 +474,9 @@ class FileObjEncodedOutputInfoDict(TypedDict):
     fileobj: IO  # file object
 
 
-EncodedOutputInfoDict = UrlOrPipedEncodedOutputInfoDict | FileObjEncodedOutputInfoDict
+EncodedOutputInfoDict: TypeAlias = (
+    UrlOrPipedEncodedOutputInfoDict | FileObjEncodedOutputInfoDict
+)
 """encoded output container stream information
 
 =============== ================================================================
@@ -445,7 +493,7 @@ key             description
 """
 
 
-OutputInfoDict = RawOutputInfoDict | EncodedOutputInfoDict
+OutputInfoDict: TypeAlias = RawOutputInfoDict | EncodedOutputInfoDict
 """combined output info"""
 
 
@@ -481,4 +529,4 @@ class VideoFilterGraphInfoDict(TypedDict):
     pix_fmt: str
 
 
-FilterGraphInfoDict = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict
+FilterGraphInfoDict: TypeAlias = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict

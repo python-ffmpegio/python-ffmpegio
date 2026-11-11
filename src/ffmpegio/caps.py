@@ -9,7 +9,7 @@ import subprocess as sp
 from collections import namedtuple
 from fractions import Fraction
 from functools import cache, partial
-from typing import Callable, Literal, TypeVar
+from typing import Callable, Literal, LiteralString, TypeVar
 
 from .errors import FFmpegError, FFmpegioError
 from .path import ffmpeg as _ffmpeg
@@ -520,7 +520,7 @@ def muxers(
     :param include_devices: True to include input devices, defaults to False
     :param return_names_only: True to return only the list of muxers, defaults to False
     :return: a dict of muxers and their basic properties or a list of muxers if
-             ``return_names_only==True``
+             :code:`return_names_only==True`
 
 
     Each key of the returned dict is a name of a muxer and its value is a dict
@@ -543,7 +543,7 @@ def demuxers(
     :param include_devices: True to include input devices, defaults to False
     :param return_names_only: True to return only the list of demuxers, defaults to False
     :return: a dict of demuxers and their basic properties or a list of demuxers if
-             ``return_names_only==True``
+             :code:`return_names_only==True`
 
 
     Each key of the returned dict is a name of a demuxer and its value is a dict
@@ -1276,6 +1276,8 @@ def dispositions()->list[str]:
 
     return stdout.splitlines(keepends=False)
 
+
+video_size_presets: dict[LiteralString, tuple[int, int]] = {
     "ntsc": (720, 480),
     "pal": (720, 576),
     "qntsc": (352, 240),
@@ -1330,9 +1332,9 @@ def dispositions()->list[str]:
     "uhd2160": (3840, 2160),
     "uhd4320": (7680, 4320),
 }
+"""list of video size presets with their sizes"""
 
-#:dict: list of video frame rate presets with their rates
-frame_rate_presets = {
+frame_rate_presets: dict[LiteralString, fractions.Fraction] = {
     "ntsc": fractions.Fraction(30000, 1001),
     "pal": fractions.Fraction(25, 1),
     "qntsc": fractions.Fraction(30000, 1001),
@@ -1342,3 +1344,4 @@ frame_rate_presets = {
     "film": fractions.Fraction(24, 1),
     "ntsc-film": fractions.Fraction(24000, 1001),
 }
+"""list of video frame rate presets with their rates"""

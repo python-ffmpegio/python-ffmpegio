@@ -3,7 +3,14 @@ from fractions import Fraction
 
 from . import configure, utils
 from . import filtergraph as fgb
-from ._typing import Any, DTypeString, ProgressCallable, RawDataBlob, ShapeTuple
+from ._typing import (
+    Any,
+    DTypeString,
+    Optional,
+    ProgressCallable,
+    RawDataBlob,
+    ShapeTuple,
+)
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
@@ -11,11 +18,12 @@ from .configure import (
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegOutputUrlNoPipe,
+    FFmpegOutputOptionTuple,
 )
 from .errors import FFmpegioError
 from .std_runners import run_and_return_encoded, run_and_return_raw
 
-__all__ = ["create", "read", "write", "filter", "detect"]
+__all__ = ["create", "read", "write", "filter"]
 
 logger = logging.getLogger("ffmpegio")
 
@@ -25,7 +33,7 @@ def create(
     *args,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     **options,
 ) -> RawDataBlob:
     """Create an image using a source video filter
@@ -35,6 +43,7 @@ def create(
                     a single-filter expr, and they will overwrite the
                     options set by expr.
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
@@ -48,11 +57,20 @@ def create(
                         option names (see :doc:`options`), and '_out' for
                         output option names if they conflict with the filter
                         options.
-    :return data: video data object specified by selected `bytes_to_video` plugin hook.
-                  The output shape is 3D (row x column x comp) if colored/transparent.
-                  or 2D (row x column) if it is a grayscale image.
+    :type options: FFmpegOptionDict
+    :return data: one-frame video data object. Its data type depends on the selected
+        plugin module (e.g., a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>`
+        by default or a :py:class:`numpy.ndarray` if :py:mod:`numpy` has been installed.
 
-    .. seealso:: 
+        The output is either a 2D or 3D array, and its shape is
+        :code:`(frames, rows, columns[, components])`. If the pixel format only has one color
+        component (e.g.., grayscale) 2D array is returned.
+
+        The data type of pixel values depends on FFmpeg's output :code:`pix_fmt`
+        option. See :ref:`pix_fmt_opts`.
+    :rtype: RawDataBlob
+
+    .. seealso::
         See https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for
         available video source filters
 
@@ -81,16 +99,18 @@ def read(
     ) = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     **options,
 ) -> RawDataBlob:
     """Read an image file or a snapshot of a video frame
 
     :param url: URL of the image or video file to read.
+    :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param extra_outputs: list of additional encoded output sources, defaults to
                           None. Each destination may be a url string or a pair of
                           a url string and an option dict.
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
@@ -98,11 +118,20 @@ def read(
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :return data: video data object specified by selected `bytes_to_video` plugin hook.
-                  The output shape is 3D (row x column x comp) if colored/transparent.
-                  or 2D (row x column) if it is a grayscale image.
+    :type options: FFmpegOptionDict
+    :return data: one-frame video data object. Its data type depends on the selected
+        plugin module (e.g., a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>`
+        by default or a :py:class:`numpy.ndarray` if :py:mod:`numpy` has been installed.
 
-    Note on :code:``options`` To specify the video frame capture time, use `time`
+        The output is either a 2D or 3D array, and its shape is
+        :code:`(frames, rows, columns[, components])`. If the pixel format only has one color
+        component (e.g.., grayscale) 2D array is returned.
+
+        The data type of pixel values depends on FFmpeg's output :code:`pix_fmt`
+        option. See :ref:`pix_fmt_opts`.
+    :rtype: RawDataBlob
+
+    Note on :code::code:`options` To specify the video frame capture time, use `time`
     option which is an alias of `start` standard option.
     """
 
@@ -154,23 +183,30 @@ def write(
     progress: ProgressCallable | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     **options,
 ) -> bytes | None:
-    """Write a NumPy array to an image file.
+    """Write image data to a file.
 
     :param url: URL of the image file to write.
     :param data: image data, accessed by `video_info()` and `video_bytes()` plugin hooks
+    :type data: RawDataBlob
+    :param extra_inputs: list of additional input sources, defaults to None.
+        Each source may be url string or a pair of a url string and an option dict.
+    :param dtype: output data type, defaults to None (auto-detect)
+    :type dtype: DTypeString | None
+    :param shape: output data shape, defaults to None (auto-detect)
+    :type shape: ShapeTuple | None
+    :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to None
-                      (auto-select)
+        (auto-select)
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+        defaults to None (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                         string or a pair of a url string and an option dict.
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :type options: FFmpegOptionDict
     """
 
     # if filter_complex is not defined use '0:V:0' as default mapping
@@ -219,23 +255,33 @@ def filter(
     ) = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     **options,
-) -> tuple[Fraction | int, RawDataBlob]:
+) -> RawDataBlob:
     """Filter image pixels.
 
     :param expr: SISO filter graph or None if implicit filtering via output options.
     :param input: input image data, accessed by `video_info` and `video_bytes` plugin hooks
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :return data: video data object specified by selected `bytes_to_video` plugin hook.
-                  The output shape is 3D (row x column x comp) if colored/transparent.
-                  or 2D (row x column) if it is a grayscale image.
+    :type options: FFmpegOptionDict
+    :return data: one-frame video data object. Its data type depends on the selected
+        plugin module (e.g., a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>`
+        by default or a :py:class:`numpy.ndarray` if :py:mod:`numpy` has been installed.
+
+        The output is either a 2D or 3D array, and its shape is
+        :code:`(frames, rows, columns[, components])`. If the pixel format only has one color
+        component (e.g.., grayscale) 2D array is returned.
+
+        The data type of pixel values depends on FFmpeg's output :code:`pix_fmt`
+        option. See :ref:`pix_fmt_opts`.
+    :rtype: RawDataBlob
 
     """
 

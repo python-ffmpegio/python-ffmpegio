@@ -13,8 +13,8 @@ def finder() -> tuple[str, str] | None:
 
     :return: a tuple containing
 
-        - (:py:type:`str`) ffmpeg executable path
-        - (:py:type:`str`) ffprobe executable path
+        - (str) ffmpeg executable path
+        - (str) ffprobe executable path
 
         or None if the plugin could not resolve these paths
     :rtype: tuple | None
@@ -46,7 +46,7 @@ def audio_info(obj: RawDataBlob) -> tuple[ShapeTuple, DTypeString] | None:
     :type obj: RawDataBlob
     :return: a tuple containing
 
-        - (:py:type:`int`) number of channels in obj
+        - (int) number of channels in obj
         - (:py:type:`DTypeString <ffmpegio.typing.DTypeString>`) data type in numpy dtype str expression
 
         or None if plugin does not support the given obj data
@@ -56,7 +56,7 @@ def audio_info(obj: RawDataBlob) -> tuple[ShapeTuple, DTypeString] | None:
 
 @hookspec(firstresult=True)
 def video_bytes(obj: RawDataBlob) -> memoryview:
-    """return bytes-like object of packed video pixels, associated with :py:func:`video_info()`
+    """return bytes-like object of packed video pixels, associated with :py:func:`video_info() <ffmpegio.plugins.hookspecs.video_info()>`
 
     :param obj: object containing video frame data with arbitrary number of frames
     :type obj: RawDataBlob
@@ -126,7 +126,7 @@ def bytes_to_audio(
     :param squeeze: True to remove all the singular dimensions
     :return: python object to hold the raw audio samples
     :rtype: RawDataBlob
-    
+
     """
 
 

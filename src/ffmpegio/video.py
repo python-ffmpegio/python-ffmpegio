@@ -49,6 +49,7 @@ def create(
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
@@ -62,13 +63,27 @@ def create(
                         option names (see :doc:`options`), and '_out' for
                         output option names if they conflict with the filter
                         options.
-    :return rate: frame rate in frames/second
-    :return data: video data object specified by selected `bytes_to_video` plugin hook.
-                  The output shape is 4D (time x row x column x comp).
-                  (since v0.12.0) With `squeeze=True` the shape dimensions with
-                  length 1 are removed.
+    :type options: FFmpegOptionDict
+    :return: a tuple containing
 
-    .. seealso:: 
+        - (:py:class:`Fraction <fractions.Fraction>` | int) frame rate in frames/second
+        - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) video data object. Its 
+          data type depends on the selected plugin module (e.g., a :py:class:`BytesRawDataBlob  
+          <ffmpegio.typing.BytesRawDataBlob>` by default or a :py:class:`numpy.ndarray` 
+          if :py:mod:`numpy` has been installed. 
+            
+          With :code:`squeeze=False`, the output is always 4D, 
+          and its shape is :code:`(frames, rows, columns, components)`. 
+          By default (i.e., :code:`squeeze=False`), the output may have 2, 3, or 4 
+          dimensions as :code:`frames` or :code:`components` dimensions would be dropped
+          if the size is :code:`1`.
+
+          The data type of each pixel value depends on FFmpeg's output :code:`pix_fmt` 
+          option. See :ref:`pix_fmt_opts`.
+            
+    :rtype: tuple[int, RawDataBlob]
+
+    .. seealso::
       https://ffmpeg.org/ffmpeg-filters.html#Video-Sources for available
       video source filters
 
@@ -123,6 +138,7 @@ def read(
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
                      Ignored if stream format must be retrieved automatically.
@@ -130,8 +146,25 @@ def read(
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :type options: FFmpegOptionDict
+    :return: a tuple containing
 
-    :return: frame rate and video frame data, created by `bytes_to_video` plugin hook
+        - (:py:class:`Fraction <fractions.Fraction>` | int) frame rate in frames/second
+        - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) video data object. Its 
+          data type depends on the selected plugin module (e.g., a :py:class:`BytesRawDataBlob  
+          <ffmpegio.typing.BytesRawDataBlob>` by default or a :py:class:`numpy.ndarray` 
+          if :py:mod:`numpy` has been installed. 
+            
+          With :code:`squeeze=False`, the output is always 4D, 
+          and its shape is :code:`(frames, rows, columns, components)`. 
+          By default (i.e., :code:`squeeze=False`), the output may have 2, 3, or 4 
+          dimensions as :code:`frames` or :code:`components` dimensions would be dropped
+          if the size is :code:`1`.
+
+          The data type of each pixel value depends on FFmpeg's output :code:`pix_fmt` 
+          option. See :ref:`pix_fmt_opts`.
+            
+    :rtype: tuple[int, RawDataBlob]
     """
 
     # use user-specified map or default '0:a:0' map
@@ -186,25 +219,33 @@ def write(
     sp_kwargs: dict[str, Any] | None = None,
     **options,
 ) -> bytes | None:
-    """Write raw video data blob
+    """Write raw video data to a file
 
     :param url: URL of the video file to write.
     :param rate_in: frame rate in frames/second
     :param data: video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
+    :param extra_inputs: _description_, defaults to None
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+        string or a pair of a url string and an option dict.
+    :param dtype: output data type, defaults to None (auto-detect)
+    :type dtype: DTypeString | None
+    :param shape: output data shape, defaults to None (auto-detect)
+    :type shape: ShapeTuple | None
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to None
-                      (auto-select)
+        (auto-select)
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+        defaults to None (no show/capture)
     :param two_pass: True to encode in 2-pass
     :param pass1_omits: list of output arguments to ignore in pass 1, defaults to None
     :param pass1_extras: list of additional output arguments to include in pass 1, defaults to None
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                         string or a pair of a url string and an option dict.
+    :type pass1_extras: list[FFmpegOptionDict] | None
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :type options: FFmpegOptionDict
     """
 
     # if filter_complex is not defined use '0:V:0' as default mapping
@@ -265,13 +306,32 @@ def filter(
     :param rate: input frame rate in frames/second
     :param input: input video frame data blob, accessed by `video_info` and `video_bytes` plugin hooks
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
-    :return: output frame rate and video frame data, created by `bytes_to_video` plugin hook
+    :type options: FFmpegOptionDict
+    :return: a tuple containing
+
+        - (:py:class:`Fraction <fractions.Fraction>` | int) frame rate in frames/second
+        - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) video data object. Its 
+          data type depends on the selected plugin module (e.g., a :py:class:`BytesRawDataBlob  
+          <ffmpegio.typing.BytesRawDataBlob>` by default or a :py:class:`numpy.ndarray` 
+          if :py:mod:`numpy` has been installed. 
+            
+          With :code:`squeeze=False`, the output is always 4D, 
+          and its shape is :code:`(frames, rows, columns, components)`. 
+          By default (i.e., :code:`squeeze=False`), the output may have 2, 3, or 4 
+          dimensions as :code:`frames` or :code:`components` dimensions would be dropped
+          if the size is :code:`1`.
+
+          The data type of each pixel value depends on FFmpeg's output :code:`pix_fmt` 
+          option. See :ref:`pix_fmt_opts`.
+            
+    :rtype: tuple[int, RawDataBlob]
 
     """
 
@@ -337,6 +397,7 @@ def detect(
     :param start_at_zero: ignore start time, defaults to False
     :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to None (no show/capture)
     :param scene_all_scores: (only for 'scene' feature) True to return scores for all frames, defaults to False
@@ -345,6 +406,7 @@ def detect(
         options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.
         Any other arguments are treated as a common option to all FFmpeg filters. For the available options
         for each filter, follow the link on the feature table above to the FFmpeg documentation.
+    :type options: FFmpegOptionDict
     :return: detection outcomes. A namedtuple is returned for each feature in the order specified.
         All namedtuple fields contain a list with the element specified as below:
 
@@ -363,7 +425,7 @@ def detect(
            * -
              - 'change'
              - bool
-             - True if scene change detected (only present if ``scene_all_scores=True``)
+             - True if scene change detected (only present if :code:`scene_all_scores=True`)
            * -
              - 'score'
              - 'float'

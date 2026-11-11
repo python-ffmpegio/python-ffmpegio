@@ -43,7 +43,7 @@ Main Features
 Installation
 ------------
 
-Install the full `ffmpegio` package via ``pip``:
+Install the full `ffmpegio` package via :code:`pip`:
 
 .. code-block:: bash
 

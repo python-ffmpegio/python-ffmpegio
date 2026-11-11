@@ -1,11 +1,16 @@
+.. :py:module:: ffmpegio.caps
+   
 .. _caps:
 
-FFmpeg Capabilities References
-==============================
+FFmpeg Capabilities (:code:`ffmpegio.caps`)
+===========================================
 
-:py:mod:`ffmpegio.caps` module contains a set of functions to wrap ffmpeg's 
+Overview
+--------
+
+:code:`ffmpegio.caps` module contains a set of functions to wrap ffmpeg's 
 help/show commands to check the capabilities of the ffmpeg executable that 
-the :py:mod:`ffmpegio` is employing.
+the :code:`ffmpegio` is employing.
 
 .. todo::
 
@@ -42,6 +47,7 @@ List of Functions
    ffmpegio.caps.bsfilter_info
    ffmpegio.caps.devices
    ffmpegio.caps.protocols
+   ffmpegio.caps.dispositions
 
 .. todo::
 
@@ -51,12 +57,12 @@ List of Functions
 List of Constants
 -----------------   
 
-.. autosummary::
-   :nosignatures:
-   :recursive:
+.. .. autosummary::
+..    :nosignatures:
+..    :recursive:
 
-   ffmpegio.caps.video_size_presets
-   ffmpegio.caps.frame_rate_presets
+.. autodata:: ffmpegio.caps.video_size_presets
+.. autodata:: ffmpegio.caps.frame_rate_presets
 
 Function References
 -------------------

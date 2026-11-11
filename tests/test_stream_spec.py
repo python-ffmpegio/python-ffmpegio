@@ -22,6 +22,7 @@ import pytest
         ("t:m:key", {"stream_type": "t", "tag": "key"}),
         ("m:key:value", {"tag": ("key", "value")}),
         ("u", {"usable": True}),
+        ("disp:default+dub", {"dispositions": ["default", "dub"]}),
     ],
 )
 def test_parse_stream_spec(arg, ret):
@@ -41,6 +42,7 @@ def test_stream_spec():
         utils.stream_spec(tag=("creation_time", "2018-05-26T19:36:24.000000Z"))
         == "m:creation_time:2018-05-26T19:36:24.000000Z"
     )
+    assert utils.stream_spec(dispositions=["default", "dub"]) == "disp:default+dub"
     assert utils.stream_spec(usable=True) == "u"
 
     # test cases:

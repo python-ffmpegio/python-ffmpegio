@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
-__all__ = ["get_hook", "initialize"]
+__all__ = ["get_hook", "hookspecs", "initialize"]
 
 pm = pluggy.PluginManager("ffmpegio")
 pm.add_hookspecs(hookspecs)
@@ -62,7 +62,7 @@ def unregister(name: str) -> Any | None:
 
     If the plugin is already registered, raises a ValueError.
     """
-    return pm.unregister(name)
+    return pm.unregister(name=name)
 
 
 def list_plugins() -> list[str]:
@@ -81,9 +81,9 @@ def use(name: Literal["read_numpy", "read_bytes", "read_pillow"] | str):
             all the writers to the default. Numpy must be
             installed for this plugin to be activated.
         - :code:`"read_bytes"` - All the media readers to output a dict with keys:
-            :code:`"buffer"` (:py:type:`bytes`) of the retrieved data,
-            :code:`"dtype"` (:py:type:`str`) Numpy dtype string of :code:`"buffer"`,
-            and :code:`"shape"` (:py:type:`tuple` of :py:type:`int` s) the data array shape
+            :code:`"buffer"` (:code:`bytes`) of the retrieved data,
+            :code:`"dtype"` (:code:`str`) Numpy dtype string of :code:`"buffer"`,
+            and :code:`"shape"` (:code:`tuple` of :code:`int` s) the data array shape
             of :code:`"buffer"`
         - :code:`"read_pillow"` - All the video/image readers to output Pillow Image
             or a list of Pillow Images if the matching pixel format is found.
@@ -93,8 +93,8 @@ def use(name: Literal["read_numpy", "read_bytes", "read_pillow"] | str):
         :code:`"plugin://my.plugin.name"`.
 
     The reader plugins are checked in the reverse registration order. So, :py:func:`use()`
-    maybe called twice to set the backup conversions. For example: 
-    
+    maybe called twice to set the backup conversions. For example:
+
     .. code-block:: Python
 
       use('read_numpy')

@@ -3,64 +3,58 @@
 from __future__ import annotations
 
 import logging
+import re
 from abc import ABC
 from collections import namedtuple
-
-logger = logging.getLogger("ffmpegio")
-
-import re
 from json import loads
 
 from . import configure
 from . import ffmpegprocess as fp
-from ._typing import Any, List, Literal, ProgressCallable, Sequence, NamedTuple
+from ._typing import (
+    Any,
+    FFmpegOptionDict,
+    Literal,
+    NamedTuple,
+    ProgressCallable,
+    Sequence,
+)
 from .errors import FFmpegError
 from .filtergraph import Chain, Filter, Graph, as_filtergraph
 from .filtergraph.utils import compose_filter
 from .path import devnull
 
+logger = logging.getLogger("ffmpegio")
 
 def loudnorm(
-    url,
-    i=None,
-    lra=None,
-    tp=None,
-    offset=None,
-    linear=None,
-    dual_mono=None,
-    af=None,
-    progress=None,
-    overwrite=None,
-    return_stats=False,
-    **options,
-):
+    url: str,
+    i: float | None = None,
+    lra: float | None = None,
+    tp: float | None = None,
+    offset: float | None = None,
+    linear: bool | None = None,
+    dual_mono: bool | None = None,
+    af: str | None = None,
+    progress: ProgressCallable | None = None,
+    overwrite: bool | None = None,
+    return_stats: bool | None = False,
+    **options: FFmpegOptionDict | None,
+) -> str | dict:
     """run analysis (first pass) of EBU R128 loudness normalization
 
     :param url: input url
-    :type url: str
     :param i: integrated loudness target, defaults to None
-    :type i: float, optional
     :param lra: loudness range target, defaults to None
-    :type lra: float, optional
     :param tp: maximum true peak, defaults to None
-    :type tp: float, optional
     :param offset: offset gain, defaults to None
-    :type offset: float, optional
     :param linear: True to normalize by linearly scaling the source audio, False to normalize dynamically, defaults to None
-    :type linear: bool, optional
     :param dual_mono: True to treat mono input files as "dual-mono", defaults to None
-    :type dual_mono: bool, optional
     :param af: preceding filter chain, defaults to None
-    :type af: str, optional
     :param progress: progress callback function, defaults to None
-    :type progress: callable object, optional
+    :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
-    :type overwrite: bool, optional
     :param return_stats: True to return stats instead of loudnorm options, defaults to False
-    :type return_stats: bool, optional
     :return: second pass loudnorm filter spec str or analysis stats
-    :rtype: str or dict
     """
 
     loudnorm_opts = {
@@ -117,7 +111,7 @@ def loudnorm(
 
 
 class MetadataLogger(ABC):
-    """Abstract class for :py:func:`analyze.run` frame metadata loggers"""
+    """Abstract class for :py:func:`run()` frame metadata loggers"""
 
     media_type: Literal["video", "audio"]  #: (static) target stream media type
     meta_names: tuple[str]  #: (static) metadata names to be logged
@@ -146,13 +140,12 @@ class MetadataLogger(ABC):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
         """
-        ...
 
 
 def run(
@@ -164,7 +157,7 @@ def run(
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
     **input_options,
-) -> tuple[MetadataLogger]:
+) -> tuple[MetadataLogger, ...]:
     """analyze media streams' frames with FFmpeg filters
 
     :param url: video file url
@@ -172,14 +165,15 @@ def run(
     :param references: reference input urls or pairs of url and input option
         dict, defaults to None
     :param ss: start time to process, defaults to None
-    :type ss: int, float, str, optional
+    :type ss: int, float, str
     :param t: duration of data to process, defaults to None
-    :type t: int, float, str, optional
+    :type t: int, float, str
     :param to: stop processing at this time (ignored if t is also specified), defaults to None
-    :type to: int, float, str, optional
+    :type to: int, float, str
     :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
     :param start_at_zero: ignore start time, defaults to False
     :param progress: progress callback function, defaults to None
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
         defaults to None (no show/capture)
     :param options: FFmpeg (primary) input options.
@@ -196,10 +190,10 @@ def run(
 
     try:
         tunits = ("frames", "pts", "seconds").index(time_units) + 1 if time_units else 3
-    except:
+    except Exception as e:
         raise ValueError(
             f'time_units "{time_units}" is invalid. Must be one of ("frames", "pts", "seconds")'
-        )
+        ) from e
 
     fchains = {"video": Chain([]), "audio": Chain([])}
     for l in loggers:
@@ -303,8 +297,8 @@ class ScDet(MetadataLogger):
     :param all_scores: True to return scene scores on all the frames, defaults to False
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``scdet`` filter options
-    -------------------------------
+    FFmpeg :code:`scdet` filter options
+    -----------------------------------
 
     =========  =====  ===============
     name       type   description
@@ -320,14 +314,12 @@ class ScDet(MetadataLogger):
 
     """
 
-
     class Scenes(NamedTuple):
         """Default output namedtuple subclass"""
 
         time: tuple[float | int]  #: log times
         score: tuple[float]  #: scene change scores
         mafd: tuple[float]  #: mafd scores
-
 
     class AllScenes(NamedTuple):
         """Output namedtuple subclass fzor all_scores=True"""
@@ -337,12 +329,14 @@ class ScDet(MetadataLogger):
         score: tuple[float]  #: scene change scores
         mafd: tuple[float]  #: mafd scores
 
-    #: (static) target stream media type
-    media_type = "video"
-    #: (static) metadata names to be logged
-    meta_names = ("scd",)
-    #: (static) name of the FFmpeg filter to use
-    filter_name = "scdet"
+    media_type: MediaType = "video"
+    """(static) target stream media type"""
+
+    meta_names: tuple[str] = ("scd",)
+    """(static) metadata names to be logged"""
+
+    filter_name: str = "scdet"
+    """(static) name of the FFmpeg filter to use"""
 
     def __init__(self, all_scores=False, **options) -> None:
         self.all_scores = all_scores
@@ -358,8 +352,8 @@ class ScDet(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -398,8 +392,8 @@ class BlackDetect(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``blackdetect`` filter options
-    -------------------------------------
+    FFmpeg :code:`blackdetect` filter options
+    -----------------------------------------
 
     ======================  =====  ===============
     name                    type   description
@@ -413,20 +407,20 @@ class BlackDetect(MetadataLogger):
     # The following example sets the maximum pixel threshold to the minimum value, and detects only black intervals of 2 or more seconds:
     # blackdetect=d=2:pix_th=0.00
 
-
     class Black(NamedTuple):
         """output log namedtuple subclass"""
 
-        interval: List[
-            float | int | None, float | int | None
-        ]  #: pairs of start and end timestamps of black intervals
+        interval: list[float | int | None, float | int | None]
+        """pairs of start and end timestamps of black intervals"""
 
-    #: (static) target stream media type
     media_type = "video"
-    #: (static) metadata names to be logged
+    """(static) target stream media type"""
+
     meta_names = ("black_start", "black_end")
-    #: (static) name of the FFmpeg filter to use
+    """(static) metadata names to be logged"""
+
     filter_name = "blackdetect"
+    """(static) name of the FFmpeg filter to use"""
 
     def __init__(self, **options):
         self.options = options
@@ -438,8 +432,8 @@ class BlackDetect(MetadataLogger):
         :param t: timestamps in seconds, frames, or pts
         :param name: metadata key
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -462,8 +456,8 @@ class BlackFrame(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``blackframe`` filter options
-    ------------------------------------
+    FFmpeg :code:`blackframe` filter options
+    ----------------------------------------
 
     =========  ====  ===============
     name       type  description
@@ -474,18 +468,20 @@ class BlackFrame(MetadataLogger):
 
     """
 
-    #: (static) target stream media type
     media_type = "video"
-    #: (static) metadata names to be logged
+    """(static) target stream media type"""
+
     meta_names = "blackframe"
-    #: (static) name of the FFmpeg filter to use
+    """(static) metadata names to be logged"""
+
     filter_name = "blackframe"
+    """(static) name of the FFmpeg filter to use"""
 
     class BlackFrames(NamedTuple):
         """output log namedtuple subclass"""
 
-        time: List[float | int]  #: timestamps in seconds, frames, or pts
-        pblack: List[int]  #: percentage of black pixels
+        time: list[float | int]  #: timestamps in seconds, frames, or pts
+        pblack: list[int]  #: percentage of black pixels
 
     def __init__(self, **options):
         self.options = options
@@ -499,8 +495,8 @@ class BlackFrame(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -520,8 +516,8 @@ class FreezeDetect(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``freezedetect`` filter options
-    --------------------------------------
+    FFmpeg :code:`freezedetect` filter options
+    ------------------------------------------
 
     ========  ========  ===============
     name      type      description
@@ -531,18 +527,18 @@ class FreezeDetect(MetadataLogger):
     ========  ========  ===============
     """
 
-    #: (static) target stream media type
     media_type: Literal["video"] = "video"
     #: (static) metadata names to be logged
     meta_names: tuple[Literal["freeze"]] = ("freeze",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["freezedetect"] = "freezedetect"
+    """(static) name of the FFmpeg filter to use"""
 
     class Frozen(NamedTuple):
         """output log namedtuple subclass"""
 
-        #: pairs of start and end timestamps of frozen frame intervals
-        interval: List[float | int | None, float | int | None]
+        interval: list[float | int | None, float | int | None]
+        """pairs of start and end timestamps of frozen frame intervals"""
 
     def __init__(self, **options):
         self.options = options
@@ -556,8 +552,8 @@ class FreezeDetect(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -581,8 +577,8 @@ class BBox(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``bbox`` filter options
-    ------------------------------
+    FFmpeg :code:`bbox` filter options
+    ----------------------------------
 
     =======  ====  ===============
     name     type  description
@@ -592,18 +588,18 @@ class BBox(MetadataLogger):
     =======  ====  ===============
     """
 
-    #: (static) target stream media type
     media_type: Literal["video"] = "video"
     #: (static) metadata names to be logged
     meta_names: tuple[Literal["bbox"]] = ("bbox",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["bbox"] = "bbox"
+    """(static) name of the FFmpeg filter to use"""
 
     class BBox(NamedTuple):
         """output log namedtuple subclass"""
 
-        time: List[float | int]  #: timestamps in seconds, frames, or pts
-        position: List[List[int, int, int, int]]  #: bbox positions [x0,x1,w,h]
+        time: list[float | int]  #: timestamps in seconds, frames, or pts
+        position: list[list[int, int, int, int]]  #: bbox positions [x0,x1,w,h]
 
     pos_keys = {"y1": 1, "w": 2, "h": 3}
 
@@ -620,8 +616,8 @@ class BBox(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -647,8 +643,8 @@ class BlurDetect(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``blurdetect`` filter options
-    ------------------------------------
+    FFmpeg :code:`blurdetect` filter options
+    ----------------------------------------
 
     ============  =====  ===============
     name          type   description
@@ -663,18 +659,18 @@ class BlurDetect(MetadataLogger):
     ============  =====  ===============
     """
 
-    #: (static) target stream media type
     media_type: Literal["video"] = "video"
     #: (static) metadata names to be logged
     meta_names: tuple[Literal["blur"]] = ("blur",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["blurdetect"] = "blurdetect"
+    """(static) name of the FFmpeg filter to use"""
 
     class Blur(NamedTuple):
         """output log namedtuple subclass"""
 
-        time: List[float | int]  #: timestamps in seconds, frames, or pts
-        blur: List[float]  #: blurness score
+        time: list[float | int]  #: timestamps in seconds, frames, or pts
+        blur: list[float]  #: blurness score
 
     def __init__(self, **options):
         self.options = options
@@ -688,8 +684,8 @@ class BlurDetect(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -717,8 +713,8 @@ class PSNR(MetadataLogger):
     :param ref_stream_spec: stream specifier expression for the reference stream, defaults to '1:v'
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``psnr`` filter options
-    ------------------------------
+    FFmpeg :code:`psnr` filter options
+    ----------------------------------
 
     =============  =====  ===============
     name           type   description
@@ -735,22 +731,23 @@ class PSNR(MetadataLogger):
     =============  =====  ===============
     """
 
-    #: (static) target stream media type
     media_type: Literal["video"] = "video"
     #: (static) metadata names to be logged
     meta_names: tuple[Literal["psnr"]] = ("psnr",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["psnr"] = "psnr"
+    """(static) name of the FFmpeg filter to use"""
+
     re_key = re.compile(r"([^.]+)(?:\.(.))?")
 
     class PSNR(NamedTuple):
         """output log namedtuple subclass (template)"""
 
-        time: List[float | int]  #: timestamps in seconds, frames, or pts
-        mse: List[float]  #: blurness score
-        psnr: List[float]  #: blurness score
-        # mse.[c]: List[float] #: blurness score
-        # psnr.[c]: List[float] #: blurness score
+        time: list[float | int]  #: timestamps in seconds, frames, or pts
+        mse: list[float]  #: blurness score
+        psnr: list[float]  #: blurness score
+        # mse.[c]: list[float] #: blurness score
+        # psnr.[c]: list[float] #: blurness score
 
     def __init__(self, ref_stream_spec: str = "1:v", **options):
         self.options = options
@@ -773,8 +770,8 @@ class PSNR(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -826,8 +823,8 @@ class SilenceDetect(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``silencedetect`` filter options
-    ---------------------------------------
+    FFmpeg :code:`silencedetect` filter options
+    -------------------------------------------
 
     ========  ========  ===============
     name      type      description
@@ -849,10 +846,10 @@ class SilenceDetect(MetadataLogger):
     filter_name: Literal["silencedetect"] = "silencedetect"
 
     class Silent(NamedTuple):
-        """output log namedtuple subclass for ``mono=False`` (default)"""
+        """output log namedtuple subclass for :code:`mono=False` (default)"""
 
         #: pairs of start and end timestamps of frozen frame intervals
-        interval: List[float | int | None, float | int | None]
+        interval: list[float | int | None, float | int | None]
 
     def __init__(self, **options):
         self.options = options
@@ -867,8 +864,8 @@ class SilenceDetect(MetadataLogger):
         :param ch: audio channel key
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -894,11 +891,11 @@ class SilenceDetect(MetadataLogger):
     def output(self) -> Silent | NamedTuple:
         """log output
 
-        If the silentdetect filter is configured with ``mono=False`` (default), the returned log is
+        If the silentdetect filter is configured with :code:`mono=False` (default), the returned log is
         a :py:class:`SilenceDetect.Silent` object.
 
-        If ``mono=True``, the returned log is a dynamically formed namedtuple of the name **SilentPerCh**,
-        each of which field is named ``ch#`` (where ``#`` is an integer) and contains a list of the
+        If :code:`mono=True`, the returned log is a dynamically formed namedtuple of the name **SilentPerCh**,
+        each of which field is named :code:`ch#` (where :code:`#` is an integer) and contains a list of the
         silent intevals of the specified audio channel.
 
         """
@@ -916,8 +913,8 @@ class APhaseMeter(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``aphasemeter`` filter options
-    -------------------------------------
+    FFmpeg :code:`aphasemeter` filter options
+    -----------------------------------------
 
     =========  ========  ===============
     name       type      description
@@ -939,12 +936,17 @@ class APhaseMeter(MetadataLogger):
     class Phase(NamedTuple):
         """output log namedtuple subclass"""
 
-        time: List[float | int]  #: timestamps in seconds, frames, or pts
-        value: List[float]  #: detected phases
-        #: intervals in which stereo stream is in-phase
-        mono_interval: List[float | int | None, float | int | None]
-        #: intervals in which stereo stream is out-of-phase
-        out_phase_interval: List[float | int | None, float | int | None]
+        time: list[float | int]
+        """timestamps in seconds, frames, or pts"""
+
+        value: list[float]
+        """detected phases"""
+
+        mono_interval: list[float | int | None, float | int | None]
+        """intervals in which stereo stream is in-phase"""
+
+        out_phase_interval: list[float | int | None, float | int | None]
+        """intervals in which stereo stream is out-of-phase"""
 
     def __init__(self, **options):
         self.options = options
@@ -966,8 +968,8 @@ class APhaseMeter(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -999,8 +1001,8 @@ class AStats(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``astats`` filter options
-    --------------------------------
+    FFmpeg :code:`astats` filter options
+    ------------------------------------
 
     ==================  =====  ===============
     name                type   description
@@ -1015,8 +1017,8 @@ class AStats(MetadataLogger):
     Measurement parameters
     ----------------------
 
-    Following parameters can be used for ``measure_perchannel`` and ``measure_overall``. To specify
-    multiple parameters, combine them with ``+`` (plus) signs. E.g., "DC_offset+Min_level".
+    Following parameters can be used for :code:`measure_perchannel` and :code:`measure_overall`. To specify
+    multiple parameters, combine them with :code:`+` (plus) signs. E.g., "DC_offset+Min_level".
 
     - DC_offset
     - Min_level
@@ -1045,12 +1047,13 @@ class AStats(MetadataLogger):
     - Number_of_denormals
     """
 
-    #: (static) target stream media type
     media_type: Literal["audio"] = "audio"
     #: (static) metadata names to be logged
     meta_names: tuple[Literal["astats"]] = ("astats",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["astats"] = "astats"
+    """(static) name of the FFmpeg filter to use"""
+
     re_key = re.compile(r"(?:(\d+|Overall)\.)?([\s\S]+)")
 
     def __init__(self, **options):
@@ -1072,8 +1075,8 @@ class AStats(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -1123,10 +1126,10 @@ class AStats(MetadataLogger):
         """log output
 
         AStats' log output is a dynamically composed namedtuple. Every field
-        contains lists of statistics. Except for the :py:obj:`time` field, which is
-        a plain list, the fields are a :py:obj:`dict`, each of which item
-        keyed by the channel number in :py:obj:`int` (1, 2, ...) or literal
-        :py:obj:`"overall"` and contains a :py:obj:`list` of the statistics
+        contains lists of statistics. Except for the :code:`time` field, which is
+        a plain list, the fields are a :code:`dict`, each of which item
+        keyed by the channel number in :code:`int` (1, 2, ...) or literal
+        :code:`"overall"` and contains a :code:`list` of the statistics
         computed at each analysis window. The full list of possible fields
         for FFmpeg v5 and its individual stat datatype is shown below:
 
@@ -1174,8 +1177,8 @@ class ASpectralStats(MetadataLogger):
 
     :param options: FFmpeg filter options (see below)
 
-    FFmpeg ``aspectralstats`` filter options
-    ----------------------------------------
+    FFmpeg :code:`aspectralstats` filter options
+    --------------------------------------------
 
     ========  =======  ===============
     name      type     description
@@ -1185,10 +1188,10 @@ class ASpectralStats(MetadataLogger):
     overlap   float    set window overlap (from 0 to 1) (default 0.5)
     ========  =======  ===============
 
-    Supported ``win_func`` option values
-    ------------------------------------
+    Supported :code:`win_func` option values
+    ----------------------------------------
 
-    The ``win_func`` option can be set to any of the following window function by its name or
+    The :code:`win_func` option can be set to any of the following window function by its name or
     id:
 
     ========  ==  =====
@@ -1219,12 +1222,13 @@ class ASpectralStats(MetadataLogger):
 
     """
 
-    #: (static) target stream media type
     media_type: Literal["audio"] = "audio"
     #: (static) metadata names to be logged
     meta_names: tuple[Literal["aspectralstats"]] = ("aspectralstats",)
     #: (static) name of the FFmpeg filter to use
     filter_name: Literal["aspectralstats"] = "aspectralstats"
+    """(static) name of the FFmpeg filter to use"""
+
     re_key = re.compile(r"(?:(\d+)\.)?(.+)")
 
     def __init__(self, **options):
@@ -1241,8 +1245,8 @@ class ASpectralStats(MetadataLogger):
         :param key: secondary metadata key if found
         :param value: metadata value
 
-        This method is called by :py:func:`analyze.run` if a metadata line begins
-        with one of the class' ``meta_names`` entry. The `log` method shall store
+        This method is called by :py:func:`run()` if a metadata line begins
+        with one of the class' :code:`meta_names` entry. The `log` method shall store
         the metadata info in a private storage property of the class so they can be
         returned later by the `output` property.
 
@@ -1279,10 +1283,10 @@ class ASpectralStats(MetadataLogger):
         """log output
 
         ASpectalStats' log output is a dynamically composed namedtuple. Each
-        statistic is stored in its own named field as a :py:obj:`dict` of
-        per-channel :py:obj:`list` of measurements. The :py:obj:`dict` is
-        keyed by the audio channel ids (positive :py:obj:`int`).
-        One exception is the :py:obj:`time` field, which is a plain :py:obj:`list`
+        statistic is stored in its own named field as a :code:`dict` of
+        per-channel :code:`list` of measurements. The :code:`dict` is
+        keyed by the audio channel ids (positive :code:`int`).
+        One exception is the :code:`time` field, which is a plain :code:`list`
         of the starting timestamps of analysis windows.
 
         Here is the full list of possible fields for FFmpeg v5:
@@ -1309,5 +1313,6 @@ class ASpectralStats(MetadataLogger):
         Output = namedtuple("ASpectralStats", ["time", *self.stats.keys()])
         return Output(self.time, *self.stats.values())
 
-AudioLog = SilenceDetect|ASpectralStats
-VideoLog = BlackDetect.Black|ScDet.Scenes|ScDet.AllScenes
+
+AudioLog = SilenceDetect | ASpectralStats
+VideoLog = BlackDetect.Black | ScDet.Scenes | ScDet.AllScenes

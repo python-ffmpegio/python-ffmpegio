@@ -154,7 +154,7 @@ def parse_filter(
     """Parse FFmpeg filter expression
 
     :param expr: filter expression, escaped special characters once
-    :return name: filter name. If filter id is specified (i.e., ``'name@id'``)
+    :return name: filter name. If filter id is specified (i.e., :code:`'name@id'`)
         a tuple of the name and id are returned instead.
     :return args: positional arguments
     :return kwargs: keyword arguments
@@ -254,17 +254,17 @@ def parse_graph(
     """parse filter graph expression
 
     :param expr: twice-escaped filter graph string
-    :param parse_filters: ``True`` (default) to convert individual filter
-        expressions to ``FilterSpecTuple``. ``False`` to keep the filter
+    :param parse_filters: :code:`True` (default) to convert individual filter
+        expressions to :code:`FilterSpecTuple`. :code:`False` to keep the filter
         expressions as (escaped) strings.
-    :return filter_specs: list of lists of filters. If ``parse_filters=True``,
+    :return filter_specs: list of lists of filters. If :code:`parse_filters=True`,
         filters are parsed to a tuple of name (or a tuple of name and id),
         a tuple of positional options, and a dict of keyword options. If
-        ``parsed_filters=False``, escaped filter expressions are returned.
+        :code:`parsed_filters=False`, escaped filter expressions are returned.
     :return link_specs: a mapping of link labels and pairs of output and input
         pads.
-    :return sws_flags: optional ``flags`` option for automatically inserted
-        scale filters (FFmpeg defaults to ``'bicubic'``).
+    :return sws_flags: optional :code:`flags` option for automatically inserted
+        scale filters (FFmpeg defaults to :code:`'bicubic'`).
 
     Note
     ----
@@ -396,7 +396,7 @@ def compose_graph(
 ) -> str:
     """Compose complex filter graph
     :param filter_specs: a nested sequence of argument sequences to 
-        ``compose_filter()`` to define a filter graph. The last element of each 
+        :code:`compose_filter()` to define a filter graph. The last element of each 
         filter argument sequence may be a dict, defining its keyword arguments.
     :param links: specifies how non-sequential filters are linked. See below for the specification.
     :param sws_flags: specify swscale flags for those automatically inserted
@@ -467,8 +467,8 @@ def compose_graph(
     side-injections:
 
     ```
-        [2:v]hflip[b]; \\ 
-        [1:v]negate, [0:v]hstack=inputs=2[top]; \\ 
+        [2:v]hflip[b]; 
+        [1:v]negate, [0:v]hstack=inputs=2[top]; 
         [3:v]edgedetect, [b]hstack=inputs=2, [top]vstack=inputs=2[out]
     ```
 

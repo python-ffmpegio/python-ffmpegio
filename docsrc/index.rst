@@ -1,5 +1,9 @@
-`ffmpegio-core`: Media I/O with FFmpeg in Python
-===================================================
+.. py:module:: ffmpegio
+
+.. highlight:: python
+
+`ffmpegio`: Media I/O with FFmpeg in Python
+===========================================
 
 |pypi| |pypi-status| |pypi-pyvers| |github-license| |github-status|
 
@@ -27,13 +31,13 @@ Main Features
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
   your system
 * Read, write, filter, and create functions for audio, image, and video data
-* Context-managing `ffmpegio.open` to perform stream read/write operations of video and audio
+* Context-managing :py:func:`open` to perform stream read/write operations of video and audio
 * Media readers can output the data in a Numpy array (if Numpy is installed) or a plain :code:`bytes` 
-  objects in a :code:`dict`. The mode of operation can be switched with :code:`ffmpegio.use` function.
+  objects in a :code:`dict`. The mode of operation can be switched with :py:func:`ffmpegio.use` function.
 * Media writers can write a new media file from either data given in a Numpy array or :code:`bytes` 
   objects in a :code:`dict`. 
 * Write Matplotlib figures to images or to a video (a simpler interface than Matplotlib's Animation writers). 
-* Read video data as a list of Pillow :code:`Image`s and write Pillow :code:`Image`s to a video stream.
+* Read video data as a list of Pillow :code:`Image <PIL.Image.Image>` objects and write Pillow :code:`Image` objects to a video stream.
 * Probe media file information
 * Accepts all FFmpeg options including filter graphs
 * Transcode a media file to another in Python
@@ -49,7 +53,7 @@ Where to start
 
 * Read :ref:`Quick-start guide <quick>`
 
-* Install via ``pip``:
+* Install via :code:`pip`:
 
 .. code-block:: bash
 
@@ -94,20 +98,22 @@ To import `ffmpegio`
 
   >>> import ffmpegio
 
-- `Transcoding <transcoding_>`_
-- `Read Audio Files <Read Audio Files_>`_
-- `Read Image Files / Capture Video Frames <Read Image Files / Capture Video Frames_>`_
-- `Read Video Files <Read Video Files_>`_
-- `Read Multiple Files or Streams <Read Multiple Files or Streams_>`_
-- `Write Audio, Image, & Video Files <Write Audio, Image, & Video Files_>`_
-- `Filter Audio, Image, & Video Data <Filter Audio, Image, & Video Data_>`_
-- `Stream I/O <Stream I/O_>`_
-- `Video from Matplotlib Figure <Video from Matplotlib Figure_>`_
-- `Video to/from Pillow Images <Video to/from Pillow Images_>`_
-- `Device I/O Enumeration <Device I/O Enumeration_>`_
-- `Progress Callback <Progress Callback_>`_
-- `Filtergraph Builder`_
-- `Run FFmpeg and FFprobe Directly <Run FFmpeg and FFprobe Directly_>`_
+- :ref:`Transcoding <transcoding>`
+- :ref:`Read Audio Files <read_audio>`
+- :ref:`Read Image Files / Capture Video Frames <read_image>`
+- :ref:`Read Video Files <read_video>`
+- :ref:`Read Multiple Files or Streams <read_media>`
+- :ref:`Write Audio, Image, & Video Files <write_media>`
+- :ref:`Filter Audio, Image, & Video Data <filter_media>`
+- :ref:`Stream I/O <stream_io>`
+- :ref:`Video from Matplotlib Figure <write_mpl>`
+- :ref:`Video to/from Pillow Images <pillow_io>`
+- :ref:`Device I/O Enumeration <example_devices>`
+- :ref:`Progress Callback <progress>`
+- :ref:`Filtergraph Builder <fgb>`
+- :ref:`Run FFmpeg and FFprobe Directly <explicit_run>`
+
+.. _transcoding:
 
 Transcoding
 ^^^^^^^^^^^
@@ -132,6 +138,8 @@ Transcoding
   >>> with ffconcat: # generates temporary ffconcat file
   >>>     ffmpegio.transcode(ffconcat, 'output.mkv', f_in='concat', codec='copy', safe_in=0)
 
+.. _read_audio:
+
 Read Audio Files
 ^^^^^^^^^^^^^^^^
 
@@ -147,6 +155,8 @@ Read Audio Files
   >>> # read filtered audio samples first 10 seconds
   >>> #   filter: equalizer which attenuate 10 dB at 1 kHz with a bandwidth of 200 Hz 
   >>> fs, x = ffmpegio.audio.read('myaudio.mp3', t=10.0, af='equalizer=f=1000:t=h:width=200:g=-10')
+
+.. _read_image:
 
 Read Image Files / Capture Video Frames
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -177,6 +187,7 @@ Read Image Files / Capture Video Frames
   >>> # create spectrogram of the audio input (must specify pix_fmt if input is audio)
   >>> I = ffmpegio.image.read('myaudio.mp3', filter_complex='showspectrumpic=s=960x540', pix_fmt='rgb24')
 
+.. _read_video:
 
 Read Video Files
 ^^^^^^^^^^^^^^^^
@@ -190,6 +201,7 @@ Read Video Files
   >>> # get running spectrogram of audio input (must specify pix_fmt if input is audio)
   >>> fs, F = ffmpegio.video.read('myvideo.mp4', pix_fmt='rgb24', filter_complex='showspectrum=s=1280x480')
   
+.. _read_media:
 
 Read Multiple Files or Streams
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -210,6 +222,8 @@ Read Multiple Files or Streams
   >>> #  rates: dict of frame rates: keys="v:0" and "v:1"
   >>> #  data: dict of video frame arrays: keys="v:0" and "v:1"
 
+.. _write_media:
+
 Write Audio, Image, & Video Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -223,6 +237,8 @@ Write Audio, Image, & Video Files
 
   >>> # create an audio file from a numpy array
   >>> ffmpegio.audio.write('myaudio.mp3', rate, x)
+
+.. _filter_media:
 
 Filter Audio, Image, & Video Data
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -239,6 +255,8 @@ Filter Audio, Image, & Video Data
   >>> filter = "drawtext=fontsize=30:fontfile=FreeSerif.ttf:text='hello world':x=(w-text_w)/2:y=(h-text_h)/2"
   >>> fs_out, F_out = ffmpegio.video.filter(filter, fs_in, F_in)
 
+.. _stream_io:
+
 Stream I/O
 ^^^^^^^^^^
 
@@ -250,6 +268,8 @@ Stream I/O
   >>>      ffmpegio.open('myoutput.mp4', 'wv', rate_in=fin.rate) as fout:
   >>>     for frames in fin:
   >>>         fout.write(myprocess(frames))
+
+.. _write_mpl:
 
 Video from Matplotlib Figure
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -291,6 +311,8 @@ To enable this feature, you must also install :code:`matplotlib`:
   >>>         animate(n) # update figure
   >>>         f.write(fig) # write new frame
 
+.. _pillow_io:
+
 Video to/from Pillow Images
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -330,6 +352,8 @@ For video reading, you need to switch the video data object type explicitly by
   >>> # frames is a list of 10 Pillow Image objects containing 
   >>> # the first 10 frames of the video in grayscale 
 
+.. _fgb:
+
 Filtergraph Builder
 ^^^^^^^^^^^^^^^^^^^
 
@@ -355,6 +379,8 @@ Filtergraph Builder
        Available input pads (0): 
        Available output pads: (1): (4, 1, 0)
 
+.. _example_devices:
+
 Device I/O Enumeration
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -367,6 +393,8 @@ Device I/O Enumeration
   >>> with ffmpegio.open('v:0', 'rv', f_in='dshow') as webcam,
   >>>     for frame in webcam:
   >>>         process_frame(frame)
+
+.. _progress:
 
 Progress Callback
 ^^^^^^^^^^^^^^^^^
@@ -390,6 +418,8 @@ Progress Callback
   >>> with ffmpegio.open('myvideo.mp4', 'rv', blocksize=100, progress=progress) as fin:
   >>>     for frames in fin:
   >>>         myprocess(frames)
+
+.. _explicit_run:
 
 Run FFmpeg and FFprobe Directly
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -420,6 +450,8 @@ Run FFmpeg and FFprobe Directly
   >>> print(out.stderr) # print the captured FFmpeg logs (banner text omitted)
   >>> b = out.stdout # width*height bytes of the first frame
 
+.. _toc_intro:
+
 Introductory Info
 -----------------
 
@@ -429,6 +461,7 @@ Introductory Info
     quick
     install
 
+.. _toc_high_level:
 
 High-level API Reference
 ------------------------
@@ -437,13 +470,15 @@ High-level API Reference
     :maxdepth: 1
 
     basicio
-    probe
     options
+    streamio
+    probe
     filtergraph
     caps
-    analysis
-    devices
-    concat
+    typing
+    plugins
+
+.. _toc_advanced:
 
 Advanced Topics
 ---------------
@@ -451,8 +486,12 @@ Advanced Topics
 .. toctree::
     :maxdepth: 1
 
+    analysis
+    devices
+    concat
     adv-ffmpeg
-    adv-args
+
+.. _toc_links:
 
 External Links
 --------------

@@ -8,7 +8,7 @@ from fractions import Fraction
 from io import IOBase
 from numbers import Number
 
-from ._typing import Any, BinaryIO, Buffer, Literal, TypedDict
+from ._typing import Any, BinaryIO, Buffer, Literal, TypeAlias, TypedDict
 from .errors import FFmpegError
 from .path import PIPE, ffprobe
 from .stream_spec import StreamSpecDict
@@ -17,10 +17,18 @@ from .stream_spec import stream_spec as compose_stream_spec
 logger = logging.getLogger("ffmpegio")
 
 
-# fmt:off
-__all__ = ['full_details', 'format_basic', 'streams_basic',
-'video_streams_basic', 'audio_streams_basic', 'query', 'frames', 'packets']
-# fmt:on
+__all__ = [
+    "full_details",
+    "format_basic",
+    "streams_basic",
+    "AudioStreamInfoDict",
+    "video_streams_basic",
+    "audio_streams_basic",
+    "query",
+    "frames",
+    "packets",
+    "VideoStreamInfoDict",
+]
 
 _re_ratio = re.compile(r"^(\d+)\:(\d+)$")
 
@@ -59,7 +67,7 @@ def _add_select_streams(args, stream_specifier):
     return args
 
 
-SectionNameLiteral = Literal[
+SectionNameLiteral: TypeAlias = Literal[
     "block",
     "blocks",
     "chapter_tags",
@@ -135,8 +143,8 @@ SectionNameLiteral = Literal[
     "timecode",
     "timecodes",
 ]
-EntryDict = dict[SectionNameLiteral, bool | Sequence[str]]
-EntrySequence = Sequence[SectionNameLiteral]
+EntryDict: TypeAlias = dict[SectionNameLiteral, bool | Sequence[str]]
+EntrySequence: TypeAlias = Sequence[SectionNameLiteral]
 
 
 def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
@@ -157,7 +165,7 @@ def _compose_entries(entries: EntrySequence | EntryDict | str) -> str:
     return ":".join(entries)
 
 
-IntervalSpec = (
+IntervalSpec: TypeAlias = (
     str
     | int
     | float
@@ -170,34 +178,29 @@ IntervalSpec = (
     from that. An IntervalSpec argument can be specified in multiple ways to 
     form the FFprobe read_intervals option:
 
-    #. ``str`` - pass through the argument as-is to ffprobe
-    #. ``int`` - read this numbers of packets to read from the beginning of the 
-    #               file
-    #. ``float`` - read packets over this duration in seconds from the beginning 
-    #               of the file
-    #. ``tuple[str|float, str|int|float]`` - sets (start, end) points
-        * start: ``str`` = as-is, ``float`` = starting time in seconds
-        * end: ``str`` = as-is, ``int`` = offset in # of packets, 
-                ``float`` = offset in seconds
-    #. ``dict`` - specifies start and end points with the following keys:
-        * ``'start'``        - (``str|float``) start time
-        * ``'start_offset'`` - (``str|float``) start time offset from the 
-                                previous read. Ignored if ``'start'`` is present.
-        * ``'end'``          - (``str|float``) end time
-        * ``'end_offset'``   - (``str|float|int``) end time offset from the start
-                                time. Ignored if ``'end'`` is present.
+    #. :code:`str` - pass through the argument as-is to ffprobe
+    #. :code:`int` - read this numbers of packets to read from the beginning of the file
+    #. :code:`float` - read packets over this duration in seconds from the beginning of the file
+    #. :code:`tuple[str|float, str|int|float]` - sets (start, end) points
+        * start: :code:`str` = as-is, :code:`float` = starting time in seconds
+        * end: :code:`str` = as-is, :code:`int` = offset in # of packets, 
+                :code:`float` = offset in seconds
+    #. :code:`dict` - specifies start and end points with the following keys:
+        * :code:`'start'`        - (:code:`str|float`) start time
+        * :code:`'start_offset'` - (:code:`str|float`) start time offset from the previous read. Ignored if :code:`'start'` is present.
+        * :code:`'end'`          - (:code:`str|float`) end time
+        * :code:`'end_offset'`   - (:code:`str|float|int`) end time offset from the start time. Ignored if :code:`'end'` is present.
 """
 
 
-def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
+def _add_read_intervals(
+    args: list[str], intervals: IntervalSpec | Sequence[IntervalSpec]
+) -> list[str]:
     """add -read_intervals option to ffprobe argumnets
 
     :param args: argument list under construction
-    :type args: list[str]
     :param intervals: interval specification
-    :type intervals: str, int, float, seq[str|float,str|int|float], dict, seq[dict]
     :return: same as args input
-    :rtype: list[str]
 
     """
 
@@ -260,7 +263,7 @@ def _add_read_intervals(args, intervals: IntervalSpec | Sequence[IntervalSpec]):
     return args
 
 
-DataHashLiteral = Literal[
+DataHashLiteral: TypeAlias = Literal[
     "MD5",
     "murmur3",
     "RIPEMD128",
@@ -297,7 +300,7 @@ def run(
     bitexact: bool = False,
     find_stream_info: bool = False,
     f: str | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     **kwargs,
 ) -> dict[str, str]:
     """run ffprobe and parse its json output
@@ -326,30 +329,30 @@ def run(
         corresponding stream section, defaults to False
     :param data: True to probe payload data, defaults to False. Data are dumped
         as a hexadecimal or ASCII dump (other formats can be selected using
-        ``data_dump_format``). Coupled with ``entries='packets'``, it will dump
-        the packets' data. Coupled with ``entries='streams'``, it will dump the
+        :code:`data_dump_format`). Coupled with :code:`entries='packets'`, it will dump
+        the packets' data. Coupled with :code:`entries='streams'`, it will dump the
         codec extradata. The dump is printed as the "data" field. It may contain
         newlines.
     :param data_hash: When specified, a hash of payload data is included,
-            for packets with ``entries='packets'`` and
-            for codec extradata with ``entries='streams'``.
+            for packets with :code:`entries='packets'` and
+            for codec extradata with :code:`entries='streams'`.
         Hashes are not provided by default.
     :param data_dump_format: Specify a format used for the data dumps enabled
-        with ``data=True``. The default is ``'xxd'`` which is a hexdump format
-        compatible with the well-known xxd program. ``'base64'`` is also
+        with :code:`data=True`. The default is :code:`'xxd'` which is a hexdump format
+        compatible with the well-known xxd program. :code:`'base64'` is also
         supported.
     :param log: Loglevel in an integer value, defaults to None to disable
         logging. If provided, logging information from the decoder about each
         frame according to the loglevel value. This option is only relevant for
-        ``entries='frames'``. The logged information in the ``'log'`` section.
+        :code:`entries='frames'`. The logged information in the :code:`'log'` section.
     :param private_data: True to include private data, that is data depending on
         the format of the particular shown element, defaults to None
     :param keep_optional_fields: False to omit the fields with invalid or non-
-        applicable values. True to include those fields with ``None`` as their
+        applicable values. True to include those fields with :code:`None` as their
         values.
     :param analyze_frames: Analyze frames and/or their side data up to the
         provided read interval, providing additional information that may be
-        useful at a stream level. Must be paired with the ``entries='streams'``
+        useful at a stream level. Must be paired with the :code:`entries='streams'`
         to have an effect, defaults to False
     :param bitexact: True to force bitexact output, useful to produce output
         which is not dependent on the specific build, defaults to False
@@ -453,7 +456,7 @@ def full_details(
     show_stream_groups: bool = False,
     select_streams: str | int | None = None,
     keep_str_values: bool = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
 ) -> dict[str, str | Number | Fraction]:
@@ -519,7 +522,7 @@ def format_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool = False,
     keep_str_values: bool = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
 ) -> dict[str, str | Number | Fraction]:
@@ -577,7 +580,7 @@ def streams_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     stream_spec: str | int | StreamSpecDict | None = None,
     *,
     f: str | None = None,
@@ -595,7 +598,6 @@ def streams_basic(
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :param stream_spec: Specify stream specification, defaults to None
-    :type stream_spec: str | None, optional
     :param f: Use the specified media container format, defaults to None (auto-detect)
     :return: List of the requested information of the matching media streams.
 
@@ -644,7 +646,7 @@ def video_streams_basic(
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
 ) -> list[VideoStreamInfoDict]:
@@ -750,16 +752,28 @@ def video_streams_basic(
     )
 
 
+class AudioStreamInfoDict(TypedDict):
+    index: int
+    codec_name: str
+    sample_fmt: str
+    sample_rate: int
+    channels: int
+    channel_layout: str
+    start_time: float
+    duration: float
+    nb_samples: int
+
+
 def audio_streams_basic(
     url: str | BinaryIO | memoryview,
     index: int | None = None,
     entries: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
-) -> list[dict[str, str | Number | Fraction]]:
+) -> list[AudioStreamInfoDict]:
     """Retrieve basic info of audio streams
 
     :param url: URL of the media file/stream
@@ -857,7 +871,7 @@ def query(
     fields: Sequence[str] | None = None,
     keep_optional_fields: bool | None = None,
     keep_str_values: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
 ) -> (
@@ -881,7 +895,7 @@ def query(
     :return: field name-value dict. If streams argument is given but does not specify
              index, a list of dict is returned instead
 
-    Note: Unlike :py:func:`video_stream_basic()` and :py:func:`audio_stream_basic()`,
+    Note: Unlike :py:func:`video_streams_basic()` and :py:func:`audio_streams_basic()`,
           :py:func:`query()` does not process ffprobe output except for the conversion
           from str to float/int.
 
@@ -922,7 +936,7 @@ def frames(
     streams: str | int | StreamSpecDict | None = None,
     intervals: IntervalSpec | Sequence[IntervalSpec] | None = None,
     accurate_time: bool | None = False,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
 ) -> list[dict] | list[str | int | float]:
@@ -932,13 +946,14 @@ def frames(
     :param entries: names of frame attributes, defaults to None (get all attributes)
     :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed from associated timestamps and
+    :type intervals: IntervalSpec | Sequence[IntervalSpec] | None
+    :param accurate_time: True to return all :code::code:`*_time` attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
     :param f: Use the specified media container format, defaults to None (auto-detect)
-    :return: frame information. list of dictionary if entries is None or a sequence; list of the selected entry
-             if entries is str (i.e., a single entry)
+    :return: frame information. list of dictionary if entries is None or a
+        sequence; list of the selected entry if entries is str (i.e., a single entry)
 
     """
 
@@ -1021,34 +1036,35 @@ def packets(
     data: bool = False,
     data_hash: DataHashLiteral | None = None,
     data_dump_format: Literal["xxd", "base64", "bytes"] | None = None,
-    sp_kwargs: dict[str, Any] | None = None,
+    sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
 ) -> list[dict] | list[str | int | float]:
     """get packet information
 
     :param url: URL of the media file/stream
-    :param entries: names of packet attributes, defaults to None (get all attributes)
+    :param entries: names of packet attributes, defaults to :code:`None` (get all
+        attributes)
     :param stream: stream specifier of the stream to retrieve the data of,
-        defaults to None to get all streams
+        defaults to :code:`None` to get all streams
     :param intervals: time intervals to retrieve the data, see below for the
         details, defaults to None (get all)
-    :param accurate_time: True to return all '\*_time' attributes to be computed
+    :type intervals: IntervalSpec | Sequence[IntervalSpec] | None
+    :param accurate_time: True to return all :code::code:`*_time` attributes to be computed
         from associated timestamps and stream timebase, defaults to False
         (= us accuracy)
     :param data: True to probe payload data, defaults to False. Data are dumped
         as a hexadecimal or ASCII dump (other formats can be selected using
-        ``data_dump_format``). Coupled with ``entries='packets'``, it will dump
-        the packets' data. Coupled with ``entries='streams'``, it will dump the
+        :code:`data_dump_format`). Coupled with :code:`entries='packets'`, it will dump
+        the packets' data. Coupled with :code:`entries='streams'`, it will dump the
         codec extradata. The dump is printed as the "data" field. It may contain
         newlines.
     :param data_hash: When specified, a hash of payload data is included,
-            for packets with ``entries='packets'`` and
-            for codec extradata with ``entries='streams'``.
-        Hashes are not provided by default.
+        for packets with :code:`entries='packets'` and for codec extradata with 
+        :code:`entries='streams'`. Hashes are not provided by default.
     :param data_dump_format: Specify a format used for the data dumps enabled
-        with ``data=True``. The default is ``'xxd'`` which is a hexdump format
-        compatible with the well-known xxd program. ``'base64'`` is also
+        with :code:`data=True`. The default is :code:`'xxd'` which is a hexdump format
+        compatible with the well-known xxd program. :code:`'base64'` is also
         supported.
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None

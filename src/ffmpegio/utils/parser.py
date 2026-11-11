@@ -6,25 +6,17 @@ import shlex
 from collections import abc
 
 from .. import devices
+from .._typing import Any, Sequence, TypeAlias, TypedDict, FFmpegArgs, FFmpegOptionDict
 from ..filtergraph import Chain, Filter, Graph
 
 __all__ = ["parse", "compose", "FLAG"]
 
 FLAG = None
 
-# till v3.7 is dropped
-form_shell_cmd = (
-    shlex.join
-    if hasattr(shlex, "join")
-    else lambda args: " ".join(shlex.quote(arg) for arg in args)
-)
-
-
-def parse_options(args):
+def parse_options(args: str | Sequence[str]) -> FFmpegOptionDict:
     """parse command-line option arguments
 
     :param args: argument string or sequence of arguments
-    :type args: str or seq of str
     :return: parsed options. Flag options get None as their values.
     :rtype: dict
     """
@@ -49,13 +41,11 @@ def parse_options(args):
     return res
 
 
-def parse(cmdline):
+def parse(cmdline: str | Sequence[str]) -> FFmpegArgs:
     """parse ffmpeg command line arguments
 
     :param cmdline: full or partial ffmpeg command line string
-    :type cmdline: str or seq(str)
     :return: ffmpegio FFmpeg argument dict
-    :rtype: dict
     """
 
     from ..caps import options
@@ -122,22 +112,18 @@ def parse(cmdline):
     return dict(global_options=gopts, inputs=inputs, outputs=outputs)
 
 
-def compose(args, command="", shell_command=False):
+def compose(
+    args: FFmpegArgs, command: str = "", shell_command: bool = False
+) -> list[str] | str:
     """compose ffmpeg subprocess arguments from argument dict values
 
-    :param global_options: global options, defaults to None
-    :type global_options: dict, optional
-    :param inputs: list of input files and their options, defaults to []
-    :type inputs: seq of seq(str, dict or None), optional
-    :param outputs: list of output files and thier options, defaults to []
-    :type outputs: seq of seq(str, dict or None), optional
-    :param command: ffmpeg command, defaults to ""
-    :type command: str, optional
-    :param shell_command: True to output shell command ready string, defaults to False
-    :type shell_command: bool, optional
-    :returns: list of arguments (possibly missing the leading 'ffmpeg' command if `command`
-              is not given) or shell command string if `shell_command` is True
-    :rtype: list of str or str
+    :param args: a dict containing the full FFmpeg arguments
+    :param command: ffmpeg command, defaults to not including the command
+    :param shell_command: True to run the formed command arguments through
+        :py:func:`shlex.join()`, defaults to False
+    :return: list of arguments (possibly missing the leading :code:`'ffmpeg'`
+        command if :code:`command` is not given) or shell command string if
+        :code:`shell_command=True`
 
     If global_options is None and only 1 output file given, FFmpeg global options
     may be specified as additional output options.
@@ -231,4 +217,4 @@ def compose(args, command="", shell_command=False):
         *inputs2args(args.get("inputs", None) or ()),
         *outputs2args(args.get("outputs", None) or ()),
     ]
-    return form_shell_cmd(args) if shell_command else args
+    return shlex.join(args) if shell_command else args

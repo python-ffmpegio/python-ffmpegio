@@ -56,7 +56,7 @@ shlex_join = (
 
 
 def found() -> bool:
-    """Returns ``True`` if ffmpeg and ffprobe binaries are located"""
+    """Returns :code:`True` if ffmpeg and ffprobe binaries are located"""
 
     return bool(FFMPEG_BIN and FFPROBE_BIN)
 
@@ -78,7 +78,7 @@ def where(probe: bool = False) -> str | None:
 
 def find(
     ffmpeg_path: str | None = None, ffprobe_path: str | None = None
-) -> tuple[str, str, str]:
+) -> tuple[str, str, Version]:
     """Set FFmpeg and FFprobe executables
 
     :param ffmpeg_path: Full path to either the ffmpeg executable file or

@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Generator, Sequence
-from typing import Literal, Self, get_args
+from collections.abc import Iterator, Sequence
 
 from .. import filtergraph as fgb
+from .._typing import Literal, Self, get_args
 from .exceptions import FiltergraphMismatchError, FiltergraphPadNotFoundError
 from .graph_links import GraphLinks
 from .typing import JOIN_HOW, PAD_INDEX
@@ -63,10 +63,10 @@ class FilterGraphObject(ABC):
         """
 
     @abstractmethod
-    def iter_chains(self) -> Generator[fgb.Chain]:
+    def iter_chains(self) -> Iterator[fgb.Chain]:
         """iterate over chains of the filtergraphobject
 
-        :yields chain: ``Chain`` object
+        :yields: :py:class:`Chain` object
         """
 
     @abstractmethod
@@ -84,7 +84,7 @@ class FilterGraphObject(ABC):
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
+    ) -> Iterator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over input pads of the filter
 
         :param pad: pad id, defaults to None
@@ -102,7 +102,14 @@ class FilterGraphObject(ABC):
         :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
         :param full_pad_index: True to return 3-element index, defaults to False
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        :yield: a tuple containing
+        
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) filter input pad index
+            - (:py:class:`Filter`) filter object
+            - (str | :py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>` | None) pad label 
+              or output pad index of the connected filter, None if not connected
+
+        :rtype: Iterator[tuple]
         """
 
     @abstractmethod
@@ -118,7 +125,7 @@ class FilterGraphObject(ABC):
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
+    ) -> Iterator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
         :param pad: pad id, defaults to None
@@ -130,27 +137,44 @@ class FilterGraphObject(ABC):
         :param unlabeled_only: True to leave out named outputs, defaults to False to return all outputs
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
         :param full_pad_index: True to return 3-element index, defaults to False
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
+        :yield: a tuple containing
+        
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) filter output pad index
+            - (:py:class:`Filter`) filter object
+            - (str | :py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>` | None) pad label 
+              or input pad index of the connected filter, None if not connected
+              
+        :rtype: Iterator[tuple]
         """
 
     # Label management methods (default operation for non-Graph objects)
 
     def iter_input_labels(
         self, exclude_stream_specs: bool = False, only_stream_specs: bool = False
-    ) -> Generator[tuple[str, PAD_INDEX]]:
+    ) -> Iterator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled input pads of the filtergraph object
 
         :param exclude_stream_specs: True to not include input streams
         :param only_stream_specs: True to only include input streams
-        :yield: a tuple of 3-tuple pad index and the pad index of the connected output pad if connected
+        :yield: a tuple containing
+
+            - (str) pad label
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) pad index
+              
+        :rtype: Iterator[tuple]
         """
 
         yield from ()
 
-    def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
+    def iter_output_labels(self) -> Iterator[tuple[str, PAD_INDEX]]:
         """iterate over the dangling labeled output pads of the filtergraph object
 
-        :yield: a tuple of 3-tuple pad index and the pad index of the connected input pad if connected
+        :yield: a tuple containing
+
+            - (str) pad label
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) pad index
+              
+        :rtype: Iterator[tuple]
         """
 
         yield from ()
@@ -166,11 +190,14 @@ class FilterGraphObject(ABC):
 
         :param input: True to get label of input pad, False to get label of output pad, defaults to True
         :param index: 3-element tuple to specify the (chain, filter, pad) indices, defaults to None
+        :type index: PAD_INDEX | None
         :param inpad: alternate argument to specify an input pad index, defaults to None
+        :type inpad: PAD_INDEX | None
         :param outpad: alternate argument to specify an output pad index, defaults to None
-        :return: the label of the specified pad or ``None`` if no label is assigned.
+        :type outpad: PAD_INDEX | None
+        :return: the label of the specified pad or :code:`None` if no label is assigned.
 
-        If the pad index is invalid, the method raises ``FiltergraphInvalidIndex``.
+        If the pad index is invalid, the method raises :code:`FiltergraphInvalidIndex`.
 
         """
 
@@ -197,6 +224,7 @@ class FilterGraphObject(ABC):
 
         :param input: True to check the input pad index, False the output.
         :param index: pad index to be normalized
+        :type index: PAD_INDEX
         :return: normalized pad index
         """
 
@@ -205,9 +233,14 @@ class FilterGraphObject(ABC):
     ) -> tuple[PAD_INDEX, str | None]:
         """resolve (unconnected) input pad from pad index or label
 
-        :param index: pad index or link label
-        :return pad_index: filter input pad index
-        :return label: link label (None if not assigned)
+        :param index_or_label: pad index or link label
+        :type index_or_label: PAD_INDEX | str
+        :return: a tuple containing
+
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) filter input pad index
+            - (str | None) input link label (None if not assigned)
+
+        :rtype: tuple
 
         Raises error if specified label does not resolve uniquely to an input pad
         """
@@ -225,10 +258,14 @@ class FilterGraphObject(ABC):
     ) -> tuple[PAD_INDEX, str | None]:
         """resolve (unconnected) output filter pad from pad index or labels
 
-        :param index: pad index or link label
-        :type index: tuple(int,int,int) or str
+        :param index_or_label: pad index or link label
+        :type index_or_label: PAD_INDEX | str
         :return: filter output pad index and its link labels
-        :rtype: tuple(int,int,int), list(str)
+
+            - (:py:type:`PAD_INDEX <ffmpegio.filtergraph.typing.PAD_INDEX>`) filter output pad index
+            - (str | None) output link label (None if not assigned)
+
+        :rtype: tuple
 
         Raises error if specified index does not resolve uniquely to an output pad
         """
@@ -244,15 +281,17 @@ class FilterGraphObject(ABC):
     def add_label(
         self,
         label: str,
-        inpad: PAD_INDEX | Sequence[PAD_INDEX] = None,
-        outpad: PAD_INDEX = None,
+        inpad: PAD_INDEX | Sequence[PAD_INDEX] | None = None,
+        outpad: PAD_INDEX | None = None,
         force: bool = None,
     ) -> fgb.Graph:
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
         :param inpad: input filter pad index or a sequence of pads, defaults to None
+        :type inpad: PAD_INDEX | Sequence[PAD_INDEX] | None
         :param outpad: output filter pad index, defaults to None
+        :type outpad: PAD_INDEX | None
         :param force: True to delete existing labels, defaults to None
         :return: actual label name
 
@@ -284,13 +323,14 @@ class FilterGraphObject(ABC):
         :param label: linkn label
         :param inpad: specify input pad if multiple pads receives the same input
                       stream, defaults to `None` to delete all input pads.
+        :type inpad: PAD_INDEX | None
         """
 
     ### main graph manipulation routines
 
     def stack(
         self,
-        *others: tuple[fgb.abc.FilterGraphObject | str],
+        *others: tuple[FilterGraphObject | str],
         auto_link: bool | int = False,
         sws_flags_policy: Literal["first", "last"] | int | None = None,
         inplace: bool = False,
@@ -298,30 +338,30 @@ class FilterGraphObject(ABC):
         """stack filtergraph objects
 
         :param others: other filtergraphs to be stacked under in the order
-                       appeared
-        :param auto_link: ``True`` to connect matched I/O labels, defaults to
-            ``None``
-        :param sws_flags_policy: Defines how to set ``sws_flags``:
+            appeared
+        :param auto_link: :code:`True` to connect matched I/O labels, defaults to
+            :code:`None`
+        :param sws_flags_policy: Defines how to set :code:`sws_flags`:
 
-            * ``'first'``: to use the first ``sws_flags`` found among the
-              filtergraphs (searched ``self`` first then ``others``)
-            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+            * :code:`'first'`: to use the first :code:`sws_flags` found among the
+              filtergraphs (searched :code:`self` first then :code:`others`)
+            * :code:`'last'`: use this filtergraph's :code:`sws_flags` (or none used if
               not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-              refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+            * :code:`int`: specify which filtergraph's :code:`sws_flags` to use. :code:`0`
+              refers to this object, :code:`1` refers to :code:`others[0]`, etc.
+            * :code:`None`: if more than one have the :code:`sws_flags` set, raises
+              :code:`FFmpegioError` exception. Otherwise, it uses the only one found
               or none if none not found.
 
-        :param inplace: Must be ``False`` as the result is always a ``Graph``.
-            If ``True``, a ``ValueError` exception will be raised.
+        :param inplace: Must be :code:`False` as the result is always a :code:`Graph`.
+            If :code:`True`, a :code:`ValueError` exception will be raised.
         :return: new filtergraph object
 
         Remarks
         -------
-        - extend() and import links
-        - If `auto-link=False`, common labels may be renamed.
-        - For more explicit linking rather than the auto-linking, use `connect()` instead.
+        - :code:`extend()` and import links
+        - If :code:`auto-link=False`, common labels may be renamed.
+        - For more explicit linking rather than the auto-linking, use :code:`connect()` instead.
 
         """
 
@@ -335,7 +375,7 @@ class FilterGraphObject(ABC):
     @abstractmethod
     def connect(
         self,
-        right: fgb.abc.FilterGraphObject | str,
+        right: FilterGraphObject | str,
         from_left: PAD_INDEX | str | list[PAD_INDEX | str],
         to_right: PAD_INDEX | str | list[PAD_INDEX | str],
         *,
@@ -349,27 +389,31 @@ class FilterGraphObject(ABC):
 
         :param right: receiving filtergraph object
         :param from_left: output pad ids or labels of `left` fg
+        :type from_left: PAD_INDEX | str | list[PAD_INDEX | str]
         :param to_right: input pad ids or labels of the `right` fg
+        :type to_right: PAD_INDEX | str | list[PAD_INDEX | str]
         :param from_right: output pad ids or labels of the `right` fg
+        :type from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None
         :param to_left: input pad ids or labels of this `left` fg
-        :param chain_siso: ``True`` (default) to chain the connections instead
-            of stacking. ``False`` to append all the chains of ``right`` graphs.
-        :param sws_flags_policy: Defines how to set ``sws_flags``:
+        :type to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None
+        :param chain_siso: :code:`True` (default) to chain the connections instead
+            of stacking. :code:`False` to append all the chains of :code:`right` graphs.
+        :param sws_flags_policy: Defines how to set :code:`sws_flags`:
 
-            * ``'first'``: to use the first ``sws_flags`` found among the
-              filtergraphs (searched ``self`` first then ``others``)
-            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+            * :code:`'first'`: to use the first :code:`sws_flags` found among the
+              filtergraphs (searched :code:`self` first then :code:`others`)
+            * :code:`'last'`: use this filtergraph's :code:`sws_flags` (or none used if
               not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-              refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+            * :code:`int`: specify which filtergraph's :code:`sws_flags` to use. :code:`0`
+              refers to this object, :code:`1` refers to :code:`others[0]`, etc.
+            * :code:`None`: if more than one have the :code:`sws_flags` set, raises
+              :code:`FFmpegioError` exception. Otherwise, it uses the only one found
               or none if none not found.
 
-        :param inplace: ``True`` to store the output filtergraph in place.
-            If ``'inplace=True`` but the output is not of the same class type,
-            a ``ValueError` exception will be raised.
-        :return: new filtergraph object or ``None`` if ``inplace=True``
+        :param inplace: :code:`True` to store the output filtergraph in place.
+            If :code:`'inplace=True` but the output is not of the same class type,
+            a :code:`ValueError` exception will be raised.
+        :return: new filtergraph object or :code:`None` if :code:`inplace=True`
 
         * link labels may be auto-renamed if there is a conflict
 
@@ -378,7 +422,7 @@ class FilterGraphObject(ABC):
     @abstractmethod
     def rconnect(
         self,
-        left: fgb.abc.FilterGraphObject | str,
+        left: FilterGraphObject | str,
         from_left: PAD_INDEX | str | list[PAD_INDEX | str],
         to_right: PAD_INDEX | str | list[PAD_INDEX | str],
         *,
@@ -392,24 +436,28 @@ class FilterGraphObject(ABC):
         :param left: transmitting filtergraph object
         :param right: receiving filtergraph object
         :param from_left: output pad ids or labels of `left` fg
+        :type from_left: PAD_INDEX | str | list[PAD_INDEX | str]
         :param to_right: input pad ids or labels of the `right` fg
-        :param from_right: output pad ids or labels of the `right` fg
-        :param to_left: input pad ids or labels of this `left` fg
-        :param chain_siso: ``True`` (default) to chain the connections instead
-            of stacking. ``False`` to append all the chains of ``right`` graphs.
-        :param replace_sws_flags: Defines how to set ``sws_flags``:
+        :type to_right: PAD_INDEX | str | list[PAD_INDEX | str]
+        :param from_right: output pad ids or labels of the `right` fg, defaults to None
+        :type from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None
+        :param to_left: input pad ids or labels of this `left` fg, defaults to None
+        :type to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None
+        :param chain_siso: :code:`True` (default) to chain the connections instead
+            of stacking. :code:`False` to append all the chains of :code:`right` graphs.
+        :param replace_sws_flags: Defines how to set :code:`sws_flags`:
 
-            * ``True``: to use the first ``sws_flags`` found among the
+            * :code:`True`: to use the first :code:`sws_flags` found among the
               filtergraphs, chosen in the order of appearance
-            * ``False``: use this filtergraph's ``sws_flags`` (or none used if
+            * :code:`False`: use this filtergraph's :code:`sws_flags` (or none used if
               not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-              refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-              ``FFmpegioError`` exception. Otherwise, it uses the only one found
+            * :code:`int`: specify which filtergraph's :code:`sws_flags` to use. :code:`0`
+              refers to this object, :code:`1` refers to :code:`others[0]`, etc.
+            * :code:`None`: if more than one have the :code:`sws_flags` set, raises
+              :code:`FFmpegioError` exception. Otherwise, it uses the only one found
               or none if none not found.
 
-        :return: new filtergraph object or ``None`` if ``inplace=True``
+        :return: new filtergraph object or :code:`None` if :code:`inplace=True`
 
         * link labels may be auto-renamed if there is a conflict
 
@@ -417,7 +465,7 @@ class FilterGraphObject(ABC):
 
     def join(
         self,
-        right: fgb.abc.FilterGraphObject | str,
+        right: FilterGraphObject | str,
         how: JOIN_HOW | None = None,
         n_links: int | Literal["all"] | None = None,
         *,
@@ -430,30 +478,30 @@ class FilterGraphObject(ABC):
         """filtergraph auto-connector
 
         :param right: receiving filtergraph object
-        :param how: method on how to mate input and output, defaults to ``"per_chain"``.
+        :param how: method on how to mate input and output, defaults to :code:`"per_chain"`.
 
-            - ``'chainable'``: joins only chainable input pads and output pads.
-            - ``'per_chain'``: joins one pair of first available input pad and output pad of each
+            - :code:`'chainable'`: joins only chainable input pads and output pads.
+            - :code:`'per_chain'`: joins one pair of first available input pad and output pad of each
                                 mating chains. Source and sink chains are ignored.
-            - ``'all'``: joins all input pads and output pads
-            - ``'auto'``: tries ``'per_chain'`` first, if fails, then tries ``'all'``.
+            - :code:`'all'`: joins all input pads and output pads
+            - :code:`'auto'`: tries :code:`'per_chain'` first, if fails, then tries :code:`'all'`.
 
         :param n_links: number of left output pads to be connected to the right input pads, default: 0
-                        (all matching links). If ``how=='per_chain'``, ``n_links`` connections are made
+                        (all matching links). If :code:`how=='per_chain'`, :code:`n_links` connections are made
                         per chain.
         :param strict: True to raise exception if numbers of available pads do not match, default: False
         :param unlabeled_only: True to ignore labeled unconnected pads, defaults to False
         :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param sws_flags_policy: Defines how to set ``sws_flags``:
+        :param sws_flags_policy: Defines how to set :code:`sws_flags`:
 
-            * ``'first'``: to use the first ``sws_flags`` found among the
-                filtergraphs (searched ``self`` first then ``others``)
-            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+            * :code:`'first'`: to use the first :code:`sws_flags` found among the
+                filtergraphs (searched :code:`self` first then :code:`others`)
+            * :code:`'last'`: use this filtergraph's :code:`sws_flags` (or none used if
                 not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-                refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-                ``FFmpegioError`` exception. Otherwise, it uses the only one found
+            * :code:`int`: specify which filtergraph's :code:`sws_flags` to use. :code:`0`
+                refers to this object, :code:`1` refers to :code:`others[0]`, etc.
+            * :code:`None`: if more than one have the :code:`sws_flags` set, raises
+                :code:`FFmpegioError` exception. Otherwise, it uses the only one found
                 or none if none not found.
 
         :return: Graph with the appended filter chains or None if inplace=True.
@@ -491,7 +539,7 @@ class FilterGraphObject(ABC):
 
     def rjoin(
         self,
-        left: fgb.abc.FilterGraphObject | str,
+        left: FilterGraphObject | str,
         *,
         how: JOIN_HOW | None = None,
         n_links: int | Literal["all"] | None = None,
@@ -503,31 +551,31 @@ class FilterGraphObject(ABC):
         """filtergraph auto-connector
 
         :param left: feeding filtergraph object
-        :param how: method on how to mate input and output, defaults to ``"per_chain"``.
+        :param how: method on how to mate input and output, defaults to :code:`"per_chain"`.
 
-            - ``'chainable'``: joins only chainable input pads and output pads.
-            - ``'per_chain'``: joins one pair of first available input pad and output pad of each
+            - :code:`'chainable'`: joins only chainable input pads and output pads.
+            - :code:`'per_chain'`: joins one pair of first available input pad and output pad of each
                                 mating chains. Source and sink chains are ignored.
-            - ``'all'``: joins all input pads and output pads
-            - ``'auto'``: tries ``'per_chain'`` first, if fails, then tries ``'all'``.
+            - :code:`'all'`: joins all input pads and output pads
+            - :code:`'auto'`: tries :code:`'per_chain'` first, if fails, then tries :code:`'all'`.
 
         :param n_links: number of left output pads to be connected to the right input pads, default: 0
-                        (all matching links). If ``how=='per_chain'``, ``n_links`` connections are made
+                        (all matching links). If :code:`how=='per_chain'`, :code:`n_links` connections are made
                         per chain.
         :param strict: True to raise exception if numbers of available pads do not match, default: False
         :param unlabeled_only: True to ignore labeled unconnected pads, defaults to False
-        :param chain_siso: ``True`` to chain the single-input single-output
+        :param chain_siso: :code:`True` to chain the single-input single-output
             connection, default: True
-        :param sws_flags_policy: Defines how to set ``sws_flags``:
+        :param sws_flags_policy: Defines how to set :code:`sws_flags`:
 
-            * ``'first'``: to use the first ``sws_flags`` found among the
-                filtergraphs (searched ``self`` first then ``others``)
-            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
+            * :code:`'first'`: to use the first :code:`sws_flags` found among the
+                filtergraphs (searched :code:`self` first then :code:`others`)
+            * :code:`'last'`: use this filtergraph's :code:`sws_flags` (or none used if
                 not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-                refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-                ``FFmpegioError`` exception. Otherwise, it uses the only one found
+            * :code:`int`: specify which filtergraph's :code:`sws_flags` to use. :code:`0`
+                refers to this object, :code:`1` refers to :code:`others[0]`, etc.
+            * :code:`None`: if more than one have the :code:`sws_flags` set, raises
+                :code:`FFmpegioError` exception. Otherwise, it uses the only one found
                 or none if none not found.
 
         :return: Graph with the appended filter chains or None if inplace=True.
@@ -622,7 +670,7 @@ class FilterGraphObject(ABC):
     @abstractmethod
     def attach(
         self,
-        right: fgb.abc.FilterGraphObject | str | list[str | tuple[PAD_INDEX, str]],
+        right: FilterGraphObject | str | list[str | tuple[PAD_INDEX, str]],
         left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
         right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
         *,
@@ -632,33 +680,36 @@ class FilterGraphObject(ABC):
     ) -> fgb.Chain | fgb.Graph:
         """attach filter, chain, graph, or labels to available output pads
 
-        :param right: output filtergraph or labels. If ``str``, the expression
+        :param right: output filtergraph or labels. If :code:`str`, the expression
             is first attempted to be converted to a filtergraph object. If the
             attempt fails, it is treated as a label.
-        :param left_on: pad_index, specify the output pad to connect ``right``
+        :type right: FilterGraphObject | str | list[str | tuple[PAD_INDEX, str]]
+        :param left_on: pad_index, specify the output pad to connect :code:`right`
             to, defaults to auto-detect (first available)
-        :param right_on: pad index, specifies the input pad of ``right`` to
-            connect to the ``left_on`` pad, defaults to auto-detect (first
+        :type left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None
+        :param right_on: pad index, specifies the input pad of :code:`right` to
+            connect to the :code:`left_on` pad, defaults to auto-detect (first
             available)
-        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
-            ``righ_on`` pads to be only those that can extend the existing
-            chains. To force this condition only on one side, use ``'left'`` or
-            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
-            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
-            ``Graph`` defaults to ``False``
-        :param chain_siso: ``True`` (default) to chain the new connection,
-            ``False`` to stack attached filtergraph.
-        :param inplace: ``True`` to store the output filtergraph in place.
-            If ``'inplace=True`` but the output is not of the same class type,
-            a ``ValueError` exception will be raised.
-        :return: new filtergraph object or ``None`` if ``inplace=True``
+        :type right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None
+        :param chainable_only: :code:`True` to limit auto-detecting :code:`left_on` and
+            :code:`righ_on` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use :code:`'left'` or
+            :code:`'right'`. If :code:`"auto"` (default) depends on this filtergraph
+            object type: :code:`Filter` and :code:`Chain` defaults to :code:`True` while
+            :code:`Graph` defaults to :code:`False`
+        :param chain_siso: :code:`True` (default) to chain the new connection,
+            :code:`False` to stack attached filtergraph.
+        :param inplace: :code:`True` to store the output filtergraph in place.
+            If :code:`'inplace=True` but the output is not of the same class type,
+            a :code:`ValueError` exception will be raised.
+        :return: new filtergraph object or :code:`None` if :code:`inplace=True`
 
         """
 
     @abstractmethod
     def rattach(
         self,
-        left: fgb.abc.FilterGraphObject | str | list[str | tuple[str, PAD_INDEX]],
+        left: FilterGraphObject | str | list[str | tuple[str, PAD_INDEX]],
         left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
         right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None = None,
         *,
@@ -667,21 +718,24 @@ class FilterGraphObject(ABC):
     ) -> fgb.Chain | fgb.Graph:
         """attach filter, chain, graph, or labels to available input pads
 
-        :param left: input filtergraph or labels. If ``str``, the expression
+        :param left: input filtergraph or labels. If :code:`str`, the expression
             is first attempted to be converted to a filtergraph object. If the
             attempt fails, it is treated as a label.
-        :param left_on: pad_index, specify the output pad of ``left``,
+        :type left: FilterGraphObject | str | list[str | tuple[str, PAD_INDEX]]
+        :param left_on: pad_index, specify the output pad of :code:`left`,
             defaults to auto-detect (first available)
+        :type left_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None
         :param right_on: pad index, specifies which input pad to connect
-            ``left`` to, defaults to auto-detect (first available)
-        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
-            ``righ_on`` pads to be only those that can extend the existing
-            chains. To force this condition only on one side, use ``'left'`` or
-            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
-            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
-            ``Graph`` defaults to ``False``
-        :param chain_siso: ``True`` (default) to chain the new connection,
-            ``False`` to stack attached filtergraph.
+            :code:`left` to, defaults to auto-detect (first available)
+        :type right_on: PAD_INDEX | str | list[PAD_INDEX | str | None] | None
+        :param chainable_only: :code:`True` to limit auto-detecting :code:`left_on` and
+            :code:`righ_on` pads to be only those that can extend the existing
+            chains. To force this condition only on one side, use :code:`'left'` or
+            :code:`'right'`. If :code:`"auto"` (default) depends on this filtergraph
+            object type: :code:`Filter` and :code:`Chain` defaults to :code:`True` while
+            :code:`Graph` defaults to :code:`False`
+        :param chain_siso: :code:`True` (default) to chain the new connection,
+            :code:`False` to stack attached filtergraph.
         :return: new filtergraph object
 
         """
@@ -706,7 +760,6 @@ class FilterGraphObject(ABC):
 
     # def __eq__(self, value: FilterGraphObject | str) -> bool:
     def __eq__(self, value: object) -> bool:
-
         try:
             value = fgb.convert.as_filtergraph_object_like(value, self)
         except Exception:
@@ -772,8 +825,8 @@ class FilterGraphObject(ABC):
         self >> (index, other|label)
         self >> (index, other_index, other)
 
-        If pad is unspecified (i.e., ``index`` is ``None`` or the last
-        element of ``index`` is ``None``), chain connection is sought first
+        If pad is unspecified (i.e., :code:`index` is :code:`None` or the last
+        element of :code:`index` is :code:`None`), chain connection is sought first
         unless multiple other connection points are given.
         """
 
@@ -807,8 +860,8 @@ class FilterGraphObject(ABC):
         (other, other_index, index) >> self
         [other0, other1, ...] >> self
 
-        If pad is unspecified (i.e., ``index`` is ``None`` or the last
-        element of ``index`` is ``None``), chain connection is sought first
+        If pad is unspecified (i.e., :code:`index` is :code:`None` or the last
+        element of :code:`index` is :code:`None`), chain connection is sought first
         unless multiple other connection points are given.
         """
 
@@ -844,26 +897,30 @@ class FilterGraphObject(ABC):
     ) -> PAD_INDEX:
         """Resolve unconnected label or pad index to full 3-element pad index
 
-        :param index_or_label: pad index set or pad label or ``None`` to auto-select
+        :param index_or_label: pad index set or pad label or :code:`None` to auto-select
+        :type index_or_label: PAD_INDEX | str | None
         :param is_input: True to resolve an input pad, else an output pad, defaults to True
-        :param chain_id_omittable: True to allow ``None`` chain index, defaults to False
-        :param filter_id_omittable: True to allow ``None`` filter index, defaults to False
-        :param pad_id_omittable: True to allow ``None`` pad index, defaults to False
+        :param chain_id_omittable: True to allow :code:`None` chain index, defaults to False
+        :param filter_id_omittable: True to allow :code:`None` filter index, defaults to False
+        :param pad_id_omittable: True to allow :code:`None` pad index, defaults to False
         :param resolve_omitted: True to fill each omitted value with the prescribed fill value.
-        :param chain_fill_value: if ``chain_id_omittable=True`` and chain index is either not
-                                 given or ``None``, this value will be returned, defaults to None,
-                                 which returns the first available pad.
-        :param filter_fill_value:if ``filter_id_omittable=True`` and filter index is either not
-                                 given or ``None``, this value will be returned, defaults to None,
-                                 which returns the first available pad.
-        :param pad_fill_value: if ``pad_id_omittable=True`` and either ``index`` is None or
-                               pad index is ``None``, this value will be returned, defaults to None,
-                               which returns the first available pad.
+        :param chain_fill_value: if :code:`chain_id_omittable=True` and chain index is either not
+            given or :code:`None`, this value will be returned, defaults to None,
+            which returns the first available pad.
+        :param filter_fill_value: if :code:`filter_id_omittable=True` and filter index is either not
+            given or :code:`None`, this value will be returned, defaults to None, which returns
+            the first available pad.
+        :param pad_fill_value: if :code:`pad_id_omittable=True` and either :code:`index` is None or
+            pad index is :code:`None`, this value will be returned, defaults to None,
+            which returns the first available pad.
         :param chainable_first: if True, chainable pad is selected first, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all pads
+        :return: full expression of the given pad index / label
+        :rtype: PAD_INDEX
 
-        One and only one of ``index`` and ``label`` must be specified. If the given index
+        One and only one of :code:`index` and :code:`label` must be specified. If the given index
         or label is invalid, it raises FiltergraphPadNotFoundError.
+
         """
 
         # base implementation - guarantees to return 3-element tuple index WITHOUT converting None fill_values

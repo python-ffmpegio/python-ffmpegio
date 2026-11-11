@@ -25,28 +25,31 @@ import logging
 import signal
 import subprocess as sp
 from collections import abc
+from collections.abc import Sequence
 from copy import deepcopy
 from os import name as os_name
 from os import path
+from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 from threading import Thread
 
 from ._typing import (
-    ProgressCallable,
+    BinaryIO,
     Callable,
     FFmpegArgs,
     FFmpegOptionDict,
+    ProgressCallable,
+    TextIO,
 )
-from .configure import move_global_options
 from .path import DEVNULL, PIPE, TimeoutExpired, devnull, ffmpeg
 from .threading import ProgressMonitorThread
+from .utils import move_global_options
 from .utils.parser import FLAG, compose, parse
 
 logger = logging.getLogger("ffmpegio")
 
 
 __all__ = [
-    "versions",
     "run",
     "Popen",
     "FLAG",
@@ -54,6 +57,7 @@ __all__ = [
     "DEVNULL",
     "devnull",
     "TimeoutExpired",
+    "FFmpegArgs",
 ]
 
 
@@ -72,6 +76,7 @@ def exec(
     """run ffmpeg command
 
     :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: FFmpegArgs
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :param progress: progress monitor callback function, defaults to None
     :param overwrite: True to overwrite if output url exists, defaults to None
@@ -137,7 +142,7 @@ def exec(
     def isreadable(f):
         try:
             return f.fileno() and f.readable()
-        except:
+        except AttributeError:
             return False
 
     inpipe = (
@@ -160,7 +165,7 @@ def exec(
     def iswritable(f):
         try:
             return f == DEVNULL or (f.fileno() and f.writable())
-        except:
+        except AttributeError:
             return False
 
     outpipe = (
@@ -194,7 +199,7 @@ def exec(
     )
 
 
-def monitor_process(proc: sp.Popen, on_exit: abc.Sequence[Callable] | None = None):
+def monitor_process(proc: sp.Popen, on_exit: Sequence[Callable] | None = None):
     """thread function to monitor subprocess termination
 
     :param proc: subprocess to be monitored
@@ -238,15 +243,18 @@ class Popen(sp.Popen):
         """Execute FFmpeg in a new process.
 
         :param ffmpeg_args: FFmpeg arguments
+        :type ffmpeg_args: FFmpegArgs
         :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
         :param progress: progress callback function, defaults to None. This function
-                        takes two arguments and may return True to terminate execution::
+            takes two arguments and may return True to terminate execution::
 
-                            progress(data:dict, done:bool) -> bool|None
+                progress(data:dict, done:bool) -> bool|None
+
+        :type progress: ProgressCallable | None
         :param overwrite: True to overwrite if output url exists, defaults to None
-                        (auto-select)
+            (auto-select)
         :param capture_log: True to capture log messages on stderr, False to send
-                        logs to console, defaults to None (no show/capture)
+            logs to console, defaults to None (no show/capture)
         :param stdin: source file object, defaults to None
         :param stdout: sink file object, defaults to None
         :param stderr: file to log ffmpeg messages, defaults to None
@@ -333,11 +341,10 @@ class Popen(sp.Popen):
             )
             self._monitor.start()
 
-    def wait(self, timeout=None):
+    def wait(self, timeout: float | None = None):
         """Wait for FFmpeg process to terminate; returns self.returncode
 
         :param timeout: optional timeout in seconds, defaults to None
-        :type timeout: float, optional
 
         For FFmpeg to terminate autonomously, its stdin PIPE must be closed.
 
@@ -371,13 +378,11 @@ class Popen(sp.Popen):
         except:
             pass
 
-    def send_signal(self, sig: int = None, kill_monitor: bool = False):
+    def send_signal(self, sig: int | None = None, kill_monitor: bool | None = False):
         """Sends the signal signal to the FFmpeg process
 
         :param sig: signal id, default SIGINT (POSIX) / CTRL_C_EVENT (Windows)
-        :type sig: int, optional
         :param kill_monitor: True to kill the monitor thread, default False
-        :type kill_monitor: bool, optional
 
         Without any argument, `send_signal()` will perform control-C to initiate
         soft-terminate FFmpeg. FFmpeg may output additional frames before exits.
@@ -410,16 +415,19 @@ def run(
     stdin: BinaryIO | None = None,
     stdout: BinaryIO | None = None,
     stderr: TextIO | None = None,
-    input: Buffer | None = None,
+    input: memoryview | None = None,
     **other_popen_kwargs,
-) -> sp.CompleteProcess:
+) -> CompletedProcess:
     """run FFmpeg subprocess with standard pipes with a single transaction
 
     :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: FFmpegArgs
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :param progress: progress callback function, defaults to None. This function
-        takes two arguments:
+        takes two arguments:: python
+
             progress(data:dict, done:bool) -> None
+    :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to None
         (auto-select)
     :param capture_log: True to capture log messages on stderr, False to send
@@ -429,9 +437,8 @@ def run(
     :param stderr: file to log ffmpeg messages, defaults to None
     :param input: input data buffer must be given if FFmpeg is configured to receive
         data stream from Python. It must be bytes convertible to bytes.
-    :type input: bytes-convertible object, optional
     :param other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
-    :rparam: completed process
+    :return: completed process
     """
 
     with ProgressMonitorThread(progress) as progmon:
@@ -458,33 +465,35 @@ def run(
 
 def run_two_pass(
     ffmpeg_args: FFmpegArgs,
-    pass1_omits: abc.Sequence[str]
-    | abc.Sequence[abc.Sequence[str]]
-    | dict[int, abc.Sequence[str]]
+    pass1_omits: Sequence[str]
+    | Sequence[Sequence[str]]
+    | dict[int, Sequence[str]]
     | None = None,
     pass1_extras: FFmpegOptionDict
-    | abc.Sequence[FFmpegOptionDict]
+    | Sequence[FFmpegOptionDict]
     | dict[int, FFmpegOptionDict]
     | None = None,
     overwrite: bool | None = None,
     stdin: BinaryIO | None = None,
     **other_run_kwargs,
-) -> sp.CompleteProcess:
+) -> CompletedProcess:
     """run FFmpeg subprocess with standard pipes with a single transaction twice for 2-pass encoding
 
     :param ffmpeg_args: FFmpeg argument options
+    :type ffmpeg_args: FFmpegArgs
     :param pass1_omits: per-file list of output arguments to ignore in pass 1. If not applicable to every
                         output file, use a nested dict with int keys to specify which output,
                         defaults to None (remove 'c:a' or 'acodec').
     :param pass1_extras: per-file list of additional output arguments to include in pass 1. If it does
                          not apply to every output files, use a nested dict with int keys to specify
                          which output, defaults to None (add 'an' if `pass1_omits` also None)
+    :type pass1_extras: FFmpegOptionDict | Sequence[FFmpegOptionDict] | dict[int, FFmpegOptionDict] | None
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
     :param overwrite: True to overwrite if output url exists, defaults to None
                       (auto-select)
     :param stdin: source file object, defaults to None
     :param other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
-    :rparam: completed process
+    :return: completed process
     """
 
     # TODO allow multiple stream 2-pass encoding
@@ -510,7 +519,7 @@ def run_two_pass(
 
     nouts = len(pass1_args["outputs"])
     if (
-        isinstance(pass1_omits, abc.Sequence)
+        isinstance(pass1_omits, Sequence)
         and len(pass1_omits)
         and type(pass1_omits[0]) == str
     ):

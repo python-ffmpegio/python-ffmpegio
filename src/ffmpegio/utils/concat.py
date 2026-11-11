@@ -11,6 +11,7 @@ from glob import glob
 from tempfile import NamedTemporaryFile
 
 from .._utils import escape, unescape
+from .._typing import TextIO
 
 logger = logging.getLogger("ffmpegio")
 
@@ -22,9 +23,7 @@ class FFConcat:
     """Create FFmpeg concat demuxer source generator
 
     :param script: concat script to parse, defaults to None (empty script)
-    :type script: str, optional
     :param pipe_url: stdin pipe or None to use a temp file, defaults to None
-    :type pipe_url: bool, optional
 
     FFConcat instance is intended to be used as an input url object when invoking `ffmpegprocess.run`
     or `ffmpegprocess.Popen`. The FFmpeg command parser stringify the ConatDemuxer instance to either the
@@ -122,27 +121,21 @@ class FFConcat:
         """File listing item
 
         :param filepath: url of the file to be included
-        :type filepath: str
         :param duration: duration of the file, defaults to None
-        :type duration: str or numeric, optional
         :param inpoint: in point of the file, defaults to None
-        :type inpoint: str or numeric, optional
         :param outpoint: out point of the file, defaults to None
-        :type outpoint: str or numeric, optional
         :param metadata: Metadata of the packets of the file, defaults to None
-        :type metadata: dict, optional
         :param options: Option to access, open and probe the file, defaults to None
-        :type options: dict, optional
         """
 
         def __init__(
             self,
-            filepath,
-            duration=None,
-            inpoint=None,
-            outpoint=None,
-            metadata=None,
-            options=None,
+            filepath: str,
+            duration: float | str | None = None,
+            inpoint: float | str | None = None,
+            outpoint: float | str | None = None,
+            metadata: dict[str, str] | None = None,
+            options: dict[str, str] | None = None,
         ):
             #:str: url of the file
             self.path = filepath
@@ -187,16 +180,18 @@ class FFConcat:
         """Stream listing item
 
         :param id: ID of the stream, defaults to None
-        :type id: str, optional
         :param codec: Codec for the stream, defaults to None
-        :type codec: str, optional
         :param metadata: Metadata for the stream, defaults to None
-        :type metadata: dict, optional
         :param extradata: Extradata for the stream in hexadecimal, defaults to None
-        :type extradata: str or bytes-like, optional
         """
 
-        def __init__(self, id=None, codec=None, metadata=None, extradata=None):
+        def __init__(
+            self,
+            id: str | None = None,
+            codec: str | None = None,
+            metadata: dict[str, str] | None = None,
+            extradata: str | memoryview | None = None,
+        ):
             #:str or None: id of the stream, optional
             self.id = id
             #:str or None: codec of the stream, optional
@@ -233,7 +228,13 @@ class FFConcat:
 
             return lines
 
-    def __init__(self, script=None, pipe_url=None, ffconcat_url=None):
+    def __init__(
+        self,
+        script: str | None = None,
+        pipe_url: str | None = None,
+        ffconcat_url: str | None = None,
+    ):
+
         # :List[FFConcat.FileItem]: list of files to be included in the order of appearance
         self.files = []
         #:ListConcatDemuxer.StreamItem]: list of streams to be included in the order of appearance
@@ -268,27 +269,21 @@ class FFConcat:
 
     def add_file(
         self,
-        filepath,
-        duration=None,
-        inpoint=None,
-        outpoint=None,
-        metadata=None,
-        options=None,
+        filepath: str,
+        duration: float | str | None = None,
+        inpoint: float | str | None = None,
+        outpoint: float | str | None = None,
+        metadata: dict[str, str] | None = None,
+        options: dict[str, str] | None = None,
     ):
         """append a file to the list
 
         :param filepath: url of the file to be included
-        :type filepath: str
         :param duration: duration of the file, defaults to None
-        :type duration: str or numeric, optional
         :param inpoint: in point of the file, defaults to None
-        :type inpoint: str or numeric, optional
         :param outpoint: out point of the file, defaults to None
-        :type outpoint: str or numeric, optional
         :param metadata: Metadata of the packets of the file, defaults to None
-        :type metadata: dict, optional
         :param options: Option to access, open and probe the file, defaults to None
-        :type options: dict, optional
         """
         self.files.append(
             self.FileItem(filepath, duration, inpoint, outpoint, metadata, options)
@@ -304,15 +299,12 @@ class FFConcat:
         for file in files:
             self.files.append(self.FileItem(file))
 
-    def add_glob(self, expr, root_dir=None, recursive=False):
+    def add_glob(self, expr: str, root_dir: str | None = None, recursive: bool = False):
         """append files with glob expression
 
         :param expr: glob expression
-        :type expr: str
         :param root_dir: the root directory for searching, defaults to None (uses the current directory)
-        :type root_dir: str, optional
         :param recursive: True to use the pattern “**” to match any files and zero or more directories, defaults to False
-        :type recursive: bool, optional
         """
         if root_dir:
             expr = os.path.join(root_dir, expr)
@@ -324,41 +316,38 @@ class FFConcat:
     def add_sequence(self, expr):
         raise ValueError("TODO")
 
-    def add_stream(self, id=None, codec=None, metadata=None, extradata=None):
+    def add_stream(
+        self,
+        id: str | None = None,
+        codec: str | None = None,
+        metadata: dict[str, str] | None = None,
+        extradata: str | memoryview | None = None,
+    ):
         """append a stream specification to the list
 
         :param id: ID of the stream, defaults to None
-        :type id: str, optional
         :param codec: Codec for the stream, defaults to None
-        :type codec: str, optional
         :param metadata: Metadata for the stream, defaults to None
-        :type metadata: dict, optional
         :param extradata: Extradata for the stream in hexadecimal, defaults to None
-        :type extradata: str or bytes-like, optional
         """
         self.streams.append(self.StreamItem(id, codec, metadata, extradata))
 
-    def add_chapter(self, id, start, end):
+    def add_chapter(self, id: str, start: float | str, end: float | str):
         """add a chapter
 
         :param id: chapter ID
-        :type id: str
         :param start: start time
-        :type start: numeric or str
         :param end: end time
-        :type end: numeric or str
         """
 
         self.chapters[id] = (start, end)
 
-    def parse(self, script, append=False):
+    def parse(self, script: str, append: bool = False):
         """parse ffconcat script
 
         :param script: ffconcat script
-        :type script: str
         :param append: True to append to the existing listing, False to clear
                        existing and start new, defaults to False
-        :type append: bool, optional
         """
 
         def new_file(args):
@@ -427,14 +416,12 @@ class FFConcat:
             except:
                 raise ValueError(f"Unknown directive or invalid syntax: {dir} {args}")
 
-    def compose(self, f=None):
+    def compose(self, f: TextIO | None = None) -> TextIO:
         """compose ffconcat file
 
         :param f: writable file-like object, defaults to None, outputting to a
                   :py:class:`StringIO` object.
-        :type f: File-like object, optional
         :return: passes through `f` or the created :py:class:`StringIO` object
-        :rtype: File-like object
         """
 
         if f is None:
@@ -513,17 +500,15 @@ class FFConcat:
     script:
         {script}"""
 
-    def as_filter(self, v=1, a=0, file_offset=0):
+    def as_filter(
+        self, v: int = 1, a: int = 0, file_offset: int = 0
+    ) -> tuple[list[tuple[str, dict]], str]:
         """convert to concat filter commands
 
         :param v: number of video streams in each file, default to 1
-        :type v: int, optional
         :param a: number of audio streams in each file, default to 0
-        :type a: int, optional
         :param file_offset: id of the first file used in the filtergraph input labels
-        :type file_offset: int, optional
         :returns: inputs list and concat filtergraph string
-        :rtype: tuple[list[tuple[str,dict]], str]
         """
 
         if len(self.streams) or len(self.chapters):

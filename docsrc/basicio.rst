@@ -1,50 +1,57 @@
+.. py:currentmodule:: ffmpegio
 .. highlight:: python
+
 .. _basicio:
 
-Basic I/O Function References
-=============================
+Basic I/O Functions (:code:`ffmpegio.video`, :code:`ffmpegio.audio`, :code:`ffmpegio.image`, :code:`ffmpegio.media`, :code:`ffmpegio.transcode`)
+================================================================================================================================================
 
-Basic Functions
----------------
+Overview
+--------
+
+:code:`Ffmpegio` provide intuitive set of Python functions
+to read or write raw media data 
+
+Each of :code:`video`, :code:`audio`, :code:`image`,
+and :code:`media` submodules
 
 .. autosummary::
    :nosignatures:
    :recursive:
 
-   ffmpegio.ffmpeg_info
-   ffmpegio.set_path
-   ffmpegio.get_path
-   ffmpegio.is_ready
-   ffmpegio.video.create
-   ffmpegio.video.read
-   ffmpegio.video.write
-   ffmpegio.video.filter
-   ffmpegio.image.create
-   ffmpegio.image.read
-   ffmpegio.image.filter
-   ffmpegio.image.write
-   ffmpegio.audio.create
-   ffmpegio.audio.read
-   ffmpegio.audio.write
-   ffmpegio.audio.filter
-   ffmpegio.open
-   ffmpegio.transcode
+   transcode
+   video.create
+   video.read
+   video.write
+   video.filter
+   image.create
+   image.read
+   image.filter
+   image.write
+   audio.create
+   audio.read
+   audio.write
+   audio.filter
+   media.read
+   media.write
+   media.filter
 
-.. autofunction:: ffmpegio.ffmpeg_info
-.. autofunction:: ffmpegio.get_path
-.. autofunction:: ffmpegio.set_path   
-.. autofunction:: ffmpegio.is_ready
-.. autofunction:: ffmpegio.video.create
-.. autofunction:: ffmpegio.video.read
-.. autofunction:: ffmpegio.video.write
-.. autofunction:: ffmpegio.video.filter
-.. autofunction:: ffmpegio.image.create
-.. autofunction:: ffmpegio.image.read
-.. autofunction:: ffmpegio.image.write
-.. autofunction:: ffmpegio.image.filter
-.. autofunction:: ffmpegio.audio.create
-.. autofunction:: ffmpegio.audio.read
-.. autofunction:: ffmpegio.audio.write
-.. autofunction:: ffmpegio.audio.filter
-.. autofunction:: ffmpegio.open
-.. autofunction:: ffmpegio.transcode
+API References
+--------------
+
+.. autofunction:: ffmpegio::audio.create
+.. autofunction:: ffmpegio::audio.filter
+.. autofunction:: ffmpegio::audio.read
+.. autofunction:: ffmpegio::audio.write
+.. autofunction:: ffmpegio::image.create
+.. autofunction:: ffmpegio::image.filter
+.. autofunction:: ffmpegio::image.read
+.. autofunction:: ffmpegio::image.write
+.. autofunction:: ffmpegio::media.filter
+.. autofunction:: ffmpegio::media.read
+.. autofunction:: ffmpegio::media.write
+.. autofunction:: transcode
+.. autofunction:: ffmpegio::video.create
+.. autofunction:: ffmpegio::video.filter
+.. autofunction:: ffmpegio::video.read
+.. autofunction:: ffmpegio::video.write

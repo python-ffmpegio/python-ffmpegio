@@ -1,3 +1,5 @@
+.. :py:currentmodule:: ffmpegio
+
 .. highlight:: python
 .. _quick:
 
@@ -7,10 +9,10 @@ Quick Start Guide
 Install
 -------
 
-To use :py:mod:`ffmpegio`, the package must be installed on Python as well as  
-having the FFmpeg binary files at a location :py:mod:`ffmpegio` can find.
+To use :code:`ffmpegio`, the package must be installed on Python as well as  
+having the FFmpeg binary files at a location :code:`ffmpegio` can find.
 
-Install the full :py:mod:`ffmpegio` package via ``pip``:
+Install the full :code:`ffmpegio` package via :code:`pip`:
 
 .. code-block:: bash
 
@@ -274,7 +276,7 @@ Specify Sample Formats
 ----------------------
 
 FFmpeg can also convert the formats of video pixels and sound samples on the fly. 
-This feature is enabled in :py:mod:`ffmpegio` via output options :code:`pix_fmt` 
+This feature is enabled in :code:`ffmpegio` via output options :code:`pix_fmt` 
 for video and :code:`sample_fmt` for audio. 
 
   .. table:: Video :code:`pix_fmt` Option Values
@@ -334,7 +336,7 @@ For example,
 
 Note when converting from an image with alpha channel (FFmpeg does not support 
 alpha channel in video input) the background color may be specified with 
-:code:`fill_color` option (which defaults to ``'white'``). 
+:code:`fill_color` option (which defaults to :code:`'white'`). 
 See `the FFmpeg color specification <https://ffmpeg.org/ffmpeg-utils.html#Color>`__
 for the list of predefined color names.
 
@@ -401,7 +403,7 @@ Progress Callback
 -----------------
 
 FFmpeg has :code:`-progress` option, which sends program-friendly progress
-information to url. :py:mod:`ffmpegio` takes advantage of this option to
+information to url. :code:`ffmpegio` takes advantage of this option to
 let user monitor the transcoding progress with a callback, which could be 
 set with :code:`progress` argument of all media operations. The callback
 function must have the following signature:

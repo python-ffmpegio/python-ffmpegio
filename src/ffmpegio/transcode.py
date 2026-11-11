@@ -4,7 +4,7 @@ import logging
 
 from . import FFmpegError, configure, utils
 from . import ffmpegprocess as fp
-from ._typing import FFmpegOptionDict, ProgressCallable, Sequence, Unpack
+from ._typing import ProgressCallable, Sequence, Unpack, FFmpegOptionDict
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
@@ -50,31 +50,34 @@ def transcode(
         each containing an input url and its options dict
     :param outputs: url/path of the output media file or a sequence of tuples,
         each containing an output url and its options dict
-    :param progress: progress callback function, defaults to ``None``
+    :param progress: progress callback function, defaults to :code:`None`
+    :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to auto-
         select
     :param show_log: True to show FFmpeg log messages on the console, defaults
-        to ``None`` (no show/capture) Ignored if stream format must be retrieved
+        to :code:`None` (no show/capture) Ignored if stream format must be retrieved
         automatically.
     :param two_pass: True to encode in 2-pass
     :param pass1_omits: list of output arguments to ignore in pass 1, defaults
-        to ``None`` (removes ``'c:a'`` or ``'acodec'``). For multiple outputs,
+        to :code:`None` (removes :code:`'c:a'` or :code:`'acodec'`). For multiple outputs,
         specify use list of the list of arguments, matching the length of
         outputs, for per-output omission.
     :param pass1_extras: list of additional output arguments to include in pass
-        1, defaults to ``None`` (add 'an' if ``pass1_omits`` also ``None``)
-    :param sp_kwargs: dictionary with keywords passed to ``subprocess.run()`` or
-        ``subprocess.Popen()`` call used to run the FFmpeg, defaults
+        1, defaults to :code:`None` (add 'an' if :code:`pass1_omits` also :code:`None`)
+    :type pass1_extras: FFmpegOptionDict | Sequence[FFmpegOptionDict] | dict[int, FFmpegOptionDict] | None
+    :param sp_kwargs: dictionary with keywords passed to :code:`subprocess.run()` or
+        :code:`subprocess.Popen()` call used to run the FFmpeg, defaults
         to None
     :param options: FFmpeg options. For output and global options, use FFmpeg
-        option names as is. For input options, append ``"_in"`` to the option
-        name. For example, ``r_in=2000`` to force the input frame rate to 2000
+        option names as is. For input options, append :code:`"_in"` to the option
+        name. For example, :code:`r_in=2000` to force the input frame rate to 2000
         frames/s (see :doc:`options`).
 
         If multiple inputs or outputs are specified, these input or output
         options specified here are treated as common options, and the url-
-        specific duplicate options in the ``inputs`` or ``outputs`` sequence
+        specific duplicate options in the :code:`inputs` or :code:`outputs` sequence
         will overwrite those specified here.
+    :type options: FFmpegOptionDict
     :returns: if any of the outputs is stdout, returns output bytes
 
     """

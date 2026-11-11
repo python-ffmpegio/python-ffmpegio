@@ -1,5 +1,5 @@
-Pillow==13.0.0
 sphinx
+sphinx-autodoc-typehints
 sphinx-rtd-theme
 sphinx-autopackagesummary
 sphinxcontrib-repl
@@ -7,5 +7,9 @@ sphinx-exec-directive
 sphinx-autobuild
 sphinx-book-theme
 sphinx-copybutton
-matplotlib
+sphinx_toolbox
+ffmpeg-downloader
+static-ffmpeg
 numpy
+matplotlib
+Pillow==13.0.0

@@ -333,13 +333,13 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         :param init_kws: keyword arguments to call the FFmpeg initialization function
         :param primary_output: (only for multi-stream readable) index of a raw
                                media output stream which serves as a frame count
-                               reference , defaults to ``0``.
+                               reference , defaults to :code:`0`.
         :param blocksize: (only for readable) iterator block size in frames/samples
                           to read raw media streams. If multiple output streams,
-                          this size specifies the size for the ``primary_output``
+                          this size specifies the size for the :code:`primary_output`
                           stream. If named pipes are used, this size is also the
                           size of queue items of the primary stream, defaults to
-                          use ``1`` for a video stream and ``1024`` for audio stream.
+                          use :code:`1` for a video stream and :code:`1024` for audio stream.
         :param enc_blocksize: (only for decodable with named pipes) the queue
             item size of encoded output stream in bytes, defaults to 64 MB
             (2**16 bytes).
@@ -349,6 +349,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             wait indefinitely. Note this timeout does not apply to stdout pipe
             operation.
         :param progress: progress callback function, defaults to None
+        :type progress: ProgressCallable | None
         :param show_log: True to show FFmpeg log messages on the console,
                          defaults to None (no show/capture)
         :param overwrite: _description_, defaults to None
@@ -401,15 +402,15 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
         :param stream: optional new stream written since last try
         :param data: optional newly written stream data
-        :param last: optional ``True`` if ``data`` is the last data blob of ``stream``
-        :return: ``True`` if FFmpeg arguments are successfully configured
+        :param last: optional :code:`True` if :code:`data` is the last data blob of :code:`stream`
+        :return: :code:`True` if FFmpeg arguments are successfully configured
                  and `_input_info` and `_output_info` lists are fully
                  populated. Excludes the pipe information.
 
 
-        If this function returns ``True``, the class object is ready to call
-        `_run_ffmpeg() and input and output stream information (``_input_info``
-        and ``_output_info``) are successfully lists are fully populated, except
+        If this function returns :code:`True`, the class object is ready to call
+        `_run_ffmpeg() and input and output stream information (:code:`_input_info`
+        and :code:`_output_info`) are successfully lists are fully populated, except
         for the pipe assignments.
 
         """
@@ -470,8 +471,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def _run_ffmpeg(self):
         """configure pipes and run ffmpeg
 
-        ``BaseFFmpegRunner`` neither configure/start pipes nor dump the pre-buffer
-        in ``_init_kws``.
+        :code:`BaseFFmpegRunner` neither configure/start pipes nor dump the pre-buffer
+        in :code:`_init_kws`.
         """
 
         if self._status != FFmpegStatus.ANALYSIS_DONE:
@@ -677,10 +678,10 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def writable(self) -> bool:
-        """Return ``True`` if there is at least one raw media stream to write to.
-        If ``False``, ``write()`` will raise ``FFmpegioError``.
+        """Return :code:`True` if there is at least one raw media stream to write to.
+        If :code:`False`, :code:`write()` will raise :code:`FFmpegioError`.
 
-        See also: ``BaseFFmpegRunner.num_input_streams``
+        See also: :code:`BaseFFmpegRunner.num_input_streams`
         """
 
         return self.num_input_streams > 0
@@ -688,7 +689,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     @cached_property
     def num_input_streams(self) -> int:
         """Return the number of raw media input streams.
-        If ``0``, ``write()`` will raise ``FFmpegioError``."""
+        If :code:`0`, :code:`write()` will raise :code:`FFmpegioError`."""
 
         try:
             return len(self._init_kws["input_options"])
@@ -702,10 +703,10 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
                      plugins (e.g., a NumPy array if numpy is importable in the
                      Python workspace). The shape and dtype of the data must be
                      compatible with the stream's shape and pix_fmt/sample_fmt.
-        :param stream: stream index in accordance to the ``input_options``
+        :param stream: stream index in accordance to the :code:`input_options`
                        input array, defaults to 0 (write to the first stream).
-        :param last: ``True`` to indicate ``data`` is the last frame of the stream.
-                     Once called with ``last=True``, the input stream can no longer
+        :param last: :code:`True` to indicate :code:`data` is the last frame of the stream.
+                     Once called with :code:`last=True`, the input stream can no longer
                      be written.
 
         """
@@ -758,8 +759,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def input_dtypes(self) -> list[DTypeString] | None:
         """frame/sample data type associated with the input raw media streams
 
-        ``None`` is returned if input stream exists but FFmpeg is not running yet
-        and ``input_dtypes`` argument is not given or not fully populated.
+        :code:`None` is returned if input stream exists but FFmpeg is not running yet
+        and :code:`input_dtypes` argument is not given or not fully populated.
         """
 
         nin = self.num_input_streams
@@ -784,8 +785,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def input_shapes(self) -> list[ShapeTuple] | None:
         """frame/sample shape associated with the input raw media streams
 
-        ``None`` is returned if input stream is expected but FFmpeg is not running yet
-        and ``input_shapes`` argument is not given or not fully populated.
+        :code:`None` is returned if input stream is expected but FFmpeg is not running yet
+        and :code:`input_shapes` argument is not given or not fully populated.
         """
 
         nin = self.num_input_streams
@@ -812,15 +813,15 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def decodable(self) -> bool:
-        """Return ``True`` if there is at least one encoded stream to write to.
-        If ``False``, ``write_encoded()`` will raise ``FFmpegioError``."""
+        """Return :code:`True` if there is at least one encoded stream to write to.
+        If :code:`False`, :code:`write_encoded()` will raise :code:`FFmpegioError`."""
 
         return self.num_encoded_input_streams > 0
 
     @cached_property
     def num_encoded_input_streams(self) -> int:
         """Return the number of encoded input streams.
-        If ``0``, ``write_encoded()`` will raise ``FFmpegioError``."""
+        If :code:`0`, :code:`write_encoded()` will raise :code:`FFmpegioError`."""
 
         return len(self.encoded_input_streams)
 
@@ -844,11 +845,11 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         :param stream: encoded input stream index, defaults to 0 (write to the
                        first stream). Note that this stream index is that of all
                        encoded inputs. For example, if the runner is set up with
-                       ``input_urls = ['video.mp4','-']`` then ``stream=0`` points
-                       to `'video.mp4'` thus the write would fail, and ``stream=1``
+                       :code:`input_urls = ['video.mp4','-']` then :code:`stream=0` points
+                       to `'video.mp4'` thus the write would fail, and :code:`stream=1`
                        must be specified to write to the input pipe.
-        :param last: ``True`` to indicate ``data`` is the last frame of the stream.
-                     Once called with ``last=True``, the input stream can no longer
+        :param last: :code:`True` to indicate :code:`data` is the last frame of the stream.
+                     Once called with :code:`last=True`, the input stream can no longer
                      be written.
 
         """
@@ -881,17 +882,17 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @cached_property
     def readable(self) -> bool | None:
-        """Return ``True`` if there is at least one raw media stream to read from.
-        If ``False``, ``read()`` will raise ``FFmpegioError``."""
+        """Return :code:`True` if there is at least one raw media stream to read from.
+        If :code:`False`, :code:`read()` will raise :code:`FFmpegioError`."""
         nout = self.num_output_streams
         return nout and nout > 0
 
     @cached_property
     def num_output_streams(self) -> int | None:
-        """Return the number of raw media stream to read from. If ``0``, ``read()``
-        will raise ``FFmpegioError``."""
+        """Return the number of raw media stream to read from. If :code:`0`, :code:`read()`
+        will raise :code:`FFmpegioError`."""
 
-        # assuming that ``output_stream`` keyword only =specifies unique map
+        # assuming that :code:`output_stream` keyword only =specifies unique map
 
         try:
             output_info = self._output_info
@@ -926,7 +927,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         """media types of the raw media output pipes.
 
         Note: If a pipe outputs a filtergraph output (or streamspec is not
-        unique), ``None`` is returned prior to FFmpeg starts"""
+        unique), :code:`None` is returned prior to FFmpeg starts"""
 
         nout = self.num_output_streams
 
@@ -960,7 +961,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         """labels of the raw media output pipes.
 
         If the same input stream is mapped to multiple outputs without unique
-        user labels, ``None`` is returned prior to FFmpeg starts"""
+        user labels, :code:`None` is returned prior to FFmpeg starts"""
 
         nout = self.num_output_streams
 
@@ -984,7 +985,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
     def output_rates(self) -> list[int | Fraction] | None:
         """sample or frame rates associated with the output streams
 
-        ``None`` is returned before FFmpeg starts unless user specify the
+        :code:`None` is returned before FFmpeg starts unless user specify the
         rates of all output streams (i.e., resample/change frame rate).
         """
 
@@ -1017,7 +1018,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         Each element is a Numpy-style dtype string like '|u1' for unsigned 8-bit
         integer.
 
-        If FFmpeg process has not been started, this property returns ``None``.
+        If FFmpeg process has not been started, this property returns :code:`None`.
         """
 
         nout = self.num_output_streams
@@ -1041,7 +1042,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         For a video stream, it has 3 elements (height, width, components); for
         an audio stream, it has 1 element (channels,).
 
-        If FFmpeg process has not been started, this property returns ``None``.
+        If FFmpeg process has not been started, this property returns :code:`None`.
         """
 
         nout = self.num_output_streams
@@ -1059,7 +1060,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def output_itemsizes(self) -> list[int] | None:
-        """frame/sample item sizes in bytes or ``None`` if accessed before ffmpeg
+        """frame/sample item sizes in bytes or :code:`None` if accessed before ffmpeg
         is configured.
         """
 
@@ -1078,7 +1079,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def primary_output(self) -> int:
-        """index of the primary output stream or ``-1`` if no output raw media stream"""
+        """index of the primary output stream or :code:`-1` if no output raw media stream"""
 
         _user_val = self._primary_output
         if _user_val is None:
@@ -1131,7 +1132,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         """calculate the number of frames of raw output streams
 
         :param primary_frames: number of frames of the reference output stream,
-                               defaults to ``primary_output_blocksize``
+                               defaults to :code:`primary_output_blocksize`
         :return: numbers of frames of all the output streams. If FFmpeg process
                  has not been started, it returns None
         """
@@ -1157,22 +1158,22 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def encodable(self) -> bool:
-        """Return ``True`` if there is at least one encoded stream to read.
-        If ``False``, ``read_encoded()`` will raise ``FFmpegioError``."""
+        """Return :code:`True` if there is at least one encoded stream to read.
+        If :code:`False`, :code:`read_encoded()` will raise :code:`FFmpegioError`."""
 
         return self.num_encoded_output_streams > 0
 
     @cached_property
     def num_encoded_output_streams(self) -> int:
         """Return the number of encoded output streams.
-        If ``0``, ``read_encoded()`` will raise ``FFmpegioError``."""
+        If :code:`0`, :code:`read_encoded()` will raise :code:`FFmpegioError`."""
 
         return len(self.encoded_output_streams)
 
     @cached_property
     def encoded_output_streams(self) -> list[int]:
         """Return a list of encoded piped output streams.
-        If empty, ``read_encoded()`` will raise ``FFmpegioError``."""
+        If empty, :code:`read_encoded()` will raise :code:`FFmpegioError`."""
 
         kws = self._init_kws
         url_kw_or_none = kws.get("output_urls", kws.get("extra_outputs", None))
@@ -1189,8 +1190,8 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         :param stream: encoded output stream index, defaults to 0 (write to the
                        first stream). Note that this stream index is that of all
                        encoded inputs. For example, if the runner is set up with
-                       ``input_urls = ['video.mp4','-']`` then ``stream=0`` points
-                       to `'video.mp4'` thus the write would fail, and ``stream=1``
+                       :code:`input_urls = ['video.mp4','-']` then :code:`stream=0` points
+                       to `'video.mp4'` thus the write would fail, and :code:`stream=1`
                        must be specified to write to the input pipe.
         :returns: bytes
         """
@@ -1220,44 +1221,44 @@ class SISOMixin:
 
     @property
     def rate_in(self) -> int | Fraction | None:
-        """frame/sample rate input raw stream (``None`` if no input)"""
+        """frame/sample rate input raw stream (:code:`None` if no input)"""
         rates = self.input_rates
         return None if rates is None else rates[0]
 
     @property
     def rate(self) -> int | Fraction | None:
-        """frame/sample rate output raw stream (``None`` if no output)"""
+        """frame/sample rate output raw stream (:code:`None` if no output)"""
         rates = self.output_rates
         return None if rates is None else rates[0]
 
     @property
     def dtype_in(self) -> DTypeString | None:
-        """NumPy-style data type string of the input raw stream (``None`` if no input)"""
+        """NumPy-style data type string of the input raw stream (:code:`None` if no input)"""
         dtypes = self.input_dtypes
         return None if dtypes is None else dtypes[0]
 
     @property
     def dtype(self) -> DTypeString | None:
-        """NumPy-style data type string of the output raw stream (``None`` if no output)"""
+        """NumPy-style data type string of the output raw stream (:code:`None` if no output)"""
         dtypes = self.output_dtypes
         return None if dtypes is None else dtypes[0]
 
     @property
     def shape_in(self) -> ShapeTuple | None:
-        """shape tuple of input data frame (``None`` if no input)
+        """shape tuple of input data frame (:code:`None` if no input)
 
-        - audio frame: ``(channels,)``
-        - video frame: ``(height, width, components)``
+        - audio frame: :code:`(channels,)`
+        - video frame: :code:`(height, width, components)`
         """
         shapes = self.input_shapes
         return None if shapes is None else shapes[0]
 
     @property
     def shape(self) -> ShapeTuple | None:
-        """shape tuple of output data frame (``None`` if no output)
+        """shape tuple of output data frame (:code:`None` if no output)
 
-        - audio frame: ``(channels,)``
-        - video frame: ``(height, width, components)``
+        - audio frame: :code:`(channels,)`
+        - video frame: :code:`(height, width, components)`
         """
         shapes = self.output_shapes
         return None if shapes is None else shapes[0]
@@ -1283,9 +1284,10 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         :param init_func: FFmpeg initialization function from :py:module:`configure`
         :param init_kws: keyword arguments to call the FFmpeg initialization function
         :param blocksize: (only for readable) iterator block size in frames/samples
-                          to read raw media streams, defaults to use ``1`` (frame)
-                          for a video stream and ``1024`` (samples) for audio stream.
+                          to read raw media streams, defaults to use :code:`1` (frame)
+                          for a video stream and :code:`1024` (samples) for audio stream.
         :param progress: progress callback function, defaults to None
+        :type progress: ProgressCallable | None
         :param show_log: True to show FFmpeg log messages on the console, defaults
                          to None (no show/capture)
         :param overwrite: True to overwrite existing file, defaults to False to
@@ -1314,9 +1316,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
 
         :param stream: optional new stream written since last try
         :param data: optional newly written stream data
-        :param last: optional ``True`` if ``data`` is the last data blob of ``stream``
-        :return: ``True`` if FFmpeg arguments are successfully configured
-                 and ``_input_info`` and ``_output_info`` lists are fully
+        :param last: optional :code:`True` if :code:`data` is the last data blob of :code:`stream`
+        :return: :code:`True` if FFmpeg arguments are successfully configured
+                 and :code:`_input_info` and :code:`_output_info` lists are fully
                  populated.
 
         This subclass overloading adds additional validation for having only one
@@ -1351,7 +1353,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
     def __iter__(self) -> Iterator[RawDataBlob]:
         """iterator to read raw media data
 
-        :yield: data blob containing at most ``primary_output_blocksize``
+        :yield: data blob containing at most :code:`primary_output_blocksize`
                 frames/samples of the output stream.
 
         Note: The iterator of :py:class:`streams.StdFFmpegRunner` is not compatible with
@@ -1400,27 +1402,29 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             The input could also be fed by a readable file object. Multiple
             input sources could be assigned to feed a complex filtergraph.
         :param output_stream: Either an FFmpeg map option value or a dict of
-            FFmpeg output options. If dict, it must include a ``'map'`` key. The
-            ``'map'`` must resolve to only one stream.
+            FFmpeg output options. If dict, it must include a :code:`'map'` key. The
+            :code:`'map'` must resolve to only one stream.
         :param options: optional FFmpeg option dict including input, output, and
-            global options. For input options, append ``'_in'`` to the end of
+            global options. For input options, append :code:`'_in'` to the end of
             FFmpeg option names.
-        :param squeeze: ``True`` (default) to eliminate raw output's singleton
-            dimensions. Use ``False`` to always return 2D array for audio and 4D
+        :type options: str | FFmpegOptionDict
+        :param squeeze: :code:`True` (default) to eliminate raw output's singleton
+            dimensions. Use :code:`False` to always return 2D array for audio and 4D
             array for video.
         :param extra_outputs: extra encoded output urls, Each element is a tuple
             pair of url and output option dict. The url must be a url and not
             pipes or pipe objects.
         :param blocksize: Read block size (in frames for video or samples in
             audio) when the reader object is used as an iterator
-        :param progress: progress callback function, defaults to ``None``
-        :param show_log: ``True`` to show FFmpeg log messages on the console,
-            defaults to ``False``, hiding the logged messages
-        :param overwrite: ``True`` to overwrite ``extra_outputs`` destination
-            files, defaults to ``False``
-        :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
-            ``subprocess.Popen()`` call used to run the FFmpeg, defaults to
-            ``None``
+        :param progress: progress callback function, defaults to :code:`None`
+        :type progress: ProgressCallable | None
+        :param show_log: :code:`True` to show FFmpeg log messages on the console,
+            defaults to :code:`False`, hiding the logged messages
+        :param overwrite: :code:`True` to overwrite :code:`extra_outputs` destination
+            files, defaults to :code:`False`
+        :param sp_kwargs: keyword dict to be passed to :code:`subprocess.run()` or
+            :code:`subprocess.Popen()` call used to run the FFmpeg, defaults to
+            :code:`None`
         """
 
         init_kws: MediaReadKwsDict = {
@@ -1465,7 +1469,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         """single-pipe media writer
 
         :param input_options: ffmpeg input options for the raw media input
-                              must contain a rate option (``r`` or ``ar``).
+                              must contain a rate option (:code:`r` or :code:`ar`).
         :param output_urls: Specify encoded output file(s) in one of the
             following styles:
 
@@ -1476,8 +1480,9 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
                   the same input streams.
 
         :param options: optional ffmpeg option dict including input, output, and
-                        global options. For input options, append ``'_in'`` to the
+                        global options. For input options, append :code:`'_in'` to the
                         end of ffmpeg option names.
+        :type options: FFmpegOptionDict | None
         :param extra_inputs: extra encoded input urls, Each element is a tuple
             pair of url and input option dict. The url must be a url and not
             pipes or pipe objects.
@@ -1485,14 +1490,15 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
             input audio channel, defaults to auto-detect
         :param input_dtype: input data format in a Numpy dtype string, defaults
             to auto-detect
-        :param progress: progress callback function, defaults to ``None``
-        :param show_log: ``True`` to show FFmpeg log messages on the console,
-            defaults to ``False``, hiding the logged messages
-        :param overwrite: ``True`` to overwrite ``extra_outputs`` destination
-            files, defaults to ``False``
-        :param sp_kwargs: keyword dict to be passed to ``subprocess.run()`` or
-            ``subprocess.Popen()`` call used to run the FFmpeg, defaults to
-            ``None``
+        :param progress: progress callback function, defaults to :code:`None`
+        :type progress: ProgressCallable | None
+        :param show_log: :code:`True` to show FFmpeg log messages on the console,
+            defaults to :code:`False`, hiding the logged messages
+        :param overwrite: :code:`True` to overwrite :code:`extra_outputs` destination
+            files, defaults to :code:`False`
+        :param sp_kwargs: keyword dict to be passed to :code:`subprocess.run()` or
+            :code:`subprocess.Popen()` call used to run the FFmpeg, defaults to
+            :code:`None`
         """
 
         init_kws: MediaWriteKwsDict = {
@@ -1553,8 +1559,8 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         :param stream: encoded output stream index, defaults to 0 (write to the
                        first stream). Note that this stream index is that of all
                        encoded inputs. For example, if the runner is set up with
-                       ``input_urls = ['video.mp4','-']`` then ``stream=0`` points
-                       to `'video.mp4'` thus the write would fail, and ``stream=1``
+                       :code:`input_urls = ['video.mp4','-']` then :code:`stream=0` points
+                       to `'video.mp4'` thus the write would fail, and :code:`stream=1`
                        must be specified to write to the input pipe.
         :returns: bytes
         """
@@ -1580,9 +1586,9 @@ class PipedFFmpegRunner(BaseFFmpegRunner):
         """iterator to read raw media data
 
         :yield: a list of raw data blobs, one for each output raw media stream,
-                containing at most ``primary_output_blocksize`` frames of
-                the primary stream given by ``primary_output``. The frame sizes
-                of other streams are proportional to their ``output_rates`` wrt
+                containing at most :code:`primary_output_blocksize` frames of
+                the primary stream given by :code:`primary_output`. The frame sizes
+                of other streams are proportional to their :code:`output_rates` wrt
                 the primary output.
         """
         nout = self.num_output_streams
@@ -2014,9 +2020,9 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
 
         :param stream: optional new stream written since last try
         :param data: optional newly written stream data
-        :param last: ``True`` if ``data`` is the last blob of ``stream``
-        :return: ``True`` if FFmpeg arguments are successfully configured
-                 and ``_input_info`` and ``_output_info`` lists are fully
+        :param last: :code:`True` if :code:`data` is the last blob of :code:`stream`
+        :return: :code:`True` if FFmpeg arguments are successfully configured
+                 and :code:`_input_info` and :code:`_output_info` lists are fully
                  populated.
 
         This subclass overloading adds additional validation for having only one
@@ -2047,8 +2053,8 @@ class SISOFFmpegFilter(SISOMixin, PipedFFmpegRunner):
     #                  plugins (e.g., a NumPy array if numpy is importable in the
     #                  Python workspace). The shape and dtype of the data must be
     #                  compatible with the stream's shape and pix_fmt/sample_fmt.
-    #     :param last: ``True`` to mark ``data`` the last input blob, defaults to
-    #                  ``False``
+    #     :param last: :code:`True` to mark :code:`data` the last input blob, defaults to
+    #                  :code:`False`
     #     :returns: filter output blob.
 
     #     This method shall be used with caution especially if the input and output

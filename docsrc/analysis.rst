@@ -1,19 +1,20 @@
-.. py:currentmodule:: ffmpegio.analyze
+.. py:module:: ffmpegio.analyze
 .. highlight:: python
 .. _analyze:
 
-***********************************************************
-:py:mod:`ffmpegio.analyze`: Frame Metadata Analysis Module
-***********************************************************
+Frame Metadata Analysis Module (:code:`ffmpegio.analyze`)
+=========================================================
+
+Overview
+--------
 
 There are a number of `FFmpeg filters <https://ffmpeg.org/ffmpeg-filters.html>`_ which analyze video
 and audio streams and inject per-frame results into frame metadata to be used in a later stage of 
-a filtergraph. :py:mod:`run` retrieves the injected metadata by appending ``metadata``
-and ``ametadata`` filters and logs the frame metadata outputs. You can use either the supplied Python 
+a filtergraph. :py:func:`run` retrieves the injected metadata by appending :code:`metadata`
+and :code:`ametadata` filters and logs the frame metadata outputs. You can use either the supplied Python 
 classes or a custom class, which conforms to :py:class:`MetadataLogger` interface to specify the FFmpeg
 filter and to log its output.
 
----------------
 Simple examples
 ---------------
 
@@ -24,9 +25,9 @@ The following example detects intervals of pure black frames within the first 30
 >>> print(logger.output)
 Black(interval=[[0.0, 0.166667]])
 
-* Assign options (e.g., ``pix_th``) of the underlying FFmpeg analysis filter (e.g., ``blackdetect``) as
-  keyword options of its logger object (e.g., ``BlackDetect``)
-* FFmpeg input options (e.g., ``t``) can be assigned as the keyword arguments of :py:func:`run`.
+* Assign options (e.g., :code:`pix_th`) of the underlying FFmpeg analysis filter (e.g., :code:`blackdetect`) as
+  keyword options of its logger object (e.g., :py:class:`BlackDetect`)
+* FFmpeg input options (e.g., :code:`t`) can be assigned as the keyword arguments of :py:func:`run`.
 * The logger output is a namedtuple.
 
 Next example analyzes the audio stream and plot its spectral entropy of the first channel:
@@ -46,11 +47,10 @@ Finally, multiple loggers can run simultaneously:
 >>> print(loggers[1].output)
 >>> print(loggers[2].output)
 
-------------------------
 Available filter loggers
 ------------------------
 
-Following loggers are currently available as a part of the :py:mod:`analyze` module
+Following loggers are currently available as a part of the :py:mod:`ffmpegio.analyze` module
 
 =====  ==========================  =================  ===
 Type   Python class                FFmpeg filter      Description
@@ -64,7 +64,7 @@ video  :py:class:`BBox`            `bbox`_            Compute the bounding box
 \      :py:class:`BlackFrame`      `blackframe`_      Detect black frames
 \      :py:class:`BlurDetect`      `blurdetect`_      Detect blurriness of frames 
 \      :py:class:`FreezeDetect`    `freezedetect`_    Detect frozen video
-.. \      :py:class:`PSNR`            `psnr`_            Compute peak signal to noise ratio
+\      :py:class:`PSNR`            `psnr`_            Compute peak signal to noise ratio
 \      :py:class:`ScDet`           `scdet`_           Detect video scene change
 =====  ==========================  =================  ===
 
@@ -80,7 +80,6 @@ video  :py:class:`BBox`            `bbox`_            Compute the bounding box
 .. _psnr: https://ffmpeg.org/ffmpeg-filters.html#psnr
 .. _scdet: https://ffmpeg.org/ffmpeg-filters.html#scdet-1
 
----------------------
 Analyze API Reference
 ---------------------
 
@@ -91,9 +90,8 @@ Analyze API Reference
    run
    ffmpegio.video.detect
    ffmpegio.audio.detect
-   MetadataLogger
 
-.. autofunction:: ffmpegio.analyze.run
+.. autofunction:: run
 .. autofunction:: ffmpegio.video.detect
 .. autofunction:: ffmpegio.audio.detect
 .. autoclass:: MetadataLogger
@@ -116,7 +114,7 @@ Analyze API Reference
   :members:
 .. autoclass:: FreezeDetect
   :members:
-.. .. autoclass:: PSNR
-..   :members:
+.. autoclass:: PSNR
+  :members:
 .. autoclass:: ScDet
   :members:

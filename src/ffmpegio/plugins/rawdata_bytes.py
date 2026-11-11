@@ -28,7 +28,7 @@ class BytesRawDataBlob(TypedDict):
     """Data blob representation of media data frame supported by the built-in raw data I/O plugin."""
 
     buffer: memoryview
-    """Raw binary data object (typically :py:type:`bytes` or :py:type:`bytearray`)"""
+    """Raw binary data object (typically :code:`bytes` or :code:`bytearray`)"""
 
     dtype: DTypeString
     """Numpy-style data type string"""

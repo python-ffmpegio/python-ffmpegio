@@ -8,11 +8,12 @@ from ._typing import (
     DTypeString,
     EncodedInputInfoDict,
     EncodedOutputInfoDict,
+    FFmpegArgs,
     FFmpegInputType,
     FFmpegMediaType,
     FFmpegOptionDict,
     FFmpegOutputType,
-    FFmpegUrlType,
+    FFmpegUrlString,
     FileObjEncodedInputInfoDict,
     FileObjEncodedOutputInfoDict,
     FilterGraphInfoDict,
@@ -33,7 +34,6 @@ from ._typing import (
     RawFilteredOutputInfoDict,
     RawInputInfoDict,
     RawOutputInfoDict,
-    RawStreamDef,
     RawStreamInfoTuple,
     ShapeTuple,
     ToBytesCallable,
@@ -41,9 +41,61 @@ from ._typing import (
     UrlOrPipedEncodedOutputInfoDict,
     VideoFilterGraphInfoDict,
 )
-from .configure import FFmpegArgs, FFmpegUrlType
-from .filtergraph.abc import FilterGraphObject
+from .configure import (
+    FFmpegInputOptionTuple,
+    FFmpegNoPipeInputOptionTuple,
+    FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputOptionTuple,
+)
 from .plugins.rawdata_bytes import BytesRawDataBlob
-from .probe import VideoStreamInfoDict
-from .stream_spec import StreamSpecDict, StreamSpecStreamType
-from .probe import VideoStreamInfoDict
+from .stream_spec import (
+    GraphMapOptionDict,
+    InputMapOptionDict,
+    MapOptionDict,
+    MapOptionString,
+    StreamSpecDict,
+    StreamSpecDict_Index,
+    StreamSpecDict_Options,
+    StreamSpecDict_Tag,
+    StreamSpecDict_Usable,
+    StreamSpecStreamType,
+    StreamSpecString,
+)
+from .utils import (
+    FFmpegInputUrlComposite,
+    FFmpegInputUrlNoPipe,
+    FFmpegOutputUrlComposite,
+    FFmpegOutputUrlNoPipe,
+    RawStreamDef,
+)
+
+__all__ = [
+    "FFmpegUrlString",
+    "FFmpegInputUrlComposite",
+    "FFmpegInputUrlNoPipe",
+    "FFmpegOutputUrlComposite",
+    "FFmpegOutputUrlNoPipe",
+    "FFmpegInputOptionTuple",
+    "FFmpegOutputOptionTuple",
+    "FFmpegNoPipeInputOptionTuple",
+    "FFmpegNoPipeOutputOptionTuple",
+    "RawDataBlob",
+    "BytesRawDataBlob",
+    "DTypeString",
+    "ShapeTuple",
+    "MediaType",
+    "StreamSpecString",
+    "StreamSpecDict",
+    "StreamSpecStreamType",
+    "StreamSpecDict_Index",
+    "StreamSpecDict_Tag",
+    "StreamSpecDict_Usable",
+    "StreamSpecDict_Options",
+    "MapOptionString",
+    "MapOptionDict",
+    "InputMapOptionDict",
+    "GraphMapOptionDict",
+    "FFmpegArgs",
+    "FFmpegOptionDict",
+    "FFmpegMediaType",
+]

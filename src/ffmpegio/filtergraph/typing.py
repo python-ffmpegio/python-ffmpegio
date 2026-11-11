@@ -28,7 +28,7 @@ PAD_PAIR = (
 
 A tuple pair of input pad and output pad. 
 
-- Set input or output pad is ``None`` to define a pad label
+- Set input or output pad is :code:`None` to define a pad label
 - If input label is an input stream specifier (e.g., 0:v or 1:a:0) and connects
   to multiple filter inputs, specify with a list the input pad indices.
 

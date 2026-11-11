@@ -3,13 +3,13 @@
 Creating Videos from Matplotlib figure
 ======================================
 
-While Matplotlib supports video creation via its 
+While Matplotlib supports video creation via its
 `animation module <https://matplotlib.org/stable/users/explain/animations/animations.html>`__,
 its interface is a bit cranky because its primary role is to animate the figure on screen
 rather than outputting figures to a video file. You must create an animation object first before
 saving it as a video.
 
-:code:`ffmpegio` provides a direct method to write Matplotlib figure to a video write stream with 
+:code:`ffmpegio` provides a direct method to write Matplotlib figure to a video write stream with
 the same streaming interface as feeding the RGB frame data to FFmpeg.
 
 Example
@@ -23,7 +23,7 @@ Create an MP4 video of `Matplotlib's animation example <https://matplotlib.org/s
   from matplotlib import pyplot as plt
   import numpy as np
 
-    
+
   fig, ax = plt.subplots()
 
   x = np.arange(0, 2*np.pi, 0.01)
@@ -48,16 +48,16 @@ Create an MP4 video of `Matplotlib's animation example <https://matplotlib.org/s
           animate(n) # update figure
           f.write(fig) # write new video frame
 
-Any video format can be chosen with this interface and any FFmpeg options can be specified here. 
-For instance, an GIF animation of the above example can be created with optimized color pallette. 
-To do this, we use `palettegen <https://ffmpeg.org/ffmpeg-filters.html#palettegen>`__ and 
+Any video format can be chosen with this interface and any FFmpeg options can be specified here.
+For instance, an GIF animation of the above example can be created with optimized color pallette.
+To do this, we use `palettegen <https://ffmpeg.org/ffmpeg-filters.html#palettegen>`__ and
 `paletteuse <https://ffmpeg.org/ffmpeg-filters.html#paletteuse>`__` filters and construct a video filtergraph:
 
 .. code-block::
 
   split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse
 
-This filtergraph string could be provided directly to :code:`ff.open` as a `vf` keyword argument, 
+This filtergraph string could be provided directly to :code:`ff.open` as a `vf` keyword argument,
 but let's use :code:`ffmpegio.filtergraph` submodule to construct it instead:
 
 .. code-block:: python
@@ -75,7 +75,7 @@ but let's use :code:`ffmpegio.filtergraph` submodule to construct it instead:
       for n in range(save_count):
           animate(n) # update figure
           f.write(fig) # write new video frame
-  
+
 """
 
 from __future__ import annotations

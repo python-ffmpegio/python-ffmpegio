@@ -1,4 +1,4 @@
-"""utility functions for the main modules"""
+"""utility functions for the main modules (undocumented, subject to change)"""
 
 from __future__ import annotations
 
@@ -17,16 +17,17 @@ from .._typing import (
     Any,
     Buffer,
     DTypeString,
+    FFmpegArgs,
     FFmpegOptionDict,
-    FFmpegUrlType,
+    FFmpegUrlString,
     FilterGraphInfoDict,
     InputInfoDict,
     Literal,
     MediaType,
     OutputInfoDict,
     RawDataBlob,
-    RawStreamDef,
     ShapeTuple,
+    TypeAlias,
 )
 from .._utils import (
     as_multi_option,
@@ -51,16 +52,33 @@ from .concat import FFConcat
 logger = logging.getLogger("ffmpegio")
 
 
-FFmpegInputUrlComposite = FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
+FFmpegInputUrlComposite: TypeAlias = (
+    FFmpegUrlString | FFConcat | FilterGraphObject | IO | memoryview
+)
 """all input types supported by ffmpegio"""
-FFmpegOutputUrlComposite = FFmpegUrlType | IO
+
+FFmpegOutputUrlComposite: TypeAlias = FFmpegUrlString | IO
 """all output types supported by ffmpegio"""
 
-FFmpegInputUrlNoPipe = FFmpegUrlType | FFConcat | FilterGraphObject
+FFmpegInputUrlNoPipe: TypeAlias = FFmpegUrlString | FFConcat | FilterGraphObject
 """all non-piped input types supported by ffmpegio"""
 
-FFmpegOutputUrlNoPipe = FFmpegUrlType
+FFmpegOutputUrlNoPipe: TypeAlias = FFmpegUrlString
 """all non-piped output types supported by ffmpegio"""
+
+
+RawStreamDef: TypeAlias = (
+    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+)
+"""2-element tuple to define a raw stream data
+
+    It comes in two forms: rate-data or data-option. The rate-data form specifies
+    a pair of the frame rate (video) or sampling rate (audio) and the data blob.
+    The data-option form specifies the data blob and its FFmpeg options. Note 
+    that a data-option tuple is only valid if its option dict contains the rate
+    field: `r` for video or `ar` for audio.
+
+"""
 
 # TODO: auto-detect endianness
 # import sys
@@ -569,7 +587,7 @@ def analyze_input_stream(
     fields: list[str],
     stream: str,
     media_type: MediaType,
-    input_url: FFmpegUrlType | None,
+    input_url: FFmpegUrlString | None,
     input_opts: FFmpegOptionDict,
     input_info: InputInfoDict,
 ) -> list:
@@ -607,7 +625,7 @@ def video_fields_to_options(
 
 def analyze_video_stream(
     stream_specifier: str,
-    inurl: FFmpegUrlType,
+    inurl: FFmpegUrlString,
     inopts: FFmpegOptionDict,
     input_info: InputInfoDict,
 ) -> tuple[int | Fraction | None, str | None, tuple[int, int] | None]:
@@ -641,7 +659,7 @@ def analyze_video_stream(
 
 def analyze_audio_stream(
     stream_specifier: str,
-    inurl: FFmpegUrlType,
+    inurl: FFmpegUrlString,
     inopts: FFmpegOptionDict,
     input_info: InputInfoDict,
 ) -> tuple[int | None, str | None, int | None]:
@@ -681,7 +699,7 @@ def analyze_audio_stream(
 
 def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject | str],
-    inputs: list[tuple[FFmpegUrlType | None, FFmpegOptionDict]],
+    inputs: list[tuple[FFmpegUrlString | None, FFmpegOptionDict]],
     inputs_info: list[InputInfoDict],
 ) -> tuple[list[FilterGraphObject], dict[str, FilterGraphInfoDict]]:
     """analyze filtergraphs and return requested field values
@@ -1011,7 +1029,7 @@ def find_filter_complex_option(
 
 
 def input_file_stream_specs(
-    url: FFmpegUrlType | FilterGraphObject | None,
+    url: FFmpegUrlString | FilterGraphObject | None,
     stream_spec: str | None = None,
     stream_options: FFmpegOptionDict | None = None,
     stream_info: InputInfoDict | None = None,

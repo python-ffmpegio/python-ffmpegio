@@ -25,6 +25,7 @@ from subprocess import DEVNULL, PIPE
 from ffmpegio.path import ffmpeg
 
 from . import plugins
+from ._typing import MediaType
 
 logger = logging.getLogger("ffmpegio")
 
@@ -149,35 +150,32 @@ def _list_devices(devs, dev, mtype, return_nested):
     )
 
 
-def list_sources(dev=None, mtype=None, return_nested=False):
+def list_sources(
+    dev: str | None = None, mtype: MediaType | None = None, return_nested: bool = False
+) -> dict[tuple[str, str], str] | dict[str, dict[str, str]] | dict[str, str]:
     """list enumerated source hardware devices
 
     :param dev: ffmpeg device name, defaults to None
-    :type dev: str, optional
     :param mtype: media type, defaults to None
-    :type dev: "video", "audio", optional
+    :type dev: MediaType
     :param return_nested: True to return results in nested dict, defaults to False
-    :type return_nested: bool, optional
     :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,
               or nested dicts. If dev is specified, dict of enumerated hardware devices and their names
-    :rtype: dict(tuple(str,str),str) or dict(str,dict(str,str)) or dict(str,str)
     """
     devs = _list_devices(SOURCES, dev, mtype, return_nested)
     return devs[dev] if dev else devs
 
 
-def list_sinks(dev=None, mtype=None, return_nested=False):
+def list_sinks(
+    dev: str | None = None, mtype: MediaType | None = None, return_nested: bool = False
+) -> dict[tuple[str, str], str] | dict[str, dict[str, str]] | dict[str, str]:
     """list enumerated sink hardware devices
 
     :param dev: ffmpeg device name, default to None
-    :type dev: str, optional
     :param mtype: media type, default to None
-    :type dev: "video", "audio", optional
     :param return_nested: True to return results in nested dict, defaults to False
-    :type return_nested: bool, optional
     :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,
               or nested dicts. If dev is specified, dict of enumerated hardware devices and their names
-    :rtype: dict(tuple(str,str),str) or dict(str,dict(str,str)) or dict(str,str)
     """
     devs = _list_devices(SINKS, dev, mtype, return_nested)
     return devs[dev] if dev else devs

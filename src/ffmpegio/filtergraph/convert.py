@@ -8,13 +8,13 @@ def as_filter(filter_spec: str | fgb.abc.FilterGraphObject) -> fgb.Filter:
     """convert the input to a filter
 
     :param filter_spec: filtergraph expression or object.
-    :return: ``Filter`` object interpretation of ``filter_spec``. No copy is performed if the input is
-             already a ``Filter`` and ``copy=False``.
+    :return: :py:class:`Filter` object interpretation of :code:`filter_spec`. No copy is performed if the input is
+             already a :py:class:`Filter` and :code:`copy=False`.
 
-    If the input is a ``Chain`` or ``Graph`` object with more than one filter element, this function
-    will raise a ``FiltergraphConversionError`` exception.
+    If the input is a :py:class:`Chain` or :py:class:`Graph` object with more than one filter element, this function
+    will raise a :code:`FiltergraphConversionError` exception.
 
-    If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
+    If the input expression could not be parsed, :code:`FiltergraphInvalidExpression` will be raised.
     """
 
     try:
@@ -34,13 +34,13 @@ def as_filterchain(
 
     :param filter_spec: filtergraph expression or object.
     :param copy: True to copy even if the input is a Filter object.
-    :return: ``Chain`` object interpretation of ``filter_spec``. No copy is performed if the input is
-             already a ``Chain`` and ``copy=False``.
+    :return: :code:`Chain` object interpretation of :code:`filter_spec`. No copy is performed if the input is
+             already a :code:`Chain` and :code:`copy=False`.
 
-    If the input is a ``Graph`` object with more than one filter chain, this function
-    will raise a ``FiltergraphConversionError`` exception.
+    If the input is a :code:`Graph` object with more than one filter chain, this function
+    will raise a :code:`FiltergraphConversionError` exception.
 
-    If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
+    If the input expression could not be parsed, :code:`FiltergraphInvalidExpression` will be raised.
     """
 
     return (
@@ -57,10 +57,10 @@ def as_filtergraph(
 
     :param filter_spec: filtergraph expression or object.
     :param copy: True to copy even if the input is a Filter object.
-    :return: ``Graph`` object interpretation of ``filter_spec``. No copy is performed if the input is
-             already a ``Graph`` and ``copy=False``.
+    :return: :code:`Graph` object interpretation of :code:`filter_spec`. No copy is performed if the input is
+             already a :code:`Graph` and :code:`copy=False`.
 
-    If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
+    If the input expression could not be parsed, :code:`FiltergraphInvalidExpression` will be raised.
     """
 
     return (
@@ -77,11 +77,11 @@ def as_filtergraph_object(
 
     :param filter_spec: filtergraph expression or object.
     :param copy: True to copy even if the input is a Filter object.
-    :return: Depending on the complexity of the ``filter_spec``, ``Filter``,
-             ``Chain``, or ``Graph`` object interpretation of ``filter_spec``.
-             No copy is performed if the input is already a ``Graph`` and ``copy=False``.
+    :return: Depending on the complexity of the :code:`filter_spec`, :code:`Filter`,
+             :code:`Chain`, or :code:`Graph` object interpretation of :code:`filter_spec`.
+             No copy is performed if the input is already a :code:`Graph` and :code:`copy=False`.
 
-    If the input expression could not be parsed, ``FiltergraphInvalidExpression`` will be raised.
+    If the input expression could not be parsed, :code:`FiltergraphInvalidExpression` will be raised.
     """
 
     if not filter_specs:
@@ -113,10 +113,10 @@ def as_filtergraph_object_like(
 
     :param filter_spec: filtergraph expression or object.
     :param like: reference filtergraph object to match the type
-    :param copy: ``True`` to copy if the input is a ``Chain`` or a ``Graph``.
-        ``Filter`` objects are immutable so they are always returned as is.
-    :return: Filtergraph object of the same type as ``like`` object.
-        No copy is performed if the input is already a ``Graph`` and ``copy=False``.
+    :param copy: :code:`True` to copy if the input is a :code:`Chain` or a :code:`Graph`.
+        :code:`Filter` objects are immutable so they are always returned as is.
+    :return: Filtergraph object of the same type as :code:`like` object.
+        No copy is performed if the input is already a :code:`Graph` and :code:`copy=False`.
     """
     otype = type(like)
     return (
@@ -133,9 +133,9 @@ def atleast_filterchain(
 
     :param filter_spec: filtergraph expression or object.
     :param copy: True to copy even if the input is a Filter object.
-    :return: Depending on the complexity of the ``filter_spec``, ``Filter``,
-             ``Chain``, or ``Graph`` object interpretation of ``filter_spec``.
-             No copy is performed if the input is already a ``Graph`` and ``copy=False``.
+    :return: Depending on the complexity of the :code:`filter_spec`, :code:`Filter`,
+             :code:`Chain`, or :code:`Graph` object interpretation of :code:`filter_spec`.
+             No copy is performed if the input is already a :code:`Graph` and :code:`copy=False`.
     """
 
     if isinstance(filter_specs, (fgb.Chain, fgb.Graph)):
