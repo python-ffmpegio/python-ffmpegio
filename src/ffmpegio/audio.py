@@ -137,6 +137,7 @@ def read(
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be url string or a pair of a url string and
         an option dict.
+    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D, eliminating
         the singular audio channel dimension.
@@ -215,21 +216,23 @@ def write(
     """Write a raw audio data blob to an audio file.
 
     :param url: URL of the audio file to write.
+    :type url: FFmpegOutputUrlComposite | FFmpegOutputOptionTuple | list[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
     :param rate_in: The sample rate in samples/second.
-    :param data: 1D or 2D input audio data object. If 2D, its first dimension is
-        treated as the time axis and the second dimension as the audio channels.
+    :param data: audio data object to be written. Its data type must be supported
+        by a plugin module (e.g., :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` 
+        or a :py:class:`numpy.ndarray` if :py:mod:`numpy` is installed. The data shape must be 1D 
+        or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio 
+        channels.
     :type data: RawDataBlob
     :param progress: progress callback function, defaults to None
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to None
-                      (auto-select)
-    :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+    :param overwrite: True to overwrite if output url exists, defaults to None auto-select)
+    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
-                         string or a pair of a url string and an option dict.
+        string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple | None]
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type options: FFmpegOptionDict
     """
@@ -281,16 +284,20 @@ def filter(
 
     :param expr: filter graph or None if implicit filtering via output options.
     :param input_rate: Input sample rate in samples/second
-    :param input: input audio data, accessed by `audio_info()` and `audio_bytes()` plugin hooks.
-    :param input: 1D or 2D input audio data object. If 2D, its first dimension is
-        treated as the time axis and the second dimension as the audio channels.
-    :type data: RawDataBlob
+    :param input: audio data object to be written. Its data type must be supported
+        by a plugin module (e.g., :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` 
+        or a :py:class:`numpy.ndarray` if :py:mod:`numpy` is installed. The data shape must be 1D 
+        or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio 
+        channels.
+    :type input: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to None.
                          Each source may be url string or a pair of a url string
                          and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple | None]
     :param extra_outputs: list of additional encoded output sources, defaults to
                           None. Each destination may be url string or a pair of
                           a url string and an option dict.
+    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple | None]
     :param squeeze: False to always returning 2D data with the 2nd dimension as
                     the audio channels, defaults to True to reduce monaural data
                     to 1D, eliminating the singular audio channel dimension.

@@ -127,24 +127,26 @@ def read(
     """Read video frames
 
     :param url: URL of the video file to read or a list of URLs to be used by
-                complex filtergraph. Each url may be accompanied by its own input
-                options (a tuple pair of url and its option dict). These options
-                supersede the input options given with keyword arguments with `'_in'`
-                suffix.
+        complex filtergraph. Each url may be accompanied by its own input
+        options (a tuple pair of url and its option dict). These options
+        supersede the input options given with keyword arguments with `'_in'`
+        suffix.
+    :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param extra_outputs: list of additional encoded output sources, defaults to
-                          None. Each destination may be a url string or a pair of
-                          a url string and an option dict.
+        None. Each destination may be a url string or a pair of
+        a url string and an option dict.
+    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
-                    channels, defaults to True to reduce monaural data to 1D,
-                    eliminating the singular audio channel dimension.
+        channels, defaults to True to reduce monaural data to 1D,
+        eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
+        defaults to None (no show/capture)
+        Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults
+        to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type options: FFmpegOptionDict
     :return: a tuple containing
@@ -222,11 +224,12 @@ def write(
     """Write raw video data to a file
 
     :param url: URL of the video file to write.
+    :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param rate_in: frame rate in frames/second
     :param data: video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
-    :param extra_inputs: _description_, defaults to None
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
         string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     :param dtype: output data type, defaults to None (auto-detect)
     :type dtype: DTypeString | None
     :param shape: output data shape, defaults to None (auto-detect)
@@ -303,8 +306,26 @@ def filter(
     """Filter video frames.
 
     :param expr: filter graph or None if implicit filtering via output options.
-    :param rate: input frame rate in frames/second
-    :param input: input video frame data blob, accessed by `video_info` and `video_bytes` plugin hooks
+    :param input_rate: input frame rate in frames/second
+    :param input: video data object to be filtered. Its data type must be supported
+        by a loaded plugin module (e.g., a :py:class:`BytesRawDataBlob  
+        <ffmpegio.typing.BytesRawDataBlob>` or a :py:class:`numpy.ndarray` 
+        if :py:mod:`numpy` is installed. 
+        
+        The video data may be 2D, 3D, or 4D array, and its axes are given by
+        :code:`([frames, ]rows, columns[, components])`. The data type of each 
+        pixel value must be compatible with FFmpeg's output :code:`pix_fmt` 
+        option. See :ref:`pix_fmt_opts`.
+    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+        string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :param extra_outputs: list of additional encoded output sources, defaults to
+                          None. Each destination may be a url string or a pair of
+                          a url string and an option dict.
+    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    :param squeeze: False to return 2D data with the 2nd dimension as the audio
+                    channels, defaults to True to reduce monaural data to 1D,
+                    eliminating the singular audio channel dimension.
     :param progress: progress callback function, defaults to None
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,

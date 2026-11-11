@@ -48,8 +48,10 @@ def transcode(
 
     :param inputs: url/path of the input media file or a sequence of tuples,
         each containing an input url and its options dict
+    :type inputs: FFmpegInputUrlComposite | Sequence[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param outputs: url/path of the output media file or a sequence of tuples,
         each containing an output url and its options dict
+    :type outputs: FFmpegOutputUrlComposite | Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple]
     :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to auto-

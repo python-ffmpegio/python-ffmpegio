@@ -1,12 +1,10 @@
 import logging
-from fractions import Fraction
 
 from . import configure, utils
 from . import filtergraph as fgb
 from ._typing import (
     Any,
     DTypeString,
-    Optional,
     ProgressCallable,
     RawDataBlob,
     ShapeTuple,
@@ -107,8 +105,7 @@ def read(
     :param url: URL of the image or video file to read.
     :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param extra_outputs: list of additional encoded output sources, defaults to
-                          None. Each destination may be a url string or a pair of
-                          a url string and an option dict.
+        None. Each destination may be a url string or a pair of a url string and an option dict.
     :param progress: progress callback function, defaults to None
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
@@ -189,10 +186,12 @@ def write(
     """Write image data to a file.
 
     :param url: URL of the image file to write.
+    :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param data: image data, accessed by `video_info()` and `video_bytes()` plugin hooks
     :type data: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to None.
         Each source may be url string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     :param dtype: output data type, defaults to None (auto-detect)
     :type dtype: DTypeString | None
     :param shape: output data shape, defaults to None (auto-detect)
@@ -262,13 +261,19 @@ def filter(
 
     :param expr: SISO filter graph or None if implicit filtering via output options.
     :param input: input image data, accessed by `video_info` and `video_bytes` plugin hooks
+    :type input: RawDataBlob
+    :param extra_inputs: list of additional input sources, defaults to None.
+        Each source may be url string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :param extra_outputs: list of additional encoded output sources, defaults to
+        None. Each destination may be a url string or a pair of a url string and an option dict.
+    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     :param progress: progress callback function, defaults to None
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+        defaults to None (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-                      `subprocess.Popen()` call used to run the FFmpeg, defaults
-                      to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type options: FFmpegOptionDict
     :return data: one-frame video data object. Its data type depends on the selected

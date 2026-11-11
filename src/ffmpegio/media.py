@@ -137,7 +137,7 @@ def read(
     """Read multiple raw media data from multiple media files
 
     :param urls: URLs of the media files to read or a tuple of the URL and its input option dict.
-    :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+    :type url: tuple[FFmpegInputOptionTuple]
     :param streams: a list of FFmpeg output stream map options. Alternately, the list
         may consist of an FFmpeg output option dict (with a required `'map'` item)
         a dict keyed by the map option value to apply different set of
@@ -147,6 +147,7 @@ def read(
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of
         a url string and an option dict.
+    :type extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
     :param squeeze: False to return 4D data for video and 2D data for audio. True
         eliminates any dimensions which only has the length of one.
     :param progress: progress callback function, defaults to None
@@ -194,7 +195,7 @@ def write(
             FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
         ]
     ),
-    stream_types: Sequence[Literal["a", "v"]],
+    stream_types: Sequence[MediaType],
     *stream_args: tuple[RawStreamDef, ...],
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     stream_dtypes: list[DTypeString | None] | None = None,
@@ -207,9 +208,11 @@ def write(
 ):
     """Write multiple raw media streams to a url/file
 
-    :param url: output url
+    :param urls: output urls
+    :type urls: FFmpegOutputUrlComposite | list[FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]]
     :param stream_types: list/string of input stream media types, each element
         is either :code:`'a'` (audio) or :code:`'v'` (video)
+    :type stream_types: Sequence[MediaType]
     :param stream_args: raw input stream data arguments, each input stream is
         either a tuple of a sample rate (audio) or frame rate
         (video) followed by a data blob, or a tuple of a data
@@ -220,6 +223,7 @@ def write(
     :param extra_inputs: list of additional input sources, defaults to None.
         Each source may be url string or a pair of a url string
         and an option dict.
+    :type extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None
     :param stream_dtypes: list of numpy-style data type strings of input samples
         or frames of input media streams, defaults to `None`
         (auto-detect).
@@ -319,9 +323,11 @@ def filter(
     :type input_shapes: list[:py:type:`ShapeTuple <ffmpegio.typing.ShapeTuple>` | None] | None
     :param extra_inputs: list of additional input sources, defaults to None.
         Each source may be url string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of
         a url string and an option dict.
+    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 4D data for video and 2D data for audio. True
         eliminates any dimensions which only has the length of one.
     :param progress: progress callback function, defaults to None
