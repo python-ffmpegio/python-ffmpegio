@@ -21,7 +21,7 @@ from ..configure import (
     FFmpegNoPipeOutputOptionTuple,
     FFmpegOutputOptionTuple,
     FFmpegOutputUrlComposite,
-    FFmpegOutputUrlNoPipe,
+    FFmpegUrlString,
 )
 from ..filtergraph.abc import FilterGraphObject
 from .runners import PipedFFmpegRunner, SISOFFmpegFilter, StdFFmpegRunner
@@ -151,9 +151,9 @@ def open(
 
 @overload
 def open(
-    urls_fgs: FFmpegOutputUrlNoPipe
+    urls_fgs: FFmpegUrlString
     | FFmpegNoPipeOutputOptionTuple
-    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
+    | list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple],
     mode: Literal["wv", "wa"],
     /,
     input_rate: int | Fraction,
@@ -219,9 +219,9 @@ def open(
 
 @overload
 def open(
-    urls_fgs: FFmpegOutputUrlNoPipe
+    urls_fgs: FFmpegUrlString
     | FFmpegNoPipeOutputOptionTuple
-    | list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple],
+    | list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple],
     mode: MultiWriterModeLiteral,
     /,
     input_rates: list[int | Fraction],

@@ -81,9 +81,9 @@ from .stream_spec import parse_map_option, stream_type_to_media_type
 from .threading import CopyFileObjThread, ReaderThread, WriterThread
 from .utils import (
     FFmpegInputUrlComposite,
-    FFmpegInputUrlNoPipe,
+    FFmpegUrlString,
     FFmpegOutputUrlComposite,
-    FFmpegOutputUrlNoPipe,
+    FFmpegUrlString,
 )
 from .utils.concat import FFConcat  # for typing
 
@@ -118,7 +118,7 @@ Supported output url objects:
 - `Buffer`
 """
 
-FFmpegNoPipeInputOptionTuple = tuple[FFmpegInputUrlNoPipe, FFmpegOptionDict]
+FFmpegNoPipeInputOptionTuple = tuple[FFmpegUrlString, FFmpegOptionDict]
 """tuple pair of FFmpeg input non-pipe url compatible objects and its option dict
 
 Supported input url objects:
@@ -128,7 +128,7 @@ Supported input url objects:
 - `FilterGraphObject`
 """
 
-FFmpegNoPipeOutputOptionTuple = tuple[FFmpegOutputUrlNoPipe, FFmpegOptionDict]
+FFmpegNoPipeOutputOptionTuple = tuple[FFmpegUrlString, FFmpegOptionDict]
 """tuple pair of FFmpeg output non-pipe url compatible objects and its option dict
 """
 
@@ -238,7 +238,7 @@ def init_media_read(
     output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
     options: FFmpegOptionDict | None,
     extra_outputs: (
-        Sequence[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        Sequence[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ),
     squeeze: bool,
 ) -> tuple[FFmpegArgs, list[EncodedInputInfoDict], list[RawOutputInfoDict]]:
@@ -410,10 +410,10 @@ def init_media_write(
 
 def init_media_filter(
     input_options: Sequence[FFmpegOptionDict],
-    extra_inputs: Sequence[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None,
+    extra_inputs: Sequence[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None,
     output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
     extra_outputs: (
-        Sequence[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        Sequence[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ),
     options: FFmpegOptionDict | None,
     squeeze: bool,

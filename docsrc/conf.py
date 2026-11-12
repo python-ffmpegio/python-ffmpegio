@@ -61,8 +61,6 @@ autodoc_type_aliases = {
     "FFmpegUrlString": "ffmpegio.typing.FFmpegUrlString",
     "FFmpegInputUrlComposite":"ffmpegio.typing.FFmpegInputUrlComposite",
     "FFmpegOutputUrlComposite":"ffmpegio.typing.FFmpegOutputUrlComposite",
-    "FFmpegInputUrlNoPipe":"ffmpegio.typing.FFmpegInputUrlNoPipe",
-    "FFmpegOutputUrlNoPipe":"ffmpegio.typing.FFmpegOutputUrlNoPipe",
     "FFmpegInputOptionTuple ":"ffmpegio.typing.FFmpegInputOptionTuple",
     "FFmpegOutputOptionTuple":"ffmpegio.typing.FFmpegOutputOptionTuple",
     "FFmpegNoPipeInputOptionTuple":"ffmpegio.typing.FFmpegNoPipeInputOptionTuple",
@@ -74,11 +72,6 @@ autodoc_type_aliases = {
     "FFmpegArgs": "ffmpegio.typing.FFmpegOptionDict",
     "ProgressCallback": "ffmpegio.typing.ProgressCallback",
     "PAD_INDEX": "ffmpegio.filtergraph.typing.PAD_INDEX",
-    # "MapOptionString": "ffmpegio.typing.MapOptionString",
-    # "FFmpegInputUrlComposite": "ffmpegio.typing.FFmpegInputUrlComposite",
-    # "FFmpegInputOptionTuple": "ffmpegio.typing.FFmpegInputOptionTuple",
-    # "FFmpegOutputUrlComposite": "ffmpegio.typing.FFmpegOutputUrlComposite",
-    # "FFmpegOutputOptionTuple": "ffmpegio.typing.FFmpegOutputOptionTuple",
 }
 # autodoc_mock_imports = ["builtins"]
 # autodoc_typehints_format = "short"

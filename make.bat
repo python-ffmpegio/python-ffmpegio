@@ -10,7 +10,7 @@ if "%SPHINXBUILD%" == "" (
 set SOURCEDIR=docsrc
 set BUILDDIR=build
 set DOCSDIR=docs
-set SPHINXOPTS="-j auto -n -v -W -T"
+set SPHINXOPTS=-j auto -n -v -W -T
 
 if "%1" == "" goto help
 

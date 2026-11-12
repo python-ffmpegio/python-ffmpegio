@@ -17,10 +17,10 @@ from .analyze import VideoLog
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
-    FFmpegInputUrlNoPipe,
+    FFmpegUrlString,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
-    FFmpegOutputUrlNoPipe,
+    FFmpegUrlString,
 )
 from .errors import FFmpegioError
 from .std_runners import run_and_return_encoded, run_and_return_raw
@@ -116,7 +116,7 @@ def read(
     ),
     *,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = True,
     progress: ProgressCallable | None = None,
@@ -135,7 +135,7 @@ def read(
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of
         a url string and an option dict.
-    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D,
         eliminating the singular audio channel dimension.
@@ -208,7 +208,7 @@ def write(
     data: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
     dtype: DTypeString | None = None,
     shape: ShapeTuple | None = None,
@@ -229,7 +229,7 @@ def write(
     :param data: video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
         string or a pair of a url string and an option dict.
-    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param dtype: output data type, defaults to None (auto-detect)
     :type dtype: DTypeString | None
     :param shape: output data shape, defaults to None (auto-detect)
@@ -292,10 +292,10 @@ def filter(
     input: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = True,
     progress: ProgressCallable | None = None,
@@ -318,11 +318,11 @@ def filter(
         option. See :ref:`pix_fmt_opts`.
     :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
         string or a pair of a url string and an option dict.
-    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
                           None. Each destination may be a url string or a pair of
                           a url string and an option dict.
-    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.

@@ -88,3 +88,4 @@ Function References
 .. autofunction:: ffmpegio.caps.bsfilter_info
 .. autofunction:: ffmpegio.caps.devices
 .. autofunction:: ffmpegio.caps.protocols
+.. autofunction:: ffmpegio.caps.dispositions

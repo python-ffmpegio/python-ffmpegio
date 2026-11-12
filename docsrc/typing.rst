@@ -9,13 +9,32 @@ Typing (:code:`ffmpegio.typing`)
 Overview
 --------
 
-Referrences
------------
+FFmpeg 
+
+References
+----------
 
 .. py:type:: FFmpegUrlString
     :canonical: Any
 
-    input and output file path or stream url str or stringifiable object.
+    Input and output file path or stream url. Typically a :code:`str`, 
+    but non-:code:`str` Python objects such as :py:class:`pathlib.Path`
+    are supported via stringification (i.e., :code:`str(object)`). 
+
+    As an input URL, there are a several :py:mod:`ffmpegio` classes 
+    specifically designed:
+
+    * :py:class:`filtergraph.Filter <ffmpegio.filtergraph.Filter>`, 
+      :py:class:`filtergraph.Chain <ffmpegio.filtergraph.Chain>`, and 
+      :py:class:`filtergraph.Graph <ffmpegio.filtergraph.Graph>` : When these
+      filtergraph objects are specified, :py:mod:`ffmpegio` automatically
+      adds `-f lavfi` input option. It also probes the specified input 
+      filtergraph to gather the output media stream.
+    * :py:class:`FFConcat <ffmpegio.FFConcat>` : This class assigns
+      a `concat demuxer <https://ffmpeg.org/ffmpeg-formats.html#concat>`_ 
+      as the input. A concatenation script is auto-generated in the
+      background, and FFmpeg will receive script file's path as the 
+      input.
 
 .. py:type:: FFmpegInputUrlComposite
     :canonical: FFmpegUrlString | FFConcat | FilterGraphObject | IO | memoryview
@@ -26,16 +45,6 @@ Referrences
     :canonical: FFmpegUrlString | IO
 
     all output types supported by ffmpegio
-
-.. py:type:: FFmpegInputUrlNoPipe
-    :canonical: FFmpegUrlString | FFConcat | FilterGraphObject
-
-    all non-piped input types supported by ffmpegio
-
-.. py:type:: FFmpegOutputUrlNoPipe
-    :canonical: FFmpegUrlString
-
-    all non-piped output types supported by ffmpegio
 
 
 .. py:type:: FFmpegInputOptionTuple 
@@ -76,10 +85,26 @@ Referrences
     - `FilterGraphObject`
 
 .. py:type:: FFmpegNoPipeOutputOptionTuple 
-    :canonical: tuple[FFmpegOutputUrlNoPipe, FFmpegOptionDict]
+    :canonical: tuple[FFmpegUrlString, FFmpegOptionDict]
 
     tuple pair of FFmpeg output non-pipe url compatible objects and its option dict
 
+.. py:type:: RawStreamDef
+    :canonical: tuple[int | fractions.Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+
+    Tuples to specify a raw media data stream. Two possible formats:
+
+    * Minimum specification tuple:
+
+      * Either (int | :py:class:`Fraction <fractions.Fraction>`) frame rate (frames/second) 
+        for video stream or (int) sampling rate in samples/second for audio stream
+      * (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) Raw media data object 
+
+    * Full specification tuple:
+    
+      * (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) Raw media data object 
+      * (:py:type:`FFmpegOptionDict <ffmpegio.typing.FFmpegOptionDict>`) a dict 
+        containing FFmpeg options associated with the stream
 
 .. py:type:: RawDataBlob
     :canonical: Any

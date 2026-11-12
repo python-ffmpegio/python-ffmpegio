@@ -12,10 +12,10 @@ from ._typing import (
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
-    FFmpegInputUrlNoPipe,
+    FFmpegUrlString,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
-    FFmpegOutputUrlNoPipe,
+    FFmpegUrlString,
     FFmpegOutputOptionTuple,
 )
 from .errors import FFmpegioError
@@ -93,7 +93,7 @@ def read(
     ),
     *,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
@@ -173,7 +173,7 @@ def write(
     data: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
     dtype: DTypeString | None = None,
     shape: ShapeTuple | None = None,
@@ -191,7 +191,7 @@ def write(
     :type data: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to None.
         Each source may be url string or a pair of a url string and an option dict.
-    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param dtype: output data type, defaults to None (auto-detect)
     :type dtype: DTypeString | None
     :param shape: output data shape, defaults to None (auto-detect)
@@ -247,10 +247,10 @@ def filter(
     input: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
@@ -264,10 +264,10 @@ def filter(
     :type input: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to None.
         Each source may be url string or a pair of a url string and an option dict.
-    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of a url string and an option dict.
-    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     :param progress: progress callback function, defaults to None
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,

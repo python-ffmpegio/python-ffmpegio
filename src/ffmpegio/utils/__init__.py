@@ -60,10 +60,10 @@ FFmpegInputUrlComposite: TypeAlias = (
 FFmpegOutputUrlComposite: TypeAlias = FFmpegUrlString | IO
 """all output types supported by ffmpegio"""
 
-FFmpegInputUrlNoPipe: TypeAlias = FFmpegUrlString | FFConcat | FilterGraphObject
+FFmpegUrlString: TypeAlias = FFmpegUrlString | FFConcat | FilterGraphObject
 """all non-piped input types supported by ffmpegio"""
 
-FFmpegOutputUrlNoPipe: TypeAlias = FFmpegUrlString
+FFmpegUrlString: TypeAlias = FFmpegUrlString
 """all non-piped output types supported by ffmpegio"""
 
 

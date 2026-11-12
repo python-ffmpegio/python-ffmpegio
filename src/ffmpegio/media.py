@@ -24,11 +24,11 @@ from .configure import (
     FFmpegArgs,
     FFmpegInputOptionTuple,
     FFmpegOutputOptionTuple,
-    FFmpegInputUrlNoPipe,
+    FFmpegUrlString,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegOutputUrlComposite,
-    FFmpegOutputUrlNoPipe,
+    FFmpegUrlString,
 )
 from .errors import FFmpegError
 from .filtergraph.abc import FilterGraphObject
@@ -284,10 +284,10 @@ def filter(
     input_dtypes: list[DTypeString | None] | None = None,
     input_shapes: list[ShapeTuple | None] | None = None,
     extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
     progress: ProgressCallable | None = None,
@@ -323,11 +323,11 @@ def filter(
     :type input_shapes: list[:py:type:`ShapeTuple <ffmpegio.typing.ShapeTuple>` | None] | None
     :param extra_inputs: list of additional input sources, defaults to None.
         Each source may be url string or a pair of a url string and an option dict.
-    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
+    :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of
         a url string and an option dict.
-    :type extra_outputs: list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+    :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 4D data for video and 2D data for audio. True
         eliminates any dimensions which only has the length of one.
     :param progress: progress callback function, defaults to None
