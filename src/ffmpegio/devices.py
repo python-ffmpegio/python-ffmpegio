@@ -155,8 +155,8 @@ def list_sources(
 ) -> dict[tuple[str, str], str] | dict[str, dict[str, str]] | dict[str, str]:
     """list enumerated source hardware devices
 
-    :param dev: ffmpeg device name, defaults to None
-    :param mtype: media type, defaults to None
+    :param dev: ffmpeg device name, defaults to :code:`None` 
+    :param mtype: media type, defaults to :code:`None` 
     :type dev: MediaType
     :param return_nested: True to return results in nested dict, defaults to False
     :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,

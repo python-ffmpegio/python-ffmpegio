@@ -14,7 +14,7 @@ def stack(
     """stack filtergraph objects
 
     :param fgs: filtergraph objects
-    :param auto_link: :code:`True` to connect matched I/O labels, defaults to None
+    :param auto_link: :code:`True` to connect matched I/O labels, defaults to :code:`None` 
     :param sws_flags_policy: Defines how to set :code:`sws_flags`:
 
         * :code:`'first'`: to use the first :code:`sws_flags` found among the
@@ -62,9 +62,9 @@ def connect(
     :type from_left: PAD_INDEX | str | list[PAD_INDEX | str]
     :param to_right: input pad ids or labels of the :code:`right` fg
     :type to_right: PAD_INDEX | str | list[PAD_INDEX | str]
-    :param from_right: output pad ids or labels of the `ri`ght` fg, defaults to None
+    :param from_right: output pad ids or labels of the `ri`ght` fg, defaults to :code:`None` 
     :type from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None
-    :param to_left: input pad ids or labels of this :code:`left` fg, defaults to None
+    :param to_left: input pad ids or labels of this :code:`left` fg, defaults to :code:`None` 
     :type to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None
     :param chain_siso: True to chain the single-input single-output connection, default: True
     :param sws_flags_policy: Defines how to set :code:`sws_flags`:

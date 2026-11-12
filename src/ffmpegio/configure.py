@@ -256,7 +256,7 @@ def init_media_read(
     :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                     input url or '_in' to be applied to all inputs. The url-specific option gets the
                     preference (see :doc:`options` for custom options)
-    :param extra_outputs: list of additional output destinations, defaults to None.
+    :param extra_outputs: list of additional output destinations, defaults to :code:`None` .
                           Each source may be url string or a pair of a url string
                           and an option dict.
     :param squeeze: True to remove length-1 dimensions from the output shape
@@ -348,7 +348,7 @@ def init_media_write(
     :param input_options: list of input option dicts. Each must include either
                           :code:`'ar'` (audio) or :code:`'r'` (video) to specify the
                           media type and rate.
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
                          string or a pair of a url string and an option dict.
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
                       will be applied to all input streams unless the option has been already defined in `stream_data`
@@ -426,7 +426,7 @@ def init_media_filter(
     :param input_options: list of input option dicts. Each must include either
                           :code:`'ar'` (audio) or :code:`'r'` (video) to specify the
                           media type and rate.
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
                          string or a pair of a url string and an option dict.
     :param output_streams: output stream mappings and optional per-stream options:
 
@@ -436,7 +436,7 @@ def init_media_filter(
         - (Sequence) a sequence of output map option string or ffmpeg option
           dict with a :code:`'map'` key.
 
-    :param extra_outputs: list of additional output destinations, defaults to None.
+    :param extra_outputs: list of additional output destinations, defaults to :code:`None` .
                           Each source may be url string or a pair of a url string
                           and an option dict.
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
@@ -563,7 +563,7 @@ def init_media_transcode(
 def empty(global_options: FFmpegOptionDict | None = None) -> FFmpegArgs:
     """create empty ffmpeg arg dict
 
-    :param global_options: global options, defaults to None
+    :param global_options: global options, defaults to :code:`None` 
     :return: ffmpeg arg dict with empty 'inputs','outputs',and 'global_options' entries.
     """
     return {"inputs": [], "outputs": [], "global_options": global_options or {}}
@@ -581,7 +581,7 @@ def add_url(
     :param args: ffmpeg arg dict (modified in place)
     :param type: input or output (may use None to update later)
     :param url: url of the new entry
-    :param opts: FFmpeg options associated with the url, defaults to None
+    :param opts: FFmpeg options associated with the url, defaults to :code:`None` 
     :param update: True to update existing input of the same url, default to False
     :return: file index and its entry
     """
@@ -637,7 +637,7 @@ def find_filtergraph_option(
     ]
     | None
 ):
-    """True if FFmpeg arguments specify a filter graph
+    """:code:`True` if FFmpeg arguments specify a filter graph
 
     :param args: FFmpeg argument dict
     :param stream: output stream index, by default -1 to check global complex filtergraphs
@@ -1450,7 +1450,7 @@ def process_raw_outputs(
     @cache
     def get_fg_info() -> dict[str, FilterGraphInfoDict] | None:
         """:returns fg_info: filtergraph output info if filtergraph has been pre-analyzed,
-        keyed by their linklabels, defaults to None to perform the
+        keyed by their linklabels, defaults to :code:`None`  to perform the
         filtergraph analysis internally
         """
 
@@ -1898,7 +1898,7 @@ def init_named_pipes(
                        if raw media stream is present or -1 if only encoded
     :param ref_blocksize: block size of the reference stream, defaults to 1 if video
                           and 1024 for audio
-    :param encoded_blocksize: encoded data output block size in bytes, defaults to None (2**20 bytes)
+    :param encoded_blocksize: encoded data output block size in bytes, defaults to :code:`None`  (2**20 bytes)
     :param queuesize: the depth of named pipe queues, defaults to 16. For
                       unlimited queue size, specify zero (0).
     :param timeout: Default queue read timeout in seconds, defaults to `None` to

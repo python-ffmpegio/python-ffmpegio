@@ -564,7 +564,7 @@ def open(
         pipes or pipe objects. Note: If output files will always be overwritten
         if they exist.
     :param input_shape: input video frame size (height, width) or number of
-        input audio channels, defaults to None (auto-detect)
+        input audio channels, defaults to :code:`None`  (auto-detect)
     :param input_dtype: input data format as a Numpy dtype string, defaults to
         None (auto-detect)
     :param blocksize: Read queue item size of the in frames for video or samples
@@ -781,7 +781,7 @@ def open(
         16. Use zero  (0) to specify unlimited queue size.
     :param timeout: Queue read timeout in seconds, defaults to :code:`None` to
         wait indefinitely.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: :code:`True` to show FFmpeg log messages on the console,
         defaults to :code:`False`, hiding the logged messages
@@ -841,7 +841,7 @@ def open(
         16. Use zero (0) to specify unlimited queue size.
     :param timeout: Queue read timeout in seconds, defaults to :code:`None` to
         wait indefinitely.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: :code:`True` to show FFmpeg log messages on the console,
         defaults to :code:`False`, hiding the logged messages
@@ -893,7 +893,7 @@ def open(
         16. Use zero (0) to specify unlimited queue size.
     :param timeout: Queue read timeout in seconds, defaults to :code:`None` to
         wait indefinitely.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: :code:`True` to show FFmpeg log messages on the console,
         defaults to :code:`False`, hiding the logged messages
@@ -935,7 +935,7 @@ def open(
         16. Use zero (0) to specify unlimited queue size.
     :param timeout: Queue read timeout in seconds, defaults to :code:`None` to
         wait indefinitely.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: :code:`True` to show FFmpeg log messages on the console,
         defaults to :code:`False`, hiding the logged messages

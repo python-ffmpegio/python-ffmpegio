@@ -478,7 +478,7 @@ def array_to_audio_options(
     data: RawDataBlob | None,
 ) -> tuple[FFmpegOptionDict, tuple[ShapeTuple, DTypeString]]:
     """create an input option dict for the given raw audio data blob
-    :param data: input audio data, accessed by `audio_info` plugin hook, defaults to None (manual config)
+    :param data: input audio data, accessed by `audio_info` plugin hook, defaults to :code:`None`  (manual config)
     :returns: dict of audio options
     """
 
@@ -495,7 +495,7 @@ def array_to_video_options(
 ) -> tuple[FFmpegOptionDict, tuple[ShapeTuple, DTypeString]]:
     """create an input option dict for the given raw video data blob
 
-    :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)
+    :param data: input video frame data, accessed with `video_info` plugin hook, defaults to :code:`None`  (manual config)
     :return : option dict
     """
 
@@ -561,7 +561,7 @@ def analyze_input_file(
     :param input_url: url or None if piped or fileobj
     :param input_opts: input options
     :param input_info: input infomration
-    :param stream: stream specifier, defaults to None to return all streams
+    :param stream: stream specifier, defaults to :code:`None`  to return all streams
     :return values of the requested fields of the stream
     """
 
@@ -667,7 +667,7 @@ def analyze_audio_stream(
 
     :param args: FFmpeg arguments. The option dict in args['outputs'][ofile][1] may be modified.
     :param ofile: output file index, defaults to 0
-    :param input_info: list of input information, defaults to None
+    :param input_info: list of input information, defaults to :code:`None` 
     :return ar: sampling rate
     :return sample_fmt: input sample format
     :return ac: number of channels
@@ -850,7 +850,7 @@ def analyze_output_video_filter(
     :param r_in: input frame rate
     :param pix_fmt_in: input pixel format
     :param s_in: input frame shape (width, height)
-    :param s: -s output option, defaults to None (not given)
+    :param s: -s output option, defaults to :code:`None`  (not given)
     :return r: output frame rate
     :return pix_fmt: output pixel format
     :return s: output frame shape (width, height)

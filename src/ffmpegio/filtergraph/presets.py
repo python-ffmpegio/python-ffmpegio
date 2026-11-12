@@ -24,8 +24,8 @@ def remove_alpha(
     """generate a filter graph to remove alpha channel from a video
 
     :param fill_color: _description_
-    :param input_label: _description_, defaults to None
-    :param output_label: _description_, defaults to None
+    :param input_label: _description_, defaults to :code:`None` 
+    :param output_label: _description_, defaults to :code:`None` 
     :return: Resulting filter graph in the form:
 
         ```
@@ -149,9 +149,9 @@ def merge_audio(
 
     :param streams: List of input audio streams to merge. Each stream is keyed by its FFmpeg stream specifier and must provide its input options.
                     The option must include the sampling rate (`ar`) and sample format (`sample_fmt`).
-    :param output_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first input stream
-    :param output_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first input stream
-    :param output_pad_label: label of the `amerge` filter output, defaults to None to leave the output pad unconnected
+    :param output_ar: Sampling rate of the merged audio stream in samples/second, defaults to :code:`None`  to use the sampling rate of the first input stream
+    :param output_sample_fmt: Sample format of the merged audio stream, defaults to :code:`None`  to use the sample format of the first input stream
+    :param output_pad_label: label of the `amerge` filter output, defaults to :code:`None`  to leave the output pad unconnected
 
     """
 

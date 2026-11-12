@@ -78,14 +78,14 @@ def exec(
     :param ffmpeg_args: FFmpeg argument options
     :type ffmpeg_args: FFmpegArgs
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :param progress: progress monitor callback function, defaults to None
-    :param overwrite: True to overwrite if output url exists, defaults to None
+    :param progress: progress monitor callback function, defaults to :code:`None` 
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
                       (auto-select)
     :param capture_log: True to capture log messages on stderr, False to suppress
-                        console log messages, defaults to None (show on console)
-    :param stdin: source file object, defaults to None
-    :param stdout: sink file object, defaults to None
-    :param stderr: file to log ffmpeg messages, defaults to None
+                        console log messages, defaults to :code:`None`  (show on console)
+    :param stdin: source file object, defaults to :code:`None` 
+    :param stdout: sink file object, defaults to :code:`None` 
+    :param stderr: file to log ffmpeg messages, defaults to :code:`None` 
     :param sp_run: function to run FFmpeg as a subprocess, defaults to subprocess.run
     :param sp_kwargs: additional keyword arguments for sp_run, optional
     :return: depends on sp_run
@@ -245,20 +245,20 @@ class Popen(sp.Popen):
         :param ffmpeg_args: FFmpeg arguments
         :type ffmpeg_args: FFmpegArgs
         :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-        :param progress: progress callback function, defaults to None. This function
+        :param progress: progress callback function, defaults to :code:`None` . This function
             takes two arguments and may return True to terminate execution::
 
                 progress(data:dict, done:bool) -> bool|None
 
         :type progress: ProgressCallable | None
-        :param overwrite: True to overwrite if output url exists, defaults to None
+        :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
             (auto-select)
         :param capture_log: True to capture log messages on stderr, False to send
-            logs to console, defaults to None (no show/capture)
-        :param stdin: source file object, defaults to None
-        :param stdout: sink file object, defaults to None
-        :param stderr: file to log ffmpeg messages, defaults to None
-        :param on_exit: function(s) to execute when FFmpeg process terminates, defaults to None
+            logs to console, defaults to :code:`None`  (no show/capture)
+        :param stdin: source file object, defaults to :code:`None` 
+        :param stdout: sink file object, defaults to :code:`None` 
+        :param stderr: file to log ffmpeg messages, defaults to :code:`None` 
+        :param on_exit: function(s) to execute when FFmpeg process terminates, defaults to :code:`None` 
         :param other_popen_args: other keyword arguments to :py:class:`subprocess.Popen`
 
         If :ref:`ffmpeg_args<adv_args>` calls for input or output to be piped (e.g., url="-") then :code:`Popen`
@@ -344,7 +344,7 @@ class Popen(sp.Popen):
     def wait(self, timeout: float | None = None):
         """Wait for FFmpeg process to terminate; returns self.returncode
 
-        :param timeout: optional timeout in seconds, defaults to None
+        :param timeout: optional timeout in seconds, defaults to :code:`None` 
 
         For FFmpeg to terminate autonomously, its stdin PIPE must be closed.
 
@@ -423,18 +423,18 @@ def run(
     :param ffmpeg_args: FFmpeg argument options
     :type ffmpeg_args: FFmpegArgs
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :param progress: progress callback function, defaults to None. This function
+    :param progress: progress callback function, defaults to :code:`None` . This function
         takes two arguments:: python
 
             progress(data:dict, done:bool) -> None
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
         (auto-select)
     :param capture_log: True to capture log messages on stderr, False to send
-        logs to console, defaults to None (no show/capture)
-    :param stdin: source file object, defaults to None
-    :param stdout: sink file object, defaults to None
-    :param stderr: file to log ffmpeg messages, defaults to None
+        logs to console, defaults to :code:`None`  (no show/capture)
+    :param stdin: source file object, defaults to :code:`None` 
+    :param stdout: sink file object, defaults to :code:`None` 
+    :param stderr: file to log ffmpeg messages, defaults to :code:`None` 
     :param input: input data buffer must be given if FFmpeg is configured to receive
         data stream from Python. It must be bytes convertible to bytes.
     :param other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
@@ -483,15 +483,15 @@ def run_two_pass(
     :type ffmpeg_args: FFmpegArgs
     :param pass1_omits: per-file list of output arguments to ignore in pass 1. If not applicable to every
                         output file, use a nested dict with int keys to specify which output,
-                        defaults to None (remove 'c:a' or 'acodec').
+                        defaults to :code:`None`  (remove 'c:a' or 'acodec').
     :param pass1_extras: per-file list of additional output arguments to include in pass 1. If it does
                          not apply to every output files, use a nested dict with int keys to specify
-                         which output, defaults to None (add 'an' if `pass1_omits` also None)
+                         which output, defaults to :code:`None`  (add 'an' if `pass1_omits` also None)
     :type pass1_extras: FFmpegOptionDict | Sequence[FFmpegOptionDict] | dict[int, FFmpegOptionDict] | None
     :param hide_banner: False to output ffmpeg banner in stderr, defaults to True
-    :param overwrite: True to overwrite if output url exists, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
                       (auto-select)
-    :param stdin: source file object, defaults to None
+    :param stdin: source file object, defaults to :code:`None` 
     :param other_popen_kwargs: other keyword arguments of :py:class:`Popen`, defaults to {}
     :return: completed process
     """

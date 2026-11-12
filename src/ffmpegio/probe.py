@@ -341,12 +341,12 @@ def run(
         with :code:`data=True`. The default is :code:`'xxd'` which is a hexdump format
         compatible with the well-known xxd program. :code:`'base64'` is also
         supported.
-    :param log: Loglevel in an integer value, defaults to None to disable
+    :param log: Loglevel in an integer value, defaults to :code:`None`  to disable
         logging. If provided, logging information from the decoder about each
         frame according to the loglevel value. This option is only relevant for
         :code:`entries='frames'`. The logged information in the :code:`'log'` section.
     :param private_data: True to include private data, that is data depending on
-        the format of the particular shown element, defaults to None
+        the format of the particular shown element, defaults to :code:`None` 
     :param keep_optional_fields: False to omit the fields with invalid or non-
         applicable values. True to include those fields with :code:`None` as their
         values.
@@ -469,12 +469,12 @@ def full_details(
     :param show_chapters: True to return chapter info, defaults to False
     :param show_streams: True to return stream group info, defaults to False
     :param select_streams: Stream specifier of the streams to get info of,
-        defaults to None to retrieve all
+        defaults to :code:`None`  to retrieve all
     :param keep_str_values: True to keep all field values as str,
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: media file information
 
     """
@@ -538,7 +538,7 @@ def format_basic(
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: set of media format information.
 
 
@@ -597,8 +597,8 @@ def streams_basic(
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param stream_spec: Specify stream specification, defaults to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param stream_spec: Specify stream specification, defaults to :code:`None` 
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: List of the requested information of the matching media streams.
 
     Media Stream Information dict Entries
@@ -664,7 +664,7 @@ def video_streams_basic(
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: List of video stream information.
 
 
@@ -788,7 +788,7 @@ def audio_streams_basic(
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: List of audio stream information.
 
     Audio Stream Information Entries
@@ -882,8 +882,8 @@ def query(
     """Query specific fields of media format or stream
 
     :param url: URL of the media file/stream
-    :param streams: stream specifier, defaults to None to get format
-    :param fields: list of format/stream fields to retrieve, defaults to None (all fields)
+    :param streams: stream specifier, defaults to :code:`None`  to get format
+    :param fields: list of format/stream fields to retrieve, defaults to :code:`None`  (all fields)
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
                         is True) as its value
@@ -891,7 +891,7 @@ def query(
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: field name-value dict. If streams argument is given but does not specify
              index, a list of dict is returned instead
 
@@ -943,15 +943,15 @@ def frames(
     """get frame information
 
     :param url: URL of the media file/stream
-    :param entries: names of frame attributes, defaults to None (get all attributes)
-    :param stream: stream specifier of the stream to retrieve the data of, defaults to None to get all streams
-    :param intervals: time intervals to retrieve the data, see below for the details, defaults to None (get all)
+    :param entries: names of frame attributes, defaults to :code:`None`  (get all attributes)
+    :param stream: stream specifier of the stream to retrieve the data of, defaults to :code:`None`  to get all streams
+    :param intervals: time intervals to retrieve the data, see below for the details, defaults to :code:`None`  (get all)
     :type intervals: IntervalSpec | Sequence[IntervalSpec] | None
     :param accurate_time: True to return all :code::code:`*_time` attributes to be computed from associated timestamps and
                           stream timebase, defaults to False (= us accuracy)
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: frame information. list of dictionary if entries is None or a
         sequence; list of the selected entry if entries is str (i.e., a single entry)
 
@@ -1048,7 +1048,7 @@ def packets(
     :param stream: stream specifier of the stream to retrieve the data of,
         defaults to :code:`None` to get all streams
     :param intervals: time intervals to retrieve the data, see below for the
-        details, defaults to None (get all)
+        details, defaults to :code:`None`  (get all)
     :type intervals: IntervalSpec | Sequence[IntervalSpec] | None
     :param accurate_time: True to return all :code::code:`*_time` attributes to be computed
         from associated timestamps and stream timebase, defaults to False
@@ -1068,7 +1068,7 @@ def packets(
         supported.
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param f: Use the specified media container format, defaults to None (auto-detect)
+    :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: packet information. a list of dictionary if entries is None or
         a sequence; list of the selected entry if entries is str (i.e., a single entry)
 

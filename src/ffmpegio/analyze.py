@@ -42,16 +42,16 @@ def loudnorm(
     """run analysis (first pass) of EBU R128 loudness normalization
 
     :param url: input url
-    :param i: integrated loudness target, defaults to None
-    :param lra: loudness range target, defaults to None
-    :param tp: maximum true peak, defaults to None
-    :param offset: offset gain, defaults to None
-    :param linear: True to normalize by linearly scaling the source audio, False to normalize dynamically, defaults to None
-    :param dual_mono: True to treat mono input files as "dual-mono", defaults to None
-    :param af: preceding filter chain, defaults to None
-    :param progress: progress callback function, defaults to None
+    :param i: integrated loudness target, defaults to :code:`None` 
+    :param lra: loudness range target, defaults to :code:`None` 
+    :param tp: maximum true peak, defaults to :code:`None` 
+    :param offset: offset gain, defaults to :code:`None` 
+    :param linear: True to normalize by linearly scaling the source audio, False to normalize dynamically, defaults to :code:`None` 
+    :param dual_mono: True to treat mono input files as "dual-mono", defaults to :code:`None` 
+    :param af: preceding filter chain, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
                       (auto-select)
     :param return_stats: True to return stats instead of loudnorm options, defaults to False
     :return: second pass loudnorm filter spec str or analysis stats
@@ -163,19 +163,19 @@ def run(
     :param url: video file url
     :param loggers: class object with the metadata logging interface
     :param references: reference input urls or pairs of url and input option
-        dict, defaults to None
-    :param ss: start time to process, defaults to None
+        dict, defaults to :code:`None` 
+    :param ss: start time to process, defaults to :code:`None` 
     :type ss: int, float, str
-    :param t: duration of data to process, defaults to None
+    :param t: duration of data to process, defaults to :code:`None` 
     :type t: int, float, str
-    :param to: stop processing at this time (ignored if t is also specified), defaults to None
+    :param to: stop processing at this time (ignored if t is also specified), defaults to :code:`None` 
     :type to: int, float, str
-    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
+    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to :code:`None`  ('seconds')
     :param start_at_zero: ignore start time, defaults to False
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
     :param options: FFmpeg (primary) input options.
     :returns: logger objects passed in
     """

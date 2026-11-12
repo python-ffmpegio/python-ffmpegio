@@ -524,7 +524,7 @@ class Filter(abc.FilterGraphObject, tuple):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number
+        :param chain: id of the chain, defaults to :code:`None`  to get the total number
                       of filters across all chains
         """
 
@@ -546,11 +546,11 @@ class Filter(abc.FilterGraphObject, tuple):
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
-        :param inpad: input filter pad index or a sequence of pads, defaults to None
+        :param inpad: input filter pad index or a sequence of pads, defaults to :code:`None` 
         :type inpad: PAD_INDEX | Sequence[PAD_INDEX] | None
-        :param outpad: output filter pad index, defaults to None
+        :param outpad: output filter pad index, defaults to :code:`None` 
         :type outpad: PAD_INDEX | None
-        :param force: True to delete existing labels, defaults to None
+        :param force: True to delete existing labels, defaults to :code:`None` 
         :return: actual label name
 
         Only one of inpad and outpad argument must be given.
@@ -851,7 +851,7 @@ class Filter(abc.FilterGraphObject, tuple):
     def _check_partial_pad_index(
         self, index: tuple[int | None, int | None, int | None], is_input: bool
     ) -> bool:
-        """True if defined values of the partial pad index are valid"""
+        """:code:`True` if defined values of the partial pad index are valid"""
 
         if any(i is not None and i > 0 for i in index[:2]):
             return False
@@ -864,13 +864,13 @@ class Filter(abc.FilterGraphObject, tuple):
         return pad >= 0 and pad < n
 
     def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified input pad is chainable"""
+        """:code:`True` if specified input pad is chainable"""
         if any(i for i in index[:2]):
             return False
         return index[2] == self.get_num_inputs() - 1
 
     def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified output pad is chainable"""
+        """:code:`True` if specified output pad is chainable"""
         if any(i for i in index[:2]):
             return False
         return index[2] == self.get_num_outputs() - 1

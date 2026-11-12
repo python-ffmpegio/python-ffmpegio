@@ -160,7 +160,7 @@ def device_sink_api() -> tuple[str, dict[str, Callable]]:
 
 @hookspec(firstresult=True)
 def is_empty(obj: object) -> bool:
-    """True if data blob object has no data
+    """:code:`True` if data blob object has no data
 
     :param obj: object containing media data
     """

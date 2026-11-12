@@ -40,10 +40,10 @@ def create(
     :param args: sequential filter option arguments. Only valid for
                     a single-filter expr, and they will overwrite the
                     options set by expr.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
@@ -106,10 +106,10 @@ def read(
     :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of a url string and an option dict.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
@@ -189,21 +189,21 @@ def write(
     :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param data: image data, accessed by `video_info()` and `video_bytes()` plugin hooks
     :type data: RawDataBlob
-    :param extra_inputs: list of additional input sources, defaults to None.
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
         Each source may be url string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
-    :param dtype: output data type, defaults to None (auto-detect)
+    :param dtype: output data type, defaults to :code:`None`  (auto-detect)
     :type dtype: DTypeString | None
-    :param shape: output data shape, defaults to None (auto-detect)
+    :param shape: output data shape, defaults to :code:`None`  (auto-detect)
     :type shape: ShapeTuple | None
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
         (auto-select)
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to :code:`None` 
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type options: FFmpegOptionDict
     """
@@ -262,18 +262,18 @@ def filter(
     :param expr: SISO filter graph or None if implicit filtering via output options.
     :param input: input image data, accessed by `video_info` and `video_bytes` plugin hooks
     :type input: RawDataBlob
-    :param extra_inputs: list of additional input sources, defaults to None.
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
         Each source may be url string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of a url string and an option dict.
     :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to :code:`None` 
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type options: FFmpegOptionDict
     :return data: one-frame video data object. Its data type depends on the selected

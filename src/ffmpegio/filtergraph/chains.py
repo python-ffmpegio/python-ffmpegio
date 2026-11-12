@@ -29,7 +29,7 @@ class Chain(abc.FilterGraphObject, UserList):
     Chain('...') to parse an FFmpeg filtergraph expression
 
     :param filter_specs: single-in-single-out filtergraph description without
-                         labels, defaults to None
+                         labels, defaults to :code:`None` 
     """
 
     class Error(FFmpegioError):
@@ -134,7 +134,7 @@ class Chain(abc.FilterGraphObject, UserList):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number
+        :param chain: id of the chain, defaults to :code:`None`  to get the total number
                       of filters across all chains
         """
 
@@ -187,11 +187,11 @@ class Chain(abc.FilterGraphObject, UserList):
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
-        :param inpad: input filter pad index or a sequence of pads, defaults to None
+        :param inpad: input filter pad index or a sequence of pads, defaults to :code:`None` 
         :type inpad: PAD_INDEX | None
-        :param outpad: output filter pad index, defaults to None
+        :param outpad: output filter pad index, defaults to :code:`None` 
         :type outpad: PAD_INDEX | None
-        :param force: True to delete existing labels, defaults to None
+        :param force: True to delete existing labels, defaults to :code:`None` 
         :return: actual label name
 
         Only one of inpad and outpad argument must be given.
@@ -598,7 +598,7 @@ class Chain(abc.FilterGraphObject, UserList):
     def _check_partial_pad_index(
         self, index: tuple[int | None, int | None, int | None], is_input: bool
     ) -> bool:
-        """True if defined values of the partial pad index are valid"""
+        """:code:`True` if defined values of the partial pad index are valid"""
 
         if index[0] is not None and index[0] > 0:
             return False
@@ -613,7 +613,7 @@ class Chain(abc.FilterGraphObject, UserList):
         )
 
     def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified input pad is chainable"""
+        """:code:`True` if specified input pad is chainable"""
         if index[0]:
             return False
         try:
@@ -624,7 +624,7 @@ class Chain(abc.FilterGraphObject, UserList):
             return filter._input_pad_is_chainable((0, 0, index[2]))
 
     def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified output pad is chainable"""
+        """:code:`True` if specified output pad is chainable"""
         if index[0]:
             return False
         try:

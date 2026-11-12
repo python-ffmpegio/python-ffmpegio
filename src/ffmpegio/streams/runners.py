@@ -255,7 +255,7 @@ class InitMediaKeywordsWithInputBuffer(dict):
 
     @property
     def encoded_inputs_only(self) -> bool:
-        """True if no raw stream"""
+        """:code:`True` if no raw stream"""
         return self._raw_pipe_buffer is None
 
     @property
@@ -343,16 +343,16 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         :param enc_blocksize: (only for decodable with named pipes) the queue
             item size of encoded output stream in bytes, defaults to 64 MB
             (2**16 bytes).
-        :param queuesize: the depth of named pipe queues, defaults to None (16).
+        :param queuesize: the depth of named pipe queues, defaults to :code:`None`  (16).
             Use zero (0) to specify unlimited queue size.
         :param timeout: Queue read timeout in seconds, defaults to `None` to
             wait indefinitely. Note this timeout does not apply to stdout pipe
             operation.
-        :param progress: progress callback function, defaults to None
+        :param progress: progress callback function, defaults to :code:`None` 
         :type progress: ProgressCallable | None
         :param show_log: True to show FFmpeg log messages on the console,
-                         defaults to None (no show/capture)
-        :param overwrite: _description_, defaults to None
+                         defaults to :code:`None`  (no show/capture)
+        :param overwrite: _description_, defaults to :code:`None` 
         :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                         `subprocess.Popen()` call used to run the FFmpeg, defaults
                         to None
@@ -383,7 +383,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
             self._args["overwrite"] = overwrite
 
     def __bool__(self) -> bool:
-        """True if prebuffering or FFmpeg is running"""
+        """:code:`True` if prebuffering or FFmpeg is running"""
 
         return self._status in (FFmpegStatus.BUFFERING, FFmpegStatus.RUNNING)
 
@@ -613,7 +613,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
 
     @property
     def closed(self) -> bool:
-        """True if the stream is closed."""
+        """:code:`True` if the stream is closed."""
         return self._proc is None or self._proc.poll() is not None
 
     def __enter__(self):
@@ -646,7 +646,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         """flushes and close all input pipes and waits for FFmpeg to exit
 
         :param timeout: a timeout for blocking in seconds, or fractions
-                        thereof, defaults to None, to wait indefinitely
+                        thereof, defaults to :code:`None` , to wait indefinitely
         :raise `TimeoutExpired`: if a timeout is set, and the process does not
                                  terminate after timeout seconds. It is safe to
                                  catch this exception and retry the wait.
@@ -1147,7 +1147,7 @@ class BaseFFmpegRunner(metaclass=ABCMeta):
         return [r * fr for r in rates]
 
     def output_pending(self) -> bool:
-        """True if FFmpeg is running or at least one output buffer has data"""
+        """:code:`True` if FFmpeg is running or at least one output buffer has data"""
         return bool(self) or any(
             pipe["reader"].qsize() for pipe in self._output_pipes.values()
         )
@@ -1286,7 +1286,7 @@ class StdFFmpegRunner(SISOMixin, BaseFFmpegRunner):
         :param blocksize: (only for readable) iterator block size in frames/samples
                           to read raw media streams, defaults to use :code:`1` (frame)
                           for a video stream and :code:`1024` (samples) for audio stream.
-        :param progress: progress callback function, defaults to None
+        :param progress: progress callback function, defaults to :code:`None` 
         :type progress: ProgressCallable | None
         :param show_log: True to show FFmpeg log messages on the console, defaults
                          to None (no show/capture)

@@ -222,7 +222,7 @@ class Graph(abc.FilterGraphObject, UserList):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number
+        :param chain: id of the chain, defaults to :code:`None`  to get the total number
                       of filters across all chains
         """
 
@@ -646,7 +646,7 @@ class Graph(abc.FilterGraphObject, UserList):
         outpad: PAD_INDEX | None,
         check_input_stream: bool | None = None,
     ) -> bool:
-        """True if given pads are linked
+        """:code:`True` if given pads are linked
 
         :param inpad: input pad index, default to :code:`None` to check if
             :code:`outpad` is connected to any input pad.
@@ -677,10 +677,10 @@ class Graph(abc.FilterGraphObject, UserList):
     ):
         """unlink specified links
 
-        :param label: specify all the links with this label, defaults to None
-        :param inpad: specify the link with this inpad pad, defaults to None
+        :param label: specify all the links with this label, defaults to :code:`None` 
+        :param inpad: specify the link with this inpad pad, defaults to :code:`None` 
         :type inpad: PAD_INDEX | None
-        :param outpad: specify all the links with this outpad pad, defaults to None
+        :param outpad: specify all the links with this outpad pad, defaults to :code:`None` 
         :type outpad: PAD_INDEX | None
         """
         self._links.unlink(label, inpad, outpad)
@@ -699,7 +699,7 @@ class Graph(abc.FilterGraphObject, UserList):
         :type inpad: PAD_INDEX
         :param outpad: output pad index
         :type outpad: PAD_INDEX
-        :param label: desired label name, defaults to None (=reuse inpad/outpad label or unnamed link)
+        :param label: desired label name, defaults to :code:`None`  (=reuse inpad/outpad label or unnamed link)
         :param preserve_label: `False` to remove the labels of the input and output pads (default) or
                                `'input'` to prefer the input label or `'output'` to prefer the output
                                label.
@@ -741,7 +741,7 @@ class Graph(abc.FilterGraphObject, UserList):
     def has_label(
         self, label: str, only_if: Literal["input", "output", "internal"] | None = None
     ) -> bool:
-        """True if a linklabel is defined
+        """:code:`True` if a linklabel is defined
 
         :param label: name of the link label
         :param only_if: also check for the type of the label
@@ -776,11 +776,11 @@ class Graph(abc.FilterGraphObject, UserList):
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
-        :param inpad: input filter pad index or a sequence of pads, defaults to None
+        :param inpad: input filter pad index or a sequence of pads, defaults to :code:`None` 
         :type inpad: PAD_INDEX | None
-        :param outpad: output filter pad index, defaults to None
+        :param outpad: output filter pad index, defaults to :code:`None` 
         :type outpad: PAD_INDEX | None
-        :param force: True to delete existing labels, defaults to None
+        :param force: True to delete existing labels, defaults to :code:`None` 
         :return: actual label name
 
         Only one of inpad and outpad argument must be given.
@@ -851,7 +851,7 @@ class Graph(abc.FilterGraphObject, UserList):
         check_output: bool = True,
         check_link: bool = False,
     ) -> bool:
-        """True if specified filter chain is single-input and single-output
+        """:code:`True` if specified filter chain is single-input and single-output
 
         :param chain_id: chain id
         :param check_input: False to check only for single-output, defaults to True
@@ -876,7 +876,7 @@ class Graph(abc.FilterGraphObject, UserList):
         return not (check_link and self._links.chain_has_link(chain_id))
 
     def is_chain_prependable(self, chain_id: int) -> bool:
-        """True if another chain can be prepended to the specified filter chain"""
+        """:code:`True` if another chain can be prepended to the specified filter chain"""
 
         try:
             chain = self[chain_id]
@@ -895,7 +895,7 @@ class Graph(abc.FilterGraphObject, UserList):
         return not self._links.are_linked(inpad=(chain_id, 0, nin - 1))
 
     def is_chain_appendable(self, chain_id: int) -> bool:
-        """True if another chain can be appended to the specified filter chain
+        """:code:`True` if another chain can be appended to the specified filter chain
 
         :param chain_id: chain id
         """
@@ -1527,7 +1527,7 @@ class Graph(abc.FilterGraphObject, UserList):
     def _check_partial_pad_index(
         self, index: tuple[int | None, int | None, int | None], is_input: bool
     ) -> bool:
-        """True if defined values of the partial pad index are valid"""
+        """:code:`True` if defined values of the partial pad index are valid"""
 
         chain = index[0]
         if chain is not None and (chain < 0 or chain >= len(self)):
@@ -1538,7 +1538,7 @@ class Graph(abc.FilterGraphObject, UserList):
         )
 
     def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified input pad is chainable"""
+        """:code:`True` if specified input pad is chainable"""
 
         if self.are_linked(index, None, True):
             return False
@@ -1553,7 +1553,7 @@ class Graph(abc.FilterGraphObject, UserList):
             return chain._input_pad_is_chainable((0, *index[1:]))
 
     def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified output pad is chainable"""
+        """:code:`True` if specified output pad is chainable"""
 
         if self.are_linked(None, index):
             return False

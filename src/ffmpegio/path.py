@@ -82,8 +82,8 @@ def find(
     """Set FFmpeg and FFprobe executables
 
     :param ffmpeg_path: Full path to either the ffmpeg executable file or
-                        to the folder housing both ffmpeg and ffprobe, defaults to None
-    :param ffprobe_path: Full path to the ffprobe executable file, defaults to None
+                        to the folder housing both ffmpeg and ffprobe, defaults to :code:`None` 
+    :param ffprobe_path: Full path to the ffprobe executable file, defaults to :code:`None` 
     :returns ffmpeg_path: path to ffmpeg binary
     :returns ffprobe_path: Path to ffprobe binary
     :returns ffmpeg_version: ffmpeg version string
@@ -237,7 +237,7 @@ def check_version(
     """check FFmpeg version against the given version for the specified condition
 
     :param ver: desired version string
-    :param cond: condition, defaults to None (">=)
+    :param cond: condition, defaults to :code:`None`  (">=)
     :return: True if condition is met, False if FFmpeg binary is not found or a nightly release
 
     Note "nightly" builds are assumed to be the latest.

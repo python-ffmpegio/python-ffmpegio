@@ -150,10 +150,10 @@ def read(
     :type extra_outputs: Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
     :param squeeze: False to return 4D data for video and 2D data for audio. True
         eliminates any dimensions which only has the length of one.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
         Ignored if stream format must be retrieved automatically.
     :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
         input url or '_in' to be applied to all inputs. The url-specific option gets the
@@ -220,7 +220,7 @@ def write(
         include :code:`'ar'` (audio) or :code:`'r'` (video) to specify the
         rate.
     :type stream_args: tuple[RawStreamDef, ...]
-    :param extra_inputs: list of additional input sources, defaults to None.
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
         Each source may be url string or a pair of a url string
         and an option dict.
     :type extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None
@@ -231,12 +231,12 @@ def write(
     :param stream_shapes: list of shapes of input samples or frames of input
         media streams, defaults to `None` (auto-detect).
     :type stream_shapes: list[ShapeTuple | None]
-    :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param progress: progress callback function, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None`  (auto-select)
+    :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
-        used to run the FFmpeg, defaults to None
+        used to run the FFmpeg, defaults to :code:`None` 
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
         will be applied to all input streams unless the option has been already defined in `stream_data`
     :type options: :py:type:`FFmpegOptionDict <ffmpegio.typing.FFmpegOptionDict>`
@@ -321,7 +321,7 @@ def filter(
     :param input_shapes: list of shapes of input samples or frames of input
         media streams, defaults to `None` (auto-detect).
     :type input_shapes: list[:py:type:`ShapeTuple <ffmpegio.typing.ShapeTuple>` | None] | None
-    :param extra_inputs: list of additional input sources, defaults to None.
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
         Each source may be url string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
@@ -330,11 +330,11 @@ def filter(
     :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     :param squeeze: False to return 4D data for video and 2D data for audio. True
         eliminates any dimensions which only has the length of one.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
+    :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
-        used to run the FFmpeg, defaults to None
+        used to run the FFmpeg, defaults to :code:`None` 
     :param options: FFmpeg options, append '_in' for input option names. Input options
         will be applied to all input streams unless the option has been already defined in `stream_data`
     :type options: FFmpegOptionDict

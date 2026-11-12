@@ -28,7 +28,7 @@ def as_multi_option(
     """Put value in a list if it is not already a sequence
 
     :param value: value to be put in a list
-    :param exclude_classes: sequence classes to be treated as an option value, defaults to None
+    :param exclude_classes: sequence classes to be treated as an option value, defaults to :code:`None` 
     :param SeqCls: output sequence type
     :return: option value in a sequence, unless value is `None`
     """
@@ -78,7 +78,7 @@ def deprecate_core():
 
 
 def is_url(value: Any, *, pipe_ok: bool = False) -> bool:
-    """True if input/output url string path parsed URL
+    """:code:`True` if input/output url string path parsed URL
     :param pipe_ok: True to allow FFmpeg pipe protocol string"""
     return (
         pipe_ok or not is_pipe(value)
@@ -88,7 +88,7 @@ def is_url(value: Any, *, pipe_ok: bool = False) -> bool:
 
 
 def is_pipe(value: Any) -> bool:
-    """True if FFmpeg pipe protocol string"""
+    """:code:`True` if FFmpeg pipe protocol string"""
     try:
         return value == "-" or bool(re.match(r"pipe(\:\d*)?", value))
     except:
@@ -98,10 +98,10 @@ def is_pipe(value: Any) -> bool:
 def is_namedpipe(
     value: Any, *, readable: bool | None = None, writable: bool | None = None
 ) -> bool:
-    """True if named pipe object
+    """:code:`True` if named pipe object
 
-    :param readable: True to test for readable pipe, False to test for non-readable pipe, defaults to None (either)
-    :param writable: True to test for writable pipe, False to test for non-writable pipe, defaults to None (either)
+    :param readable: True to test for readable pipe, False to test for non-readable pipe, defaults to :code:`None`  (either)
+    :param writable: True to test for writable pipe, False to test for non-writable pipe, defaults to :code:`None`  (either)
     """
     return (
         isinstance(value, NPopen)
@@ -117,10 +117,10 @@ def is_fileobj(
     readable: bool | None = None,
     writable: bool | None = None,
 ) -> bool:
-    """True if file object
+    """:code:`True` if file object
 
-    :param readable: True to test for readable pipe, False to test for non-readable pipe, defaults to None (either)
-    :param writable: True to test for writable pipe, False to test for non-writable pipe, defaults to None (either)
+    :param readable: True to test for readable pipe, False to test for non-readable pipe, defaults to :code:`None`  (either)
+    :param writable: True to test for writable pipe, False to test for non-writable pipe, defaults to :code:`None`  (either)
     """
 
     if not isinstance(value, IOBase):

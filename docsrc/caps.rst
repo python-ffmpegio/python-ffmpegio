@@ -1,4 +1,5 @@
 .. :py:module:: ffmpegio.caps
+.. highlight:: python
    
 .. _caps:
 
@@ -8,16 +9,9 @@ FFmpeg Capabilities (:code:`ffmpegio.caps`)
 Overview
 --------
 
-:code:`ffmpegio.caps` module contains a set of functions to wrap ffmpeg's 
-help/show commands to check the capabilities of the ffmpeg executable that 
+:code:`ffmpegio.caps` module contains a set of functions to wrap FFmpeg's 
+help/show commands to check the capabilities of the FFmpeg executable that 
 the :code:`ffmpegio` is employing.
-
-.. todo::
-
-   Parsing the additional command options that are specific to the containers, 
-   codecs, and filters. The :code:`options` fields are currently returned as
-   unparsed :code:`str`
-
 
 List of Functions
 -----------------
@@ -51,18 +45,57 @@ List of Functions
 
 .. todo::
 
-   Remaining commands to be wrapped: sources, sinks, h protocol, dispositions
+   * Parsing the additional command options that are specific to the containers, 
+     codecs, and filters. The :code:`options` fields are currently returned as
+     unparsed :code:`str`
 
+   * Remaining commands to be wrapped: sources, sinks, h protocol
 
-List of Constants
------------------   
+List of Returned Types
+----------------------
 
-.. .. autosummary::
-..    :nosignatures:
-..    :recursive:
-
-.. autodata:: ffmpegio.caps.video_size_presets
-.. autodata:: ffmpegio.caps.frame_rate_presets
+.. autoclass:: ffmpegio.caps.FilterSummary
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.FilterInfo
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.FilterOption
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.BSFInfo
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.FilterInfoPadDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.CodecSummaryDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.EncoderSummaryDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.DecoderSummaryDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.FormatSummaryDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.PixFmtInfoDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.DemuxerInfoDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.MuxerInfoDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.EncoderInfoDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.caps.DecoderInfoDict
+    :members:
+    :undoc-members:
 
 Function References
 -------------------
@@ -89,3 +122,13 @@ Function References
 .. autofunction:: ffmpegio.caps.devices
 .. autofunction:: ffmpegio.caps.protocols
 .. autofunction:: ffmpegio.caps.dispositions
+
+List of Constants
+-----------------   
+
+.. .. autosummary::
+..    :nosignatures:
+..    :recursive:
+
+.. autodata:: ffmpegio.caps.video_size_presets
+.. autodata:: ffmpegio.caps.frame_rate_presets

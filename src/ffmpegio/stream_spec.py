@@ -221,7 +221,7 @@ def parse_stream_spec(spec: str | int) -> StreamSpecDict:
 
 
 def is_stream_spec(spec: str | int) -> bool:
-    """True if valid stream specifier string
+    """:code:`True` if valid stream specifier string
 
     :param spec: stream specifier string to be tested
     :return: True if valid stream specifier
@@ -253,7 +253,7 @@ def stream_spec(
         from the matching streams. Stream numbering is based on the order of the
         streams as detected by libavformat except when a program ID is also
         specified. In this case it is based on the ordering of the streams in the
-        program., defaults to None
+        program., defaults to :code:`None` 
     :param stream_type: One of following: 'v' or 'V' for video, 'a' for audio, 's' for
         subtitle, 'd' for data, and 't' for attachments. 'v' matches all video
         streams, 'V' only matches video streams which are not attached pictures,
@@ -270,14 +270,14 @@ def stream_spec(
         part of the program and match the additional_stream_specifier, defaults to
         None
     :param stream_id: stream id given by the container (e.g. PID in MPEG-TS
-        container), defaults to None
+        container), defaults to :code:`None` 
     :param tag: metadata tag key having the specified value. If value is not
         given, matches streams that contain the given tag with any value, defaults
         to None
     :param usable: streams with usable configuration, the codec must be defined
         and the essential information such as video dimension or audio sample rate
-        must be present, defaults to None
-    :param dispositions: a sequence of dispositions to match, defaults to None.
+        must be present, defaults to :code:`None` 
+    :param dispositions: a sequence of dispositions to match, defaults to :code:`None` .
     :param filter_output: True to append "out" to stream type, defaults to False
     :param no_join: True to return list of stream specifier elements, defaults to False
     :return: stream specifier string or empty string if all arguments are None
@@ -327,7 +327,7 @@ def stream_spec(
 def is_unique_stream(
     spec: StreamSpecDict, *, return_media_type: bool = False
 ) -> bool | MediaType:
-    """True if a stream is uniquely specified by the stream specifier dictionary
+    """:code:`True` if a stream is uniquely specified by the stream specifier dictionary
 
     :param spec: _description_
     :param return_media_type: True to return the media type (e.g., 'video' and 'audio'),
@@ -355,7 +355,7 @@ def parse_map_option(
 
     :param map: option string value, optionally a tuple of a file id and a stream specifier.
     :param input_file_id: if specified, auto-insert this id if a file id is missing in the given value,
-                          defaults to None to error out if missing.
+                          defaults to :code:`None`  to error out if missing.
     :param parse_stream: True to also parse stream spec (if given)
     :return: dict containing the parsed parts of the option value, possibly containing the items:
         - negative: bool
@@ -411,7 +411,7 @@ def parse_map_option(
 def is_map_option(
     spec: str, allow_missing_file_id: bool = False, unique_stream: bool = False
 ) -> bool:
-    """True if valid map option string
+    """:code:`True` if valid map option string
 
     :param spec: map option string to be tested
     :param allow_missing_file_id: :code:`True` to allow missing input file id
@@ -441,11 +441,11 @@ def map_option(
 ) -> str:
     """compose map option str
 
-    :param input_file_id: index of the source index, defaults to None
-    :param stream_specifier: stream specifier, defaults to None
-    :param negative: True to disables matching streams from already created mappings, defaults to None
-    :param view_specifier: view specifier, defaults to None
-    :param optional: True if optional mapping, defaults to None
+    :param input_file_id: index of the source index, defaults to :code:`None` 
+    :param stream_specifier: stream specifier, defaults to :code:`None` 
+    :param negative: True to disables matching streams from already created mappings, defaults to :code:`None` 
+    :param view_specifier: view specifier, defaults to :code:`None` 
+    :param optional: True if optional mapping, defaults to :code:`None` 
     :param linklabel: output label of a filtergraph
     :return: map option string
 

@@ -48,10 +48,10 @@ def create(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
                      Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
@@ -139,10 +139,10 @@ def read(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D,
         eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
         Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
         `subprocess.Popen()` call used to run the FFmpeg, defaults
@@ -227,22 +227,22 @@ def write(
     :type url: FFmpegInputUrlComposite | FFmpegInputOptionTuple | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
     :param rate_in: frame rate in frames/second
     :param data: video frame data object, accessed by `video_info` and `video_bytes` plugin hooks
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
         string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
-    :param dtype: output data type, defaults to None (auto-detect)
+    :param dtype: output data type, defaults to :code:`None`  (auto-detect)
     :type dtype: DTypeString | None
-    :param shape: output data shape, defaults to None (auto-detect)
+    :param shape: output data shape, defaults to :code:`None`  (auto-detect)
     :type shape: ShapeTuple | None
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to None
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
         (auto-select)
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
     :param two_pass: True to encode in 2-pass
-    :param pass1_omits: list of output arguments to ignore in pass 1, defaults to None
-    :param pass1_extras: list of additional output arguments to include in pass 1, defaults to None
+    :param pass1_omits: list of output arguments to ignore in pass 1, defaults to :code:`None` 
+    :param pass1_extras: list of additional output arguments to include in pass 1, defaults to :code:`None` 
     :type pass1_extras: list[FFmpegOptionDict] | None
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
@@ -316,7 +316,7 @@ def filter(
         :code:`([frames, ]rows, columns[, components])`. The data type of each 
         pixel value must be compatible with FFmpeg's output :code:`pix_fmt` 
         option. See :ref:`pix_fmt_opts`.
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
         string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
@@ -326,10 +326,10 @@ def filter(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
                     channels, defaults to True to reduce monaural data to 1D,
                     eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
@@ -412,15 +412,15 @@ def detect(
         ============  ===============  =========================================================
 
         defaults to include all the features
-    :param ss: start time to process, defaults to None
-    :param t: duration of data to process, defaults to None
-    :param to: stop processing at this time (ignored if t is also specified), defaults to None
+    :param ss: start time to process, defaults to :code:`None` 
+    :param t: duration of data to process, defaults to :code:`None` 
+    :param to: stop processing at this time (ignored if t is also specified), defaults to :code:`None` 
     :param start_at_zero: ignore start time, defaults to False
-    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
-    :param progress: progress callback function, defaults to None
+    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to :code:`None`  ('seconds')
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
     :param scene_all_scores: (only for 'scene' feature) True to return scores for all frames, defaults to False
     :param options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
         of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,

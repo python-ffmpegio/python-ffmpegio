@@ -6,10 +6,9 @@ import fractions
 import logging
 import re
 import subprocess as sp
-from collections import namedtuple
 from fractions import Fraction
 from functools import cache, partial
-from typing import Callable, Literal, LiteralString, TypeVar
+from typing import Callable, Literal, LiteralString, NamedTuple, TypedDict, TypeVar
 
 from .errors import FFmpegError, FFmpegioError
 from .path import ffmpeg as _ffmpeg
@@ -82,7 +81,18 @@ def __(
 
 
 @cache
-def _parse_options() -> dict[str, dict[str, str]]:
+def _parse_options() -> dict[
+    Literal[
+        "per-file",
+        "per-stream",
+        "video",
+        "audio",
+        "subtitle",
+        "general",
+        "global",
+    ],
+    dict[str, str],
+]:
     """parse output of `ffmpeg -help long`"""
 
     lines = ffmpeg(["-help", "long"]).split("\n")
@@ -133,21 +143,29 @@ def _parse_options() -> dict[str, dict[str, str]]:
 
 def options(
     type: (
-        Literal[
-            "per-file", "per-stream", "video", "audio", "subtitle", "general", "global"
-        ]
-        | None
+        Literal["video", "audio", "subtitle", "data", "general", "global"] | None
     ) = None,
     name_only: bool = False,
     return_desc: bool = False,
-) -> dict[str, str]:
+) -> (
+    dict[
+        Literal["video", "audio", "subtitle", "data", "general", "global"],
+        str,
+    ]
+    | dict[str, str | tuple[str, str]]
+):
     """get FFmpeg command options
 
-    :param type: specify option type to return, defaults to None
+    :param type: specify option type to return, defaults to :code:`None` 
     :param name_only: True to only return option names, defaults to False
     :param return_desc: True to also return option description, defaults to False
-    :return: dict of types of options
+    :return: option mapping depending on input arguments
+
+    The FFmpeg options are retrieved by running :code:`ffmpeg -help long`. Its output
+    is parsed then picked as specified by the arguments.
     """
+
+    # parse all the options once (cached)
     opts = _parse_options()
 
     if type == "per-file":
@@ -174,13 +192,42 @@ def options(
     )
 
 
-# fmt:off
-FilterSummary = namedtuple(
-    "FilterSummary",
-    ["description", "input", "num_inputs", "output", "num_outputs",
-        "timeline_support", "slice_threading", "command_support"],
-)
-# fmt:on
+class FilterSummary(NamedTuple):
+    """Summary tuple of an FFMpeg filter"""
+
+    description: str
+    """Description"""
+
+    input: Literal["audio", "video", "dynamic", "none"]
+    """Media type of input pads. 
+    
+    * :code:`"audio"` - audio streams 
+    * :code:`"video"` - video streams
+    * :code:`"dynamic"` - variable-length inputs
+    * :code:`"none"` - no input pad"""
+
+    num_inputs: int | None
+    """number of input pads, :code:`None` if variable."""
+
+    output: Literal["audio", "video", "dynamic", "none"]
+    """Media type of output pads. 
+    
+    * :code:`"audio"` - audio streams 
+    * :code:`"video"` - video streams
+    * :code:`"dynamic"` - variable-length inputs
+    * :code:`"none"` - no output pad"""
+
+    num_outputs: int | None
+    """number of output pads, :code:`None` if variable."""
+
+    timeline_support: bool
+    """:code:`True` if the filter supports `timeline editing <https://ffmpeg.org/ffmpeg-filters.html#Timeline-editing>`_"""
+
+    slice_threading: bool
+    """:code:`True` if the filter supports per-slice multi-threading"""
+
+    command_support: bool
+    """:code:`True` if the filter supports `runtime commands <https://ffmpeg.org/ffmpeg-filters.html#Changing-options-at-runtime-with-a-command>`_"""
 
 
 @cache
@@ -224,8 +271,8 @@ def filters(
 ) -> dict[str, FilterSummary]:
     """get FFmpeg filters
 
-    :param io_type: specify input or output stream type, defaults to None
-    :return: dict of the summaries of the filters
+    :param io_type: specify input or output stream type, defaults to :code:`None` 
+    :return: dict of the summaries of the filters keyed by filter names
 
     Each key of the returned dict is a name of a filter and its value is a
     FilterSummary namedtuple with the following items:
@@ -254,30 +301,38 @@ def filters(
     return data
 
 
+class CodecSummaryDict(TypedDict):
+    """Returned by :py:func:`codecs()`"""
+
+    type: Literal["audio", "video", "subtitle"]
+    """Stream media type"""
+    description: str
+    """Short description of the codec"""
+    can_decode: bool
+    """:code:`True` if FFmpeg can decode"""
+    decoders: list(str)
+    """List of compatible decoders"""
+    can_encode: bool
+    """:code:`True` if FFmpeg can encode"""
+    encoders: list(str)
+    """List of compatible encoders"""
+    intra_frame_only: bool
+    """:code:`True` if codec only uses intra-frame coding"""
+    is_lossy: bool
+    """:code:`True` if codec can do lossy compression"""
+    is_lossless: bool
+    """:code:`True` if codec can do lossless compression"""
+
+
 @cache
-def _parse_codecs() -> dict:
+def _parse_codecs() -> CodecSummaryDict:
     """get FFmpeg codecs
 
-    :param type: Specify to list only decoder or encoder, defaults to None
-    :param stream_type: Specify to stream type, defaults to None
+    :param type: Specify to list only decoder or encoder, defaults to :code:`None` 
+    :param stream_type: Specify to stream type, defaults to :code:`None` 
     :return: summary of FFmpeg codecs
 
-    Each key of the returned dict is a name of a codec and its value is a dict
-    with the following items:
-
-    ================  =========  ===============================================
-    Key               type       description
-    ================  =========  ===============================================
-    type              str        Stream type: 'audio'|'video'|'subtitle'
-    description       str        Short description of the codec
-    can_decode        bool       True if FFmpeg can decode
-    decoders          list(str)  List of compatible decoders
-    can_encode        bool       True if FFmpeg can encode
-    encoders          list(str)  List of compatible encoders
-    intra_frame_only  bool       True if codec only uses intra-frame coding
-    is_lossy          bool       True if codec can do lossy compression
-    is_lossless       bool       True if codec can do lossless compression
-    ================  =========  ===============================================
+    Each key of the returned dict is a name of a codec and its value is
     """
     stdout = _("codecs")
 
@@ -322,29 +377,12 @@ def _parse_codecs() -> dict:
 def codecs(
     codec_type: Literal["decoder", "encoder"] | None = None,
     stream_type: Literal["audio", "video", "subtitle"] | None = None,
-) -> dict:
-    """get FFmpeg codecs
+) -> dict[str, CodecSummaryDict]:
+    """get summary information of FFmpeg codecs
 
-    :param codec_type: Specify to list only decoder or encoder, defaults to None
-    :param stream_type: Specify to stream type, defaults to None
-    :return: summary of FFmpeg codecs
-
-    Each key of the returned dict is a name of a codec and its value is a dict
-    with the following items:
-
-    ================  =========  ===============================================
-    Key               type       description
-    ================  =========  ===============================================
-    type              str        Stream type: 'audio'|'video'|'subtitle'
-    description       str        Short description of the codec
-    can_decode        bool       True if FFmpeg can decode
-    decoders          list(str)  List of compatible decoders
-    can_encode        bool       True if FFmpeg can encode
-    encoders          list(str)  List of compatible encoders
-    intra_frame_only  bool       True if codec only uses intra-frame coding
-    is_lossy          bool       True if codec can do lossy compression
-    is_lossless       bool       True if codec can do lossless compression
-    ================  =========  ===============================================
+    :param codec_type: Specify to list only decoder or encoder, defaults to :code:`None` 
+    :param stream_type: Specify to stream type, defaults to :code:`None` 
+    :return: summary of FFmpeg codecs, keyed by codec name
     """
     data = _parse_codecs()
 
@@ -364,26 +402,33 @@ def codecs(
     return {k: v for k, v in data.items() if pick(v)}
 
 
-def encoders(stream_type: Literal["audio", "video", "subtitle"] | None = None) -> dict:
+class EncoderSummaryDict(TypedDict):
+    """Returned by :py:func:`encoders()`"""
+
+    type: Literal["audio", "video", "subtitle"]
+    """Stream media type"""
+    description: str
+    """Short description of the coder"""
+    frame_mt: bool
+    """:code:`True` if employs frame-level multithreading"""
+    slice_mt: bool
+    """:code:`True` if employs slice-level multithreading"""
+    experimental: bool
+    """:code:`True` if experimental encoder"""
+    draw_horiz_band: bool
+    """:code:`True` if supports draw_horiz_band"""
+    directRendering: bool
+    """:code:`True` if supports direct encoding method 1"""
+
+
+def encoders(
+    stream_type: Literal["audio", "video", "subtitle"] | None = None,
+) -> dict[str, EncoderSummaryDict]:
     """get summary of FFmpeg encoders
 
-    :param stream_type: specify stream type, defaults to None
-    :return: list of encoders
-
-    Each key of the returned dict is a name of a decoder or encoder and its
-    value is a dict with the following items:
-
-    ================  ====  ===============================================
-    Key               type  description
-    ================  ====  ===============================================
-    type              str   Stream type: 'audio'|'video'|'subtitle'
-    description       str   Short description of the coder
-    frame_mt          bool  True if employs frame-level multithreading
-    slice_mt          bool  True if employs slice-level multithreading
-    experimental      bool  True if experimental encoder
-    draw_horiz_band   bool  True if supports draw_horiz_band
-    directRendering   bool  True if supports direct encoding method 1
-    ================  ====  ===============================================
+    :param stream_type: specify stream type, defaults to :code:`None` 
+    :return: dict of encoder information, keyed by the names of
+        encoders and values :py:class:`EncoderSummaryDict` objects.
     """
 
     data = _parse_coders("encoders")
@@ -392,27 +437,33 @@ def encoders(stream_type: Literal["audio", "video", "subtitle"] | None = None) -
     return data
 
 
-def decoders(stream_type: Literal["audio", "video", "subtitle"] | None = None) -> dict:
+class DecoderSummaryDict(TypedDict):
+    """Returned by :py:func:`decoders()`"""
+
+    type: Literal["audio", "video", "subtitle"]
+    """Stream type"""
+    description: str
+    """Short description of the coder"""
+    frame_mt: bool
+    """:code:`True` if employs frame-level multithreading"""
+    slice_mt: bool
+    """:code:`True` if employs slice-level multithreading"""
+    experimental: bool
+    """:code:`True` if experimental encoder"""
+    draw_horiz_band: bool
+    """:code:`True` if supports draw_horiz_band"""
+    directRendering: bool
+    """:code:`True` if supports direct encoding method 1"""
+
+
+def decoders(
+    stream_type: Literal["audio", "video", "subtitle"] | None = None,
+) -> dict[str, DecoderSummaryDict]:
     """get summary of FFmpeg decoders
 
-    :param stream_type: specify stream type, defaults to None
-    :return: list of decoders or encoders
-
-
-    Each key of the returned dict is a name of a decoder and its
-    value is a dict with the following items:
-
-    ================  ====  ===============================================
-    Key               type  description
-    ================  ====  ===============================================
-    type              str   Stream type: 'audio'|'video'|'subtitle'
-    description       str   Short description of the coder
-    frame_mt          bool  True if employs frame-level multithreading
-    slice_mt          bool  True if employs slice-level multithreading
-    experimental      bool  True if experimental encoder
-    draw_horiz_band   bool  True if supports draw_horiz_band
-    directRendering   bool  True if supports direct encoding method 1
-    ================  ====  ===============================================
+    :param stream_type: specify stream type, defaults to :code:`None` 
+    :return: dict of decoder information, keyed by the names of
+        decoders and values :py:class:`DecoderSummaryDict` objects.
     """
 
     data = _parse_coders("decoders")
@@ -448,23 +499,32 @@ def _parse_coders(codec_type):
 #    * /
 
 
-def formats(return_names_only: bool = False) -> list[str] | dict[str, dict]:
+class FormatSummaryDict(TypedDict):
+    """Returned by :py:func:`formats()`, :py:func:`devices()`, :py:func:`muxers()`, and :py:func:`demuxers()`"""
+
+    description: str
+    """Short description of the format/device"""
+    can_demux: bool
+    """:code:`True` if supports inputs of this format/device"""
+    can_mux: bool
+    """:code:`True` if support outputs of this format/device"""
+    is_device: bool
+    """:code:`True` if format is a device"""
+
+
+def formats(
+    return_names_only: bool = False,
+) -> dict[str, FormatSummaryDict] | list[str]:
     """get FFmpeg formats
 
-    :return: list of formats
-    :rtype: dict
+    :param return_names_only: True to return a list of format names, defaults to False
+        to return a dict of formats with their summary information.
+    :return: available formats
 
+        * if :code:`return_names_only=False` a dict of :py:class:`FormatSummaryDict` keyed
+          by the format names.
+        * if :code:`return_names_only=True` a list of format names.
 
-    Each key of the returned dict is a name of a format and its value is a dict
-    with the following items:
-
-    ================  ====  ===============================================
-    Key               type  description
-    ================  ====  ===============================================
-    description       str   Short description of the format
-    can_demux         bool  True if supports inputs of this format
-    can_mux           bool  True if support outputs of this format
-    ================  ====  ===============================================
     """
 
     data = _parse_formats()
@@ -474,23 +534,17 @@ def formats(return_names_only: bool = False) -> list[str] | dict[str, dict]:
 def devices(
     source_or_sink: Literal["source", "sink"] | None = None,
     return_names_only: bool = False,
-) -> list[str] | dict[str, dict]:
+) -> dict[str, FormatSummaryDict] | list[str]:
     """get FFmpeg devices
 
-    :param source_or_sink: specify source or sink type, defaults to None to return both
-    :return: list of devices
+    :param source_or_sink: specify source or sink type, defaults to :code:`None`  to return both
+    :param return_names_only: True to return a list of device names, defaults to False
+        to return a dict of devices with their summary information.
+    :return: available devices
 
-
-    Each key of the returned dict is a name of a device and its value is a dict
-    with the following items:
-
-    ================  ====  ===============================================
-    Key               type  description
-    ================  ====  ===============================================
-    description       str   Short description of the device
-    can_demux         bool  True if this device is a source/input device
-    can_mux           bool  True if this device is a sink/output device
-    ================  ====  ===============================================
+        * if :code:`return_names_only=False` a dict of :py:class:`FormatSummaryDict` keyed
+          by the device names.
+        * if :code:`return_names_only=True` a list of device names.
     """
     data = _parse_formats()
 
@@ -514,7 +568,7 @@ def devices(
 
 def muxers(
     include_devices: bool = False, return_names_only: bool = False
-) -> list[str] | dict[str, dict]:
+) -> list[str] | dict[str, FormatSummaryDict]:
     """get FFmpeg muxers
 
     :param include_devices: True to include input devices, defaults to False
@@ -537,7 +591,7 @@ def muxers(
 
 def demuxers(
     include_devices: bool = False, return_names_only: bool = False
-) -> list[str] | dict[str, dict]:
+) -> list[str] | dict[str, FormatSummaryDict]:
     """get FFmpeg demuxers
 
     :param include_devices: True to include input devices, defaults to False
@@ -633,8 +687,25 @@ def protocols() -> dict[str, dict]:
 #   // according to fftools/comdutils.c show_pix_fmts()
 
 
+class PixFmtInfoDict(TypedDict):
+    nb_components: int
+    """Number of color components"""
+    bits_per_pixel: int
+    """Number of bits per pixel"""
+    input: bool
+    """:code:`True` if can be used as an input option"""
+    output: bool
+    """:code:`True` if can be used as an output option"""
+    hw_accel: bool
+    """:code:`True` if supported by hardware accelerators"""
+    paletted: bool
+    """:code:`True` if uses paletted colors"""
+    bitstream: bool
+    """:code:`True` if can be used with bistreams"""
+
+
 @cache
-def pix_fmts() -> dict[str, dict]:
+def pix_fmts() -> dict[str, PixFmtInfoDict]:
     """get supported pixel formats
 
     :return: list of supported pixel formats
@@ -645,13 +716,6 @@ def pix_fmts() -> dict[str, dict]:
     ==============  ====  ===============================================
     Key             type  description
     ==============  ====  ===============================================
-    nb_components   int   Number of color components
-    bits_per_pixel  int   Number of bits per pixel
-    input           bool  True if can be used as an input option
-    output          bool  True if can be used as an output option
-    hw_accel        bool  True if supported by hardware accelerators
-    paletted        bool  True if uses paletted colors
-    bitstream       bool  True if can be used with bistreams
     ==============  ====  ===============================================
     """
     stdout = _("pix_fmts")
@@ -694,7 +758,6 @@ def layouts() -> dict[Literal["channels", "layouts"], dict[str, str]]:
     """get supported audio channel layouts
 
     :return: list of supported audio channel layouts
-    :rtype: dict
 
     Returned dict has two keys "channels" and "layouts". The value of "channels"
     is a dict of possible channel names as keys and their descriptions as values.
@@ -739,22 +802,25 @@ def colors() -> dict[str, str]:
     }
 
 
+class DemuxerInfoDict(TypedDict):
+    """Returned by :py:func:`demuxer_info()`"""
+
+    names: list[str]
+    """List of compatible short names"""
+    long_name: str
+    """Common long name"""
+    extensions: list[str]
+    """List of associated common extensions (w/out :code:`'.'`)"""
+    options: str
+    """Unparsed string, listing supported options (TODO)"""
+
+
 @cache
-def demuxer_info(name: str) -> dict:
+def demuxer_info(name: str) -> DemuxerInfoDict:
     """get detailed info of a media demuxer
 
-    :return: list of features
+    :return: demuxer features
 
-    The returned dict has following entries:
-
-    ==============  =========  ================================================
-    Key             type       description
-    ==============  =========  ================================================
-    names           list(str)  List of compatible short names
-    long_name       str        Common long name
-    extensions      list(str)  List of associated common extensions (w/out '.')
-    options         str        Unparsed string, listing supported options
-    ==============  =========  ================================================
     """
 
     #   // according to fftools/comdutils.c show_help_demuxer()
@@ -775,26 +841,33 @@ def demuxer_info(name: str) -> dict:
     )
 
 
+class MuxerInfoDict(TypedDict):
+    """Returned by :py:func:`muxer_info()`"""
+
+    names: list[str]
+    """List of compatible short names"""
+    long_name: str
+    """Common long name"""
+    extensions: list[str]
+    """List of associated common extensions (w/out :code:'.')"""
+    mime_types: list[str]
+    """List of associated MIME types"""
+    video_codecs: list[str]
+    """List of supported video codecs"""
+    audio_codecs: list[str]
+    """List of supported audio codecs"""
+    subtitle_codecs: list[str]
+    """List of supported subtitle codecs"""
+    options: str
+    """Unparsed string, listing supported options (TODO)"""
+
+
 @cache
-def muxer_info(name: str) -> dict:
+def muxer_info(name: str) -> MuxerInfoDict:
     """get detailed info of a media muxer
 
-    :return: list of features
+    :return: muxer features
 
-    The returned dict has following entries:
-
-    ===============  =========  ================================================
-    Key              type       description
-    ===============  =========  ================================================
-    names            list(str)  List of compatible short names
-    long_name        str        Common long name
-    extensions       list(str)  List of associated common extensions (w/out '.')
-    mime_types       list(str)  List of associated MIME types
-    video_codecs     list(str)  List of supported video codecs
-    audio_codecs     list(str)  List of supported audio codecs
-    subtitle_codecs  list(str)  List of supported subtitle codecs
-    options          str        Unparsed string, listing supported options
-    ===============  =========  ================================================
     """
 
     #   // according to fftools/comdutils.c show_help_muxer()
@@ -820,56 +893,76 @@ def muxer_info(name: str) -> dict:
     }
 
 
+class EncoderInfoDict(TypedDict):
+    """Returned by :py:func:`encoder_info()`"""
+
+    name: list[str]
+    """Short names"""
+    long_name: str
+    """Long name"""
+    capabilities: list[str]
+    """List of supported capabilities"""
+    threading: list[str]
+    """List of threading capabilities"""
+    supported_hwdevices: list[str]
+    """List of supported hardware accelerators"""
+    supported_framerates: list[Fraction]
+    """List of supported video frame rates"""
+    supported_pix_fmts: list[str]
+    """List of supported video pixel formats"""
+    supported_sample_rates: list[int]
+    """List of supported audio sample rates"""
+    supported_sample_fmts: list[str]
+    """List of supported audio sample formats"""
+    supported_layouts: list[str]
+    """List of supported audio channel layouts"""
+    options: str
+    """Unparsed string, listing supported options"""
+
+
 @cache
-def encoder_info(name: str) -> dict:
+def encoder_info(name: str) -> EncoderInfoDict:
     """get detailed info of an encoder
 
-    :return: list of features
-
-    The returned dict has following entries:
-
-    ======================  ==============  ================================================
-    Key                     type            description
-    ======================  ==============  ================================================
-    name                    list(str)       Short names
-    long_name               str             Long name
-    capabilities            list(str)       List of supported capabilities
-    threading               list(str)       List of threading capabilities
-    supported_hwdevices     list(str)       List of supported hardware accelerators
-    supported_framerates    list(Fraction)  List of supported video frame rates
-    supported_pix_fmts      list(str)       List of supported video pixel formats
-    supported_sample_rates  list(int)       List of supported audio sample rates
-    supported_sample_fmts   list(str)       List of supported audio sample formats
-    supported_layouts       list(str)       List of supported audio channel layouts
-    options                 str             Unparsed string, listing supported options
-    ======================  ==============  ================================================
+    :param name: encoder name
+    :return: encoder features
     """
     return _parse_codec_info(name, True)
 
 
+class DecoderInfoDict(TypedDict):
+    """Returned by :py:func:`decoder_info()`"""
+
+    name: list[str]
+    """Short names"""
+    long_name: str
+    """Long name"""
+    capabilities: list[str]
+    """List of supported capabilities"""
+    threading: list[str]
+    """List of threading capabilities"""
+    supported_hwdevices: list[str]
+    """List of supported hardware accelerators"""
+    supported_framerates: list[Fraction]
+    """List of supported video frame rates"""
+    supported_pix_fmts: list[str]
+    """List of supported video pixel formats"""
+    supported_sample_rates: list[int]
+    """List of supported audio sample rates"""
+    supported_sample_fmts: list[str]
+    """List of supported audio sample formats"""
+    supported_layouts: list[str]
+    """List of supported audio channel layouts"""
+    options: str
+    """Unparsed string, listing supported options (TODO)"""
+
+
 @cache
-def decoder_info(name: str) -> dict:
+def decoder_info(name: str) -> DecoderInfoDict:
     """get detailed info of a decoder
 
-    :return: list of features
-
-    The returned dict has following entries:
-
-    ======================  ==============  ================================================
-    Key                     type            description
-    ======================  ==============  ================================================
-    name                    list(str)       Short names
-    long_name               str             Long name
-    capabilities            list(str)       List of supported capabilities
-    threading               list(str)       List of threading capabilities
-    supported_hwdevices     list(str)       List of supported hardware accelerators
-    supported_framerates    list(Fraction)  List of supported video frame rates
-    supported_pix_fmts      list(str)       List of supported video pixel formats
-    supported_sample_rates  list(int)       List of supported audio sample rates
-    supported_sample_fmts   list(str)       List of supported audio sample formats
-    supported_layouts       list(str)       List of supported audio channel layouts
-    options                 str             Unparsed string, listing supported options
-    ======================  ==============  ================================================
+    :param name: decoder name
+    :return: decoder features
     """
     return _parse_codec_info(name, False)
 
@@ -923,21 +1016,6 @@ def _parse_codec_info(name: str, encoder: bool) -> dict:
     }
 
 
-# fmt: off
-FilterInfo = namedtuple(
-    "FilterInfo",
-    [ "name", "description", "threading", "inputs", "outputs",
-      "options", "extra_options", "timeline_support",
-    ],
-)
-FilterOption = namedtuple(
-    "FilterOption",
-    ["name", "aliases", "type", "multiple", "help", "ranges", "constants", "default", 
-     "video", "audio", "runtime"],
-)
-# fmt:on
-
-
 def _get_filter_pad_info(line: str) -> list[dict[str, str]] | None:
     if line.startswith("        dynamic"):
         return None
@@ -977,6 +1055,57 @@ def _get_filter_option_constant(
     else:
         name, intval = m[1].rsplit(maxsplit=1)
         return (name, int(intval)), desc
+
+
+class FilterOption(NamedTuple):
+    """FFmpeg filter option tuple
+
+    This tuple is used for the elements of :py:attr:`FilterInfo.options` and :py:attr:`FilterInfo.extra_options`"""
+
+    name: str
+    """option name"""
+
+    aliases: list[str]
+    """option name aliases"""
+
+    type: Literal[
+        "string",
+        "boolean",
+        "int",
+        "int64",
+        "uint64",
+        "float",
+        "double",
+        "rational",
+        "flags",
+    ]
+    """option data type"""
+
+    multiple: bool
+    """:code:`True` if multiple value assignable via :code:`|`-separated list"""
+
+    help: str
+    """option description"""
+
+    ranges: tuple[int | float | Fraction, int | float | Fraction] | None
+    """valid range of the option value"""
+
+    constants: dict[str | int, str] | None
+    """dict of acceptable values. Keys are allowed option values and dict values
+    are descriptions of the constants"""
+
+    default: str | bool | int | float | Fraction | None
+    """default option value"""
+
+    video: bool
+    """:code:`True` if affecting video stream
+    """
+    audio: bool
+    """:code:`True` if affecting audio stream
+    """
+    runtime: bool
+    """:code:`True` if modifiable during runtime
+    """
 
 
 def _get_filter_option(block: str, name: str) -> FilterOption:
@@ -1093,47 +1222,42 @@ def _get_filter_options(block: str) -> tuple[str, list[FilterOption]]:
     return name, opts
 
 
+class FilterInfoPadDict(TypedDict):
+    """Input/output pad definition dict"""
+
+    name: str
+    "Pad name"
+    type: Literal["audio", "video"]
+    "Media type"
+
+
+class FilterInfo(NamedTuple):
+    """Return type of :py:func:`filter_info()`"""
+
+    name: str
+    """Filter name"""
+    description: str
+    """Description"""
+    threading: list[str]
+    """list of threading capabilities"""
+    inputs: list[FilterInfoPadDict] | Literal["dynamic"]
+    """list of input pads"""
+    outputs: list[FilterInfoPadDict] | Literal["dynamic"]
+    """list of output pads"""
+    options: list[FilterOption]
+    """list of filter options"""
+    extra_options: list[FilterOption]
+    """list of additional filter option, usually shared with other filters"""
+    timeline_support: bool
+    """:code:`True` if `timeline editing <https://ffmpeg.org/ffmpeg-filters.html#Timeline-editing>`_ is supported"""
+
+
 @cache
 def filter_info(name: str) -> FilterInfo:
     """get detailed info of a filter
 
-    :return: list of features
-    :rtype: FilterInfo (namedtuple)
-
-    The returned FilterInfo named tuple has following entries:
-
-    ================ ============================  ================================================
-    Key              type                          description
-    ================ ============================  ================================================
-    name             str                           Name
-    description      str                           Description
-    threading        list(str)                     List of threading capabilities
-    inputs           list(dict)|str                List of input pads or 'dynamic' if variable
-    outputs          list(dict)|str                List of output pads or 'dynamic' if variable
-    options          list(FilterOption)            List of filter options
-    extra_options    dict(str,list(FilterOption))  Extra options co-listed
-    timeline_support bool                          True if `enable` timeline option is supported
-    ================ ============================  ================================================
-
-    'inputs' and 'outputs' entries has two keys: 'name' and 'type'
-    defining the pad name and pad stream type ('audio' or 'video')
-
-    FilterOption is a namedtuple with the following entries:
-
-    =========  ===========================  ================================================
-    Key        type                         description
-    =========  ===========================  ================================================
-    name       str                          Name
-    alias      str                          Alias name
-    type       str                          Data type
-    help       str                          Help text
-    ranges     list(tuple(any,any))|None    List of ranges of values
-    constants  dict(str:any)                List of defined constant/enum values
-    default    any                          Default value
-    video      bool                         True if option for video stream
-    audio      bool                         True if option for audio stream
-    runtime    bool                         True if modifiable during runtime
-    =========  ===========================  ================================================
+    :param name: filter name
+    :return: filter features
 
     """
 
@@ -1223,24 +1347,22 @@ def filter_info(name: str) -> FilterInfo:
     )
 
 
-BSFInfo = namedtuple("BSFInfo", ["name", "supported_codecs", "options"])
+class BSFInfo(NamedTuple):
+    """Return type of :py:func:`bsfilter_info()`"""
+
+    name: str
+    """filter name"""
+    supported_codecs: list[str]
+    """list of codecs supporting this filter"""
+    options: str
+    """unparsed string, listing supported options (TODO)"""
 
 
 @cache
 def bsfilter_info(name: str) -> BSFInfo:
     """get detailed info of a bitstream filter
 
-    :return: list of features
-
-    The returned dict has following entries:
-
-    ================  ==============  ================================================
-    Key               type            description
-    ================  ==============  ================================================
-    name              str             Name
-    supported_codecs  str             List of supported codecs
-    options           str             Unparsed string, listing supported options
-    ================  ==============  ================================================
+    :return: bistream filter features
 
     """
 
@@ -1263,8 +1385,9 @@ def bsfilter_info(name: str) -> BSFInfo:
         m[3],  # "options"
     )
 
+
 @cache
-def dispositions()->list[str]:
+def dispositions() -> list[str]:
     """get a list of supported stream dispositions
 
     The list is obtained by parsing the output of::

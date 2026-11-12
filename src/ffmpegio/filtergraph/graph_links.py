@@ -525,7 +525,7 @@ class GraphLinks(UserDict):
 
         :param inpad: input pad ids
         :param outpad: output pad id
-        :param label: desired label name, defaults to None (=reuse inpad/outpad
+        :param label: desired label name, defaults to :code:`None`  (=reuse inpad/outpad
             label or unnamed link)
         :param preserve_label: :code:`False` to remove the labels of the input and
             output pads (default) or :code:`'input'` to prefer the input label or
@@ -621,9 +621,9 @@ class GraphLinks(UserDict):
         """label a filter pad
 
         :param label: name of the new label or input stream specifier (for input label only)
-        :param inpad: input filter pad id (or a sequence of ids), defaults to None
-        :param outpad: output filter pad id, defaults to None
-        :param force: True to delete existing labels, defaults to None
+        :param inpad: input filter pad id (or a sequence of ids), defaults to :code:`None` 
+        :param outpad: output filter pad id, defaults to :code:`None` 
+        :param force: True to delete existing labels, defaults to :code:`None` 
         :return: created label name
 
         Only one of inpad and outpad argument must be given.
@@ -701,7 +701,7 @@ class GraphLinks(UserDict):
 
         :param in_label: input pad label
         :param out_label: output pad label
-        :param label: desired new label name, defaults to None (=reuse inpad/outpad label or unnamed link)
+        :param label: desired new label name, defaults to :code:`None`  (=reuse inpad/outpad label or unnamed link)
         :param preserve_label: `False` to remove the labels of the input and output pads (default) or
                                `'input'` to prefer the input label or `'output'` to prefer the output
                                label.
@@ -752,9 +752,9 @@ class GraphLinks(UserDict):
     ):
         """unlink specified links
 
-        :param label: specify all the links with this label, defaults to None
-        :param inpad: specify the link with this inpad pad, defaults to None
-        :param outpad: specify all the links with this outpad pad, defaults to None
+        :param label: specify all the links with this label, defaults to :code:`None` 
+        :param inpad: specify the link with this inpad pad, defaults to :code:`None` 
+        :param outpad: specify all the links with this outpad pad, defaults to :code:`None` 
 
         Only one of :code:`label`, :code:`inpad`, :code:`outpad` should be specified. If
         more than one input argument is given, the preference is given in the
@@ -1300,7 +1300,7 @@ class GraphLinks(UserDict):
     ############################################################################
 
     def is_linked(self, label: str, include_stream_specs: bool = False) -> bool:
-        """True if label specifies a link
+        """:code:`True` if label specifies a link
 
         :param label: link label
         :return: True if label is a link
@@ -1314,7 +1314,7 @@ class GraphLinks(UserDict):
         return is_link
 
     def is_input(self, label: str, exclude_stream_specs: bool = False) -> bool:
-        """True if label specifies an input
+        """:code:`True` if label specifies an input
 
         :param label: link label
         :param exclude_stream_specs: :code:`True` to return :code:`False` if the label
@@ -1413,7 +1413,7 @@ class GraphLinks(UserDict):
     def iter_output_pads(self) -> Iterator[tuple[str, PAD_INDEX_, PAD_INDEX_ | None]]:
         """Iterate over all :code:`GraphLinks` items with an assigned output pad
 
-        :param label: to iterate only on this label, defaults to None (all frames)
+        :param label: to iterate only on this label, defaults to :code:`None`  (all frames)
         :yield label: a full link definition (inpad or outpad may be None if input or output label, respectively)
         :yield inpad: input pad index
         :yield outpad: output pad index
@@ -1429,7 +1429,7 @@ class GraphLinks(UserDict):
         """Iterate over only actual links, separating inpad ids with
            the same input stream
 
-        :param label: to iterate only on this label, defaults to None (all frames)
+        :param label: to iterate only on this label, defaults to :code:`None`  (all frames)
         :param include_input_stream: True to include input pads connected to input streams.
         :yield: label, input pad, and output pad of a link
         """
@@ -1595,7 +1595,7 @@ class GraphLinks(UserDict):
         outpad: PAD_INDEX | None,
         check_input_stream: bool | None = None,
     ) -> bool:
-        """True if given pads are linked
+        """:code:`True` if given pads are linked
 
         :param inpad: input pad index, default to :code:`None` to check if
             :code:`outpad` is connected to any input pad.
@@ -1647,7 +1647,7 @@ class GraphLinks(UserDict):
     def chain_has_link(
         self, chain_id: int, check_input: bool = True, check_output: bool = True
     ) -> bool:
-        """True if there is any link/label defined on the chain specified by its id
+        """:code:`True` if there is any link/label defined on the chain specified by its id
 
         :param chain_id: index of the chain under test
         :param check_input: True to check all the input pads, defaults to True

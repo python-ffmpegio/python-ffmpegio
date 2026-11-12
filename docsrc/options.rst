@@ -42,7 +42,7 @@ s           (int,int)  X     X  X  Video frame size (width, height). Alt. str ex
 pix_fmt     str        X     X  X  Video frame pixel format, defaults to auto-detect
 vf          str           X     X  Video filtergraph (leave output pad unlabeled)
 ac          int           X  X  X  Number of audio channels, defaults to auto-detect
-sample_fmt  int           X  X  X  Audio sample format, defaults to None (same as input)
+sample_fmt  int           X  X  X  Audio sample format, defaults to :code:`None`  (same as input)
 af          str        X        X  Audio filtergraph (leave output pad unlabeled)
 crf         int        X        X  H.264 video encoding constant quality factor (0-51)
 ==========  =========  =  =  =  =  ============================================================

@@ -22,8 +22,8 @@ logger = logging.getLogger("ffmpegio")
 class FFConcat:
     """Create FFmpeg concat demuxer source generator
 
-    :param script: concat script to parse, defaults to None (empty script)
-    :param pipe_url: stdin pipe or None to use a temp file, defaults to None
+    :param script: concat script to parse, defaults to :code:`None`  (empty script)
+    :param pipe_url: stdin pipe or None to use a temp file, defaults to :code:`None` 
 
     FFConcat instance is intended to be used as an input url object when invoking `ffmpegprocess.run`
     or `ffmpegprocess.Popen`. The FFmpeg command parser stringify the ConatDemuxer instance to either the
@@ -121,11 +121,11 @@ class FFConcat:
         """File listing item
 
         :param filepath: url of the file to be included
-        :param duration: duration of the file, defaults to None
-        :param inpoint: in point of the file, defaults to None
-        :param outpoint: out point of the file, defaults to None
-        :param metadata: Metadata of the packets of the file, defaults to None
-        :param options: Option to access, open and probe the file, defaults to None
+        :param duration: duration of the file, defaults to :code:`None` 
+        :param inpoint: in point of the file, defaults to :code:`None` 
+        :param outpoint: out point of the file, defaults to :code:`None` 
+        :param metadata: Metadata of the packets of the file, defaults to :code:`None` 
+        :param options: Option to access, open and probe the file, defaults to :code:`None` 
         """
 
         def __init__(
@@ -179,10 +179,10 @@ class FFConcat:
     class StreamItem:
         """Stream listing item
 
-        :param id: ID of the stream, defaults to None
-        :param codec: Codec for the stream, defaults to None
-        :param metadata: Metadata for the stream, defaults to None
-        :param extradata: Extradata for the stream in hexadecimal, defaults to None
+        :param id: ID of the stream, defaults to :code:`None` 
+        :param codec: Codec for the stream, defaults to :code:`None` 
+        :param metadata: Metadata for the stream, defaults to :code:`None` 
+        :param extradata: Extradata for the stream in hexadecimal, defaults to :code:`None` 
         """
 
         def __init__(
@@ -279,11 +279,11 @@ class FFConcat:
         """append a file to the list
 
         :param filepath: url of the file to be included
-        :param duration: duration of the file, defaults to None
-        :param inpoint: in point of the file, defaults to None
-        :param outpoint: out point of the file, defaults to None
-        :param metadata: Metadata of the packets of the file, defaults to None
-        :param options: Option to access, open and probe the file, defaults to None
+        :param duration: duration of the file, defaults to :code:`None` 
+        :param inpoint: in point of the file, defaults to :code:`None` 
+        :param outpoint: out point of the file, defaults to :code:`None` 
+        :param metadata: Metadata of the packets of the file, defaults to :code:`None` 
+        :param options: Option to access, open and probe the file, defaults to :code:`None` 
         """
         self.files.append(
             self.FileItem(filepath, duration, inpoint, outpoint, metadata, options)
@@ -303,7 +303,7 @@ class FFConcat:
         """append files with glob expression
 
         :param expr: glob expression
-        :param root_dir: the root directory for searching, defaults to None (uses the current directory)
+        :param root_dir: the root directory for searching, defaults to :code:`None`  (uses the current directory)
         :param recursive: True to use the pattern “**” to match any files and zero or more directories, defaults to False
         """
         if root_dir:
@@ -325,10 +325,10 @@ class FFConcat:
     ):
         """append a stream specification to the list
 
-        :param id: ID of the stream, defaults to None
-        :param codec: Codec for the stream, defaults to None
-        :param metadata: Metadata for the stream, defaults to None
-        :param extradata: Extradata for the stream in hexadecimal, defaults to None
+        :param id: ID of the stream, defaults to :code:`None` 
+        :param codec: Codec for the stream, defaults to :code:`None` 
+        :param metadata: Metadata for the stream, defaults to :code:`None` 
+        :param extradata: Extradata for the stream in hexadecimal, defaults to :code:`None` 
         """
         self.streams.append(self.StreamItem(id, codec, metadata, extradata))
 
@@ -419,7 +419,7 @@ class FFConcat:
     def compose(self, f: TextIO | None = None) -> TextIO:
         """compose ffconcat file
 
-        :param f: writable file-like object, defaults to None, outputting to a
+        :param f: writable file-like object, defaults to :code:`None` , outputting to a
                   :py:class:`StringIO` object.
         :return: passes through `f` or the created :py:class:`StringIO` object
         """

@@ -283,7 +283,7 @@ class RawInputInfoDict(TypedDict):
     """
 
     src_type: Literal["buffer"]
-    """True if file path/url"""
+    """:code:`True` if file path/url"""
     media_type: MediaType
     """media type if input pipe"""
     raw_info: RawStreamInfoTuple

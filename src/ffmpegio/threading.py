@@ -40,9 +40,9 @@ class ThreadNotActive(RuntimeError):
 class ProgressMonitorThread(Thread):
     """FFmpeg progress monitor class
 
-    :param callback: progress callback function, defaults to None
-    :param cancel_fun: cancel action callback function, defaults to None
-    :param url: temporary directory to read FFmpeg's progress information file path, defaults to None
+    :param callback: progress callback function, defaults to :code:`None` 
+    :param cancel_fun: cancel action callback function, defaults to :code:`None` 
+    :param url: temporary directory to read FFmpeg's progress information file path, defaults to :code:`None` 
     :param timeout: timeout in seconds to wait for FFMpeg to update the progress file, defaults to 10e-3
     """
 
@@ -215,7 +215,7 @@ class LoggerThread(Thread):
         :param prefix: look for log lines starting with this string
         :param start: log line index to start searching, defaults to 0
         :param block: True to block until the specified log line appears, default is True
-        :param timeout: blocking timeout, defaults to None (wait indefinitely)
+        :param timeout: blocking timeout, defaults to :code:`None`  (wait indefinitely)
         :return: index of the matching line of the LoggerThread.logs or None if none found
         """
         start = int(start or 0)
@@ -282,7 +282,7 @@ class LoggerThread(Thread):
     def join_and_raise(self, timeout: float | None = None):
         """wait till thread terminates and raise exception based on the log
 
-        :param timeout: specifying a timeout for the operation in seconds if present, defaults to None
+        :param timeout: specifying a timeout for the operation in seconds if present, defaults to :code:`None` 
         :raises e: FFmpegError only if log is present
 
         Note: This method throws the exception regardless of the thread's status if log is available.
@@ -627,8 +627,8 @@ class WriterThread(Thread):
     """a thread to write byte data to a writable stream
 
     :param stdin: stream to write data to
-    :param queuesize: depth of a queue for inter-thread data transfer, defaults to None
-    :param timeout: maximum number of bytes to write at once, defaults to None (1048576 bytes)
+    :param queuesize: depth of a queue for inter-thread data transfer, defaults to :code:`None` 
+    :param timeout: maximum number of bytes to write at once, defaults to :code:`None`  (1048576 bytes)
     """
 
     def __init__(
@@ -757,7 +757,7 @@ class WriterThread(Thread):
         """block until the write buffer is emptied
 
         :param timeout: a timeout for blocking in seconds, or fractions
-                        thereof, defaults to None, to wait until empty
+                        thereof, defaults to :code:`None` , to wait until empty
         :raise NotEmpty: if a timeout is set, and the buffer is not emptied in time
         """
 

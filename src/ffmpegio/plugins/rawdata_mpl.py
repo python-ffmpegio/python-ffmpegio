@@ -126,7 +126,7 @@ def video_bytes(obj: Figure) -> memoryview:
 
 @hookimpl
 def is_empty(obj: Figure) -> bool:
-    """True if data blob object has no data
+    """:code:`True` if data blob object has no data
 
     :param obj: object containing media data
     """

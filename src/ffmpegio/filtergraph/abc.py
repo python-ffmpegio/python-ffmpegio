@@ -58,7 +58,7 @@ class FilterGraphObject(ABC):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number
+        :param chain: id of the chain, defaults to :code:`None`  to get the total number
                       of filters across all chains
         """
 
@@ -87,9 +87,9 @@ class FilterGraphObject(ABC):
     ) -> Iterator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | str | None]]:
         """Iterate over input pads of the filter
 
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
+        :param pad: pad id, defaults to :code:`None` 
+        :param filter: filter index, defaults to :code:`None` 
+        :param chain: chain index, defaults to :code:`None` 
         :param exclude_stream_specs: True to not include pads connected to input
             streams; None to exclude only pads connected to definitive input
             stream connections (i.e., include ambiguous labels such as '[v]' and
@@ -128,9 +128,9 @@ class FilterGraphObject(ABC):
     ) -> Iterator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
         """Iterate over output pads of the filter
 
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
+        :param pad: pad id, defaults to :code:`None` 
+        :param filter: filter index, defaults to :code:`None` 
+        :param chain: chain index, defaults to :code:`None` 
         :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
         :param chainable_first: True to yield the last output first then the rest, defaults to False
         :param include_connected: True to include pads connected to output streams, defaults to False
@@ -189,11 +189,11 @@ class FilterGraphObject(ABC):
         """get the label string of the specified filter input or output pad
 
         :param input: True to get label of input pad, False to get label of output pad, defaults to True
-        :param index: 3-element tuple to specify the (chain, filter, pad) indices, defaults to None
+        :param index: 3-element tuple to specify the (chain, filter, pad) indices, defaults to :code:`None` 
         :type index: PAD_INDEX | None
-        :param inpad: alternate argument to specify an input pad index, defaults to None
+        :param inpad: alternate argument to specify an input pad index, defaults to :code:`None` 
         :type inpad: PAD_INDEX | None
-        :param outpad: alternate argument to specify an output pad index, defaults to None
+        :param outpad: alternate argument to specify an output pad index, defaults to :code:`None` 
         :type outpad: PAD_INDEX | None
         :return: the label of the specified pad or :code:`None` if no label is assigned.
 
@@ -288,11 +288,11 @@ class FilterGraphObject(ABC):
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
-        :param inpad: input filter pad index or a sequence of pads, defaults to None
+        :param inpad: input filter pad index or a sequence of pads, defaults to :code:`None` 
         :type inpad: PAD_INDEX | Sequence[PAD_INDEX] | None
-        :param outpad: output filter pad index, defaults to None
+        :param outpad: output filter pad index, defaults to :code:`None` 
         :type outpad: PAD_INDEX | None
-        :param force: True to delete existing labels, defaults to None
+        :param force: True to delete existing labels, defaults to :code:`None` 
         :return: actual label name
 
         Only one of inpad and outpad argument must be given.
@@ -309,7 +309,7 @@ class FilterGraphObject(ABC):
     def has_label(
         self, label: str, only_if: Literal["input", "output", "internal"] | None = None
     ) -> bool:
-        """True if a linklabel is defined
+        """:code:`True` if a linklabel is defined
 
         :param label: name of the link label
         :param only_if: also check for the type of the label
@@ -439,9 +439,9 @@ class FilterGraphObject(ABC):
         :type from_left: PAD_INDEX | str | list[PAD_INDEX | str]
         :param to_right: input pad ids or labels of the `right` fg
         :type to_right: PAD_INDEX | str | list[PAD_INDEX | str]
-        :param from_right: output pad ids or labels of the `right` fg, defaults to None
+        :param from_right: output pad ids or labels of the `right` fg, defaults to :code:`None` 
         :type from_right: PAD_INDEX | str | list[PAD_INDEX | str] | None
-        :param to_left: input pad ids or labels of this `left` fg, defaults to None
+        :param to_left: input pad ids or labels of this `left` fg, defaults to :code:`None` 
         :type to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None
         :param chain_siso: :code:`True` (default) to chain the connections instead
             of stacking. :code:`False` to append all the chains of :code:`right` graphs.
@@ -905,13 +905,13 @@ class FilterGraphObject(ABC):
         :param pad_id_omittable: True to allow :code:`None` pad index, defaults to False
         :param resolve_omitted: True to fill each omitted value with the prescribed fill value.
         :param chain_fill_value: if :code:`chain_id_omittable=True` and chain index is either not
-            given or :code:`None`, this value will be returned, defaults to None,
+            given or :code:`None`, this value will be returned, defaults to :code:`None` ,
             which returns the first available pad.
         :param filter_fill_value: if :code:`filter_id_omittable=True` and filter index is either not
-            given or :code:`None`, this value will be returned, defaults to None, which returns
+            given or :code:`None`, this value will be returned, defaults to :code:`None` , which returns
             the first available pad.
         :param pad_fill_value: if :code:`pad_id_omittable=True` and either :code:`index` is None or
-            pad index is :code:`None`, this value will be returned, defaults to None,
+            pad index is :code:`None`, this value will be returned, defaults to :code:`None` ,
             which returns the first available pad.
         :param chainable_first: if True, chainable pad is selected first, defaults to False
         :param chainable_only: True to only iterate chainable pads, defaults to False to return all pads
@@ -1022,15 +1022,15 @@ class FilterGraphObject(ABC):
     def _check_partial_pad_index(
         self, index: tuple[int | None, int | None, int | None], is_input: bool
     ) -> bool:
-        """True if defined values of the partial pad index are valid"""
+        """:code:`True` if defined values of the partial pad index are valid"""
 
     @abstractmethod
     def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified input pad is chainable"""
+        """:code:`True` if specified input pad is chainable"""
 
     @abstractmethod
     def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified output pad is chainable"""
+        """:code:`True` if specified output pad is chainable"""
 
     def _attach(
         self,

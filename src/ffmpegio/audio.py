@@ -46,10 +46,10 @@ def create(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D,
         eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-        defaults to None (no show/capture)
+        defaults to :code:`None`  (no show/capture)
         Ignored if stream format must be retrieved automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
         `subprocess.Popen()` call used to run the FFmpeg, defaults
@@ -141,13 +141,13 @@ def read(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D, eliminating
         the singular audio channel dimension.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console, defaults
         to None (no show/capture). Ignored if stream format must be retrieved
         automatically.
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to :code:`None` 
     :param options: FFmpeg options, append '_in' for input option names
         (see :doc:`options`)
     :type options: FFmpegOptionDict
@@ -224,15 +224,15 @@ def write(
         or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio 
         channels.
     :type data: RawDataBlob
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to None auto-select)
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param extra_inputs: list of additional input sources, defaults to None. Each source may be url
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None`  auto-select)
+    :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
         string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None]
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
-        `subprocess.Popen()` call used to run the FFmpeg, defaults to None
+        `subprocess.Popen()` call used to run the FFmpeg, defaults to :code:`None` 
     :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
     :type options: FFmpegOptionDict
     """
@@ -290,7 +290,7 @@ def filter(
         or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio 
         channels.
     :type input: RawDataBlob
-    :param extra_inputs: list of additional input sources, defaults to None.
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
                          Each source may be url string or a pair of a url string
                          and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None]
@@ -301,10 +301,10 @@ def filter(
     :param squeeze: False to always returning 2D data with the 2nd dimension as
                     the audio channels, defaults to True to reduce monaural data
                     to 1D, eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to None
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
@@ -376,15 +376,15 @@ def detect(
         ============  ================  =========================================================
 
         defaults to include all the features
-    :param ss: start time to process, defaults to None
-    :param t: duration of data to process, defaults to None
-    :param to: stop processing at this time (ignored if t is also specified), defaults to None
+    :param ss: start time to process, defaults to :code:`None` 
+    :param t: duration of data to process, defaults to :code:`None` 
+    :param to: stop processing at this time (ignored if t is also specified), defaults to :code:`None` 
     :param start_at_zero: ignore start time, defaults to False
-    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to None ('seconds')
-    :param progress: progress callback function, defaults to None
+    :param time_units: units of detected time stamps (not for ss, t, or to), defaults to :code:`None`  ('seconds')
+    :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
+                     defaults to :code:`None`  (no show/capture)
     :param options: FFmpeg detector filter options. For a single-feature call, the FFmpeg filter options
         of the specified feature can be specified directly as keyword arguments. For a multiple-feature call,
         options for each individual FFmpeg filter can be specified with <feature>_options dict keyword argument.

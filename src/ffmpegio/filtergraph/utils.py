@@ -400,7 +400,7 @@ def compose_graph(
         filter argument sequence may be a dict, defining its keyword arguments.
     :param links: specifies how non-sequential filters are linked. See below for the specification.
     :param sws_flags: specify swscale flags for those automatically inserted
-                      scalers, defaults to None
+                      scalers, defaults to :code:`None` 
     :returns: filter graph expression
 
     Note
