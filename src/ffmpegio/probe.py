@@ -28,6 +28,7 @@ __all__ = [
     "frames",
     "packets",
     "VideoStreamInfoDict",
+    "IntervalSpec",
 ]
 
 _re_ratio = re.compile(r"^(\d+)\:(\d+)$")
@@ -172,11 +173,11 @@ IntervalSpec: TypeAlias = (
     | tuple[str | float, str | int | float]
     | dict[Literal["start", "start_offset", "end"], str | float]
 )
-""" Union type to specify the FFprobe read_intervals option
+""" Union type to specify the :code:`intervals` argument of :py:func:`frames()` and :py:func:`packets()`
 
     FFprobe will seek to the interval starting point and will continue reading 
-    from that. An IntervalSpec argument can be specified in multiple ways to 
-    form the FFprobe read_intervals option:
+    from that. An :code:`IntervalSpec` argument can be specified in multiple ways to 
+    form the FFprobe :code:`-read_intervals` option:
 
     #. :code:`str` - pass through the argument as-is to ffprobe
     #. :code:`int` - read this numbers of packets to read from the beginning of the file
@@ -313,6 +314,7 @@ def run(
     :param streams: A stream_specifier to select only specific streams, defaults
         to probe all streams. This option affects only the sections related to
         streams (e.g. streams, packets, etc.).
+    :type streams: str | int | StreamSpecDict | None
     :param intervals: Specifies the intervals to probe, defaults to probe the
         entire duration. Read_intervals must be an interval specification or a
         sequence of interval specifications. FFprobe will seek to the interval
@@ -346,7 +348,7 @@ def run(
         frame according to the loglevel value. This option is only relevant for
         :code:`entries='frames'`. The logged information in the :code:`'log'` section.
     :param private_data: True to include private data, that is data depending on
-        the format of the particular shown element, defaults to :code:`None` 
+        the format of the particular shown element, defaults to :code:`None`
     :param keep_optional_fields: False to omit the fields with invalid or non-
         applicable values. True to include those fields with :code:`None` as their
         values.
@@ -517,6 +519,16 @@ def _resolve_entries(info_type, entries, default_entries, default_dep_entries={}
     return list(query)
 
 
+class BasicFormatInfoDict(TypedDict):
+    """Returned by :py:func:`format_basic()`"""
+
+    filename: int
+    nb_streams: str
+    format_name: str
+    start_time: float
+    duration: float
+
+
 def format_basic(
     url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
@@ -525,7 +537,7 @@ def format_basic(
     sp_kwargs: dict[str, Any | None] = None,
     *,
     f: str | None = None,
-) -> dict[str, str | Number | Fraction]:
+) -> BasicFormatInfoDict:
     """Retrieve basic media format info
 
     :param url: URL of the media file/stream
@@ -540,20 +552,6 @@ def format_basic(
                       default to None
     :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: set of media format information.
-
-
-    Media Format Information Entries
-
-    ===========  =====
-    name         type
-    ===========  =====
-    filename     int
-    nb_streams   str
-    format_name  str
-    start_time   float
-    duration     float
-    ===========  =====
-
     """
 
     default_entries = (
@@ -575,6 +573,14 @@ def format_basic(
     )
 
 
+class BasicStreamInfoDict(TypedDict):
+    """Returned by :py:func:`streams_basic()`"""
+
+    index: int
+    codec_name: str
+    codec_type: str
+
+
 def streams_basic(
     url: str | BinaryIO | memoryview,
     entries: Sequence[str] | None = None,
@@ -584,7 +590,7 @@ def streams_basic(
     stream_spec: str | int | StreamSpecDict | None = None,
     *,
     f: str | None = None,
-) -> list:
+) -> list[BasicStreamInfoDict]:
     """Retrieve basic info of media streams
 
     :param url: URL of the media file/stream
@@ -597,19 +603,10 @@ def streams_basic(
                             defaults to False to convert numeric values
     :param sp_kwargs: Additional keyword arguments for :py:func:`subprocess.run`,
                       default to None
-    :param stream_spec: Specify stream specification, defaults to :code:`None` 
+    :param stream_spec: Specify stream specification, defaults to :code:`None`
     :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: List of the requested information of the matching media streams.
 
-    Media Stream Information dict Entries
-
-    ==========   ====
-    name         type
-    ==========   ====
-    index        int
-    codec_name   str
-    codec_type   str
-    ==========   ====
 
     """
 
@@ -627,6 +624,8 @@ def streams_basic(
 
 
 class VideoStreamInfoDict(TypedDict):
+    """Returned by :py:func:`video_streams_basic()`"""
+
     index: int
     codec_name: str
     width: int
@@ -666,25 +665,6 @@ def video_streams_basic(
                       default to None
     :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: List of video stream information.
-
-
-    Video Stream Information Entries
-
-    ====================  =========
-    name                  type
-    ====================  =========
-    index                 int
-    codec_name            str
-    width                 int
-    height                int
-    sample_aspect_ratio   Fraction
-    display_aspect_ratio  Fraction
-    pix_fmt               str
-    start_time            float
-    duration              float
-    frame_rate            Fraction
-    nb_frames             int
-    ====================  =========
 
     """
 
@@ -753,6 +733,8 @@ def video_streams_basic(
 
 
 class AudioStreamInfoDict(TypedDict):
+    """Returned by :py:func:`audio_streams_basic()`"""
+
     index: int
     codec_name: str
     sample_fmt: str
@@ -790,22 +772,6 @@ def audio_streams_basic(
                       default to None
     :param f: Use the specified media container format, defaults to :code:`None`  (auto-detect)
     :return: List of audio stream information.
-
-    Audio Stream Information Entries
-
-        ==============  =====
-        name            type
-        ==============  =====
-        index           int
-        codec_name      str
-        sample_fmt      str
-        sample_rate     int
-        channels        int
-        channel_layout  str
-        start_time      float
-        duration        float
-        nb_samples      int
-        ==============  =====
 
     """
 
@@ -883,6 +849,7 @@ def query(
 
     :param url: URL of the media file/stream
     :param streams: stream specifier, defaults to :code:`None`  to get format
+    :type streams: str | int | StreamSpecDict | None
     :param fields: list of format/stream fields to retrieve, defaults to :code:`None`  (all fields)
     :param keep_optional_fields: True to return a missing optional field in the
                         returned dict with None or "N/A" (if keep_str_values
@@ -944,7 +911,8 @@ def frames(
 
     :param url: URL of the media file/stream
     :param entries: names of frame attributes, defaults to :code:`None`  (get all attributes)
-    :param stream: stream specifier of the stream to retrieve the data of, defaults to :code:`None`  to get all streams
+    :param streams: stream specifier of the stream to retrieve the data of, defaults to :code:`None`  to get all streams
+    :type streams: str | int | StreamSpecDict | None
     :param intervals: time intervals to retrieve the data, see below for the details, defaults to :code:`None`  (get all)
     :type intervals: IntervalSpec | Sequence[IntervalSpec] | None
     :param accurate_time: True to return all :code::code:`*_time` attributes to be computed from associated timestamps and
@@ -1045,8 +1013,9 @@ def packets(
     :param url: URL of the media file/stream
     :param entries: names of packet attributes, defaults to :code:`None` (get all
         attributes)
-    :param stream: stream specifier of the stream to retrieve the data of,
+    :param streams: stream specifier of the stream to retrieve the data of,
         defaults to :code:`None` to get all streams
+    :type streams: str | int | StreamSpecDict | None
     :param intervals: time intervals to retrieve the data, see below for the
         details, defaults to :code:`None`  (get all)
     :type intervals: IntervalSpec | Sequence[IntervalSpec] | None
@@ -1060,7 +1029,7 @@ def packets(
         codec extradata. The dump is printed as the "data" field. It may contain
         newlines.
     :param data_hash: When specified, a hash of payload data is included,
-        for packets with :code:`entries='packets'` and for codec extradata with 
+        for packets with :code:`entries='packets'` and for codec extradata with
         :code:`entries='streams'`. Hashes are not provided by default.
     :param data_dump_format: Specify a format used for the data dumps enabled
         with :code:`data=True`. The default is :code:`'xxd'` which is a hexdump format

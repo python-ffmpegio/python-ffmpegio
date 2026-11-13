@@ -27,11 +27,18 @@ List of Functions
    ffmpegio.probe.full_details
    ffmpegio.probe.query
    ffmpegio.probe.frames
+   ffmpegio.probe.packets
 
 Argument Type References
 ------------------------
 
 .. autoclass:: ffmpegio.probe.IntervalSpec
+.. autoclass:: ffmpegio.probe.BasicFormatInfoDict
+    :members:
+    :undoc-members:    
+.. autoclass:: ffmpegio.probe.BasicStreamInfoDict
+    :members:
+    :undoc-members:    
 .. autoclass:: ffmpegio.probe.VideoStreamInfoDict
     :members:
     :undoc-members:    

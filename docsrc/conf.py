@@ -89,7 +89,7 @@ intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "pillow": ("https://pillow.readthedocs.io/en/stable/", None),
-    "packaging": ("https://packaging.pypa.io/en/latest/", None),
+    "packaging": ("https://packaging.pypa.io/en/stable/", None),
 }
 
 

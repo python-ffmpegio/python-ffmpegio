@@ -154,7 +154,7 @@ def options(
     ]
     | dict[str, str | tuple[str, str]]
 ):
-    """get FFmpeg command options
+    """get command options
 
     :param type: specify option type to return, defaults to :code:`None` 
     :param name_only: True to only return option names, defaults to False
@@ -193,7 +193,7 @@ def options(
 
 
 class FilterSummary(NamedTuple):
-    """Summary tuple of an FFMpeg filter"""
+    """Returned by :py:func:`filters()`"""
 
     description: str
     """Description"""
@@ -269,7 +269,7 @@ def _parse_filters() -> dict[str, FilterSummary]:
 def filters(
     io_type: Literal["audio", "video", "dynamic"] | None = None,
 ) -> dict[str, FilterSummary]:
-    """get FFmpeg filters
+    """get filters
 
     :param io_type: specify input or output stream type, defaults to :code:`None` 
     :return: dict of the summaries of the filters keyed by filter names
@@ -309,11 +309,11 @@ class CodecSummaryDict(TypedDict):
     description: str
     """Short description of the codec"""
     can_decode: bool
-    """:code:`True` if FFmpeg can decode"""
+    """:code:`True` if decodable"""
     decoders: list(str)
     """List of compatible decoders"""
     can_encode: bool
-    """:code:`True` if FFmpeg can encode"""
+    """:code:`True` if encodable"""
     encoders: list(str)
     """List of compatible encoders"""
     intra_frame_only: bool
@@ -326,11 +326,11 @@ class CodecSummaryDict(TypedDict):
 
 @cache
 def _parse_codecs() -> CodecSummaryDict:
-    """get FFmpeg codecs
+    """get codecs
 
     :param type: Specify to list only decoder or encoder, defaults to :code:`None` 
     :param stream_type: Specify to stream type, defaults to :code:`None` 
-    :return: summary of FFmpeg codecs
+    :return: summary of codecs
 
     Each key of the returned dict is a name of a codec and its value is
     """
@@ -378,11 +378,11 @@ def codecs(
     codec_type: Literal["decoder", "encoder"] | None = None,
     stream_type: Literal["audio", "video", "subtitle"] | None = None,
 ) -> dict[str, CodecSummaryDict]:
-    """get summary information of FFmpeg codecs
+    """get summary information of codecs
 
     :param codec_type: Specify to list only decoder or encoder, defaults to :code:`None` 
     :param stream_type: Specify to stream type, defaults to :code:`None` 
-    :return: summary of FFmpeg codecs, keyed by codec name
+    :return: summary of codecs, keyed by codec name
     """
     data = _parse_codecs()
 
@@ -424,7 +424,7 @@ class EncoderSummaryDict(TypedDict):
 def encoders(
     stream_type: Literal["audio", "video", "subtitle"] | None = None,
 ) -> dict[str, EncoderSummaryDict]:
-    """get summary of FFmpeg encoders
+    """get summary of encoders
 
     :param stream_type: specify stream type, defaults to :code:`None` 
     :return: dict of encoder information, keyed by the names of
@@ -459,7 +459,7 @@ class DecoderSummaryDict(TypedDict):
 def decoders(
     stream_type: Literal["audio", "video", "subtitle"] | None = None,
 ) -> dict[str, DecoderSummaryDict]:
-    """get summary of FFmpeg decoders
+    """get summary of decoders
 
     :param stream_type: specify stream type, defaults to :code:`None` 
     :return: dict of decoder information, keyed by the names of
@@ -515,7 +515,7 @@ class FormatSummaryDict(TypedDict):
 def formats(
     return_names_only: bool = False,
 ) -> dict[str, FormatSummaryDict] | list[str]:
-    """get FFmpeg formats
+    """get formats
 
     :param return_names_only: True to return a list of format names, defaults to False
         to return a dict of formats with their summary information.
@@ -535,7 +535,7 @@ def devices(
     source_or_sink: Literal["source", "sink"] | None = None,
     return_names_only: bool = False,
 ) -> dict[str, FormatSummaryDict] | list[str]:
-    """get FFmpeg devices
+    """get devices
 
     :param source_or_sink: specify source or sink type, defaults to :code:`None`  to return both
     :param return_names_only: True to return a list of device names, defaults to False
@@ -569,7 +569,7 @@ def devices(
 def muxers(
     include_devices: bool = False, return_names_only: bool = False
 ) -> list[str] | dict[str, FormatSummaryDict]:
-    """get FFmpeg muxers
+    """get muxers
 
     :param include_devices: True to include input devices, defaults to False
     :param return_names_only: True to return only the list of muxers, defaults to False
@@ -592,7 +592,7 @@ def muxers(
 def demuxers(
     include_devices: bool = False, return_names_only: bool = False
 ) -> list[str] | dict[str, FormatSummaryDict]:
-    """get FFmpeg demuxers
+    """get demuxers
 
     :param include_devices: True to include input devices, defaults to False
     :param return_names_only: True to return only the list of demuxers, defaults to False
@@ -655,7 +655,7 @@ def _parse_formats() -> dict[str, dict]:
 
 @cache
 def bsfilters() -> list[str]:
-    """get list of FFmpeg bitstream filters
+    """get list of bitstream filters
 
     :return: list of bistream filters
     """
@@ -1058,9 +1058,7 @@ def _get_filter_option_constant(
 
 
 class FilterOption(NamedTuple):
-    """FFmpeg filter option tuple
-
-    This tuple is used for the elements of :py:attr:`FilterInfo.options` and :py:attr:`FilterInfo.extra_options`"""
+    """Used for the elements of :py:attr:`FilterInfo.options` and :py:attr:`FilterInfo.extra_options`"""
 
     name: str
     """option name"""
