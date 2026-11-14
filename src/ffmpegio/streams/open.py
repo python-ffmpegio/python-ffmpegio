@@ -790,7 +790,7 @@ def open(
     :param options: global/default FFmpeg options. For output and global options,
         use FFmpeg option names as is. For input options, append "_in" to the
         option name. For example, r_in=2000 to force the input frame rate
-        to 2000 frames/s (see :doc:`options`). These input and output options
+        to 2000 frames/s (see :ref:`options`). These input and output options
         specified here are treated as default, common options, and the
         url-specific duplicate options in the :code:`inputs` or :code:`outputs`
         sequence will overwrite those specified here.
@@ -852,7 +852,7 @@ def open(
     :param options: global/default FFmpeg options. For output and global options,
         use FFmpeg option names as is. For input options, append "_in" to the
         option name. For example, r_in=2000 to force the input frame rate
-        to 2000 frames/s (see :doc:`options`). These input and output options
+        to 2000 frames/s (see :ref:`options`). These input and output options
         specified here are treated as default, common options, and the
         url-specific duplicate options in the :code:`inputs` or :code:`outputs`
         sequence will overwrite those specified here.
@@ -902,7 +902,7 @@ def open(
     :param options: global/default FFmpeg options. For output and global options,
                     use FFmpeg option names as is. For input options, append "_in" to the
                     option name. For example, r_in=2000 to force the input frame rate
-                    to 2000 frames/s (see :doc:`options`). These input and output options
+                    to 2000 frames/s (see :ref:`options`). These input and output options
                     specified here are treated as default, common options, and the
                     url-specific duplicate options in the :code:`inputs` or :code:`outputs`
                     sequence will overwrite those specified here.
@@ -944,7 +944,7 @@ def open(
     :param options: global/default FFmpeg options. For output and global options,
         use FFmpeg option names as is. For input options, append "_in" to the
         option name. For example, r_in=2000 to force the input frame rate
-        to 2000 frames/s (see :doc:`options`). These input and output options
+        to 2000 frames/s (see :ref:`options`). These input and output options
         specified here are treated as default, common options, and the
         url-specific duplicate options in the :code:`inputs` or :code:`outputs`
         sequence will overwrite those specified here.

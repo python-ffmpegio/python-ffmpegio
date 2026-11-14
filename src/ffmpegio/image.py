@@ -52,7 +52,7 @@ def create(
                         only considered as the filter options if expr is a
                         single-filter graph, and take the precedents over
                         general FFmpeg options. Append '_in' for input
-                        option names (see :doc:`options`), and '_out' for
+                        option names (see :ref:`options`), and '_out' for
                         output option names if they conflict with the filter
                         options.
     :type options: FFmpegOptionDict
@@ -114,7 +114,7 @@ def read(
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
                       `subprocess.Popen()` call used to run the FFmpeg, defaults
                       to None
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     :return data: one-frame video data object. Its data type depends on the selected
         plugin module (e.g., a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>`
@@ -204,7 +204,7 @@ def write(
         defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
         `subprocess.Popen()` call used to run the FFmpeg, defaults to :code:`None` 
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     """
 
@@ -274,7 +274,7 @@ def filter(
         defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or
         `subprocess.Popen()` call used to run the FFmpeg, defaults to :code:`None` 
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`)
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     :return data: one-frame video data object. Its data type depends on the selected
         plugin module (e.g., a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>`

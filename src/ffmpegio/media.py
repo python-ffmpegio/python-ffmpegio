@@ -157,7 +157,7 @@ def read(
         Ignored if stream format must be retrieved automatically.
     :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
         input url or '_in' to be applied to all inputs. The url-specific option gets the
-        preference (see :doc:`options` for custom options)
+        preference (see :ref:`options` for custom options)
     :type options: :py:type:`FFmpegOptionDict <ffmpegio.typing.FFmpegOptionDict>`
     :return: a tuple containing two dicts, both keyed by requested stream specifiers
 
@@ -237,7 +237,7 @@ def write(
     :type progress: ProgressCallable | None
     :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
         used to run the FFmpeg, defaults to :code:`None` 
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`). Input options
         will be applied to all input streams unless the option has been already defined in `stream_data`
     :type options: :py:type:`FFmpegOptionDict <ffmpegio.typing.FFmpegOptionDict>`
 

@@ -255,7 +255,7 @@ def init_media_read(
 
     :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
                     input url or '_in' to be applied to all inputs. The url-specific option gets the
-                    preference (see :doc:`options` for custom options)
+                    preference (see :ref:`options` for custom options)
     :param extra_outputs: list of additional output destinations, defaults to :code:`None` .
                           Each source may be url string or a pair of a url string
                           and an option dict.
@@ -350,7 +350,7 @@ def init_media_write(
                           media type and rate.
     :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
                          string or a pair of a url string and an option dict.
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`). Input options
                       will be applied to all input streams unless the option has been already defined in `stream_data`
     :param input_data: list of input data to be written in a batch-mode (or :code:`None`
                        if streaming), defaults to no data.
@@ -439,7 +439,7 @@ def init_media_filter(
     :param extra_outputs: list of additional output destinations, defaults to :code:`None` .
                           Each source may be url string or a pair of a url string
                           and an option dict.
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`). Input options
                     will be applied to all input streams unless the option has been already defined in `stream_data`
     :param squeeze: True to squeeze output data blob shape
     :param input_data: list of input data to be written in a batch-mode (or :code:`None`
@@ -524,7 +524,7 @@ def init_media_transcode(
 
     :param inputs: FFmpeg input options of piped inputs
     :param outputs: FFmpeg output options of piped outputs
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`). Input options
                     will be applied to all input streams unless the option has been already defined in `stream_data`
     :return ffmpeg_args: FFmpeg argument dict
     :return input_info: list of input stream information

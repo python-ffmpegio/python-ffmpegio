@@ -73,7 +73,7 @@ def transcode(
     :param options: FFmpeg options. For output and global options, use FFmpeg
         option names as is. For input options, append :code:`"_in"` to the option
         name. For example, :code:`r_in=2000` to force the input frame rate to 2000
-        frames/s (see :doc:`options`).
+        frames/s (see :ref:`options`).
 
         If multiple inputs or outputs are specified, these input or output
         options specified here are treated as common options, and the url-

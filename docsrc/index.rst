@@ -470,7 +470,6 @@ High-level API Reference
     :maxdepth: 1
 
     basicio
-    options
     streamio
     probe
     filtergraph
