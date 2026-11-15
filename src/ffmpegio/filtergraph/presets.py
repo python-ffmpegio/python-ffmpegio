@@ -24,13 +24,14 @@ def remove_alpha(
     """generate a filter graph to remove alpha channel from a video
 
     :param fill_color: _description_
-    :param input_label: _description_, defaults to None
-    :param output_label: _description_, defaults to None
+    :param input_label: _description_, defaults to :code:`None` 
+    :param output_label: _description_, defaults to :code:`None` 
     :return: Resulting filter graph in the form:
 
-        ```
-        color,[in]scale2ref[main],[main]overlay[out]
-        ```
+        .. code-block::
+
+           color,[in]scale2ref[main],[main]overlay[out]
+    
 
     """
 
@@ -121,7 +122,7 @@ def square_pixels(
                  the short side or 'downscale' by preserving the short side and
                  shrinking the long side. Both modes can be made to force an even
                  numbered frame size to accommodate video codecs like h264.
-    :return: a chain of `scale` and `setsar` filters
+    :return: a chain of :code:`scale` and :code:`setsar` filters
     """
     try:
         expr = {
@@ -145,13 +146,13 @@ def merge_audio(
     """Create a filtergraph to merge input audio streams.
 
     This preset filtergraph formats the input streams so that their sampling rates and sample formats are first converted
-    to the same satisfying the requirements of the `amerge` filter.
+    to the same satisfying the requirements of the :code:`amerge` filter.
 
     :param streams: List of input audio streams to merge. Each stream is keyed by its FFmpeg stream specifier and must provide its input options.
                     The option must include the sampling rate (`ar`) and sample format (`sample_fmt`).
-    :param output_ar: Sampling rate of the merged audio stream in samples/second, defaults to None to use the sampling rate of the first input stream
-    :param output_sample_fmt: Sample format of the merged audio stream, defaults to None to use the sample format of the first input stream
-    :param output_pad_label: label of the `amerge` filter output, defaults to None to leave the output pad unconnected
+    :param output_ar: Sampling rate of the merged audio stream in samples/second, defaults to :code:`None`  to use the sampling rate of the first input stream
+    :param output_sample_fmt: Sample format of the merged audio stream, defaults to :code:`None`  to use the sample format of the first input stream
+    :param output_pad_label: label of the :code:`amerge` filter output, defaults to :code:`None`  to leave the output pad unconnected
 
     """
 

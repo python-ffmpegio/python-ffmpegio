@@ -154,7 +154,7 @@ def parse_filter(
     """Parse FFmpeg filter expression
 
     :param expr: filter expression, escaped special characters once
-    :return name: filter name. If filter id is specified (i.e., ``'name@id'``)
+    :return name: filter name. If filter id is specified (i.e., :code:`'name@id'`)
         a tuple of the name and id are returned instead.
     :return args: positional arguments
     :return kwargs: keyword arguments
@@ -254,17 +254,17 @@ def parse_graph(
     """parse filter graph expression
 
     :param expr: twice-escaped filter graph string
-    :param parse_filters: ``True`` (default) to convert individual filter
-        expressions to ``FilterSpecTuple``. ``False`` to keep the filter
+    :param parse_filters: :code:`True` (default) to convert individual filter
+        expressions to :code:`FilterSpecTuple`. :code:`False` to keep the filter
         expressions as (escaped) strings.
-    :return filter_specs: list of lists of filters. If ``parse_filters=True``,
+    :return filter_specs: list of lists of filters. If :code:`parse_filters=True`,
         filters are parsed to a tuple of name (or a tuple of name and id),
         a tuple of positional options, and a dict of keyword options. If
-        ``parsed_filters=False``, escaped filter expressions are returned.
+        :code:`parsed_filters=False`, escaped filter expressions are returned.
     :return link_specs: a mapping of link labels and pairs of output and input
         pads.
-    :return sws_flags: optional ``flags`` option for automatically inserted
-        scale filters (FFmpeg defaults to ``'bicubic'``).
+    :return sws_flags: optional :code:`flags` option for automatically inserted
+        scale filters (FFmpeg defaults to :code:`'bicubic'`).
 
     Note
     ----
@@ -396,11 +396,11 @@ def compose_graph(
 ) -> str:
     """Compose complex filter graph
     :param filter_specs: a nested sequence of argument sequences to 
-        ``compose_filter()`` to define a filter graph. The last element of each 
+        :code:`compose_filter()` to define a filter graph. The last element of each 
         filter argument sequence may be a dict, defining its keyword arguments.
     :param links: specifies how non-sequential filters are linked. See below for the specification.
     :param sws_flags: specify swscale flags for those automatically inserted
-                      scalers, defaults to None
+                      scalers, defaults to :code:`None` 
     :returns: filter graph expression
 
     Note
@@ -425,18 +425,18 @@ def compose_graph(
     Here is the "Multiple input overlay in 2x2 grid" example in
     https://trac.ffmpeg.org/wiki/FilteringGuide:
 
-    ```
+    .. code-block::
+
         [1:v]negate[a]; \\
         [2:v]hflip[b]; \\
         [3:v]edgedetect[c]; \\
         [0:v][a]hstack=inputs=2[top]; \\
         [b][c]hstack=inputs=2[bottom]; \\
         [top][bottom]vstack=inputs=2[out]
-    ```
-
+        
     This filtergraph can be composed by the following Python script:
 
-    ```python
+    .. code-block:: python
         fg = [
             [("negate",)], # chain #0
             [("hflip",)],  # chain #1
@@ -461,20 +461,18 @@ def compose_graph(
 
         compose(fg, links)
 
-    ```
-
     Note that this filtergraph can be written with a fewer chains using
     side-injections:
 
-    ```
-        [2:v]hflip[b]; \\ 
-        [1:v]negate, [0:v]hstack=inputs=2[top]; \\ 
-        [3:v]edgedetect, [b]hstack=inputs=2, [top]vstack=inputs=2[out]
-    ```
+    .. code-block::
 
+        [2:v]hflip[b]; 
+        [1:v]negate, [0:v]hstack=inputs=2[top]; 
+        [3:v]edgedetect, [b]hstack=inputs=2, [top]vstack=inputs=2[out]
+   
     This version can be composed by
 
-    ```python
+    .. code-block:: python
         fg = [
             [("hflip",)], # chain 0
             [("negate",), ("hstack",{"inputs": 2})], # chain 1

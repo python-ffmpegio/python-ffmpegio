@@ -1,4 +1,4 @@
-"""utility functions for the main modules"""
+"""utility functions for the main modules (undocumented, subject to change)"""
 
 from __future__ import annotations
 
@@ -17,16 +17,17 @@ from .._typing import (
     Any,
     Buffer,
     DTypeString,
+    FFmpegArgs,
     FFmpegOptionDict,
-    FFmpegUrlType,
+    FFmpegUrlString,
     FilterGraphInfoDict,
     InputInfoDict,
     Literal,
     MediaType,
     OutputInfoDict,
     RawDataBlob,
-    RawStreamDef,
     ShapeTuple,
+    TypeAlias,
 )
 from .._utils import (
     as_multi_option,
@@ -51,16 +52,33 @@ from .concat import FFConcat
 logger = logging.getLogger("ffmpegio")
 
 
-FFmpegInputUrlComposite = FFmpegUrlType | FFConcat | FilterGraphObject | IO | Buffer
+FFmpegInputUrlEx: TypeAlias = (
+    FFmpegUrlString | FFConcat | FilterGraphObject | IO | memoryview
+)
 """all input types supported by ffmpegio"""
-FFmpegOutputUrlComposite = FFmpegUrlType | IO
+
+FFmpegOutputUrlEx: TypeAlias = FFmpegUrlString | IO
 """all output types supported by ffmpegio"""
 
-FFmpegInputUrlNoPipe = FFmpegUrlType | FFConcat | FilterGraphObject
+FFmpegUrlString: TypeAlias = FFmpegUrlString | FFConcat | FilterGraphObject
 """all non-piped input types supported by ffmpegio"""
 
-FFmpegOutputUrlNoPipe = FFmpegUrlType
+FFmpegUrlString: TypeAlias = FFmpegUrlString
 """all non-piped output types supported by ffmpegio"""
+
+
+RawStreamDef: TypeAlias = (
+    tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
+)
+"""2-element tuple to define a raw stream data
+
+    It comes in two forms: rate-data or data-option. The rate-data form specifies
+    a pair of the frame rate (video) or sampling rate (audio) and the data blob.
+    The data-option form specifies the data blob and its FFmpeg options. Note 
+    that a data-option tuple is only valid if its option dict contains the rate
+    field: :code:`r` for video or :code:`ar` for audio.
+
+"""
 
 # TODO: auto-detect endianness
 # import sys
@@ -160,12 +178,12 @@ def get_pixel_format(fmt: str) -> tuple[DTypeString, int]:
     """get data format and number of components associated with video pixel format
 
     :param fmt: ffmpeg pix_fmt
-    :return dtype: data type string compatible with `pix_fmt`
-    :return nb_components: the number of components of `pix_fmt`
+    :return dtype: data type string compatible with :code:`pix_fmt`
+    :return nb_components: the number of components of :code:`pix_fmt`
 
-    If `fmt` is not rgb or grayscale, the format must have byte-aligned pixel depth.
-    Also, such `fmt`'s are assumed to have integer pixel values. As a result,
-    floating-point pixel format may lead to an incorrect `dtype` return value, and
+    If :code:`fmt` is not rgb or grayscale, the format must have byte-aligned pixel depth.
+    Also, such :code:`fmt`'s are assumed to have integer pixel values. As a result,
+    floating-point pixel format may lead to an incorrect :code:`dtype` return value, and
     requires a post-read type casting.
 
     """
@@ -220,7 +238,8 @@ def guess_video_format(
     :return s: frame size
     :return pix_fmt: frame pixel format
 
-    ```
+    .. code-block: python
+
         X = np.ones((100,480,640,3),'|u1')
         size, pix_fmt = guess_video_format(X)
         # => size=(640,480), pix_fmt='rgb24'
@@ -307,7 +326,8 @@ def guess_audio_format(shape: ShapeTuple, dtype: DTypeString) -> tuple[int, str]
     :param dtype: sample data type
     :return: tuple of # of channels and sample_fmt
 
-    ```
+    .. code-python: python
+
         X = np.ones((1000,2),np.int16)
         sample_fmt, ac = guess_audio_format(X.shape, X.dtype)
         # => sample_fmt='s16', ac=2
@@ -460,7 +480,7 @@ def array_to_audio_options(
     data: RawDataBlob | None,
 ) -> tuple[FFmpegOptionDict, tuple[ShapeTuple, DTypeString]]:
     """create an input option dict for the given raw audio data blob
-    :param data: input audio data, accessed by `audio_info` plugin hook, defaults to None (manual config)
+    :param data: input audio data, accessed by :py:func:`audio_info` plugin hook, defaults to :code:`None`  (manual config)
     :returns: dict of audio options
     """
 
@@ -477,7 +497,7 @@ def array_to_video_options(
 ) -> tuple[FFmpegOptionDict, tuple[ShapeTuple, DTypeString]]:
     """create an input option dict for the given raw video data blob
 
-    :param data: input video frame data, accessed with `video_info` plugin hook, defaults to None (manual config)
+    :param data: input video frame data, accessed with :py:func:`video_info` plugin hook, defaults to :code:`None`  (manual config)
     :return : option dict
     """
 
@@ -543,7 +563,7 @@ def analyze_input_file(
     :param input_url: url or None if piped or fileobj
     :param input_opts: input options
     :param input_info: input infomration
-    :param stream: stream specifier, defaults to None to return all streams
+    :param stream: stream specifier, defaults to :code:`None`  to return all streams
     :return values of the requested fields of the stream
     """
 
@@ -569,7 +589,7 @@ def analyze_input_stream(
     fields: list[str],
     stream: str,
     media_type: MediaType,
-    input_url: FFmpegUrlType | None,
+    input_url: FFmpegUrlString | None,
     input_opts: FFmpegOptionDict,
     input_info: InputInfoDict,
 ) -> list:
@@ -607,7 +627,7 @@ def video_fields_to_options(
 
 def analyze_video_stream(
     stream_specifier: str,
-    inurl: FFmpegUrlType,
+    inurl: FFmpegUrlString,
     inopts: FFmpegOptionDict,
     input_info: InputInfoDict,
 ) -> tuple[int | Fraction | None, str | None, tuple[int, int] | None]:
@@ -641,7 +661,7 @@ def analyze_video_stream(
 
 def analyze_audio_stream(
     stream_specifier: str,
-    inurl: FFmpegUrlType,
+    inurl: FFmpegUrlString,
     inopts: FFmpegOptionDict,
     input_info: InputInfoDict,
 ) -> tuple[int | None, str | None, int | None]:
@@ -649,7 +669,7 @@ def analyze_audio_stream(
 
     :param args: FFmpeg arguments. The option dict in args['outputs'][ofile][1] may be modified.
     :param ofile: output file index, defaults to 0
-    :param input_info: list of input information, defaults to None
+    :param input_info: list of input information, defaults to :code:`None` 
     :return ar: sampling rate
     :return sample_fmt: input sample format
     :return ac: number of channels
@@ -681,7 +701,7 @@ def analyze_audio_stream(
 
 def analyze_complex_filtergraphs(
     filtergraphs: list[FilterGraphObject | str],
-    inputs: list[tuple[FFmpegUrlType | None, FFmpegOptionDict]],
+    inputs: list[tuple[FFmpegUrlString | None, FFmpegOptionDict]],
     inputs_info: list[InputInfoDict],
 ) -> tuple[list[FilterGraphObject], dict[str, FilterGraphInfoDict]]:
     """analyze filtergraphs and return requested field values
@@ -832,7 +852,7 @@ def analyze_output_video_filter(
     :param r_in: input frame rate
     :param pix_fmt_in: input pixel format
     :param s_in: input frame shape (width, height)
-    :param s: -s output option, defaults to None (not given)
+    :param s: -s output option, defaults to :code:`None`  (not given)
     :return r: output frame rate
     :return pix_fmt: output pixel format
     :return s: output frame shape (width, height)
@@ -886,7 +906,7 @@ def analyze_output_audio_filter(
     return (*stream.values(),)
 
 
-def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option dict
+def is_valid_input_url(url: FFmpegInputUrlEx) -> bool:  # get the option dict
     # check url (must be url and not fileobj)
     valid = isinstance(url, (str, FilterGraphObject, FFConcat))
     if not valid:
@@ -903,7 +923,7 @@ def is_valid_input_url(url: FFmpegInputUrlComposite) -> bool:  # get the option 
     return valid
 
 
-def is_valid_input(url_or_tuple: FFmpegInputUrlComposite | tuple) -> bool:
+def is_valid_input(url_or_tuple: FFmpegInputUrlEx | tuple) -> bool:
     if is_valid_input_url(url_or_tuple):
         return True
     return (
@@ -914,7 +934,7 @@ def is_valid_input(url_or_tuple: FFmpegInputUrlComposite | tuple) -> bool:
     )
 
 
-def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
+def is_valid_output_url(url: FFmpegOutputUrlEx) -> bool:
     valid = isinstance(url, str)
 
     # check url (must be url and not fileobj)
@@ -924,7 +944,7 @@ def is_valid_output_url(url: FFmpegOutputUrlComposite) -> bool:
     return valid
 
 
-def is_valid_output(url_or_tuple: FFmpegOutputUrlComposite | tuple) -> bool:
+def is_valid_output(url_or_tuple: FFmpegOutputUrlEx | tuple) -> bool:
     if is_valid_output_url(url_or_tuple):
         return True
     return (
@@ -1011,7 +1031,7 @@ def find_filter_complex_option(
 
 
 def input_file_stream_specs(
-    url: FFmpegUrlType | FilterGraphObject | None,
+    url: FFmpegUrlString | FilterGraphObject | None,
     stream_spec: str | None = None,
     stream_options: FFmpegOptionDict | None = None,
     stream_info: InputInfoDict | None = None,
@@ -1065,9 +1085,9 @@ def expand_raw_output_streams(
     """resolve the raw output streams from given sequence of map options
 
     :param stream_opts: output raw stream options
-    :param stream_names: user-specified names of output streams keyed by the index of `stream_opts`
+    :param stream_names: user-specified names of output streams keyed by the index of :code:`stream_opts`
     :param args: FFmpeg argument dict
-    :param input_info: FFmpeg inputs' additional information, its length must match that of `args['inputs']`
+    :param input_info: FFmpeg inputs' additional information, its length must match that of :code:`args['inputs']`
     :return: list of individual output streams. Each item is a tuple of
              (stream_index, output_opts, partial_RawOutputInfoDict)
 
@@ -1157,8 +1177,8 @@ def raw_input_options(
 
     :param input_stream_types: list/string of 'a' or 'v', specifying the media types
     :param input_stream_args: list of a tuple pair of rate & data or data & options
-                              If option dict specified, it must include `'ar'`
-                              (audio) or `'r'` (video) to specify the stream rate.
+                              If option dict specified, it must include :code:`'ar'`
+                              (audio) or :code:`'r'` (video) to specify the stream rate.
     :return options: list of input options dict
     :return data: list of input data
     """

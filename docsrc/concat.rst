@@ -1,8 +1,11 @@
 .. highlight:: python
 .. _concat:
 
-`FFConcat` Class: Concatenating Media Files
-===========================================
+Concatenating Media Files (:code:`ffmpegio.FFConcat`)
+=====================================================
+
+Overview
+--------
 
 FFmpeg supports different approaches to concatenate media files as described on 
 `their Wiki Page <https://trac.ffmpeg.org/wiki/Concatenate>`__. If many files 

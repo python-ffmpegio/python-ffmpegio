@@ -1,4 +1,8 @@
-"""find FFmpeg and FFprobe on the system path"""
+"""Find FFmpeg and FFprobe on the system path
+
+The :py:func:`finder <ffmpegio.plugins.hookspecs.finder>` hook of this built-in plugin module returns :code:`"ffmpeg"` 
+and :code:`"ffprobe"` if both commands are found by :py:func:`shutil.which`.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,9 @@
-"""find FFmpeg and FFprobe installed by `static-ffmpeg <https://github.com/zackees/static_ffmpeg>`_ package"""
+"""find FFmpeg and FFprobe installed by `static-ffmpeg <https://github.com/zackees/static_ffmpeg>`_ package
+
+This built-in plugin is only activated if the :code:`static_ffmpeg` module is installed in the current Python environment.
+If activated, the :py:func:`finder <ffmpegio.plugins.hookspecs.finder>` hook of this built-in plugin module returns the
+paths to the ffmpeg and ffprobe that are downloaded and configured by the :code:`static_ffmpeg` package.
+"""
 
 from __future__ import annotations
 

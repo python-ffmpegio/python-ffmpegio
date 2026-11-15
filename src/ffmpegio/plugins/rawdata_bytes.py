@@ -28,7 +28,7 @@ class BytesRawDataBlob(TypedDict):
     """Data blob representation of media data frame supported by the built-in raw data I/O plugin."""
 
     buffer: memoryview
-    """Raw binary data object (typically :py:type:`bytes` or :py:type:`bytearray`)"""
+    """Raw binary data object (typically :code:`bytes` or :code:`bytearray`)"""
 
     dtype: DTypeString
     """Numpy-style data type string"""
@@ -79,7 +79,7 @@ def audio_info(obj: BytesRawDataBlob) -> tuple[ShapeTuple, DTypeString]:
 
 @hookimpl
 def video_bytes(obj: BytesRawDataBlob) -> memoryview:
-    """return bytes-like object of packed video pixels, associated with `video_info()`
+    """return bytes-like object of packed video pixels, associated with :py:func:`video_info()`
 
     :param obj: dict containing video frame data with arbitrary number of frames
     :return: packed bytes of video frames
@@ -200,7 +200,7 @@ def bytes_to_audio(
 
 @hookimpl
 def is_empty(obj: BytesRawDataBlob) -> bool:
-    """True if data blob object has no data
+    """:code:`True` if data blob object has no data
 
     :param obj: object containing media data
     """

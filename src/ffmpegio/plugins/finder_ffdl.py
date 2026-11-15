@@ -1,4 +1,30 @@
-"""find FFmpeg and FFprobe installed by `ffmpeg-downloader <https://github.com/python-ffmpegio/python-ffmpeg-downloader>`_ package"""
+"""find FFmpeg and FFprobe installed by `ffmpeg-downloader <https://github.com/python-ffmpegio/python-ffmpeg-downloader>`_ package
+
+This built-in plugin is only activated if the :code:`ffmpeg_downloader` module is installed in the current Python environment.
+If activated, the :py:func:`finder <ffmpegio.plugins.hookspecs.finder>` hook of this built-in plugin module returns the
+paths to the ffmpeg and ffprobe that are configured by the `ffmpeg-downloader <https://github.com/python-ffmpegio/python-ffmpeg-downloader>`_ 
+package.
+
+.. note::
+
+   By design, :code:`ffmpeg_downloader` does not automatically download the binaries, and it expects the user to run its :code:`ffdl`
+   command-line tool to install the ffmpeg & ffprobe in a similar manner as :code:`pip`. Before running Python and :code:`ffmpegio`, run
+
+   .. code-block::
+
+      ffdl install
+
+   to download and install the latest FFmpeg builds to a user directory or
+
+   .. code-block::
+
+      ffdl install 7
+
+   to specify a particular version (:code:`ffdl list` to see the available ffmpeg releases). 
+    
+   You could upgrade the installed binaries by running :code:`ffdl install -U`.
+
+"""
 
 from __future__ import annotations
 

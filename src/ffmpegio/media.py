@@ -11,27 +11,26 @@ from ._typing import (
     FFmpegUrlString,
     InputInfoDict,
     InputPipeInfoDict,
-    Literal,
+    MediaType,
     OutputInfoDict,
     OutputPipeInfoDict,
     ProgressCallable,
     RawDataBlob,
     RawOutputInfoDict,
-    RawStreamDef,
     ShapeTuple,
     Unpack,
 )
 from .configure import (
     FFmpegArgs,
     FFmpegInputOptionTuple,
-    FFmpegInputUrlComposite,
+    FFmpegInputUrlEx,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
-    FFmpegOutputOptionTuple,
-    FFmpegOutputUrlComposite,
+    FFmpegOutputUrlEx,
 )
 from .errors import FFmpegError
 from .filtergraph.abc import FilterGraphObject
+from .utils import RawStreamDef
 
 logger = logging.getLogger("ffmpegio")
 
@@ -118,13 +117,13 @@ def _gather_outputs(
 
 def read(
     url: (
-        FFmpegInputUrlComposite
+        FFmpegInputUrlEx
         | FFmpegInputOptionTuple
-        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+        | list[FFmpegInputUrlEx | FFmpegInputOptionTuple]
     ),
     *streams: tuple[str | FFmpegOptionDict],
     extra_outputs: (
-        Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
+        Sequence[FFmpegOutputUrlEx | FFmpegOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
     show_log: bool | None = None,
@@ -132,7 +131,7 @@ def read(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
-    """Read video and audio data from multiple media files
+    """Read multiple raw media data from multiple media files
 
     .. warning::
 
@@ -156,23 +155,31 @@ def read(
         filtergraph is specified, all streams of the input urls; and if a complex
         filtergraph is specified, all output streams of the filtergraph.
     :param extra_outputs: list of additional encoded output sources, defaults to
-                          None. Each destination may be a url string or a pair of
-                          a url string and an option dict.
+        None. Each destination may be a url string or a pair of
+        a url string and an option dict.
+    :type extra_outputs: Sequence[FFmpegOutputUrlEx | FFmpegOutputOptionTuple] | None
     :param squeeze: False to return 4D data for video and 2D data for audio. True
-                    eliminates any dimensions which only has the length of one.
-     :param progress: progress callback function, defaults to None
+        eliminates any dimensions which only has the length of one.
+    :param progress: progress callback function, defaults to :code:`None`
+    :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to None (no show/capture)
-                     Ignored if stream format must be retrieved automatically.
+        defaults to :code:`None`  (no show/capture)
+        Ignored if stream format must be retrieved automatically.
     :param options: FFmpeg options, append '_in[input_url_id]' for input option names for specific
-                        input url or '_in' to be applied to all inputs. The url-specific option gets the
-                        preference (see :doc:`options` for custom options)
-    :return: frame/sampling rates and raw data for each requested stream
+        input url or '_in' to be applied to all inputs. The url-specific option gets the
+        preference (see :ref:`options` for custom options)
+    :type options: :py:type:`FFmpegOptionDict <ffmpegio.typing.FFmpegOptionDict>`
+    :return: a tuple containing two dicts, both keyed by requested stream specifiers
+
+        - (dict[str, :py:class:`Fraction <fractions.Fraction>` | int]) a dict of frame/sampling rates
+        - (dict[str, :py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`]]) a dict of raw media data
+
+    :rtype: tuple
 
     Note: Only pass in multiple urls to implement complex filtergraph. It's significantly faster to run
-          `ffmpegio.video.read()` for each url.
+          :py:func:`ffmpegio.video.read()` for each url.
 
-    Specify the streams to return by `map` output option:
+    Specify the streams to return by :code:`map` output option:: python
 
         map = ['0:v:0','1:a:3'] # pick 1st file's 1st video stream and 2nd file's 4th audio stream
 
@@ -193,12 +200,10 @@ def read(
 
 def write(
     urls: (
-        FFmpegOutputUrlComposite
-        | list[
-            FFmpegOutputUrlComposite | tuple[FFmpegOutputUrlComposite, FFmpegOptionDict]
-        ]
+        FFmpegOutputUrlEx
+        | list[FFmpegOutputUrlEx | tuple[FFmpegOutputUrlEx, FFmpegOptionDict]]
     ),
-    stream_types: Sequence[Literal["a", "v"]],
+    stream_types: Sequence[MediaType],
     *stream_args: tuple[RawStreamDef, ...],
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
     stream_dtypes: list[DTypeString | None] | None = None,
@@ -209,41 +214,49 @@ def write(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ):
-    """write multiple streams to a url/file
+    """Write multiple raw media streams to a url/file
 
-    :param url: output url
+    :param urls: output urls
+    :type urls: FFmpegOutputUrlEx | list[FFmpegOutputUrlEx | tuple[FFmpegOutputUrlEx, FFmpegOptionDict]]
     :param stream_types: list/string of input stream media types, each element
-                         is either 'a' (audio) or 'v' (video)
+        is either :code:`'a'` (audio) or :code:`'v'` (video)
+    :type stream_types: Sequence[MediaType]
     :param stream_args: raw input stream data arguments, each input stream is
-                        either a tuple of a sample rate (audio) or frame rate
-                        (video) followed by a data blob, or a tuple of a data
-                        blob and a dict of input options. The option dict must
-                        include `'ar'` (audio) or `'r'` (video) to specify the
-                        rate.
-    :param extra_inputs: list of additional input sources, defaults to None.
-                         Each source may be url string or a pair of a url string
-                         and an option dict.
+        either a tuple of a sample rate (audio) or frame rate
+        (video) followed by a data blob, or a tuple of a data
+        blob and a dict of input options. The option dict must
+        include :code:`'ar'` (audio) or :code:`'r'` (video) to specify the
+        rate.
+    :type stream_args: tuple[RawStreamDef, ...]
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
+        Each source may be url string or a pair of a url string
+        and an option dict.
+    :type extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None
     :param stream_dtypes: list of numpy-style data type strings of input samples
-                          or frames of input media streams, defaults to `None`
-                          (auto-detect).
+        or frames of input media streams, defaults to :code:`None`
+        (auto-detect).
+    :type stream_dtypes: list[DTypeString | None]
     :param stream_shapes: list of shapes of input samples or frames of input
-                          media streams, defaults to `None` (auto-detect).
-    :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param progress: progress callback function, defaults to None
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
-                      used to run the FFmpeg, defaults to None
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
-                      will be applied to all input streams unless the option has been already defined in `stream_data`
+        media streams, defaults to :code:`None` (auto-detect).
+    :type stream_shapes: list[ShapeTuple | None]
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None`  (auto-select)
+    :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
+    :param progress: progress callback function, defaults to :code:`None`
+    :type progress: ProgressCallable | None
+    :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or :py:class:`subprocess.Popen` call
+        used to run the FFmpeg, defaults to :code:`None`
+    :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`). Input options
+        will be applied to all input streams unless the option has been already defined in :code:`stream_data`
+    :type options: :py:type:`FFmpegOptionDict <ffmpegio.typing.FFmpegOptionDict>`
 
     TIPS
     ----
 
-    * All the input streams will be added to the output file by default, unless `map` option is specified
-    * If the input streams are of different durations, use `shortest=ffmpegio.FLAG` option to trim all streams to the shortest.
+    * All the input streams will be added to the output file by default, unless :code:`map` option is specified
+    * If the input streams are of different durations, use :code:`shortest=ffmpegio.FLAG` option to trim all streams to the shortest.
     * Using merge_audio_streams:
-      - adds a `filter_complex` global option
-      - merged input streams are removed from the `map` option and replaced by the merged stream
+      - adds a :code:`filter_complex` global option
+      - merged input streams are removed from the :code:`map` option and replaced by the merged stream
 
     """
 
@@ -273,7 +286,7 @@ def write(
 
 def filter(
     expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
-    input_types: Sequence[Literal["a", "v"]],
+    input_types: Sequence[MediaType],
     *input_args: tuple[RawStreamDef, ...],
     output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
     extra_inputs: (list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None) = None,
@@ -281,41 +294,60 @@ def filter(
         list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
-    show_log: bool | None = None,
     progress: ProgressCallable | None = None,
+    show_log: bool | None = None,
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
-    """write multiple streams to a url/file
+    """Filter multiple raw media streams
 
     :param expr: complex filtergraph expression or a list of expressions
     :param input_types: list/string of input stream media types, each element is
-                        either 'a' (audio) or 'v' (video)
+        either :code:`'a'` (audio) or :code:`'v'` (video)
+    :type input_types: Sequence[MediaType]
     :param input_args: raw input stream data arguments, each input stream is
-                       either a tuple of a sample rate (audio) or frame rate
-                       (video) followed by a data blob or a tuple of a data blob
-                       and a dict of input options. The option dict must include
-                       `'ar'` (audio) or `'r'` (video) to specify the rate.
-    :param output_streams: specific options for keyed filtergraph output pads.
-    :param extra_inputs: list of additional input sources, defaults to None.
-                         Each source may be url string or a pair of a url string
-                         and an option dict.
+        either a tuple of a sample rate (audio) or frame rate
+        (video) followed by a data blob or a tuple of a data blob
+        and a dict of input options. The option dict must include
+        :code:`'ar'` (audio) or :code:`'r'` (video) to specify the rate.
+    :param output_streams: output stream mappings and optional per-stream options:
+
+        - :code:`None` to map all filtergraph outputs
+        - (str) output map option string
+        - (dict) output ffmpeg options with the required :code:`'map'` option
+        - (Sequence) a sequence of output map option string or ffmpeg option
+          dict with a :code:`'map'` key.
+
+    :type output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
+        Each source may be url string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
-                          None. Each destination may be a url string or a pair of
-                          a url string and an option dict.
-    :param progress: progress callback function, defaults to None
-    :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
-    :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
-    :param sp_kwargs: dictionary with keywords passed to `subprocess.run()` or `subprocess.Popen()` call
-                      used to run the FFmpeg, defaults to None
-    :param options: FFmpeg options, append '_in' for input option names (see :doc:`options`). Input options
-                      will be applied to all input streams unless the option has been already defined in `stream_data`
+        None. Each destination may be a url string or a pair of
+        a url string and an option dict.
+    :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
+    :param squeeze: False to return 4D data for video and 2D data for audio. True
+        eliminates any dimensions which only has the length of one.
+    :param progress: progress callback function, defaults to :code:`None`
+    :type progress: ProgressCallable | None
+    :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
+    :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or :py:class:`subprocess.Popen` call
+        used to run the FFmpeg, defaults to :code:`None`
+    :param options: FFmpeg options, append '_in' for input option names. Input options
+        will be applied to all input streams unless the option has been already defined in :code:`stream_data`
+    :type options: FFmpegOptionDict
+    :return: a tuple containing two dicts, both keyed by the output stream specifiers
+
+        - (dict[str, :py:class:`Fraction <fractions.Fraction>` | int]) a dict of output frame/sampling rates
+        - (dict[str, :py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`]]) a dict of output raw media data
+
+    :rtype: tuple
 
     TIPS
     ----
 
-    * Unlike `media.read()` all filtergraph outputs are always captured. The output
-      options specified as keyword arguments for all outputs, and `output_options`
+    * Unlike :py:func:`media.read()` all filtergraph outputs are always captured. The output
+      options specified as keyword arguments for all outputs, and :code:`output_options`
       argument can be used to specify additional (overriding) FFmpeg output options
       for some outputs as needed.
 

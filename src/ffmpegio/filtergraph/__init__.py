@@ -10,58 +10,58 @@
    ------------------------------  ------------------------------------------------------------
    Operation                       Description  Related Methods
    ------------------------------  ------------------------------------------------------------
-   `+` operator                    Chaining/join operator, supports scalar expansion
-   `Filter + Filter -> Chain`      Create a filterchain from 2 filters
-   `Chain  + Filter -> Chain`      Append filter to filterchain
-   `Filter + Chain  -> Chain`      Prepend filter to filterchain
-   `Chain  + Chain  -> Chain`      Concatenate filterchains
-   `Filter + Graph  -> Graph`      Prepend filer to first available input of each chain
-   `Graph  + Filter -> Graph`      Append filter to first available output of each chain
-   `Graph  + Chain  -> Graph`      Append filterchain to first available input of each chain
-   `Chain  + Graph  -> Graph`      Prepend filterchain to first available output of each chain
-   `Graph  + Graph  -> Graph`      Join 2 graphs by matching their inputs and outputs in order
+   :code:`+` operator                    Chaining/join operator, supports scalar expansion
+   :code:`Filter + Filter -> Chain`      Create a filterchain from 2 filters
+   :code:`Chain  + Filter -> Chain`      Append filter to filterchain
+   :code:`Filter + Chain  -> Chain`      Prepend filter to filterchain
+   :code:`Chain  + Chain  -> Chain`      Concatenate filterchains
+   :code:`Filter + Graph  -> Graph`      Prepend filer to first available input of each chain
+   :code:`Graph  + Filter -> Graph`      Append filter to first available output of each chain
+   :code:`Graph  + Chain  -> Graph`      Append filterchain to first available input of each chain
+   :code:`Chain  + Graph  -> Graph`      Prepend filterchain to first available output of each chain
+   :code:`Graph  + Graph  -> Graph`      Join 2 graphs by matching their inputs and outputs in order
 
-   `*` operator                    Multiplicate-n-stacking operator
-   `Filter * int    -> Graph`      Stacking the filters (int) times
-   ` Chain * int    -> Graph`      Stacking the chain (int) times
-   ` Graph * int    -> Graph`      Stacking the input graph (int) times
+   :code:`*` operator                    Multiplicate-n-stacking operator
+   :code:`Filter * int    -> Graph`      Stacking the filters (int) times
+   :code:` Chain * int    -> Graph`      Stacking the chain (int) times
+   :code:` Graph * int    -> Graph`      Stacking the input graph (int) times
 
-   `|` operator                    Stacking operator
-   `Filter | Filter -> Graph`      Stacking the filters
-   ` Chain | Filter -> Graph`      Stacking chain and filter
-   `Filter | Chain  -> Graph`      Stacking filter and chain
-   ` Chain | Chain  -> Graph`      Stacking the filterchains
-   `Filter | Graph  -> Graph`      Prepend filter as a new chain
-   ` Graph | Filter -> Graph`      Appendd filter as a new chain
-   ` Graph | Chain  -> Graph`      Stack graph and chain
-   ` Chain | Graph  -> Graph`      Stack
-   ` Graph | Graph  -> Graph`      Stack filtergraphs
+   :code:`|` operator                    Stacking operator
+   :code:`Filter | Filter -> Graph`      Stacking the filters
+   :code:` Chain | Filter -> Graph`      Stacking chain and filter
+   :code:`Filter | Chain  -> Graph`      Stacking filter and chain
+   :code:` Chain | Chain  -> Graph`      Stacking the filterchains
+   :code:`Filter | Graph  -> Graph`      Prepend filter as a new chain
+   :code:` Graph | Filter -> Graph`      Appendd filter as a new chain
+   :code:` Graph | Chain  -> Graph`      Stack graph and chain
+   :code:` Chain | Graph  -> Graph`      Stack
+   :code:` Graph | Graph  -> Graph`      Stack filtergraphs
 
-   left `>>` operator              Input labeling or attach input filter/chain
-   `      str >> Filter -> Graph`  Label first available input pad*
-   `      str >> Chain  -> Graph`  Label first available input pad*
-   `      str >> Graph  -> Graph`  Label first available chainable input pad*
-   `   Filter >> Graph  -> Graph`  Attach filter output to first available input pad
-   `    Chain >> Graph  -> Graph`  Adding Chain to itself int times
-   `(_,Index) >> Filter -> Graph`  Specify input pad
-   `(_,Index) >> Chain  -> Graph`  Specify input pad of the first filter
-   `(_,Index) >> Graph  -> Graph`  Specify input pad
+   left :code:`>>` operator              Input labeling or attach input filter/chain
+   :code:`      str >> Filter -> Graph`  Label first available input pad*
+   :code:`      str >> Chain  -> Graph`  Label first available input pad*
+   :code:`      str >> Graph  -> Graph`  Label first available chainable input pad*
+   :code:`   Filter >> Graph  -> Graph`  Attach filter output to first available input pad
+   :code:`    Chain >> Graph  -> Graph`  Adding Chain to itself int times
+   :code:`(_,Index) >> Filter -> Graph`  Specify input pad
+   :code:`(_,Index) >> Chain  -> Graph`  Specify input pad of the first filter
+   :code:`(_,Index) >> Graph  -> Graph`  Specify input pad
 
-   right `>>` operator             Output labeling or attach output filter/chain
-   `Filter >> str       -> Graph`  Label first available output pad*
-   ` Chain >> str       -> Graph`  Label first available output pad*
-   ` Graph >> str       -> Graph`  Label first available chainable output pad*
-   ` Graph >> Filter    -> Graph`  Attach filter to the first
-   ` Graph >> Chain     -> Graph`  Adding Chain to itself int times
-   `Filter >> (Index,_) -> Graph`  Specify output pad
-   ` Chain >> (Index,_) -> Graph`  Specify output pad
-   ` Graph >> (Index,_) -> Graph`  Specify output pad
+   right :code:`>>` operator             Output labeling or attach output filter/chain
+   :code:`Filter >> str       -> Graph`  Label first available output pad*
+   :code:` Chain >> str       -> Graph`  Label first available output pad*
+   :code:` Graph >> str       -> Graph`  Label first available chainable output pad*
+   :code:` Graph >> Filter    -> Graph`  Attach filter to the first
+   :code:` Graph >> Chain     -> Graph`  Adding Chain to itself int times
+   :code:`Filter >> (Index,_) -> Graph`  Specify output pad
+   :code:` Chain >> (Index,_) -> Graph`  Specify output pad
+   :code:` Graph >> (Index,_) -> Graph`  Specify output pad
    ------------------------------  ------------------------------------------------------------
 
 Filter Pad Labeling
 ===================
 
-`str >> Filter/Chain/Graph` and `Filter/Chain/Graph >> str` operations can be
+`str >> Filter/Chain/Graph` and :code:`Filter/Chain/Graph >> str` operations can be
 used to set input and output labels, respectively. The labels must be specified
 in square brackets as in the same manner as FFmpeg filtergraph specification.
 
@@ -70,7 +70,7 @@ in square brackets as in the same manner as FFmpeg filtergraph specification.
     fg = '[in]' >> Filter('scale',0.5,-1) >> '[out]'
 
 The brackets are required to distinguish labels from str expressions of filter,
-chain, and graph. For example, the following expression chains `scale` and
+chain, and graph. For example, the following expression chains :code:`scale` and
 `setsar` filters:
 
 .. code-block::python
@@ -92,8 +92,8 @@ Both input and output filter pads can be specified in a number of ways:
     ---------------------  -----------------------------------------------------------------------
 
  Except for the label indexing, which is a Graph specific feature, all the indexing syntax may be
- used by `Filter`, `Chain`, or `Graph` class instances. An irrelevant field (e.g., chain or filter
- indexing for a `Filter` instance) will be ignored. Standard negative-number indexing is supported.
+ used by :py:class:`Filter`, :py:class:`Chain`, or :py:class:`Graph` class instances. An irrelevant field (e.g., chain or filter
+ indexing for a :py:class:`Filter` instance) will be ignored. Standard negative-number indexing is supported.
 
 """
 

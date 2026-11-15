@@ -10,22 +10,43 @@ except ImportError:
     Buffer = bytes | bytearray | memoryview
 
 from typing import *
-
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from typing import (
+        Any,
+        Callable,
+        Literal,
+        LiteralString,
+        Protocol,
+        TypeAlias,
+        TypedDict,
+    )
+
     from namedpipe import NPopen
 
     from .threading import CopyFileObjThread
 
-# from typing_extensions import *
+FFmpegOptionDict: TypeAlias = dict[str, Any]
+"""dict that hold FFmpeg option name-value pairs
 
+    FFmpeg options with their values keyed by the option names without preceding dash. 
+    For option flags (e.g., -y) without any value, use :code:`None` or its alias :code:`ffmpegio.FLAG`
 
-FFmpegOptionDict = dict[str, Any]
-"""FFmpeg options with their values keyed by the option names without preceding dash. 
-For option flags (e.g., -y) without any value, use `None` or its alias `ffmpegio.FLAG`"""
+    For example,
 
-RawDataBlob = Any
-"""any object to represent raw binary data supported by a data I/O plugin."""
+    .. code-block: bash
+
+        ffmpeg -i input.mp4 -ss 00:01:30 -t 30 -an -c:v copy output.mp4
+
+    comprises 4 output options and can be defined in
+
+    .. code-block: python
+
+        output_opts = {"ss": "00:01:30", "t": 30, "an": ffmpegio.FLAG, "c:v": :copy"}
+
+"""
+
 
 class FFmpegArgs(TypedDict):
     """FFmpeg arguments"""
@@ -38,46 +59,81 @@ class FFmpegArgs(TypedDict):
     """FFmpeg global options"""
 
 
-DTypeString = LiteralString
+# typedef above
+RawDataBlob: TypeAlias = Any
+"""Python object representing media data frame.
+
+    A :py:type:`RawDataBlob` must contain the shape and data format of the media data as well as the binary data.
+    Any data frame format could be used if user provides a custom data I/O plugin for it. 
+    The table below lists the natively supported data object types (each enabled by one of built-in plugins):
+
+    =========================================================================================================== =========================================
+    Raw Data Blob Object Type                                                                                   Plugin                                   
+    =========================================================================================================== =========================================
+    :py:class:`ffmpegio.typing.BytesRawDataBlob`                                                                :py:mod:`ffmpegio.plugins.rawdata_bytes`
+    :py:type:`numpy.typing.ArrayLike`                                                                           :py:mod:`ffmpegio.plugins.rawdata_numpy`
+    :py:class:`matplotlib.figure.Figure`                                                                        :py:mod:`ffmpegio.plugins.rawdata_mpl`
+    :py:class:`PIL.Image.Image` | :py:class:`PIL.ImageSequence.Iterator` | :py:type:`Sequence[PIL.Image.Image]` :py:mod:`ffmpegio.plugins.rawdata_pillow`
+    =========================================================================================================== =========================================
+"""
+
+DTypeString: TypeAlias = LiteralString
 """Numpy array interface protocol typestr string
 
-The string format consists of 3 parts: a character describing the byteorder of the data 
-(`'<'`: little-endian, `'>'`: big-endian, `'|'`: not-relevant), a character code giving 
-the basic type of the array, and an integer providing the number of bytes the type uses.
+    The string format consists of 3 parts: a character describing the byteorder of the data 
+    (:code:`'<'`: little-endian, :code:`'>'`: big-endian, :code:`'|'`: not-relevant), a character code giving 
+    the basic type of the array, and an integer providing the number of bytes the type uses.
 
-Three basic type character codes are relevant to `ffmpegio` package:
+    Three basic type character codes are relevant to :code:`ffmpegio` package:
 
-===== ================
-code  description
-===== ================
-`'i'` Integer
-`'u'` Unsigned integer
-`'f'` Floating point
-===== ================
-
-See https://numpy.org/doc/stable/reference/arrays.interface.html for Numpy's
-official documentation.
+    =========== ================
+    code        description
+    =========== ================
+    :code:`'i'` Integer
+    :code:`'u'` Unsigned integer
+    :code:`'f'` Floating point
+    =========== ================
+    
+    See https://numpy.org/doc/stable/reference/arrays.interface.html for Numpy's
+    official documentation.
 """
 
-ShapeTuple = tuple[int, ...]
-"""Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int)."""
+ShapeTuple: TypeAlias = tuple[int, ...]
+"""Tuple whose elements are the array size in each dimension. Each entry is an integer (a Python int).
 
-
-RawStreamDef = tuple[int | Fraction, RawDataBlob] | tuple[RawDataBlob, FFmpegOptionDict]
-"""2-element tuple to define a raw stream data
-
-    It comes in two forms: rate-data or data-option. The rate-data form specifies
-    a pair of the frame rate (video) or sampling rate (audio) and the data blob.
-    The data-option form specifies the data blob and its FFmpeg options. Note 
-    that a data-option tuple is only valid if its option dict contains the rate
-    field: `r` for video or `ar` for audio.
-
+A video frame typically has 2 to 4 entries: :code:`([time, ]height, width[, color])`. 
+An audio frame has either 1 or 2 entries: :code:`(time[, channel])`. 
 """
 
-RawStreamInfoTuple = tuple[DTypeString, ShapeTuple, int | Fraction]
+FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
+"""FFmpeg media stream types
+
+    ===================== ==================
+    value                 description
+    ===================== ==================
+    :code:`'video'`       video stream
+    :code:`'audio'`       audio stream
+    :code:`'subtitle'`    subtitle stream
+    :code:`'data'`        data stream
+    :code:`'attachments'` attachments stream
+    ===================== ==================
+"""
+
+MediaType: TypeAlias = Literal["audio", "video"]
+"""A subset of :py:type:`FFmpegMediaType` which is supported by :code:`ffmpegio`
+
+    =============== ============
+    value           description
+    =============== ============
+    :code:`'video'` video stream
+    :code:`'audio'` audio stream
+    =============== ============
+"""
+
+RawStreamInfoTuple: TypeAlias = tuple[DTypeString, ShapeTuple, int | Fraction]
 """3-element tuple (dtype, shape, rate) to characterize raw data stream"""
 
-ProgressCallable = Callable[[dict[str, Any], bool], bool]
+ProgressCallable: TypeAlias = Callable[[dict[str, Any], bool], bool]
 """FFmpeg progress callback function
 
     callback(status, done)
@@ -88,36 +144,17 @@ ProgressCallable = Callable[[dict[str, Any], bool], bool]
     The callback may return True to cancel the FFmpeg execution.
 """
 
-MediaType = Literal["audio", "video"]
-"""supported media stream types
+CancelActionCallable: TypeAlias = Callable[[], None]
+"""Callback function to be executed when FFmpeg terminated by user via :py:type:`ProgressCallable`
 
-=============== ================================================================
-value           description
-=============== ================================================================
-`'video'`       video stream
-`'audio'`       audio stream
-=============== ================================================================
+    This callback type takes no input and produces no output.
 """
 
-FFmpegMediaType = Literal["video", "audio", "subtitle", "data", "attachments"]
-"""FFmpeg media stream types
-
-=============== ================================================================
-value           description
-=============== ================================================================
-`'video'`       video stream
-`'audio'`       audio stream
-`'subtitle'`    subtitle stream
-`'data'`        data stream
-`'attachments'` attachments stream
-=============== ================================================================
-"""
-
-FFmpegUrlType = str
+FFmpegUrlString: TypeAlias = Any
 """input and output file/stream urls (str or a stringifiable object)
 """
 
-FFmpegInputType = Literal["url", "filtergraph", "buffer", "fileobj"]
+FFmpegInputType: TypeAlias = Literal["url", "filtergraph", "buffer", "fileobj"]
 """mechanisms to feed encoded input data to FFmpeg input pipe
 
 =============== ================================================================
@@ -130,17 +167,18 @@ value           description
 =============== ================================================================
 """
 
-FFmpegOutputType = Literal["url", "fileobj", "buffer"]
+FFmpegOutputType: TypeAlias = Literal["url", "fileobj", "buffer"]
 """mechanisms to extract encoded output data from FFmpeg output pipe
 
 =============== ============================================================================
 value           description
 =============== ============================================================================
 `'url'`         path to the output file or streaming url
-`'buffer'`      buffer output data as `RawDataBlob` (raw stream) or `bytes` (encoded stream)
+`'buffer'`      buffer output data as :py:type:`RawDataBlob` (raw stream) or :py:class:`bytes` (encoded stream)
 `'fileobj'`     open readable file object
 =============== ============================================================================
 """
+
 
 ##################
 # Plugin protocols
@@ -150,11 +188,11 @@ value           description
 class GetInfoCallable(Protocol):
     """Plugin function prototype to get information of a raw data blob object
 
-    A plugin may implement this prototype with `audio_info()` for audio stream or
-    `video_info()` for video/image stream.
+    A plugin may implement this prototype with :py:func:`audio_info()` for audio stream or
+    :py:func:`video_info()` for video/image stream.
 
     :param obj: Plugin-specific raw data blob object
-    :return shape: tuple of `int`s of the raw data shape
+    :return shape: tuple of :py:class:`int` s of the raw data shape
     :return dtype: numpy dtype string of a video/image pixel or an audio sample
     """
 
@@ -164,8 +202,8 @@ class GetInfoCallable(Protocol):
 class ToBytesCallable(Protocol):
     """Plugin function prototype to convert raw data blob object to a byte buffer
 
-    A plugin may implement this prototype with `audio_bytes()` for audio stream or
-    `video_bytes()` for video/image stream.
+    A plugin may implement this prototype with :py:func:`audio_bytes()` for audio stream or
+    :py:func:`video_bytes()` for video/image stream.
 
     :param obj: Plugin-specific raw data blob object
     :return: a FFmpeg raw media stream compatible bytes
@@ -177,8 +215,8 @@ class ToBytesCallable(Protocol):
 class CountDataCallable(Protocol):
     """Plugin function prototype to count a number of video frames/audio samples
 
-    A plugin may implement this prototype with `audio_samples()` for audio stream or
-    `video_frames()` for video/image stream.
+    A plugin may implement this prototype with :py:func:`audio_samples()` for audio stream or
+    :py:func:`video_frames()` for video/image stream.
 
     :param obj: Plugin-specific raw data blob object
     :return: number of video frames or of audio samples
@@ -190,8 +228,8 @@ class CountDataCallable(Protocol):
 class FromBytesCallable(Protocol):
     """Plugin function prototype to convert FFmpeg output bytes to raw data blob
 
-    A plugin may implement this prototype with `bytes_to_audio()` for audio stream or
-    `bytes_to_video()` for video stream.
+    A plugin may implement this prototype with:py:func:`bytes_to_audio()` for audio stream or
+    :py:func:`bytes_to_video()` for video stream.
 
     :param b: FFmpeg output of raw audio/video/image frames
     :param dtype: numpy dtype string of pixel/sample data format
@@ -209,8 +247,8 @@ class FromBytesCallable(Protocol):
 class IsEmptyCallable(Protocol):
     """Plugin function prototype to check if data blob contains no data
 
-    A plugin may implement this prototype with `audio_samples()` for audio stream or
-    `video_frames()` for video/image stream.
+    A plugin may implement this prototype with :py:func:`audio_samples()` for audio stream or
+    :py:func:`video_frames()` for video/image stream.
 
     :param obj: Plugin-specific raw data blob object
     :return: True if the blob contains no data
@@ -218,6 +256,8 @@ class IsEmptyCallable(Protocol):
 
     def __call__(self, *, obj: object) -> bool: ...
 
+
+UrlType = Literal["input", "output"]
 
 ######
 
@@ -228,22 +268,22 @@ class RawInputInfoDict(TypedDict):
     =============== ================================================================
     key             description
     =============== ================================================================
-    `'src_type'`    always `'buffer'`
-    `'media_type'`  media stream identifier: `'audio'` or '`video'`
-    `'raw_info'`    tuple of (rate, shape, dtype)
-    `'item_size`        size of each frame/sample in bytes
-    `'data2bytes'`  conversion function
-    `'data_is_empty'`   function to check empty data frame
-    `'data_count'`      function to count number of frames/samples in a blob
-    `'buffer'`      (optional) known media data blobs to be input (typically for
+    :code:`'src_type'`    always :code:`'buffer'`
+    :code:`'media_type'`  media stream identifier: :code:`'audio'` or '`video'`
+    :code:`'raw_info'`    tuple of (rate, shape, dtype)
+    :code:`'item_size`        size of each frame/sample in bytes
+    :code:`'data2bytes'`  conversion function
+    :code:`'data_is_empty'`   function to check empty data frame
+    :code:`'data_count'`      function to count number of frames/samples in a blob
+    :code:`'buffer'`      (optional) known media data blobs to be input (typically for
                     a batch operation)
-    `'pipe'`        (optional) named pipe assigned to this data stream
-    `'writer'`      (optional) writer thread assigned to this data stream
+    :code:`'pipe'`        (optional) named pipe assigned to this data stream
+    :code:`'writer'`      (optional) writer thread assigned to this data stream
     =============== ================================================================
     """
 
     src_type: Literal["buffer"]
-    """True if file path/url"""
+    """:code:`True` if file path/url"""
     media_type: MediaType
     """media type if input pipe"""
     raw_info: RawStreamInfoTuple
@@ -271,17 +311,23 @@ class PipedEncodedInputInfoDict(TypedDict):
     """piped encoded input source info"""
 
     src_type: Literal["buffer"]
-    buffer: NotRequired[bytes]  # index of the source index
+    '''source type, must be "buffer"'''
+
+    buffer: NotRequired[bytes]
+    """buffer data"""
 
 
 class FileObjEncodedInputInfoDict(TypedDict):
     """fileobj encoded input info"""
 
     src_type: Literal["fileobj"]
-    fileobj: IO  # file object
+    """source type, must be "fileobj"""
+
+    fileobj: IO
+    """input file stream object"""
 
 
-EncodedInputInfoDict = (
+EncodedInputInfoDict: TypeAlias = (
     UrlEncodedInputInfoDict | PipedEncodedInputInfoDict | FileObjEncodedInputInfoDict
 )
 """encoded input container stream information
@@ -289,13 +335,13 @@ EncodedInputInfoDict = (
 =============== ================================================================
 key             description
 =============== ================================================================
-`'src_type'`    `'url'`, `'filtergraph'`, `'buffer'`, or `'fileobj'`
-`'buffer'`      (optional for `src_type = 'buffer') known media data bytes to be 
+`'src_type'`    :code:`'url'`, :code:`'filtergraph'`, :code:`'buffer'`, or :code:`'fileobj'`
+`'buffer'`      (optional for :code:`src_type = 'buffer') known media data bytes to be 
                 input (typically for a batch operation)
 =============== ================================================================
 """
 
-InputInfoDict = RawInputInfoDict | EncodedInputInfoDict
+InputInfoDict: TypeAlias = RawInputInfoDict | EncodedInputInfoDict
 
 
 class PipeWriter(Protocol):
@@ -315,8 +361,8 @@ class PipeReader(Protocol):
 class InputPipeInfoDict(TypedDict):
     """
     ==========  ==========================================
-    `'pipe'`    named pipe assigned to this data stream
-    `'writer'`  writer thread assigned to this data stream
+    :code:`'pipe'`    named pipe assigned to this data stream
+    :code:`'writer'`  writer thread assigned to this data stream
     ==========  ==========================================
     """
 
@@ -335,17 +381,17 @@ class RawDirectOutputInfoDict(TypedDict):
     =================== ================================================================
     key                 description
     =================== ================================================================
-    `'dst_type'`        `'buffer'`
-    `'media_type'`      media stream identifier: `'audio'` or '`video'`
-    `'raw_info'`        tuple of (dtype, shape, rate)
-    `'item_size`        size of each frame/sample in bytes
-    `'bytes2data'`      function to convert bytes to raw data blob
-    `'data_is_empty'`   function to check empty data frame
-    `'data_count'`      function to count number of frames/samples in a blob
-    `'user_map'`        user specified FFmpeg map option of this stream
-    `'squeeze'`         True to squeeze output shape (remove all length-1 dims)
-    `'input_file_id'`   input file id
-    `'input_stream_id'` input stream id
+    :code:`'dst_type'`        :code:`'buffer'`
+    :code:`'media_type'`      media stream identifier: :code:`'audio'` or '`video'`
+    :code:`'raw_info'`        tuple of (dtype, shape, rate)
+    :code:`'item_size`        size of each frame/sample in bytes
+    :code:`'bytes2data'`      function to convert bytes to raw data blob
+    :code:`'data_is_empty'`   function to check empty data frame
+    :code:`'data_count'`      function to count number of frames/samples in a blob
+    :code:`'user_map'`        user specified FFmpeg map option of this stream
+    :code:`'squeeze'`         True to squeeze output shape (remove all length-1 dims)
+    :code:`'input_file_id'`   input file id
+    :code:`'input_stream_id'` input stream id
     =================== ================================================================
     """
 
@@ -368,16 +414,16 @@ class RawFilteredOutputInfoDict(TypedDict):
     =================== ================================================================
     key                 description
     =================== ================================================================
-    `'dst_type'`        `'buffer'`
-    `'media_type'`      media stream identifier: `'audio'` or '`video'`
-    `'raw_info'`        tuple of (dtype, shape, rate)
-    `'item_size`        size of each frame/sample in bytes
-    `'bytes2data'`      function to convert bytes to raw data blob
-    `'data_is_empty'`   function to check empty data frame
-    `'data_count'`      function to count number of frames/samples in a blob
-    `'user_map'`        user specified FFmpeg map option of this stream
-    `'squeeze'`         True to squeeze output shape (remove all length-1 dims)
-    `'linklabel'`       mapped filtergraph output label
+    :code:`'dst_type'`        :code:`'buffer'`
+    :code:`'media_type'`      media stream identifier: :code:`'audio'` or '`video'`
+    :code:`'raw_info'`        tuple of (dtype, shape, rate)
+    :code:`'item_size`        size of each frame/sample in bytes
+    :code:`'bytes2data'`      function to convert bytes to raw data blob
+    :code:`'data_is_empty'`   function to check empty data frame
+    :code:`'data_count'`      function to count number of frames/samples in a blob
+    :code:`'user_map'`        user specified FFmpeg map option of this stream
+    :code:`'squeeze'`         True to squeeze output shape (remove all length-1 dims)
+    :code:`'linklabel'`       mapped filtergraph output label
     =============== ================================================================
     """
 
@@ -393,14 +439,14 @@ class RawFilteredOutputInfoDict(TypedDict):
     linklabel: str
 
 
-RawOutputInfoDict = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
+RawOutputInfoDict: TypeAlias = RawDirectOutputInfoDict | RawFilteredOutputInfoDict
 """raw output media stream info
 
 =================== ================================================================
 key                 description
 =================== ================================================================
-`'dst_type'`        `'buffer'`
-`'media_type'`      media stream identifier: `'audio'` or '`video'`
+`'dst_type'`        :code:`'buffer'`
+`'media_type'`      media stream identifier: :code:`'audio'` or '`video'`
 `'raw_info'`        tuple of (dtype, shape, rate)
 `'bytes2data'`      function to convert bytes to raw data blob
 `'data_is_empty'`   function to check empty raw data blob
@@ -428,42 +474,44 @@ class FileObjEncodedOutputInfoDict(TypedDict):
     fileobj: IO  # file object
 
 
-EncodedOutputInfoDict = UrlOrPipedEncodedOutputInfoDict | FileObjEncodedOutputInfoDict
+EncodedOutputInfoDict: TypeAlias = (
+    UrlOrPipedEncodedOutputInfoDict | FileObjEncodedOutputInfoDict
+)
 """encoded output container stream information
 
 =============== ================================================================
 key             description
 =============== ================================================================
-`'src_type'`    `'url'`, `'filtergraph'`, `'buffer'`, or `'fileobj'`
-`'buffer'`      (optional for `src_type = 'buffer') known media data bytes to be
+`'src_type'`    :code:`'url'`, :code:`'filtergraph'`, :code:`'buffer'`, or :code:`'fileobj'`
+`'buffer'`      (optional for :code:`src_type = 'buffer') known media data bytes to be
                 input (typically for a batch operation)
-`'pipe'`        (optional for `src_type` is `'buffer'` or `'fileobj'`)
+`'pipe'`        (optional for :code:`src_type` is :code:`'buffer'` or :code:`'fileobj'`)
                 named pipe assigned to this data stream
-`'writer'`      (optional for `src_type` is `'buffer'` or `'fileobj'`)
+`'writer'`      (optional for :code:`src_type` is :code:`'buffer'` or :code:`'fileobj'`)
                 writer thread assigned to this data stream
 =============== ================================================================
 """
 
 
-OutputInfoDict = RawOutputInfoDict | EncodedOutputInfoDict
+OutputInfoDict: TypeAlias = RawOutputInfoDict | EncodedOutputInfoDict
 """combined output info"""
 
 
 class OutputPipeInfoDict(TypedDict):
-    """
-    =============== ================================================================
-    `'pipe'`            named pipe assigned to this data stream
-    `'reader'`          reader thread assigned to this data stream
-    `'itemsize'`        (optional) one frame/sample size in bytes
-    `'nmin'`            (optional) minimum read block size
-    =============== ================================================================
+    """Output pipe information
     """
 
     pipe: NPopen | Literal["stdout"]
-    reader: PipeReader | CopyFileObjThread
-    itemsize: NotRequired[int]
-    nmin: NotRequired[int]
+    """named pipe assigned to this data stream"""
 
+    reader: PipeReader | CopyFileObjThread
+    """reader thread assigned to this data stream"""
+
+    itemsize: NotRequired[int]
+    """(optional) one frame/sample size in bytes"""
+
+    nmin: NotRequired[int]
+    """(optional) minimum read block size"""
 
 ##################################################
 
@@ -481,4 +529,4 @@ class VideoFilterGraphInfoDict(TypedDict):
     pix_fmt: str
 
 
-FilterGraphInfoDict = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict
+FilterGraphInfoDict: TypeAlias = AudioFilterGraphInfoDict | VideoFilterGraphInfoDict

@@ -311,7 +311,7 @@ class FFmpegError(FFmpegioError, RuntimeError):
 
   {msg}
 
-To display the full FFmpeg log, use additional argument `show_log=True`."""
+To display the full FFmpeg log, use additional argument :code:`show_log=True`."""
 
         super().__init__(ffmpeg_msg)
         self.ffmpeg_msg = msg

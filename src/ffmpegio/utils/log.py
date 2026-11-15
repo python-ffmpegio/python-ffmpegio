@@ -123,7 +123,7 @@ def extract_output_stream(
     :param logs: lines of FFmpeg log messages
     :param file_id: output file id, defaults to 0
     :param stream_id: output stream id, defaults to 0
-    :param hint: starting log line index to search, defaults to None
+    :param hint: starting log line index to search, defaults to :code:`None` 
     :return: stream information
     """
     if isinstance(logs, str):

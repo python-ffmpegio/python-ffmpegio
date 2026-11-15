@@ -25,6 +25,7 @@ from subprocess import DEVNULL, PIPE
 from ffmpegio.path import ffmpeg
 
 from . import plugins
+from ._typing import MediaType
 
 logger = logging.getLogger("ffmpegio")
 
@@ -36,15 +37,15 @@ def scan():
     """scans the system for input/output hardware
 
     This function must be called by user to enable device enumeration in
-    ffmpegio. Also, none of functions in `ffmpegio.devices` module will return
-    meaningful outputs until `scan` is called. Likewise, `scan()` must
+    ffmpegio. Also, none of functions in :py:mod:`ffmpegio.devices` module will return
+    meaningful outputs until :py:func:`scan()` is called. Likewise, :py:func:`scan()` must
     run again after a change in hardware to reflect the change.
 
     The devices are enumerated according to the outputs of outputs
-    `ffmpeg -sources` and `ffmpeg -sinks` calls for the devices supporting
+    :code:`ffmpeg -sources` and :code:`ffmpeg -sinks` calls for the devices supporting
     this fairly new FFmpeg interface. Additional hardware configurations
-    are detected by registered plugins with hooks `device_source_api` or
-    `device_sink_api`.
+    are detected by registered plugins with hooks :code:`device_source_api` or
+    :code:`device_sink_api`.
 
     Currently Supported Devices
     ---------------------------
@@ -149,35 +150,32 @@ def _list_devices(devs, dev, mtype, return_nested):
     )
 
 
-def list_sources(dev=None, mtype=None, return_nested=False):
+def list_sources(
+    dev: str | None = None, mtype: MediaType | None = None, return_nested: bool = False
+) -> dict[tuple[str, str], str] | dict[str, dict[str, str]] | dict[str, str]:
     """list enumerated source hardware devices
 
-    :param dev: ffmpeg device name, defaults to None
-    :type dev: str, optional
-    :param mtype: media type, defaults to None
-    :type dev: "video", "audio", optional
+    :param dev: ffmpeg device name, defaults to :code:`None` 
+    :param mtype: media type, defaults to :code:`None` 
+    :type dev: MediaType
     :param return_nested: True to return results in nested dict, defaults to False
-    :type return_nested: bool, optional
     :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,
               or nested dicts. If dev is specified, dict of enumerated hardware devices and their names
-    :rtype: dict(tuple(str,str),str) or dict(str,dict(str,str)) or dict(str,str)
     """
     devs = _list_devices(SOURCES, dev, mtype, return_nested)
     return devs[dev] if dev else devs
 
 
-def list_sinks(dev=None, mtype=None, return_nested=False):
+def list_sinks(
+    dev: str | None = None, mtype: MediaType | None = None, return_nested: bool = False
+) -> dict[tuple[str, str], str] | dict[str, dict[str, str]] | dict[str, str]:
     """list enumerated sink hardware devices
 
     :param dev: ffmpeg device name, default to None
-    :type dev: str, optional
     :param mtype: media type, default to None
-    :type dev: "video", "audio", optional
     :param return_nested: True to return results in nested dict, defaults to False
-    :type return_nested: bool, optional
     :returns: dict of names of supported hardware, keyed by a tuple of the device name and enumeration,
               or nested dicts. If dev is specified, dict of enumerated hardware devices and their names
-    :rtype: dict(tuple(str,str),str) or dict(str,dict(str,str)) or dict(str,str)
     """
     devs = _list_devices(SINKS, dev, mtype, return_nested)
     return devs[dev] if dev else devs
@@ -327,7 +325,7 @@ def resolve_source(url, opts):
     :return: possibly modified url and opts
     :rtype: tuple[str,dict]
 
-    This function is called by `ffmpeg.compose()` to convert
+    This function is called by :py:func`ffmpeg.compose()` to convert
     device enumeration back to url expected by ffmpeg
 
     The device name (-f) could be provided via opts['f'] or encoded as a
@@ -347,7 +345,7 @@ def resolve_sink(url, opts):
     :return: possibly modified url and opts
     :rtype: tuple[str,dict]
 
-    This function is called by `ffmpeg.compose()` to convert
+    This function is called by :py:func:`ffmpeg.compose()` to convert
     device enumeration back to url expected by ffmpeg
 
     """

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from collections import UserList
-from collections.abc import Callable, Generator, Iterable, Sequence
-from typing import Literal
+from collections.abc import Callable, Iterator, Sequence
+from typing import TYPE_CHECKING
 
 from .. import filtergraph as fgb
+from .._typing import Iterable, Literal
 from . import abc
 from . import utils as filter_utils
 from .convert import as_filter, as_filterchain, as_filtergraph
@@ -15,6 +16,14 @@ from .exceptions import (
     FiltergraphInvalidIndex,
 )
 from .typing import PAD_INDEX
+
+if TYPE_CHECKING:
+    from typing import Literal
+
+    from .chains import Chain
+    from .filters import Filter
+    from .graphs import Graph
+    from .typing import PAD_INDEX
 
 __all__ = ["Chain"]
 
@@ -29,8 +38,7 @@ class Chain(abc.FilterGraphObject, UserList):
     Chain('...') to parse an FFmpeg filtergraph expression
 
     :param filter_specs: single-in-single-out filtergraph description without
-                         labels, defaults to None
-    :type filter_specs: str or seq(Filter), optional
+                         labels, defaults to :code:`None` 
     """
 
     class Error(FFmpegioError):
@@ -38,20 +46,20 @@ class Chain(abc.FilterGraphObject, UserList):
 
     def __init__(
         self,
-        filter_specs: str | abc.FilterGraphObject | Iterable[str | fgb.Filter] = None,
+        filter_specs: str | abc.FilterGraphObject | Iterable[str | Filter] = None,
     ):
         """FFmpeg filterchain
 
         :param filter_specs: filtergraph specification, defaults to create an
             empty graph. Acceptable formats include:
 
-            * ``str`` of a single-chain FFmpeg filtergraph expression without
-                any labels or the ``'[sws_flags=flags;]'`` clause.
-            * ``Chain`` object to copy-construct
-            * ``Filter`` object to create a single-filter chain
-            * ``Graph`` object with only one chain without any labels or
-                ``sws_flags``
-            * An iterable of ``Filter`` constructor arguments
+            * :code:`str` of a single-chain FFmpeg filtergraph expression without
+                any labels or the :code:`'[sws_flags=flags;]'` clause.
+            * :py:class:`Chain` object to copy-construct
+            * :py:class:`Filter` object to create a single-filter chain
+            * :py:class:`Graph` object with only one chain without any labels or
+                :code:`sws_flags`
+            * An iterable of :py:class:`Filter` constructor arguments
         """
 
         if isinstance(filter_specs, str):
@@ -74,7 +82,7 @@ class Chain(abc.FilterGraphObject, UserList):
         elif isinstance(filter_specs, fgb.Graph):
             if not filter_specs.is_simple_chain():
                 raise FiltergraphConversionError(
-                    "Cannot convert only a 'simple-chain' `Graph` object can be converted to a `Chain` object"
+                    "Cannot convert only a 'simple-chain' :py:class:`Graph` object can be converted to a :py:class:`Chain` object"
                 )
             filter_specs = filter_specs[0] if len(filter_specs) > 0 else []
         elif isinstance(filter_specs, fgb.Filter):
@@ -117,7 +125,7 @@ class Chain(abc.FilterGraphObject, UserList):
 
     def __getitem__(
         self, key: int | slice | tuple[int | slice, int | slice]
-    ) -> fgb.Filter:
+    ) -> Filter:
         if not isinstance(key, (int, slice)):
             i, key = key
             if i != 0:
@@ -135,7 +143,7 @@ class Chain(abc.FilterGraphObject, UserList):
     def get_num_filters(self, chain: int | None = None) -> int:
         """get the number of filters of the specfied chain
 
-        :param chain: id of the chain, defaults to None to get the total number
+        :param chain: id of the chain, defaults to :code:`None`  to get the total number
                       of filters across all chains
         """
 
@@ -162,6 +170,7 @@ class Chain(abc.FilterGraphObject, UserList):
 
         :param input: True to check the input pad index, False the output.
         :param index: pad index to be normalized
+        :type index: PAD_INDEX
         :return: normalized pad index
         """
 
@@ -180,16 +189,18 @@ class Chain(abc.FilterGraphObject, UserList):
     def add_label(
         self,
         label: str,
-        inpad: PAD_INDEX = None,
-        outpad: PAD_INDEX = None,
-        force: bool = None,
-    ) -> fgb.Graph:
+        inpad: PAD_INDEX | None = None,
+        outpad: PAD_INDEX | None = None,
+        force: bool = False,
+    ) -> Graph:
         """label a filter pad
 
         :param label: name of the new label. Square brackets are optional.
-        :param inpad: input filter pad index or a sequence of pads, defaults to None
-        :param outpad: output filter pad index, defaults to None
-        :param force: True to delete existing labels, defaults to None
+        :param inpad: input filter pad index or a sequence of pads, defaults to :code:`None` 
+        :type inpad: PAD_INDEX | None
+        :param outpad: output filter pad index, defaults to :code:`None` 
+        :type outpad: PAD_INDEX | None
+        :param force: True to delete existing labels, defaults to :code:`None` 
         :return: actual label name
 
         Only one of inpad and outpad argument must be given.
@@ -208,7 +219,7 @@ class Chain(abc.FilterGraphObject, UserList):
     def append(self, item):
         return UserList.append(self, as_filter(item))
 
-    def extend(self, other: Chain | Sequence[fgb.Filter | str]):
+    def extend(self, other: Chain | Sequence[Filter | str]):
         return UserList.extend(self, [as_filter(f) for f in other])
 
     def insert(self, i, item):
@@ -216,13 +227,12 @@ class Chain(abc.FilterGraphObject, UserList):
 
     def __contains__(self, item):
         item = as_filter(item)
-        return any((f == item for f in self.data))
+        return any(f == item for f in self.data)
 
     def __ior__(self, other):
         raise Chain.Error("cannot assign operation outcome which is not a filterchain")
 
     def __iadd__(self, other):
-
         if len(other):
             fg = self + other if len(self) else Chain(other)
 
@@ -244,7 +254,7 @@ class Chain(abc.FilterGraphObject, UserList):
             self.data = fg.data
             return self
 
-    def iter_chains(self) -> Generator[Chain]:
+    def iter_chains(self) -> Iterator[Chain]:
         """iterate over chains of the filtergraphobject
 
         :yields: chain object
@@ -264,11 +274,11 @@ class Chain(abc.FilterGraphObject, UserList):
         chainable_first: bool,
         include_connected: bool,
         chainable_only: bool,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, bool]]:
+    ) -> Iterator[tuple[PAD_INDEX, Filter, bool]]:
         """Iterate over input pads of the filters on the filterchain
 
         :param filters: list of filters to iterate
-        :param iter_filter_pad: Filter class function to iterate on filter pads
+        :param iter_filter_pad: :py:class:`Filter` class function to iterate on filter pads
         :param filter_nochain: index of the filter, which pads are not chained
             (i.e., implicitly connected)
         :param pad: pad id
@@ -279,6 +289,7 @@ class Chain(abc.FilterGraphObject, UserList):
         :param include_connected: True to include pads connected to input
             streams, defaults to False
         :yield: filter pad index, filter object, and True if no connection
+        :ytype: tuple[PAD_INDEX, Filter, bool]
         """
 
         if len(self) == 0:
@@ -343,22 +354,7 @@ class Chain(abc.FilterGraphObject, UserList):
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
-        """Iterate over input pads of the filters on the filterchain
-
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
-        :param exclude_stream_specs: True to not include input streams
-        :param only_stream_specs: True to only include input streams
-        :param exclude_chainable: True to leave out the last input pads, defaults to False (all avail pads)
-        :param chainable_first: True to yield the last input first then the rest, defaults to False
-        :param include_connected: True to include pads connected to input streams, defaults to False
-        :param unlabeled_only: True to leave out named inputs, defaults to False to return all inputs
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all inputs
-        :param full_pad_index: True to return 3-element index
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
-        """
+    ) -> Iterator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
 
         for index, filter, other_index in self._iter_pads(
             fgb.Filter.iter_input_pads,
@@ -396,20 +392,7 @@ class Chain(abc.FilterGraphObject, UserList):
         unlabeled_only: bool = False,
         chainable_only: bool = False,
         full_pad_index: bool = False,
-    ) -> Generator[tuple[PAD_INDEX, fgb.Filter, PAD_INDEX | None]]:
-        """Iterate over output pads of the filters on the filterchain
-
-        :param pad: pad id, defaults to None
-        :param filter: filter index, defaults to None
-        :param chain: chain index, defaults to None
-        :param exclude_chainable: True to leave out the last output pads, defaults to False (all avail pads)
-        :param chainable_first: True to yield the last output first then the rest, defaults to False
-        :param include_connected: True to include pads connected to output streams, defaults to False
-        :param unlabeled_only: True to leave out named outputs, defaults to False to return all outputs
-        :param chainable_only: True to only iterate chainable pads, defaults to False to return all outputs
-        :param full_pad_index: True to return 3-element index
-        :yield: filter pad index, link label, filter object, output pad index of connected filter if connected
-        """
+    ) -> Iterator[tuple[PAD_INDEX, Filter, PAD_INDEX | None]]:
 
         for index, filter, other_index in self._iter_pads(
             fgb.Filter.iter_output_pads,
@@ -445,31 +428,7 @@ class Chain(abc.FilterGraphObject, UserList):
         chain_siso: bool = True,
         sws_flags_policy: Literal["first", "last"] | int | None = None,
         inplace: bool = False,
-    ) -> fgb.Graph | Chain | None:
-        """combine another filtergraph object and make downstream connections (worker)
-
-        :param right: other filtergraph
-        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
-        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
-        :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param sws_flags_policy: Defines how to set ``sws_flags``:
-
-            * ``'first'``: to use the first ``sws_flags`` found among the
-              filtergraphs (searched ``self`` first then ``others``)
-            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
-              not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-              refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-              ``FFmpegioError`` exception. Otherwise, it uses the only one found
-              or none if none not found.
-
-        :param inplace: ``True`` to add the ``right`` graph in place.
-        :return: new filtergraph object
-
-        * link labels may be auto-renamed if there is a conflict
-
-        """
+    ) -> Graph | Chain | None:
 
         return self._connect(
             fgb.Graph.connect,
@@ -493,30 +452,7 @@ class Chain(abc.FilterGraphObject, UserList):
         to_left: PAD_INDEX | str | list[PAD_INDEX | str] | None = None,
         chain_siso: bool = True,
         sws_flags_policy: Literal["first", "last"] | int | None = None,
-    ) -> fgb.Graph | Chain | None:
-        """combine another filtergraph object and make downstream connections (worker)
-
-        :param left: other filtergraph
-        :param fwd_links: a list of tuples, pairing self's output pad and right's input pad
-        :param bwd_links: a list of tuples, pairing right's output pad and self's input pad
-        :param chain_siso: True to chain the single-input single-output connection, default: True
-        :param sws_flags_policy: Defines how to set ``sws_flags``:
-
-            * ``'first'``: to use the first ``sws_flags`` found among the
-              filtergraphs (searched ``self`` first then ``others``)
-            * ``'last'``: use this filtergraph's ``sws_flags`` (or none used if
-              not set).
-            * ``int``: specify which filtergraph's ``sws_flags`` to use. ``0``
-              refers to this object, ``1`` refers to ``others[0]``, etc.
-            * ``None``: if more than one have the ``sws_flags`` set, raises
-              ``FFmpegioError`` exception. Otherwise, it uses the only one found
-              or none if none not found.
-
-        :return: new filtergraph object
-
-        * link labels may be auto-renamed if there is a conflict
-
-        """
+    ) -> Graph | Chain | None:
 
         return self._connect(
             fgb.Graph.rconnect,
@@ -531,7 +467,7 @@ class Chain(abc.FilterGraphObject, UserList):
 
     def _connect(
         self,
-        graph_connect,  # fgb.Graph.connect or fgb.Graph.rconnect
+        graph_connect,  # Graph.connect or Graph.rconnect
         other: abc.FilterGraphObject,
         from_left: PAD_INDEX | str | list[PAD_INDEX | str],
         to_right: PAD_INDEX | str | list[PAD_INDEX | str],
@@ -540,7 +476,7 @@ class Chain(abc.FilterGraphObject, UserList):
         chain_siso: bool,
         sws_flags_policy: Literal["first", "last"] | int | None,
         inplace: bool,
-    ) -> fgb.Graph | Chain | None:
+    ) -> Graph | Chain | None:
         """helper for connect and rconnect"""
 
         fg = graph_connect(
@@ -582,31 +518,7 @@ class Chain(abc.FilterGraphObject, UserList):
         chainable_only: bool | Literal["left", "right", "auto"] = "auto",
         chain_siso: bool = True,
         inplace: bool = False,
-    ) -> Chain | fgb.Graph:
-        """attach filter, chain, graph, or labels to available output pads
-
-        :param right: output filtergraph or labels. If ``str``, the expression
-            is first attempted to be converted to a filtergraph object. If the
-            attempt fails, it is treated as a label.
-        :param left_on: pad_index, specify the output pad to connect ``right``
-            to, defaults to auto-detect (first available)
-        :param right_on: pad index, specifies the input pad of ``right`` to
-            connect to the ``left_on`` pad, defaults to auto-detect (first
-            available)
-        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
-            ``righ_on`` pads to be only those that can extend the existing
-            chains. To force this condition only on one side, use ``'left'`` or
-            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
-            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
-            ``Graph`` defaults to ``False``
-        :param chain_siso: ``True`` (default) to chain the new connection,
-            ``False`` to stack attached filtergraph.
-        :param inplace: ``True`` to store the output filtergraph in place.
-            If ``'inplace=True`` but the output is not of the same class type,
-            a ``ValueError` exception will be raised.
-        :return: new filtergraph object or ``None`` if ``inplace=True``
-
-        """
+    ) -> Chain | Graph:
 
         if chainable_only == "auto":
             chainable_only = True
@@ -641,25 +553,7 @@ class Chain(abc.FilterGraphObject, UserList):
         *,
         chainable_only: bool | Literal["left", "right", "auto"] = "auto",
         chain_siso: bool = True,
-    ) -> Chain | fgb.Graph:
-        """attach filter, chain, graph, or labels to available input pads
-
-        :param left: input filtergraph or labels
-        :param left_on: pad_index, specify the output pad of ``left``,
-            defaults to auto-detect (first available)
-        :param right_on: pad index, specifies which input pad to connect
-            ``left`` to, defaults to auto-detect (first available)
-        :param chainable_only: ``True`` to limit auto-detecting ``left_on`` and
-            ``righ_on`` pads to be only those that can extend the existing
-            chains. To force this condition only on one side, use ``'left'`` or
-            ``'right'``. If ``"auto"`` (default) depends on this filtergraph
-            object type: ``Filter`` and ``Chain`` defaults to ``True`` while
-            ``Graph`` defaults to ``False``
-        :param chain_siso: ``True`` (default) to chain the new connection,
-            ``False`` to stack attached filtergraph.
-        :return: new filtergraph object or ``None`` if ``inplace=True``
-
-        """
+    ) -> Chain | Graph:
 
         if chainable_only == "auto":
             chainable_only = True
@@ -713,7 +607,7 @@ class Chain(abc.FilterGraphObject, UserList):
     def _check_partial_pad_index(
         self, index: tuple[int | None, int | None, int | None], is_input: bool
     ) -> bool:
-        """True if defined values of the partial pad index are valid"""
+        """:code:`True` if defined values of the partial pad index are valid"""
 
         if index[0] is not None and index[0] > 0:
             return False
@@ -728,7 +622,7 @@ class Chain(abc.FilterGraphObject, UserList):
         )
 
     def _input_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified input pad is chainable"""
+        """:code:`True` if specified input pad is chainable"""
         if index[0]:
             return False
         try:
@@ -739,7 +633,7 @@ class Chain(abc.FilterGraphObject, UserList):
             return filter._input_pad_is_chainable((0, 0, index[2]))
 
     def _output_pad_is_chainable(self, index: tuple[int, int, int]) -> bool:
-        """True if specified output pad is chainable"""
+        """:code:`True` if specified output pad is chainable"""
         if index[0]:
             return False
         try:

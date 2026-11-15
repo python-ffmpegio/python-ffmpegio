@@ -1,12 +1,18 @@
+.. :py:module:: ffmpegio.devices
+
 .. highlight:: python
+
 .. _devices:
 
-Hardware I/O Device Enumeration
-===============================
+Hardware I/O Device (:code:`ffmpegio.devices`)
+==============================================
+
+Overview
+--------
 
 FFmpeg supports `a number of hardware I/O devices <https://ffmpeg.org/ffmpeg-devices.html>`__, 
 from which video or audio data are read (sources) and to which data are written (sinks).
-For each device, which is specified via ``-f`` option, some of device hardware name
+For each device, which is specified via :code:`-f` option, some of device hardware name
 must be obtained via FFmpeg commands:
 
 .. code-block:: bash
@@ -29,13 +35,13 @@ Moreover, some devices provide a query interface for the capability of individua
    ffmpeg -f video4linux2 -list_formats all /dev/video0
 
 For multi-hardware use, the hardware configuration must be scanned and chosen for each computer
-even within a same OS. :py:mod:`ffmpegio.devices` module is intended to abstract the hardware
+even within a same OS. :code:`ffmpegio.devices` module is intended to abstract the hardware
 selection process via unified naming scheme following the stream specifiers. Device supports
 are implemented via plugin module, so user can implement interface for unsupported devices. 
 
 .. note::
 
-   Currently, only Windows DirectShow source device (``-f dshow``) is supported. Developing
+   Currently, only Windows DirectShow source device (:code:`-f dshow`) is supported. Developing
    device plugins, especially those on MacOS, requires user feedback and involvement. If
    you want a specific device to be supported, please post 
    `an issue on GitHub <https://github.com/python-ffmpegio/python-ffmpegio/issues>`__
@@ -44,7 +50,7 @@ are implemented via plugin module, so user can implement interface for unsupport
 How to Use 
 ----------
 
-By default, :py:mod:`ffmpegio` does not scan the system for supported devices. User must 
+By default, :code:`ffmpegio` does not scan the system for supported devices. User must 
 initialize the enumeration:
 
 .. code-block:: python
@@ -66,8 +72,8 @@ The returned variable is a dict:
    {('dshow', 'a:0'): 'Microphone (Realtek High Definition Audio)',
     ('dshow', 'v:0'): 'WebCam SC-10HDP12B24N'}
 
-Given the enumeration, the enumerated device can be used as the ``url`` in any
-:py:mod:`ffmpegio` functions interacting with FFmpeg. For example:
+Given the enumeration, the enumerated device can be used as the :code:`url` in any
+:code:`ffmpegio` functions interacting with FFmpeg. For example:
 
 .. code-block:: python
 

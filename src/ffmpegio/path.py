@@ -37,7 +37,7 @@ __all__ = [
 class FFmpegNotFound(FFmpegioError):
     def __init__(self):
         super().__init__(
-            "FFmpeg executables not found. Run `ffmpegio.set_path()` first or "
+            "FFmpeg executables not found. Run ffmpegio.set_path() first or "
             "place FFmpeg executables in auto-detectable path locations."
         )
 
@@ -56,7 +56,7 @@ shlex_join = (
 
 
 def found() -> bool:
-    """Returns ``True`` if ffmpeg and ffprobe binaries are located"""
+    """Returns :code:`True` if ffmpeg and ffprobe binaries are located"""
 
     return bool(FFMPEG_BIN and FFPROBE_BIN)
 
@@ -78,32 +78,38 @@ def where(probe: bool = False) -> str | None:
 
 def find(
     ffmpeg_path: str | None = None, ffprobe_path: str | None = None
-) -> tuple[str, str, str]:
+) -> tuple[str, str, Version]:
     """Set FFmpeg and FFprobe executables
 
     :param ffmpeg_path: Full path to either the ffmpeg executable file or
-                        to the folder housing both ffmpeg and ffprobe, defaults to None
-    :param ffprobe_path: Full path to the ffprobe executable file, defaults to None
+                        to the folder housing both ffmpeg and ffprobe, defaults to :code:`None` 
+    :param ffprobe_path: Full path to the ffprobe executable file, defaults to :code:`None` 
     :returns ffmpeg_path: path to ffmpeg binary
     :returns ffprobe_path: Path to ffprobe binary
     :returns ffmpeg_version: ffmpeg version string
 
-    If `ffmpeg_path` specifies a directory, the names of the executables are
-    auto-set to `ffmpeg` and `ffprobe`.
+    If :code:`ffmpeg_path` specifies a directory, the names of the executables are
+    auto-set to :code:`ffmpeg` and :code:`ffprobe`.
 
-    If the file locations are specified, the presence of the files will be
-    tested and an exception will be raised if both ffmpeg and ffprobe are not
-    valid executables.
+    If the file paths are specified, the presence of the executable files will be
+    tested and an exception will be raised if ffmpeg or ffprobe is not
+    a valid executable.
 
-    If no argument is specified, the executables are auto-detected in the following orders.
+    If no argument is specified, the executables are searched by the :ref:`ffmpeg finder 
+    plugin modules <plugins_finder>`, including built-in plugins. 
+    The order of the search paths is
 
-    (1) `ffmpeg` and `ffprobe` commands, i.e., the path to the parent directory
-        is included in the system PATH environmental variable.
-    (2) Run the `finder` plugin functions in the LIFO order and use the first valid
-        paths. There are two plugins currently offered: `ffmpegio-plugin-downloader`
-        and `ffmpegio-plugin-static-ffmpeg`.
-    (3) In Windows, additional locations are searched (e.g., C:\\Program Files\\ffmpeg).
-        See the documentation for the full list.
+    (1) User-supplied :py:func:`finder <ffmpegio.plugins.hookexec.finder>` plugins in the 
+        reverse registration-order
+    (2) Install path of the `ffmpeg-downloader package <https://github.com/python-ffmpegio/python-ffmpeg-downloader>`_ 
+        (only if the package is installed in the current Python environment). See :py:mod:`ffmpegio.plugins.finder_ffdl`
+        for more information.
+    (3) Install path of the `static-ffmpeg package <https://github.com/zackees/static_ffmpeg>`_ 
+        (only if the package is installed in the current Python environment) See :py:mod:`ffmpegio.plugins.finder_static`
+        for more information.
+    (4) System path
+    (5) In Windows, additional locations are searched (e.g., :file:`C:\\\\Program Files\\\\ffmpeg`).
+        See :py:mod:`ffmpegio.plugins.finder_win32` for the full location list.
 
     """
 
@@ -160,7 +166,7 @@ def ffmpeg(
 ) -> CompletedProcess | Popen:
     """just run ffmpeg without bells-n-whistles
 
-    :param args: FFmpeg command arguments without `ffmpeg`
+    :param args: FFmpeg command arguments without :code:`ffmpeg`
     :param sp_run: command runner, defaults to subprocess.run
     :param *sp_args: sp_run arguments
     :param **other_sp_args: sp_run keyword arguments
@@ -237,7 +243,7 @@ def check_version(
     """check FFmpeg version against the given version for the specified condition
 
     :param ver: desired version string
-    :param cond: condition, defaults to None (">=)
+    :param cond: condition, defaults to :code:`None`  (">=)
     :return: True if condition is met, False if FFmpeg binary is not found or a nightly release
 
     Note "nightly" builds are assumed to be the latest.

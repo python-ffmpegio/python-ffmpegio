@@ -1,4 +1,29 @@
-"""search additional paths in Windows"""
+"""Search additional paths in Windows
+
+The :py:func:`finder <ffmpegio.plugins.hookspecs.finder>` hook of this built-in plugin module returns the full paths
+of :file:`ffmpeg` and :file:`ffprobe` if both executables are found in one of the following 
+search paths:
+
+    * :file:`%PROGRAMFILES%\\\\ffmpeg\\\\bin`
+    * :file:`%PROGRAMFILES(X86)%\\\\ffmpeg\\\\bin`
+    * :file:`%USERPROFILE%\\\\ffmpeg\\\\bin`
+    * :file:`%APPDATA%\\\\ffmpeg\\\\bin`
+    * :file:`%APPDATA%\\\\programs\\\\ffmpeg\\\\bin`
+    * :file:`%LOCALAPPDATA%\\\\ffmpeg\\\\bin`
+    * :file:`%LOCALAPPDATA%\\\\programs\\\\ffmpeg\\\\bin`
+
+Here, :file:`%xxx%` are the standard Windows environmental variables:
+
+    ===============================  =====================================
+    Windows Environmental Variables  Example path
+    ===============================  =====================================
+    :code:`%PROGRAMFILES%`           :file:`C:\\\\Program Files`
+    :code:`%PROGRAMFILES(X86)%`      :file:`C:\\\\Program Files (x86)`
+    :code:`%USERPROFILE%`            :file:`C:\\\\Users\\\\john`
+    :code:`%APPDATA%`                :file:`C:\\\\Users\\\\john\\\\AppData\\\\Roaming`
+    :code:`%LOCALAPPDATA%`           :file:`C:\\\\Users\\\\john\\\\AppData\\\\Local`
+    ===============================  =====================================
+"""
 
 from __future__ import annotations
 
@@ -14,34 +39,29 @@ hookimpl = HookimplMarker("ffmpegio")
 def finder():
     """Set path to FFmpeg bin directory
 
-    :param dir: full path of the FFmpeg bin directory, defaults to None, which
-                only look in the default locations
-    :type dir: str, optional
-    :raises Exception: if failed to find ffmpeg or ffprobe binary
-
     The following paths are tested in the order appeared:
 
-    * ``%PROGRAMFILES%\\ffmpeg\\bin``
-    * ``%PROGRAMFILES(X86)%\\ffmpeg\\bin``
-    * ``%USERPROFILE%\\ffmpeg\\bin``
-    * ``%APPDATA%\\ffmpeg\\bin``
-    * ``%APPDATA%\\programs\\ffmpeg\\bin``
-    * ``%LOCALAPPDATA%\\ffmpeg\\bin``
-    * ``%LOCALAPPDATA%\\programs\\ffmpeg\\bin``
+    * :code:`%PROGRAMFILES%\\ffmpeg\\bin`
+    * :code:`%PROGRAMFILES(X86)%\\ffmpeg\\bin`
+    * :code:`%USERPROFILE%\\ffmpeg\\bin`
+    * :code:`%APPDATA%\\ffmpeg\\bin`
+    * :code:`%APPDATA%\\programs\\ffmpeg\\bin`
+    * :code:`%LOCALAPPDATA%\\ffmpeg\\bin`
+    * :code:`%LOCALAPPDATA%\\programs\\ffmpeg\\bin`
 
-    Here, ``%xxx%`` are the standard Windows environmental variables:
+    Here, :code:`%xxx%` are the standard Windows environmental variables:
 
     ===============================  =====================================
     Windows Environmental Variables  Example path
     ===============================  =====================================
-    ``%PROGRAMFILES%``               ``C:\\Program Files``
-    ``%PROGRAMFILES(X86)%``          ``C:\\Program Files (x86)``
-    ``%USERPROFILE%``                ``C:\\Users\\john``
-    ``%APPDATA%``                    ``C:\\Users\\john\\AppData\\Roaming``
-    ``%LOCALAPPDATA%``               ``C:\\Users\\john\\AppData\\Local``
+    :code:`%PROGRAMFILES%`               :code:`C:\\Program Files`
+    :code:`%PROGRAMFILES(X86)%`          :code:`C:\\Program Files (x86)`
+    :code:`%USERPROFILE%`                :code:`C:\\Users\\john`
+    :code:`%APPDATA%`                    :code:`C:\\Users\\john\\AppData\\Roaming`
+    :code:`%LOCALAPPDATA%`               :code:`C:\\Users\\john\\AppData\\Local`
     ===============================  =====================================
 
-    When :py:mod:`ffmpegio` is first imported in Python, it automatically run
+    When :code:`ffmpegio` is first imported in Python, it automatically run
     this function once, searching in the system path and Windows default
     locations (see above). If both ffmpeg and ffprobe are not found, a
     warning message is displayed.

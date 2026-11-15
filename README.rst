@@ -14,7 +14,7 @@
 .. |github-status| image:: https://img.shields.io/github/actions/workflow/status/python-ffmpegio/python-ffmpegio/test_n_pub.yml?branch=main
   :alt: GitHub Workflow Status
 
-Python `ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
+Python :code:`ffmpegio` package aims to bring the full capability of `FFmpeg <https://ffmpeg.org>`__
 to read, write, probe, and manipulate multimedia data to Python. FFmpeg is an open-source cross-platform 
 multimedia framework, which can handle most of the multimedia formats available today.
 
@@ -24,7 +24,7 @@ Main Features
 * Pure-Python light-weight package interacting with FFmpeg executable found in 
   your system
 * Read, write, filter, and create functions for audio, image, and video data
-* Context-managing `ffmpegio.open` to perform stream read/write operations of video and audio
+* Context-managing :code:`ffmpegio.open` to perform stream read/write operations of video and audio
 * Media readers can output the data in a Numpy array (if Numpy is installed) or a plain :code:`bytes` 
   objects in a :code:`dict`. The mode of operation can be switched with :code:`ffmpegio.use` function.
 * Media writers can write a new media file from either data given in a Numpy array or :code:`bytes` 
@@ -35,15 +35,15 @@ Main Features
 * Accepts all FFmpeg options including filter graphs
 * Transcode a media file to another in Python
 * Supports a user callback whenever FFmpeg updates its progress information file 
-  (see `-progress` FFmpeg option)
-* `ffconcat` scripter to make the use of `-f concat` demuxer easier
+  (see :code:`-progress` FFmpeg option)
+* :code:`ffconcat` scripter to make the use of :code:`-f concat` demuxer easier
 * I/O device enumeration to eliminate the need to look up device names. (currently supports only: Windows DirectShow)
 * More features to follow
 
 Installation
 ------------
 
-Install the full `ffmpegio` package via ``pip``:
+Install the full :code:`ffmpegio` package via :code:`pip`:
 
 .. code-block:: bash
 
@@ -65,7 +65,7 @@ with them.
   :code:`static-ffmpeg`       Support the FFmpeg binaries installed by :code:`static-ffmpeg`             :code:`ffmpegio-plugin-static-ffmpeg`
   ==========================  ========================================================================== =====================================
 
-These features are automatically enabled if the external packages are installed along along side with `ffmpegio`.
+These features are automatically enabled if the external packages are installed along along side with :code:`ffmpegio`.
 :code:`ffmpegio` is imported 
 
 .. note::
@@ -77,12 +77,12 @@ These features are automatically enabled if the external packages are installed 
 Documentation
 -------------
 
-Visit our `GitHub page here <https://python-ffmpegio.github.io/python-ffmpegio/>`__
+Visit our :code:`GitHub page here <https://python-ffmpegio.github.io/python-ffmpegio/>`__
 
 Examples
 --------
 
-To import `ffmpegio`
+To import :code:`ffmpegio`
 
 .. code-block:: python
 
@@ -294,7 +294,7 @@ To enable this feature, you must also install :code:`matplotlib`:
 
   pip install pillow
 
-Given an image processing iterator, `image_processer()`, which yields a 
+Given an image processing iterator, :code:`image_processer()`, which yields a 
 :code:`PIL.Image.Image`, we can create a video file:
 
 .. code-block:: python
