@@ -151,13 +151,18 @@ def read(
 
     """
 
-    # use user-specified map or default '0:a:0' map
-    output_map = options.pop("map", "0:a:0")
+    # use user-specified map or default ['0:a:0'] map if filter_complex is not set
+    output_stream = options.pop("map", None)
+    output_map = (
+        (None if "filter_complex" in options else ["0:a:0"])
+        if output_stream is None
+        else [output_stream]
+    )
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_read(
         [url] if utils.is_valid_input_url(url) else url,
-        [output_map],
+        output_map,
         options,
         extra_outputs,
         squeeze,
