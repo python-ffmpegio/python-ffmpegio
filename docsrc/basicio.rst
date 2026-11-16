@@ -203,8 +203,8 @@ instead of a single :code:`ss` output option:
    outputs. If the reader is called without the `map` option, it auto-maps the complex 
    filtergraph output stream accordingly.
 
-Extra outputs
-^^^^^^^^^^^^^
+Extra outputs (experimental)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The reader functions accept the optional :code:`extra_outputs` keyword argument to create a new
 media file encoding the raw media data, which is being returned. This is only useful if the input 
@@ -221,52 +221,47 @@ later record:
    fs, x = ffmpegio.audio.read('my_audio.mp3', filter_complex="[0]aresample=16000,asplit[out1][out2]",
                                map=["[out1]"], extra_outputs=[('archive_16k.flac', {"map": "[out2]"})])
 
+.. warning::
+
+   This feature is not final and subject to change in future releases.
+
 Single-Stream Writers
 ---------------------
 
-
 The :code:`write()` functions take a raw media data blob from Python and create a media file/stream.
+Unlike :code:`read()`, :py:mod:`ffmpegio` auto-selects the first writer-helper hook which can handle
+the given raw data. 
 
-The output data format depends on the plugin configuration, which can be checked with :py:func:`ffmpegio.using()`
-and can be changed with :py:func:`ffmpegio.use()`. In this document, we assume that :py:mod:`numpy` is installed
-so that both :code:`ffmpegio.using("audio")` and :code:`ffmpegio.using("video")` returns :code:`"read_numpy"`.
+The audio and video writers requires three arguments: output file name (url), sampling or frame rate,
+and the raw data blob. For image writing, only the url and data are needed. :py:mod:`ffmpegio` will 
+auto-analyze and configure the FFmpeg input options and FFmpeg will automatically configure the rest. 
+User may specify additional options, including FFmpeg to further filter the data.
 
-Here are basic examples of the single-stream readers:
+Here are basic examples of the single-stream writers:
 
 .. code-block:: python
 
    import ffmpegio as ff
 
-   fs, audio_data = ff.audio.read('my_audio.mp3', sample_fmt='dbl', ac=1)
-   # input keyword arguments:
-   #   sample_fmt='dbl' - set samples to be float64 format
-   #   ac=1 - if necessary, convert audio channel format to mono to 
-   #          guarantee return 1D array
-   #
-   # outputs:
-   #   fs : int - the sampling rate of the audio data in samples/second
-   #   audio_data : np.ndarray - a 1D float64 array of all the audio samples
+   ff.audio.write('my_audio.mp3', fs, audio_data)
 
-   fps, video_data = ff.video.read('my_video.mp4', to=1, pix_fmt='gray')
-   # input keyword arguments:
-   #   to=1 : Limits to read only the first second
-   #   pix_fmt='gray' : if necessary, convert video pixels to 8-bit grayscale format
-   #                    (= 1 color component, 4th dimension is thus dropped)
-   #
-   # outputs:
-   #   fps : Fraction - the frame rate of the video data in frames/second 
-   #   video_data : np.ndarray - 3D uint8 array (frames x height x width) 
-   #                containing the first one second of frames
+   ff.video.write('my_video.mp4', fps, video_data, c="libx264", crf=23, preset="medium")
 
-   image_data = ff.image.read('my_video.mp4', ss=2.345, s=(480,320))
-   # input keyword arguments:
-   #   ss=2.345 : capture the nearest frame to 2.345 second mark
-   #   s=(480,320) : resize the video frame to 480-pixels wide by 320-pixels high
-   #
-   # output:
-   #   image_data : np.ndarray - 3D uint8 array (320 x 480 x 3) containing the
-   #                video frame at 2.345 second timemark. The pixels are in RGB24
-   #                format. The 3rd dimension is 
+   ff.image.write('my_image.png', image_data)
+
+Extra inputs
+^^^^^^^^^^^^
+
+Additional input sources (encoded media files/urls) can be supplied to the writers. This would be 
+useful to:
+
+- Add an audio track to the video
+- Overlay the video onto an existing video
+
+Extra outputs
+^^^^^^^^^^^^^
+
+Multiple output urls may be assigned, for example,  to save the data in different formats.
 
 Single-Stream Filters
 ---------------------
