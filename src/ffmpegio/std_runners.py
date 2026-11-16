@@ -46,11 +46,11 @@ def run_and_return_raw(
     # check configuration yields exactly one piped audio output
     if len(output_info) == 0:
         raise FFmpegioError("No audio stream found.")
-    if len(output_info) > 1:
-        raise ValueError("Too many audio stream found.")
     if output_info[0]["dst_type"] != "buffer":
         raise ValueError("Not outputting to pipe")
-
+    elif any(info['dst_type']=='buffer' for info in output_info[1:]):
+        raise ValueError("Too many piped output streams found.")
+    
     n_piped_outputs = sum(
         info["dst_type"] in ("buffer", "fileobj") for info in output_info
     )
