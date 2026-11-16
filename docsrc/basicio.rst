@@ -161,6 +161,18 @@ Both of these produces the same output as providing :code:`"my_audio.mp3"` as th
    to pass the data from Python to FFmpeg. Some media formats (like mp4) may fail because they require the 
    input file to be seekable. Pipes cannot be seeked.
 
+Output shape control
+^^^^^^^^^^^^^^^^^^^^
+
+By default, the reader functions set :code:`squeeze=True` so that the output shape does not contain any 
+singleton dimensions. If the number of video color components or the number of audio channels is :code:`1` 
+(e.g., grayscale video or monaural audio), the last dimension gets dropped. Likewise, if only one video 
+frame is present over the specified time interval, the first dimension may be dropped.
+
+Setting :code:`squeeze=False` guarantees that the reader functions returns data arrays of a known dimensionality:
+4D for video, 3D for image, and 2D for audio. This is useful when a Python program is subject to opening 
+arbitrary media files.
+
 Extra inputs
 ^^^^^^^^^^^^
 
@@ -187,7 +199,7 @@ instead of a single :code:`ss` output option:
 .. note::
 
    :py:mod:`ffmpegio` reader functions pre-analyze the filters to identify the stream
-   information (name, stream type, data type, and data shape) of the complex filtergraph 
+   information (name, stream type, data type, and data shape) of complex filtergraph 
    outputs. If the reader is called without the `map` option, it auto-maps the complex 
    filtergraph output stream accordingly.
 
@@ -197,7 +209,9 @@ Extra outputs
 The reader functions accept the optional :code:`extra_outputs` keyword argument to create a new
 media file encoding the raw media data, which is being returned. This is only useful if the input 
 stream is a live stream or FFmpeg filters the input stream so that what returned to Python is different 
-from the source.
+from the source. The extra output streams must be created explicitly by assigning a complex filtergraph
+via the :code:`filter_complex` keyword argument and providing the :code:`map` options to all the output
+streams, including the raw output.
 
 For example, FFmpeg resamples the audio first, the resampled audio may be stored in a new file for
 later record:
@@ -205,10 +219,54 @@ later record:
 .. code-block:: python
 
    fs, x = ffmpegio.audio.read('my_audio.mp3', filter_complex="[0]aresample=16000,asplit[out1][out2]",
-                               map=["out1"], extra_outputs=[('archive_16k.flac', {"map": "out2"})])
+                               map=["[out1]"], extra_outputs=[('archive_16k.flac', {"map": "[out2]"})])
 
 Single-Stream Writers
 ---------------------
+
+
+The :code:`write()` functions take a raw media data blob from Python and create a media file/stream.
+
+The output data format depends on the plugin configuration, which can be checked with :py:func:`ffmpegio.using()`
+and can be changed with :py:func:`ffmpegio.use()`. In this document, we assume that :py:mod:`numpy` is installed
+so that both :code:`ffmpegio.using("audio")` and :code:`ffmpegio.using("video")` returns :code:`"read_numpy"`.
+
+Here are basic examples of the single-stream readers:
+
+.. code-block:: python
+
+   import ffmpegio as ff
+
+   fs, audio_data = ff.audio.read('my_audio.mp3', sample_fmt='dbl', ac=1)
+   # input keyword arguments:
+   #   sample_fmt='dbl' - set samples to be float64 format
+   #   ac=1 - if necessary, convert audio channel format to mono to 
+   #          guarantee return 1D array
+   #
+   # outputs:
+   #   fs : int - the sampling rate of the audio data in samples/second
+   #   audio_data : np.ndarray - a 1D float64 array of all the audio samples
+
+   fps, video_data = ff.video.read('my_video.mp4', to=1, pix_fmt='gray')
+   # input keyword arguments:
+   #   to=1 : Limits to read only the first second
+   #   pix_fmt='gray' : if necessary, convert video pixels to 8-bit grayscale format
+   #                    (= 1 color component, 4th dimension is thus dropped)
+   #
+   # outputs:
+   #   fps : Fraction - the frame rate of the video data in frames/second 
+   #   video_data : np.ndarray - 3D uint8 array (frames x height x width) 
+   #                containing the first one second of frames
+
+   image_data = ff.image.read('my_video.mp4', ss=2.345, s=(480,320))
+   # input keyword arguments:
+   #   ss=2.345 : capture the nearest frame to 2.345 second mark
+   #   s=(480,320) : resize the video frame to 480-pixels wide by 320-pixels high
+   #
+   # output:
+   #   image_data : np.ndarray - 3D uint8 array (320 x 480 x 3) containing the
+   #                video frame at 2.345 second timemark. The pixels are in RGB24
+   #                format. The 3rd dimension is 
 
 Single-Stream Filters
 ---------------------
