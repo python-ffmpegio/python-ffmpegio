@@ -184,13 +184,28 @@ instead of a single :code:`ss` output option:
    image_1vs2 = ffmpegio.image.read([('video1.mp4', {'ss': 1}), ('video2.mp4', {'ss': 2})], 
                                     filter_complex="[0][1]hstack")
 
+.. note::
+
+   :py:mod:`ffmpegio` reader functions pre-analyze the filters to identify the stream
+   information (name, stream type, data type, and data shape) of the complex filtergraph 
+   outputs. If the reader is called without the `map` option, it auto-maps the complex 
+   filtergraph output stream accordingly.
 
 Extra outputs
 ^^^^^^^^^^^^^
 
-The reader functions accept optional :code:`extra_outputs` keyword argument to return the raw media data while
-also recording to another file. This is only useful if the input stream is a live stream or FFmpeg (explicitly) 
-filters the input stream so that what returned to Python is different from the source.
+The reader functions accept the optional :code:`extra_outputs` keyword argument to create a new
+media file encoding the raw media data, which is being returned. This is only useful if the input 
+stream is a live stream or FFmpeg filters the input stream so that what returned to Python is different 
+from the source.
+
+For example, FFmpeg resamples the audio first, the resampled audio may be stored in a new file for
+later record:
+
+.. code-block:: python
+
+   fs, x = ffmpegio.audio.read('my_audio.mp3', filter_complex="[0]aresample=16000,asplit[out1][out2]",
+                               map=["out1"], extra_outputs=[('archive_16k.flac', {"map": "out2"})])
 
 Single-Stream Writers
 ---------------------
