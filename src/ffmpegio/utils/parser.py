@@ -185,7 +185,7 @@ def compose(args, command="", shell_command=False):
         for key, vals in opts_parsed.items():
             kbase = f"-{key}"
             if None in vals:
-                val = val = vals.pop(None)
+                val = vals.pop(None)
                 set_arg(kbase, val)
             for st, val in vals.items():
                 set_arg(f"{kbase}:{st}", val)
