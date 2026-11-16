@@ -75,7 +75,7 @@ from .errors import (
     FFmpegioNoPipeAllowed,
 )
 from .filtergraph.abc import FilterGraphObject
-from .stream_spec import parse_map_option, stream_type_to_media_type
+from .stream_spec import parse_map_option, stream_type_to_media_type, is_map_option
 from .threading import CopyFileObjThread, ReaderThread, WriterThread
 from .utils import (
     FFmpegInputUrlComposite,
@@ -1734,6 +1734,18 @@ def process_url_outputs(
             # only URL given
             opts = {**options}
 
+        if "map" not in opts:
+            missing_map = True
+        else:
+            # user-defined map option, make sure filtergraph label has
+            map_opt = opts["map"]
+            if isinstance(map_opt, str) and not (
+                is_map_option(map_opt)
+                or map_opt.startswith("[")
+                or map_opt.endswith("]")
+            ):
+                opts["map"] = f"[{opts['map']}]"
+
         # check url (must be url and not fileobj)
         if utils.is_fileobj(url, writable=True):
             output_info = {"dst_type": "fileobj", "fileobj": url}
@@ -1753,9 +1765,6 @@ def process_url_outputs(
 
         # leave the URL None if data needs to be piped in
         add_url(args, "output", *url_opts)
-
-        if "map" not in opts:
-            missing_map = True
 
     if missing_map and not skip_automapping:
         # some output file is missing `map` option
