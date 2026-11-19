@@ -1,7 +1,6 @@
 import logging
 
 from . import configure, utils
-from . import filtergraph as fgb
 from ._typing import (
     Any,
     DTypeString,
@@ -12,17 +11,15 @@ from ._typing import (
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlEx,
-    FFmpegUrlString,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegUrlString,
-    FFmpegOutputOptionTuple,
 )
-from .filtergraph.abc import FilterGraphObject
 from .errors import FFmpegioError
+from .filtergraph.abc import FilterGraphObject
 from .std_runners import run_and_return_encoded, run_and_return_raw
 
-__all__ = ["create", "read", "write", "filter"]
+__all__ = ["create", "filter", "read", "write"]
 
 logger = logging.getLogger("ffmpegio")
 
@@ -32,16 +29,16 @@ def create(
     *args,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options,
 ) -> RawDataBlob:
-    """Create an image using a source video filter
+    """Create image data using an FFmpeg source filter
 
     :param name: name of the source filter
     :param args: sequential filter option arguments. Only valid for
                     a single-filter expr, and they will overwrite the
                     options set by expr.
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to :code:`None`  (no show/capture)
@@ -75,7 +72,7 @@ def create(
 
     """
 
-    url, t_, options = configure.config_input_fg(expr, args, options)
+    url, _, options = configure.config_input_fg(expr, args, options)
 
     return read(
         url,
@@ -98,16 +95,16 @@ def read(
     ) = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options,
 ) -> RawDataBlob:
-    """Read an image file or a snapshot of a video frame
+    """Read image or one video frame
 
     :param url: URL of the image or video file to read.
     :type url: FFmpegInputUrlEx | FFmpegInputOptionTuple | list[FFmpegInputUrlEx | FFmpegInputOptionTuple]
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of a url string and an option dict.
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to :code:`None`  (no show/capture)
@@ -174,15 +171,11 @@ def write(
     ),
     data: RawDataBlob,
     *,
-    extra_inputs: (
-        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
-    ) = None,
-    dtype: DTypeString | None = None,
-    shape: ShapeTuple | None = None,
+    extra_inputs: (list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None) = None,
     progress: ProgressCallable | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options,
 ) -> bytes | None:
     """Write image data to a file.
@@ -190,30 +183,26 @@ def write(
     :param url: URL of the image file to write.
     :type url: FFmpegInputUrlEx | FFmpegInputOptionTuple | list[FFmpegInputUrlEx | FFmpegInputOptionTuple]
     :param data: image (or video frame) data object to be written. Its data type must be supported
-        by a loaded plugin module (e.g., a :py:class:`BytesRawDataBlob  
-        <ffmpegio.typing.BytesRawDataBlob>` or a :py:class:`numpy.ndarray` 
-        if :py:mod:`numpy` is installed. 
-        
+        by a loaded plugin module (e.g., a :py:class:`BytesRawDataBlob
+        <ffmpegio.typing.BytesRawDataBlob>` or a :py:class:`numpy.ndarray`
+        if :py:mod:`numpy` is installed.
+
         The video data may be 2D or 3D array, and its axes are given by
-        :code:`(rows, columns[, components])`. The data type of each 
-        pixel value must be compatible with FFmpeg's output :code:`pix_fmt` 
+        :code:`(rows, columns[, components])`. The data type of each
+        pixel value must be compatible with FFmpeg's output :code:`pix_fmt`
         option. See :ref:`pix_fmt_opts`.
     :type data: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to :code:`None` .
         Each source may be url string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
-    :param dtype: output data type, defaults to :code:`None`  (auto-detect)
-    :type dtype: DTypeString | None
-    :param shape: output data shape, defaults to :code:`None`  (auto-detect)
-    :type shape: ShapeTuple | None
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
-    :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
+    :param overwrite: True to overwrite if output url exists, defaults to :code:`None`
         (auto-select)
     :param show_log: True to show FFmpeg log messages on the console,
         defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or
-        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None` 
+        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None`
     :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     """
@@ -238,7 +227,7 @@ def write(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_write(
-        url, [{"r": 1}], extra_inputs, options, [data], [dtype], [shape]
+        url, [{"r": 1}], extra_inputs, options, [data]
     )
 
     return run_and_return_encoded(
@@ -256,28 +245,26 @@ def filter(
     expr: str | FilterGraphObject | None,
     input: RawDataBlob,
     *,
-    extra_inputs: (
-        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
-    ) = None,
+    extra_inputs: (list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None) = None,
     extra_outputs: (
         list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options,
 ) -> RawDataBlob:
-    """Filter image pixels.
+    """Filter image pixels
 
     :param expr: SISO filter graph or None if implicit filtering via output options.
     :param input: input image (or video frame) data object to be filtered. Its data type must be supported
-        by a loaded plugin module (e.g., a :py:class:`BytesRawDataBlob  
-        <ffmpegio.typing.BytesRawDataBlob>` or a :py:class:`numpy.ndarray` 
-        if :py:mod:`numpy` is installed. 
-        
+        by a loaded plugin module (e.g., a :py:class:`BytesRawDataBlob
+        <ffmpegio.typing.BytesRawDataBlob>` or a :py:class:`numpy.ndarray`
+        if :py:mod:`numpy` is installed.
+
         The video data may be 2D or 3D array, and its axes are given by
-        :code:`(rows, columns[, components])`. The data type of each 
-        pixel value must be compatible with FFmpeg's output :code:`pix_fmt` 
+        :code:`(rows, columns[, components])`. The data type of each
+        pixel value must be compatible with FFmpeg's output :code:`pix_fmt`
         option. See :ref:`pix_fmt_opts`.
     :type input: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to :code:`None` .
@@ -286,12 +273,12 @@ def filter(
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of a url string and an option dict.
     :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
         defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or
-        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None` 
+        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None`
     :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     :return data: one-frame video data object. Its data type depends on the selected

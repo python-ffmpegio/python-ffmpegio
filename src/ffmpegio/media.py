@@ -6,7 +6,6 @@ from fractions import Fraction
 
 from . import configure, ffmpegprocess, utils
 from ._typing import (
-    DTypeString,
     FFmpegOptionDict,
     FFmpegUrlString,
     InputInfoDict,
@@ -17,7 +16,6 @@ from ._typing import (
     ProgressCallable,
     RawDataBlob,
     RawOutputInfoDict,
-    ShapeTuple,
     Unpack,
 )
 from .configure import (
@@ -26,6 +24,7 @@ from .configure import (
     FFmpegInputUrlEx,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
+    FFmpegOutputOptionTuple,
     FFmpegOutputUrlEx,
 )
 from .errors import FFmpegError
@@ -34,7 +33,7 @@ from .utils import RawStreamDef
 
 logger = logging.getLogger("ffmpegio")
 
-__all__ = ["read", "write", "filter"]
+__all__ = ["filter", "read", "write"]
 
 
 def _runner(
@@ -131,7 +130,7 @@ def read(
     sp_kwargs: dict | None = None,
     **options: Unpack[FFmpegOptionDict],
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
-    """Read multiple raw media data from multiple media files
+    """Read raw media data from multiple streams
 
     .. warning::
 
@@ -190,7 +189,7 @@ def read(
     )
 
     # run FFmpeg
-    proc, input_pipes, output_pipes = _runner(
+    *_, output_pipes = _runner(
         args, input_info, output_info, show_log, progress, sp_kwargs
     )
 
@@ -206,8 +205,6 @@ def write(
     stream_types: Sequence[MediaType],
     *stream_args: tuple[RawStreamDef, ...],
     extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None = None,
-    stream_dtypes: list[DTypeString | None] | None = None,
-    stream_shapes: list[ShapeTuple | None] | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
@@ -232,13 +229,6 @@ def write(
         Each source may be url string or a pair of a url string
         and an option dict.
     :type extra_inputs: Sequence[str | tuple[str, FFmpegOptionDict]] | None
-    :param stream_dtypes: list of numpy-style data type strings of input samples
-        or frames of input media streams, defaults to :code:`None`
-        (auto-detect).
-    :type stream_dtypes: list[DTypeString | None]
-    :param stream_shapes: list of shapes of input samples or frames of input
-        media streams, defaults to :code:`None` (auto-detect).
-    :type stream_shapes: list[ShapeTuple | None]
     :param overwrite: True to overwrite if output url exists, defaults to :code:`None`  (auto-select)
     :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
     :param progress: progress callback function, defaults to :code:`None`
@@ -263,13 +253,7 @@ def write(
     input_options, input_data = utils.raw_input_options(stream_types, stream_args)
 
     args, input_info, output_info = configure.init_media_write(
-        urls,
-        input_options,
-        extra_inputs,
-        options,
-        input_data,
-        stream_dtypes,
-        stream_shapes,
+        urls, input_options, extra_inputs, options, input_data
     )
 
     # run FFmpeg
@@ -373,7 +357,7 @@ def filter(
         raise RuntimeError("Something went wrong in setting up filter operation...")
 
     # run FFmpeg
-    proc, input_pipes, output_pipes = _runner(
+    *_, output_pipes = _runner(
         args, input_info, output_info, show_log, progress, sp_kwargs
     )
 

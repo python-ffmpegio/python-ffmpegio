@@ -3,7 +3,6 @@ import warnings
 from fractions import Fraction
 
 from . import analyze, configure, utils
-from . import filtergraph as fgb
 from ._typing import (
     Any,
     DTypeString,
@@ -17,16 +16,15 @@ from .analyze import VideoLog
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlEx,
-    FFmpegUrlString,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegUrlString,
 )
-from .filtergraph.abc import FilterGraphObject
 from .errors import FFmpegioError
+from .filtergraph.abc import FilterGraphObject
 from .std_runners import run_and_return_encoded, run_and_return_raw
 
-__all__ = ["create", "read", "write", "filter", "detect"]
+__all__ = ["create", "detect", "filter", "read", "write"]
 
 logger = logging.getLogger("ffmpegio")
 
@@ -40,7 +38,7 @@ def create(
     sp_kwargs: dict[str, Any] | None = None,
     **options,
 ) -> tuple[Fraction | int, RawDataBlob]:
-    """Create a video using a source video filter
+    """Create video data using an FFmpeg source filter
 
     :param expr: source filter graph
     :param args: sequential filter option arguments. Only valid for
@@ -212,8 +210,6 @@ def write(
     extra_inputs: (
         list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
     ) = None,
-    dtype: DTypeString | None = None,
-    shape: ShapeTuple | None = None,
     progress: ProgressCallable | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
@@ -223,7 +219,7 @@ def write(
     sp_kwargs: dict[str, Any] | None = None,
     **options,
 ) -> bytes | None:
-    """Write raw video data to a file
+    """Write video data to a file
 
     :param url: URL of the video file to write.
     :type url: FFmpegInputUrlEx | FFmpegInputOptionTuple | list[FFmpegInputUrlEx | FFmpegInputOptionTuple]
@@ -240,10 +236,6 @@ def write(
     :param extra_inputs: list of additional input sources, defaults to :code:`None` . Each source may be url
         string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None
-    :param dtype: output data type, defaults to :code:`None`  (auto-detect)
-    :type dtype: DTypeString | None
-    :param shape: output data shape, defaults to :code:`None`  (auto-detect)
-    :type shape: ShapeTuple | None
     :param progress: progress callback function, defaults to :code:`None` 
     :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to :code:`None` 
@@ -313,7 +305,7 @@ def filter(
     sp_kwargs: dict[str, Any] | None = None,
     **options,
 ) -> tuple[Fraction | int, RawDataBlob]:
-    """Filter video frames.
+    """Filter video frames
 
     :param expr: filter graph or None if implicit filtering via output options.
     :param input_rate: input frame rate in frames/second

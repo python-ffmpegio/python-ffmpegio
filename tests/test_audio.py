@@ -164,6 +164,10 @@ def test_filter():
 
     output_rate, output = audio.filter("[in]bandpass[out]", input_rate, input)
 
+    output_rate, output = audio.filter(None, input_rate, input, ac=1, ar=8000)
+    assert output_rate == 8000
+    assert len(output["shape"]) == 1
+
 
 def test_read_buffin():
 

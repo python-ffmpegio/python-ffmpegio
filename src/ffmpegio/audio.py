@@ -12,7 +12,6 @@ from .analyze import AudioLog
 from .configure import (
     FFmpegInputOptionTuple,
     FFmpegInputUrlEx,
-    FFmpegUrlString,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegOutputOptionTuple,
@@ -25,7 +24,7 @@ from .std_runners import run_and_return_encoded, run_and_return_raw
 
 logger = logging.getLogger("ffmpegio")
 
-__all__ = ["create", "read", "write", "filter", "detect"]
+__all__ = ["create", "detect", "filter", "read", "write"]
 
 
 def create(
@@ -34,10 +33,10 @@ def create(
     squeeze: bool = True,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options: FFmpegOptionDict,
 ) -> tuple[int, RawDataBlob]:
-    """Create audio data using an audio source filter
+    """Create audio data using an FFmpeg source filter
 
     :param expr: name of the source filter or full filter expression
     :param args: sequential filter option arguments. Only valid for
@@ -46,7 +45,7 @@ def create(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D,
         eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
         defaults to :code:`None`  (no show/capture)
@@ -68,7 +67,7 @@ def create(
 
         - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) audio data
             object. Its data type depends on the selected plugin module (e.g.,
-            a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>` by 
+            a :py:class:`BytesRawDataBlob <ffmpegio.typing.BytesRawDataBlob>` by
             default or a :py:class:`numpy.ndarray` if
             :py:mod:`numpy` has been installed. The data shape is always 2D with the
             time axis in the first dimension if :code:`squeeze=False`. Else 1D array
@@ -123,7 +122,7 @@ def read(
     squeeze: bool | None = True,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options: FFmpegOptionDict,
 ) -> tuple[int, RawDataBlob]:
     """Read audio samples.
@@ -141,13 +140,13 @@ def read(
     :param squeeze: False to return 2D data with the 2nd dimension as the audio
         channels, defaults to True to reduce monaural data to 1D, eliminating
         the singular audio channel dimension.
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console, defaults
         to None (no show/capture). Ignored if stream format must be retrieved
         automatically.
     :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or
-        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None` 
+        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None`
     :param options: FFmpeg options, append '_in' for input option names
         (see :ref:`options`)
     :type options: FFmpegOptionDict
@@ -156,7 +155,7 @@ def read(
         - (int) sample rate in samples/second
         - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) audio data
             object. Its data type depends on the selected plugin module (e.g.,
-            a :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` by 
+            a :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` by
             default or a :py:class:`numpy.ndarray` if
             :py:mod:`numpy` has been installed. The data shape is always 2D with the
             time axis in the first dimension if :code:`squeeze=False`. Else 1D array
@@ -206,26 +205,26 @@ def write(
     data: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None]
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None] | None
     ) = None,
     progress: ProgressCallable | None = None,
     overwrite: bool | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any | None] | None = None,
     **options: FFmpegOptionDict,
 ):
-    """Write a raw audio data blob to an audio file.
+    """Write audio data to a file.
 
     :param url: URL of the audio file to write.
     :type url: FFmpegOutputUrlEx | FFmpegOutputOptionTuple | list[FFmpegOutputUrlEx | FFmpegOutputOptionTuple]
     :param rate_in: The sample rate in samples/second.
     :param data: audio data object to be written. Its data type must be supported
-        by a plugin module (e.g., :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` 
-        or a :py:class:`numpy.ndarray` if :py:mod:`numpy` is installed. The data shape must be 1D 
-        or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio 
+        by a plugin module (e.g., :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>`
+        or a :py:class:`numpy.ndarray` if :py:mod:`numpy` is installed. The data shape must be 1D
+        or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio
         channels.
     :type data: RawDataBlob
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param overwrite: True to overwrite if output url exists, defaults to :code:`None`  auto-select)
     :param show_log: True to show FFmpeg log messages on the console, defaults to :code:`None`  (no show/capture)
@@ -233,7 +232,7 @@ def write(
         string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None]
     :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or
-        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None` 
+        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults to :code:`None`
     :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     """
@@ -270,58 +269,56 @@ def filter(
     input: RawDataBlob,
     *,
     extra_inputs: (
-        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None]
+        list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None] | None
     ) = None,
     extra_outputs: (
-        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple | None]
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple | None] | None
     ) = None,
     squeeze: bool | None = True,
     progress: ProgressCallable | None = None,
     show_log: bool | None = None,
-    sp_kwargs: dict[str, Any | None] = None,
+    sp_kwargs: dict[str, Any] | None = None,
     **options: FFmpegOptionDict,
 ) -> tuple[int, RawDataBlob]:
-    """Filter audio samples.
+    """Filter audio samples
 
     :param expr: filter graph or None if implicit filtering via output options.
     :param input_rate: Input sample rate in samples/second
     :param input: audio data object to be written. Its data type must be supported
-        by a plugin module (e.g., :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` 
-        or a :py:class:`numpy.ndarray` if :py:mod:`numpy` is installed. The data shape must be 1D 
-        or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio 
+        by a plugin module (e.g., :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>`
+        or a :py:class:`numpy.ndarray` if :py:mod:`numpy` is installed. The data shape must be 1D
+        or 2D with the time axis in the first dimension. If 2D, its second dimension is the audio
         channels.
     :type input: RawDataBlob
     :param extra_inputs: list of additional input sources, defaults to :code:`None` .
-                         Each source may be url string or a pair of a url string
-                         and an option dict.
+        Each source may be url string or a pair of a url string and an option dict.
     :type extra_inputs: list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple | None]
     :param extra_outputs: list of additional encoded output sources, defaults to
-                          None. Each destination may be url string or a pair of
-                          a url string and an option dict.
+        None. Each destination may be url string or a pair of a url string and an option dict.
     :type extra_outputs: list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple | None]
     :param squeeze: False to always returning 2D data with the 2nd dimension as
-                    the audio channels, defaults to True to reduce monaural data
-                    to 1D, eliminating the singular audio channel dimension.
-    :param progress: progress callback function, defaults to :code:`None` 
+        the audio channels, defaults to True to reduce monaural data
+        to 1D, eliminating the singular audio channel dimension.
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
-                     defaults to :code:`None`  (no show/capture)
+        defaults to :code:`None`  (no show/capture)
     :param sp_kwargs: dictionary with keywords passed to :py:func:`subprocess.run()` or
-                      :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults
-                      to None
+        :py:class:`subprocess.Popen` call used to run the FFmpeg, defaults
+        to None
     :param options: FFmpeg options, append '_in' for input option names (see :ref:`options`)
     :type options: FFmpegOptionDict
     :return: a tuple containing
 
         - (int) sample rate in samples/second
-
         - (:py:type:`RawDataBlob <ffmpegio.typing.RawDataBlob>`) audio data
             object. Its data type depends on the selected plugin module (e.g.,
-            a :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` by 
+            a :py:class:`BytesRawDataBlob  <ffmpegio.typing.BytesRawDataBlob>` by
             default or a :py:class:`numpy.ndarray` if
             :py:mod:`numpy` has been installed. The data shape is always 2D with the
             time axis in the first dimension if :code:`squeeze=False`. Else 1D array
             is returned for monaural data.
+
     :rtype: tuple
 
     """
@@ -377,12 +374,12 @@ def detect(
         ============  ================  =========================================================
 
         defaults to include all the features
-    :param ss: start time to process, defaults to :code:`None` 
-    :param t: duration of data to process, defaults to :code:`None` 
-    :param to: stop processing at this time (ignored if t is also specified), defaults to :code:`None` 
+    :param ss: start time to process, defaults to :code:`None`
+    :param t: duration of data to process, defaults to :code:`None`
+    :param to: stop processing at this time (ignored if t is also specified), defaults to :code:`None`
     :param start_at_zero: ignore start time, defaults to False
     :param time_units: units of detected time stamps (not for ss, t, or to), defaults to :code:`None`  ('seconds')
-    :param progress: progress callback function, defaults to :code:`None` 
+    :param progress: progress callback function, defaults to :code:`None`
     :type progress: ProgressCallable | None
     :param show_log: True to show FFmpeg log messages on the console,
                      defaults to :code:`None`  (no show/capture)
@@ -458,4 +455,4 @@ def detect(
         **input_opts,
     )
 
-    return tuple((l.output for l in loggers))
+    return tuple(l.output for l in loggers)
