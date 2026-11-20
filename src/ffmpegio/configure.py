@@ -1095,7 +1095,9 @@ def resolve_raw_output_streams(
         spec = opts["map"]
 
         try:
-            opt = parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
+            map_opt = parse_map_option(
+                spec, parse_stream=True, input_file_id=input_file_id
+            )
         except ValueError:
             # incorrect spec if there is no complex filter in place
             if not utils.find_filter_complex_option(args["global_options"]):
@@ -1103,11 +1105,13 @@ def resolve_raw_output_streams(
 
             # test spec with possibly omitted brackets
             spec = f"[{spec}]"
-            opt = parse_map_option(spec, parse_stream=True, input_file_id=input_file_id)
+            map_opt = parse_map_option(
+                spec, parse_stream=True, input_file_id=input_file_id
+            )
             opts["map"] = spec
 
         # get output stream information
-        if "linklabel" in opt:
+        if "linklabel" in map_opt:
             # case 1: complex filtergraph requires only its outputs to be used
             #         link labels are unique, so each entry is guaranteed to be
             #         only associated with one label.
@@ -1116,15 +1120,15 @@ def resolve_raw_output_streams(
             output_info.append(
                 {
                     "user_map": spec[1:-1],
-                    "linklabel": opt["linklabel"],
+                    "linklabel": map_opt["linklabel"],
                 }
             )
         else:
-            if "negative" in opt:
+            if "negative" in map_opt:
                 raise ValueError("negative map is not supported.")
 
-            file_index = opt["input_file_id"]
-            stream_spec = opt["stream_specifier"]
+            file_index = map_opt["input_file_id"]
+            stream_spec = map_opt["stream_specifier"]
 
             # retrieve input stream data
             if "index" in stream_spec and "stream_type" in stream_spec:
@@ -1142,12 +1146,12 @@ def resolve_raw_output_streams(
                 )
             else:
                 # case 3: generic stream spec, possibly resultsing in multiple output streams
-                url, opts = inputs[file_index]
+                url, in_opts = inputs[file_index]
                 for stream_index, stream_spec in utils.input_file_stream_specs(
-                    url, stream_spec, opts or {}, input_info[file_index]
+                    url, stream_spec, in_opts or {}, input_info[file_index]
                 ).items():
                     # append all streams
-                    spec = f"{file_index}:{stream_index}"
+                    spec = f"{file_index}:{stream_spec}"
                     output_opts.append({**opts, "map": spec})
                     output_info.append(
                         {
@@ -1159,7 +1163,7 @@ def resolve_raw_output_streams(
                     )
 
     # resolve duplicate user_map values
-    name_counts = Counter((v["user_map"] for v in output_info))
+    name_counts = Counter(v["user_map"] for v in output_info)
 
     if any(v <= 1 for v in name_counts.values()):
         return output_opts, output_info
