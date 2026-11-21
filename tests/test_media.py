@@ -27,6 +27,22 @@ def test_media_read(urls, kwargs, nout):
     print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
 
 
+@pytest.mark.parametrize(
+    "streams, options, out_keys",
+    [
+        ((), {}, ["0:v:0", "0:v:1", "0:a:0", "0:a:1"]),
+        (("0:v:1", "0:a:1"), {}, ["0:v:1", "0:a:1"]),
+        ((), {"map": ["0:v:1", "0:a:1"]}, ["0:v:1", "0:a:1"]),
+        (({"map": "0:v:1"}, {"map": "0:a:1"}), {}, ["0:v:1", "0:a:1"]),
+        (("v",), {}, ["0:v:0", "0:v:1"]),
+    ],
+)
+def test_media_read_out_keys(streams, options, out_keys):
+
+    r, d = ff.media.read(url, *streams, **options, vframes=1)
+    assert set(r.keys()) == set(out_keys)
+
+
 def test_media_read_filter_complex():
     urls = (url2, url)  # aud + mul
     kwargs = dict(

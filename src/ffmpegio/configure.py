@@ -1515,17 +1515,37 @@ def process_raw_outputs(
     # resolve requested output streams
     stream_opts: list[FFmpegOptionDict]
     stream_info: list[dict[str, Any]]  # partial RawOutputInfoDict
-    if (streams is None or len(streams) == 0) and "map" not in options:
+
+    if "map" in options:
+        if not (streams is None or isinstance(streams, Sequence) or len(streams) == 0):
+            raise ValueError(
+                "Both streams argument and options['map'] cannot be given together"
+            )
+
+        # streams are chosen via the map option
+        streams = options.pop("map") # or None if not set
+
+    if streams is None:
+        streams = []
+
+    elif isinstance(streams, (str, dict)):
+        # make sure streams are given as a sequence
+        streams = [streams]
+
+    if len(streams) == 0:
         # gather all available streams keyed by their map specifier
         stream_opts, stream_info = auto_map(args, options, input_info, get_fg_info())
     else:
-        if streams is None:
-            stream_opts = [options]
-        else:
-            stream_opts = [
-                {**options, **({"map": v} if isinstance(v, str) else v)}
-                for v in streams
-            ]
+        # user-defined streams
+
+        # combine per-stream output options with the "global" output options
+        stream_opts = [
+            {**options, **({"map": v} if isinstance(v, str) else v)} for v in streams
+        ]
+
+        # make sure map option is specified
+        if any("map" not in o for o in stream_opts):
+            raise ValueError("Every raw output stream must have a map option.")
 
         # expand all streams (targetting )
         stream_opts, stream_info = resolve_raw_output_streams(
