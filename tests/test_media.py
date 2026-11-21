@@ -12,16 +12,21 @@ url2 = "tests/assets/testaudio-1m.mp3"
 
 
 @pytest.mark.parametrize(
-    "urls,kwargs,nout",
+    "urls,streams, kwargs,nout",
     [
-        ((url,), dict(t=1, show_log=True), 4),
-        ((url,), dict(streams=("v:0", "v:1", "a:1", "a:0"), t=1, show_log=True), 4),
-        ((url1, url2), dict(t=1, show_log=True), 2),
-        ((url1,), dict(t=1, filter_complex="[0:0]split[out1][out2]", show_log=True), 2),
+        (url, (), dict(t=1, show_log=True), 4),
+        (url, ("v:0", "v:1", "a:1", "a:0"), dict(t=1, show_log=True), 4),
+        ((url1, url2), (), dict(t=1, show_log=True), 2),
+        (
+            url1,
+            (),
+            dict(t=1, filter_complex="[0:0]split[out1][out2]", show_log=True),
+            2,
+        ),
     ],
 )
-def test_media_read(urls, kwargs, nout):
-    rates, data = ff.media.read(*urls, **kwargs, timeout=1.0)
+def test_media_read(urls, streams, kwargs, nout):
+    rates, data = ff.media.read(urls, *streams, **kwargs, timeout=1.0)
     assert len(rates) == nout
     print(rates)
     print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
@@ -45,13 +50,13 @@ def test_media_read_out_keys(streams, options, out_keys):
 
 def test_media_read_filter_complex():
     urls = (url2, url)  # aud + mul
-    kwargs = dict(
-        t=1,
-        show_log=True,
-        filter_complex="[0:a]aformat=f=dbl:r=8000:cl=mono;[1:v:1]setpts=0.5*PTS",
-    )
+    kwargs = {
+        "t": 1,
+        "show_log": True,
+        "filter_complex": "[0:a]aformat=f=dbl:r=8000:cl=mono;[1:v:1]setpts=0.5*PTS",
+    }
     # kwargs = dict(map=(['[vout]','[aout]']), t=1, show_log=True, filter_complex='[0:a]aformat=f=dbl:r=8000:cl=mono[aout];[1:v:1]setpts=0.5*PTS[vout]')
-    rates, data = ff.media.read(*urls, **kwargs)
+    rates, data = ff.media.read(urls, **kwargs)
     print(rates)
     print([(k, x["shape"], x["dtype"]) for k, x in data.items()])
 

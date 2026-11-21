@@ -22,6 +22,7 @@ from ._typing import (
 )
 from .configure import (
     FFmpegArgs,
+    FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
     FFmpegInputUrlNoPipe,
     FFmpegNoPipeInputOptionTuple,
@@ -117,13 +118,12 @@ def _gather_outputs(
 
 
 def read(
-    *urls: tuple[tuple[FFmpegInputUrlComposite, FFmpegOptionDict]],
-    streams: (
-        Sequence[str]
-        | Sequence[FFmpegOptionDict]
-        | dict[str, FFmpegOptionDict | None]
-        | None
-    ) = None,
+    url: (
+        FFmpegInputUrlComposite
+        | FFmpegInputOptionTuple
+        | list[FFmpegInputUrlComposite | FFmpegInputOptionTuple]
+    ),
+    *streams: tuple[str | FFmpegOptionDict],
     extra_outputs: (
         Sequence[FFmpegOutputUrlComposite | FFmpegOutputOptionTuple] | None
     ) = None,
@@ -135,12 +135,27 @@ def read(
 ) -> tuple[dict[str, Fraction | int], dict[str, RawDataBlob]]:
     """Read video and audio data from multiple media files
 
-    :param *urls: URLs of the media files to read or a tuple of the URL and its input option dict.
-    :param streams: a list of FFmpeg output stream map options. Alternately, the list
-                may consist of an FFmpeg output option dict (with a required `'map'` item)
-                a dict keyed by the map option value to apply different set of
-                output options to each output. If not specified (default), it
-                outputs all the streams.
+    .. warning::
+
+       The input arguments have been changed on :py:mod:`ffmpegio` v0.13.0.
+
+       - v0.12.0 and earlier : :code:`urls` were specified as variable positional
+         arguments and :code:`streams` was a keyword input
+       - v0.13.0 and later : the first :code:`url` argument can be a sequence to
+         specify multiple urls (like :py:func:`ffmpegio.video.read()) while
+         variable positional arguments :code:`streams` sets either the map specifier
+         or output stream options of each raw output.
+
+    :param url: one or more URLs of media files to read. Each url may be
+                accompanied by its own input options (a tuple pair). These options
+                supersede the input options given with keyword arguments with `'_in'`
+                suffix.
+    :param streams: an optional tuple of FFmpeg output stream map options. If additional
+        per-stream output options must be set, an FFmpeg option :py:class:`dict` may be
+        specified instead. Such :py:class:`dict` must have a :code:`map` key. If no
+        stream is specified, all available streams will be chosen. That is, if no complex
+        filtergraph is specified, all streams of the input urls; and if a complex
+        filtergraph is specified, all output streams of the filtergraph.
     :param extra_outputs: list of additional encoded output sources, defaults to
                           None. Each destination may be a url string or a pair of
                           a url string and an option dict.
@@ -165,7 +180,7 @@ def read(
     """
 
     args, input_info, output_info = configure.init_media_read(
-        list(urls), streams, options, extra_outputs, squeeze
+        url, streams, options, extra_outputs, squeeze
     )
 
     # run FFmpeg
