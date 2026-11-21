@@ -287,10 +287,6 @@ def init_media_read(
 
     options = {} if options is None else {**options}
 
-    ninputs = len(input_urls)
-    if not ninputs:
-        raise ValueError("At least one URL must be given.")
-
     if "n" in options:
         raise ValueError("Cannot have an `n` option set to output to named pipes.")
 
@@ -304,6 +300,10 @@ def init_media_read(
 
     # assign inputs
     input_info = process_url_inputs(args, input_urls, inopts_default)
+
+    ninputs = len(args["inputs"])
+    if not ninputs:
+        raise ValueError("At least one URL must be given.")
 
     # assign outputs
     try:
