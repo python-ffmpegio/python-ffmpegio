@@ -147,12 +147,14 @@ def read(
                 accompanied by its own input options (a tuple pair). These options
                 supersede the input options given with keyword arguments with `'_in'`
                 suffix.
+    :type url: FFmpegInputUrlEx | FFmpegInputOptionTuple | list[FFmpegInputUrlEx | FFmpegInputOptionTuple]
     :param streams: an optional tuple of FFmpeg output stream map options. If additional
         per-stream output options must be set, an FFmpeg option :py:class:`dict` may be
         specified instead. Such :py:class:`dict` must have a :code:`map` key. If no
         stream is specified, all available streams will be chosen. That is, if no complex
         filtergraph is specified, all streams of the input urls; and if a complex
         filtergraph is specified, all output streams of the filtergraph.
+    :type streams: tuple[str | FFmpegOptionDict]
     :param extra_outputs: list of additional encoded output sources, defaults to
         None. Each destination may be a url string or a pair of
         a url string and an option dict.

@@ -400,12 +400,12 @@ Multistream Functions
    media.filter
 
 The :code:`fmpegio.media` module extends read/write/filter operations to multiple 
-raw streams. The APIs follows those of the single-stream functions, but the raw data
+raw streams. The APIs closely follows those of the single-stream functions, but the raw data
 format is changed to support multiple raw streams.
 
 First, :py:func:`ffmpegio.media.read()` by default reads all the streams in the input url,
-and returns its rates and data outputs as :py:class:`dict`'s keyed by stream specifiers:
-:code:`input_file_id:stream_type:stream_index`. 
+and returns its rates and data outputs as :py:class:`dict`'s keyed by stream specifier :py:class:`str`
+with the syntax: :code:`"input_file_id:stream_type:stream_index"`. 
 
 Assuming :file:`my_video.mp4` contains one video and one audio streams, then the returned :code:`r` and :code:`data` of
 
@@ -413,7 +413,20 @@ Assuming :file:`my_video.mp4` contains one video and one audio streams, then the
 
    r, data = ffmpegio.media.read("my_video.mp4")
 
-are both :py:class:`dict` with the same keys: :code:`"0:v:0"` and :code:`"0:a:0"`.
+are both :py:class:`dict` with the same keys: :code:`"0:v:0"` and :code:`"0:a:0"`. The streams can be explicitly specified:
+
+.. code-block:: python
+
+   r, data = ffmpegio.media.read("my_video.mp4", "0:v:0", "0:a:0")
+
+The stream selection argument can be replaced by an FFmpeg output option :py:class:`dict`. 
+This feature could be used to retrieve original and modified version of a media stream.
+For example, the following retrieves 
+
+.. code-block:: python
+
+   r, data = ffmpegio.media.read("my_audio.flac", "0:a:0", {'map': '0:a:0', 'ar': 4000})
+
 
 
 
