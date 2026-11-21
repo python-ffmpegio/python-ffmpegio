@@ -144,11 +144,7 @@ def read(
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_read(
-        [url] if utils.is_valid_input_url(url) else url,
-        output_map,
-        options,
-        extra_outputs,
-        squeeze,
+        url, output_map, options, extra_outputs, squeeze
     )
 
     if output_info is None:
