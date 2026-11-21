@@ -1385,7 +1385,7 @@ def process_url_inputs(
     :return: list of input information
     """
 
-    urls = [urls] if utils.is_valid_input_url(urls) or isinstance(urls, tuple) else urls
+    urls = [urls] if utils.is_valid_input(urls) else urls
 
     if len(urls) == 0:
         raise FFmpegioError("At least one URL must be given.")
