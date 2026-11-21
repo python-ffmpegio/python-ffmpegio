@@ -1091,6 +1091,7 @@ def resolve_raw_output_streams(
 
     output_opts = []
     output_info = []
+    dup_counter = {}
     for i, opts in enumerate(stream_opts):
         spec = opts["map"]
 
@@ -1133,6 +1134,14 @@ def resolve_raw_output_streams(
             # retrieve input stream data
             if "index" in stream_spec and "stream_type" in stream_spec:
                 # case 2: specific input stream with known media type
+
+                # duplicate input stream check
+                if spec in dup_counter:
+                    dup_counter[spec] = spec_no = dup_counter[spec] + 1
+                    spec = f"{spec}-{spec_no}"
+                else:
+                    dup_counter[spec] = 0
+
                 output_opts.append(opts)
                 output_info.append(
                     {
@@ -1145,14 +1154,23 @@ def resolve_raw_output_streams(
                     }
                 )
             else:
-                # case 3: generic stream spec, possibly resultsing in multiple output streams
+                # case 3: generic stream spec, possibly resulting in multiple output streams
                 url, in_opts = inputs[file_index]
                 for stream_index, stream_spec in utils.input_file_stream_specs(
                     url, stream_spec, in_opts or {}, input_info[file_index]
                 ).items():
                     # append all streams
                     spec = f"{file_index}:{stream_spec}"
+
                     output_opts.append({**opts, "map": spec})
+
+                    # duplicate input stream check
+                    if spec in dup_counter:
+                        dup_counter[spec] = spec_no = dup_counter[spec] + 1
+                        spec = f"{spec}-{spec_no}"
+                    else:
+                        dup_counter[spec] = 0
+                    
                     output_info.append(
                         {
                             "user_map": spec,
