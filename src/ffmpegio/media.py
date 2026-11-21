@@ -276,16 +276,12 @@ def filter(
     expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
     input_types: Sequence[Literal["a", "v"]],
     *input_args: tuple[RawStreamDef, ...],
-    extra_inputs: (
-        list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
-    ) = None,
-    output_streams: Sequence[str | FFmpegOptionDict] | None,
+    output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
+    extra_inputs: (list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None) = None,
     extra_outputs: (
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
-    input_dtypes: list[DTypeString | None] | None = None,
-    input_shapes: list[ShapeTuple | None] | None = None,
     show_log: bool | None = None,
     progress: ProgressCallable | None = None,
     sp_kwargs: dict | None = None,
@@ -301,15 +297,13 @@ def filter(
                        (video) followed by a data blob or a tuple of a data blob
                        and a dict of input options. The option dict must include
                        `'ar'` (audio) or `'r'` (video) to specify the rate.
+    :param output_streams: specific options for keyed filtergraph output pads.
     :param extra_inputs: list of additional input sources, defaults to None.
                          Each source may be url string or a pair of a url string
                          and an option dict.
-    :param output_streams: specific options for keyed filtergraph output pads.
-    :param input_dtypes: list of numpy-style data type strings of input samples
-                          or frames of input media streams, defaults to `None`
-                          (auto-detect).
-    :param input_shapes: list of shapes of input samples or frames of input
-                          media streams, defaults to `None` (auto-detect).
+    :param extra_outputs: list of additional encoded output sources, defaults to
+                          None. Each destination may be a url string or a pair of
+                          a url string and an option dict.
     :param progress: progress callback function, defaults to None
     :param overwrite: True to overwrite if output url exists, defaults to None (auto-select)
     :param show_log: True to show FFmpeg log messages on the console, defaults to None (no show/capture)
@@ -342,8 +336,6 @@ def filter(
         options,
         squeeze,
         input_data,
-        input_dtypes,
-        input_shapes,
     )
 
     if output_info is None:
