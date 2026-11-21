@@ -8,6 +8,7 @@ from . import configure, ffmpegprocess, utils
 from ._typing import (
     DTypeString,
     FFmpegOptionDict,
+    FFmpegUrlString,
     InputInfoDict,
     InputPipeInfoDict,
     Literal,
@@ -24,12 +25,10 @@ from .configure import (
     FFmpegArgs,
     FFmpegInputOptionTuple,
     FFmpegInputUrlComposite,
-    FFmpegInputUrlNoPipe,
     FFmpegNoPipeInputOptionTuple,
     FFmpegNoPipeOutputOptionTuple,
     FFmpegOutputOptionTuple,
     FFmpegOutputUrlComposite,
-    FFmpegOutputUrlNoPipe,
 )
 from .errors import FFmpegError
 from .filtergraph.abc import FilterGraphObject
@@ -277,9 +276,9 @@ def filter(
     input_types: Sequence[Literal["a", "v"]],
     *input_args: tuple[RawStreamDef, ...],
     output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
-    extra_inputs: (list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None) = None,
+    extra_inputs: (list[FFmpegUrlString | FFmpegNoPipeInputOptionTuple] | None) = None,
     extra_outputs: (
-        list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
+        list[FFmpegUrlString | FFmpegNoPipeOutputOptionTuple] | None
     ) = None,
     squeeze: bool = False,
     show_log: bool | None = None,
