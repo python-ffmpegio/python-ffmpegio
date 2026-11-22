@@ -139,7 +139,7 @@ def read(
        - v0.12.0 and earlier : :code:`urls` were specified as variable positional
          arguments and :code:`streams` was a keyword input
        - v0.13.0 and later : the first :code:`url` argument can be a sequence to
-         specify multiple urls (like :py:func:`ffmpegio.video.read()) while
+         specify multiple urls (like :py:func:`ffmpegio.video.read()`) while
          variable positional arguments :code:`streams` sets either the map specifier
          or output stream options of each raw output.
 

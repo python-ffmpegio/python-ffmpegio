@@ -403,34 +403,95 @@ The :code:`fmpegio.media` module extends read/write/filter operations to multipl
 raw streams. The APIs closely follows those of the single-stream functions, but the raw data
 format is changed to support multiple raw streams.
 
+Multistream reader
+^^^^^^^^^^^^^^^^^^
+
 First, :py:func:`ffmpegio.media.read()` by default reads all the streams in the input url,
 and returns its rates and data outputs as :py:class:`dict`'s keyed by stream specifier :py:class:`str`
-with the syntax: :code:`"input_file_id:stream_type:stream_index"`. 
+with the syntax: :code:`"input_file_id:stream_type:stream_index[-duplicate_id]"`. If an input stream
+is requested more than once, the duplicate id is appended to the stream specifier, e.g., :code:`0:v:0-1`.
 
 Assuming :file:`my_video.mp4` contains one video and one audio streams, then the returned :code:`r` and :code:`data` of
 
 .. code-block:: python
 
-   r, data = ffmpegio.media.read("my_video.mp4")
+   r, data = ff.media.read("my_video.mp4")
 
-are both :py:class:`dict` with the same keys: :code:`"0:v:0"` and :code:`"0:a:0"`. The streams can be explicitly specified:
+are both :py:class:`dict` with the same keys: :code:`"0:v:0"` and :code:`"0:a:0"`. 
+The output streams may be explicitly specified:
 
 .. code-block:: python
 
-   r, data = ffmpegio.media.read("my_video.mp4", "0:v:0", "0:a:0")
+   r, data = ff.media.read("my_video.mp4", "0:v:0", "0:a:0")
 
 The stream selection argument can be replaced by an FFmpeg output option :py:class:`dict`. 
 This feature could be used to retrieve original and modified version of a media stream.
-For example, the following retrieves 
+For example, 
 
 .. code-block:: python
 
-   r, data = ffmpegio.media.read("my_audio.flac", "0:a:0", {'map': '0:a:0', 'ar': 4000})
+   r, data = ff.media.read("my_audio.flac", "a:0", {'map': 'a:0', 'ar': 4000})
 
+returns the original :code:`0:a:0` audio stream unmodified and its resampled version, keyed
+:code:`0:a:0-1` which is resampled to 4000 samples/second.
 
+Also, output stream specifier may select multiple streams. If a media file consists 
+of two audio streams, 
 
+.. code-block:: python
 
+   r, data = ff.media.read("my_video.mp4", "a")
 
+returns :code:`0:a:0` and :code:`0:a:1` streams. 
+
+If :py:func:`ffmpegio.media.read()` is called with :code:`filter_complex`, then
+by default, it returns all the filtergraph output streams. For example, 
+
+.. code-block:: python
+
+   # lowpass filter an audio stream and create visualization with the showcqt filter
+   fg = "[0:a:0]lowpass=4000, asplit[in1][in2]; [in1]showcqt=endfreq=4000:s=1920x1080[v]"
+   r, data = ff.media.read("my_audio.mp3", filter_complex=fg)
+
+returns two unused pad labels, :code:`"in2"` (audio) and :code:`"v"` (video), as 
+the output streams. You can also mix the input stream and complex filtergraph outputs
+so long as all the outputs are mapped. For the previous example, you can also read the 
+original audio stream:
+
+.. code-block:: python
+
+   r, data = ff.media.read("my_audio.mp3", "0:a:0", "in2", "v" filter_complex=fg)
+
+Multistream writer
+^^^^^^^^^^^^^^^^^^
+
+:py:func:`ffmpegio.media.write()` takes multiple raw media data, each of which must be
+either preceded by a rate or followed by an input FFmpeg option :py:class:`dict`. 
+Creating an mp4 file from Python-provided video and audio streams can be done by:
+
+.. code-block:: python
+
+   ff.media.write('output.mp4', fps, video_data, fs, audio_data)
+
+Equivalently, the input :py:class:`dict`'s may be given instead:
+
+.. code-block:: python
+
+   ff.media.write('output.mp4', video_data, {"r": fps}, audio_data, {"ar": fs})
+
+Each input :py:class:`dict` must have either :code:`"r"` (video frame rate) or
+:code:`"ar"` (audio sampling rate) key. The above two calling conventions can
+be mixed.
+
+Multistream filter
+^^^^^^^^^^^^^^^^^^
+
+:py:func:`ffmpegio.media.filter()` enables multiple-input multiple-output filtering
+operation using an FFmpeg filtergraph. 
+
+.. code-block:: python
+
+   ff.media.filter('output.mp4', video_data, {"r": fps}, audio_data, {"ar": fs})
 
 .. _options:
 
