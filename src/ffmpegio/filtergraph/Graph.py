@@ -610,10 +610,14 @@ class Graph(abc.FilterGraphObject, UserList):
         return len(list(self.iter_output_pads(chainable_only=chainable_only)))
 
     def iter_input_labels(
-        self, exclude_stream_specs: bool | None = False
+        self, exclude_stream_specs: bool = False, only_stream_specs: bool = False
     ) -> Generator[tuple[str, PAD_INDEX]]:
-        for label_index in self._links.iter_inputs(exclude_stream_specs):
-            yield label_index
+        if only_stream_specs:
+            for it in self._links.iter_input_streams():
+                yield it
+        else:
+            for label_index in self._links.iter_inputs(exclude_stream_specs):
+                yield label_index
 
     def iter_output_labels(self) -> Generator[tuple[str, PAD_INDEX]]:
         for label_index in self._links.iter_outputs():
