@@ -40,9 +40,9 @@ References
     :canonical: FFmpegUrlString | IO | memoryview
 
     Expanded input url specification. The primary input URL argument of all the 
-    functions (:code:`read()` 's, :py:func:`transcode`, and :py:func:`open()`)
-    support not only the string (or stringified) URLs but also readable file-like 
-    objects (:py:class:`IO`) or a byte buffer (:py:class`memoryview`).
+    functions (:code:`read()` 's, :py:func:`ffmpegio.transcode()`, and 
+    :py:func:`ffmpegio.open()`) support not only the string (or stringified) URLs 
+    but also readable file-like objects (:py:class:`IO`) or a byte buffer (:py:class`memoryview`).
 
     * String URL - specifies either file path or url
     * :py:class:`IO` - passing in already opened read file stream
@@ -63,7 +63,6 @@ References
 
     - :py:class:`str`
     - :py:class:`pathlib.Path`
-    - :py:class:`urllib.parse.UrlParseResult`
     - :py:class:`ffmpegio.FFConcat`
     - :py:class:`ffmpegio.filtergraph.abc.FilterGraphObject`
     - :py:class:`IO` 

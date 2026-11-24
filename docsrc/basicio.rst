@@ -44,6 +44,10 @@ Submodule               :code:`read()`  :code:`write()`  :code:`filter()`  :code
 an input FFmpeg filtergraph by design. If such application arises, :py:func:`ffmpegio.media.read()` 
 can take a :py:class:`ffmpegio.filtergraph.Graph` object as an input URL.
 
+.. tip::
+
+   In general, :doc:`streamio` with :py:func:`ffmpegio.open()` is better suited for video processing.
+
 Single-Stream Readers
 ---------------------
 
@@ -108,7 +112,7 @@ crucial roles to configure these reader functions. See `options`_ for the basic 
    Use :py:func:`ffmpegio.probe.video_streams_basic()` first to gather the information and restrict 
    the time range with :code:`ss`, :code:`to`, :code:`t`, or :code:`vframes` FFmpeg options. 
    
-   For a block-processing application, it"s often better to use :doc:`streamio` and use 
+   For a block-processing application, it's often better to use :doc:`streamio` and use 
    :py:func:`open()` to create a streaming I/O class.
 
 
@@ -140,7 +144,7 @@ Both of these produces the same output as providing :code:`"my_audio.mp3"` as th
 
 .. important::
 
-   In general, it"s more performant to let FFmpeg handle the file I/O by giving it the URL/file path.
+   In general, it's more performant to let FFmpeg handle the file I/O by giving it the URL/file path.
    Use these alternate input formats only when the source file/stream is not accessible from your
    Python program.
 
@@ -403,26 +407,27 @@ The :code:`fmpegio.media` module extends read/write/filter operations to multipl
 raw streams. The APIs closely follows those of the single-stream functions, but the raw data
 format is changed to support multiple raw streams.
 
-Multistream reader
-^^^^^^^^^^^^^^^^^^
+Reader
+^^^^^^
 
 First, :py:func:`ffmpegio.media.read()` by default reads all the streams in the input url,
 and returns its rates and data outputs as :py:class:`dict`'s keyed by stream specifier :py:class:`str`
 with the syntax: :code:`"input_file_id:stream_type:stream_index[-duplicate_id]"`. If an input stream
 is requested more than once, the duplicate id is appended to the stream specifier, e.g., :code:`0:v:0-1`.
 
-Assuming :file:`my_video.mp4` contains one video and one audio streams, then the returned :code:`r` and :code:`data` of
+Assuming :file:`my_video.mp4` contains one video and one audio streams, then the returned 
+y:code:`rates` and :code:`data` of
 
 .. code-block:: python
 
-   r, data = ff.media.read("my_video.mp4")
+   rates, data = ff.media.read("my_video.mp4")
 
 are both :py:class:`dict` with the same keys: :code:`"0:v:0"` and :code:`"0:a:0"`. 
 The output streams may be explicitly specified:
 
 .. code-block:: python
 
-   r, data = ff.media.read("my_video.mp4", "0:v:0", "0:a:0")
+   rates, data = ff.media.read("my_video.mp4", "0:v:0", "0:a:0")
 
 The stream selection argument can be replaced by an FFmpeg output option :py:class:`dict`. 
 This feature could be used to retrieve original and modified version of a media stream.
@@ -430,7 +435,7 @@ For example,
 
 .. code-block:: python
 
-   r, data = ff.media.read("my_audio.flac", "a:0", {'map': 'a:0', 'ar': 4000})
+   rates, data = ff.media.read("my_audio.flac", "a:0", {'map': 'a:0', 'ar': 4000})
 
 returns the original :code:`0:a:0` audio stream unmodified and its resampled version, keyed
 :code:`0:a:0-1` which is resampled to 4000 samples/second.
@@ -440,7 +445,7 @@ of two audio streams,
 
 .. code-block:: python
 
-   r, data = ff.media.read("my_video.mp4", "a")
+   rates, data = ff.media.read("my_video.mp4", "a")
 
 returns :code:`0:a:0` and :code:`0:a:1` streams. 
 
@@ -451,7 +456,7 @@ by default, it returns all the filtergraph output streams. For example,
 
    # lowpass filter an audio stream and create visualization with the showcqt filter
    fg = "[0:a:0]lowpass=4000, asplit[in1][in2]; [in1]showcqt=endfreq=4000:s=1920x1080[v]"
-   r, data = ff.media.read("my_audio.mp3", filter_complex=fg)
+   rates, data = ff.media.read("my_audio.mp3", filter_complex=fg)
 
 returns two unused pad labels, :code:`"in2"` (audio) and :code:`"v"` (video), as 
 the output streams. You can also mix the input stream and complex filtergraph outputs
@@ -460,38 +465,72 @@ original audio stream:
 
 .. code-block:: python
 
-   r, data = ff.media.read("my_audio.mp3", "0:a:0", "in2", "v" filter_complex=fg)
+   rates, data = ff.media.read("my_audio.mp3", "0:a:0", "in2", "v", filter_complex=fg)
 
-Multistream writer
-^^^^^^^^^^^^^^^^^^
+Writer
+^^^^^^
 
-:py:func:`ffmpegio.media.write()` takes multiple raw media data, each of which must be
-either preceded by a rate or followed by an input FFmpeg option :py:class:`dict`. 
-Creating an mp4 file from Python-provided video and audio streams can be done by:
-
-.. code-block:: python
-
-   ff.media.write('output.mp4', fps, video_data, fs, audio_data)
-
-Equivalently, the input :py:class:`dict`'s may be given instead:
-
-.. code-block:: python
-
-   ff.media.write('output.mp4', video_data, {"r": fps}, audio_data, {"ar": fs})
-
+:py:func:`ffmpegio.media.write()` creates a media file from multiple Python raw media 
+data objects. Each input media stream is defined either by a tuple of a rate and a data
+blob or alternately a tuple of a data blob and an FFmpeg input option :py:class:`dict`. 
 Each input :py:class:`dict` must have either :code:`"r"` (video frame rate) or
-:code:`"ar"` (audio sampling rate) key. The above two calling conventions can
-be mixed.
+:code:`"ar"` (audio sampling rate) item. The alternate convention allows specifying
+additional input options.
 
-Multistream filter
-^^^^^^^^^^^^^^^^^^
-
-:py:func:`ffmpegio.media.filter()` enables multiple-input multiple-output filtering
-operation using an FFmpeg filtergraph. 
+Using the first input format, creating an mp4 file from Python-provided video and 
+audio streams can be done by:
 
 .. code-block:: python
 
-   ff.media.filter('output.mp4', video_data, {"r": fps}, audio_data, {"ar": fs})
+   ff.media.write('output.mp4', "va", (fps, video_data), (fs, audio_data))
+
+Equivalently, the alternate convension is:
+
+.. code-block:: python
+
+   ff.media.write('output.mp4', "va", (video_data, {"r": fps}), (audio_data, {"ar": fs}))
+
+These two calling conventions can be mixed:
+
+.. code-block:: python
+
+   ff.media.write('output.mp4', "va", (video_data, {"r": fps}), (fs, audio_data))
+
+This could be useful if only some input streams need additional input options.
+
+Filter
+^^^^^^
+
+:py:func:`ffmpegio.media.filter()` enables multiple-input multiple-output media 
+filtering operation using an FFmpeg filtergraph. Its inputs are specified 
+
+Here, the same filtergraph :code:`fg` in the multistream reader example above is used 
+but the raw input audio data (:code:`x` with sampling rate :code:`fs`) is provided 
+from Python:
+
+.. code-block:: python
+
+   fg = "[0]lowpass=4000, asplit[in1][in2]; [in1]showcqt=endfreq=4000:s=1920x1080[v]"
+   rate, output_data = ff.media.filter(fg, "a", (fs, x))
+
+The function must specify a filtergraph (:code:`fg`) and its input media types (:code:`"a"`)
+followed by a pair of input rate and raw input data. Note that the input stream can be as
+simple as the stream number :code:`"[0]"`. The outputs :code:`rate` and :code:`output_data`
+are single-item :py:class:`dict` with :code:`"v"`.
+
+Here is another example, taking two video inputs, overlay the second input on the first:
+
+.. code-block:: python
+
+   rate, out = ff.media.filter(
+      "[0][1]overlay", "vv", (fps, main_data), (fps, overlay_data)
+   )
+
+The video input types are given by the string :code:`"vv"` and both are used in the 
+filtergraph expression (:code:`"[0]"` and :code:`"[1]"`). The outputs :code:`rate` and 
+:code:`out` are both :py:class:`dict` with the default output label :code:`"out0"`.
+
+The output 
 
 .. _options:
 

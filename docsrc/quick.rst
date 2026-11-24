@@ -90,9 +90,9 @@ basic functions:
     'sample_rate': 44100,
     'start_time': 0.0}]
 
-To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.full_details`,
-and to obtain specific format or stream fields, use :py:func:`ffmpegio.probe.query`. 
-For more information on :py:mod:`probe`, see :ref:`probe`.
+To obtain the complete ffprobe output, use :py:func:`ffmpegio.probe.full_details()`,
+and to obtain specific format or stream fields, use :py:func:`ffmpegio.probe.query()`. 
+For more information on :py:mod:`ffmpegio.probe`.
 
 Block Read/Write
 ----------------
