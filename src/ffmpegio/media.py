@@ -19,6 +19,7 @@ from ._typing import (
     RawStreamDef,
     ShapeTuple,
     Unpack,
+    MediaType
 )
 from .configure import (
     FFmpegArgs,
@@ -273,10 +274,10 @@ def write(
 
 
 def filter(
-    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject] | None,
-    input_types: Sequence[Literal["a", "v"]],
+    expr: str | FilterGraphObject | Sequence[str | FilterGraphObject],
+    input_types: Sequence[MediaType],
     *input_args: tuple[RawStreamDef, ...],
-    output_streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
+    output_options: Sequence[FFmpegOptionDict] | None = None,
     extra_inputs: (list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None) = None,
     extra_outputs: (
         list[FFmpegOutputUrlNoPipe | FFmpegNoPipeOutputOptionTuple] | None
@@ -293,14 +294,17 @@ def filter(
     :param input_types: list/string of input stream media types, each element is
                         either 'a' (audio) or 'v' (video)
     :param input_args: raw input stream data arguments, each input stream is
-                       either a tuple of a sample rate (audio) or frame rate
-                       (video) followed by a data blob or a tuple of a data blob
-                       and a dict of input options. The option dict must include
-                       `'ar'` (audio) or `'r'` (video) to specify the rate.
-    :param output_streams: specific options for keyed filtergraph output pads.
-    :param extra_inputs: list of additional input sources, defaults to None.
-                         Each source may be url string or a pair of a url string
-                         and an option dict.
+        either a tuple of a sample rate (audio) or frame rate
+        (video) followed by a data blob or a tuple of a data blob
+        and a dict of input options. The option dict must include
+        :code:`'ar'` (audio) or :code:`'r'` (video) to specify the rate.
+    :param output_options: per-stream output options, keyed by the filtergraph 
+        output labels, defaults to :code:`None`. The outputs that are not specified
+        in this dict will still be output with the default options.
+    :type output_options: dict[str, FFmpegOptionDict] | None
+    :param extra_inputs: list of additional input sources, defaults to :code:`None` .
+        Each source may be url string or a pair of a url string and an option dict.
+    :type extra_inputs: list[FFmpegInputUrlNoPipe | FFmpegNoPipeInputOptionTuple] | None
     :param extra_outputs: list of additional encoded output sources, defaults to
                           None. Each destination may be a url string or a pair of
                           a url string and an option dict.
@@ -322,16 +326,14 @@ def filter(
 
     """
 
-    if expr is not None:
-        options["filter_complex"] = expr
-
+    options["filter_complex"] = expr
     input_options, input_data = utils.raw_input_options(input_types, input_args)
 
     # initialize FFmpeg argument dict and get input & output information
     args, input_info, output_info = configure.init_media_filter(
         input_options,
         extra_inputs,
-        output_streams,
+        output_options,
         extra_outputs,
         options,
         squeeze,
