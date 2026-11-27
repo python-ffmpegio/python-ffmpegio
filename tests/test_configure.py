@@ -217,3 +217,20 @@ def test_resolve_raw_output_streams(
         args["global_options"] = {"filter_complex": filters_complex}
     out = configure.resolve_raw_output_streams(stream_opts, args, input_info)
     pprint(out)
+
+@pytest.mark.parametrize(
+    ("args", "input_info", "streams", "options", "squeeze", "res"),
+    [
+        ({},[],None,{},True
+        ),
+    ],
+)
+def test_process_raw_outputs(args, input_info, streams, options, squeeze, res):
+
+    process_raw_outputs(
+        args: FFmpegArgs,
+        input_info: list[RawInputInfoDict | EncodedInputInfoDict],
+        streams: str | FFmpegOptionDict | Sequence[str | FFmpegOptionDict] | None,
+        options: FFmpegOptionDict,
+        squeeze: bool,
+    ) -> list[OutputInfoDict]

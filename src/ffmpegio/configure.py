@@ -75,7 +75,7 @@ from .errors import (
     FFmpegioNoPipeAllowed,
 )
 from .filtergraph.abc import FilterGraphObject
-from .stream_spec import parse_map_option, stream_type_to_media_type, is_map_option
+from .stream_spec import is_map_option, parse_map_option, stream_type_to_media_type
 from .threading import CopyFileObjThread, ReaderThread, WriterThread
 from .utils import (
     FFmpegInputUrlComposite,
@@ -1170,7 +1170,7 @@ def resolve_raw_output_streams(
                         spec = f"{spec}-{spec_no}"
                     else:
                         dup_counter[spec] = 0
-                    
+
                     output_info.append(
                         {
                             "user_map": spec,
@@ -1506,19 +1506,11 @@ def process_raw_outputs(
 
     gopts = args["global_options"]
 
-    # on-demand complex filtergraph analysis
-    @cache
-    def get_fg_info() -> dict[str, FilterGraphInfoDict] | None:
-        """:returns fg_info: filtergraph output info if filtergraph has been pre-analyzed,
-        keyed by their linklabels, defaults to None to perform the
-        filtergraph analysis internally
-        """
-
-        optname = utils.find_filter_complex_option(gopts)
-
-        if optname is None:
-            return None
-
+    # analyze complex filtergraph
+    optname = utils.find_filter_complex_option(gopts)
+    if optname is None:
+        fg_info = None
+    else:
         if optname in ("/filter_complex", "/lavfi", "filter_complex_script"):
             raise NotImplementedError(
                 "filtergraph on a file is not yet supported. All output video streams must have `r`, `s`, and `pix_fmt` options defined."
@@ -1528,7 +1520,6 @@ def process_raw_outputs(
         gopts[optname], fg_info = utils.analyze_complex_filtergraphs(
             gopts[optname], args["inputs"], input_info
         )
-        return fg_info
 
     # resolve requested output streams
     stream_opts: list[FFmpegOptionDict]
@@ -1541,7 +1532,7 @@ def process_raw_outputs(
             )
 
         # streams are chosen via the map option
-        streams = options.pop("map") # or None if not set
+        streams = options.pop("map")  # or None if not set
 
     if streams is None:
         streams = []
@@ -1550,9 +1541,11 @@ def process_raw_outputs(
         # make sure streams are given as a sequence
         streams = [streams]
 
-    if len(streams) == 0:
+    auto_select = len(streams) == 0
+
+    if auto_select:
         # gather all available streams keyed by their map specifier
-        stream_opts, stream_info = auto_map(args, options, input_info, get_fg_info())
+        stream_opts, stream_info = auto_map(args, options, input_info, fg_info)
     else:
         # user-defined streams
 
@@ -1569,6 +1562,15 @@ def process_raw_outputs(
         stream_opts, stream_info = resolve_raw_output_streams(
             stream_opts, args, input_info
         )
+
+        if fg_info is not None:
+            # if a complex filtergraph is given, map all its outputs
+
+            stream_maps = {opt["map"] for opt in stream_opts}
+
+            for label, info in fg_info.items():
+                if label not in stream_maps:
+                    stream_opts.append({"map": f"[{label}]"})
 
     # finalize the output configuration
 
@@ -1610,6 +1612,100 @@ def process_raw_outputs(
 
         # finalize each output streams and identify the output formats
         add_url(args, "output", None, {**opts, **more_opts})
+
+    return stream_info
+
+
+def config_output_maps(
+    args: FFmpegArgs,
+    input_info: list[RawInputInfoDict | EncodedInputInfoDict],
+    raw_outputs: Sequence[str | FFmpegOptionDict] | None,
+    url_outputs: Sequence[FFmpegOutputOptionTuple] | None,
+    automap: Literal["raw", "url"],
+) -> tuple[list[FFmpegOptionDict], list[FFmpegOutputOptionTuple]]:
+    """analyze and process piped raw outputs
+
+    :param args: FFmpeg argument dict with :code:`args['inputs']` and
+        :code:`args['global_options']` fully populated.
+    :param input_info: list of input information (must have the same length as
+        :code:`args['inputs'])
+    :param raw_outputs: raw output stream mappings/options:
+
+          - :code:`None` to include all input streams OR all filtergraph outputs
+
+          - a sequence of either a map option or an output ffmpeg option
+            :py:class:`dict` with :code:`'map'` item
+
+    :param url_outputs: encoded output url specifications
+    :param skip_url_automapping: True to
+    :return output_info: list of output information
+
+
+    Rules
+    -----
+    * 
+    """
+
+    gopts = args["global_options"]
+
+    # analyze complex filtergraph
+    optname = utils.find_filter_complex_option(gopts)
+    if optname is None:
+        fg_info = None
+    else:
+        if optname in ("/filter_complex", "/lavfi", "filter_complex_script"):
+            raise NotImplementedError(
+                "filtergraph on a file is not yet supported. All output video streams must have `r`, `s`, and `pix_fmt` options defined."
+                "Likewise, all output audio streams mjust have `ar`, `ac`, and `sample_fmt` options defined."
+            )
+
+        # update the filtergraph option as the filtergraph pads may have received names
+        gopts[optname], fg_info = utils.analyze_complex_filtergraphs(
+            gopts[optname], args["inputs"], input_info
+        )
+
+    # resolve requested output streams
+    stream_opts: list[FFmpegOptionDict]
+    stream_info: list[dict[str, Any]]  # partial RawOutputInfoDict
+
+    if streams is None:
+        streams = []
+
+    elif isinstance(streams, (str, dict)):
+        # make sure streams are given as a sequence
+        streams = [streams]
+
+    auto_select = len(streams) == 0
+
+    if auto_select:
+        # gather all available streams keyed by their map specifier
+        stream_opts, stream_info = auto_map(args, options, input_info, fg_info)
+    else:
+        # user-defined streams
+
+        # combine per-stream output options with the "global" output options
+        stream_opts = [
+            {**options, **({"map": v} if isinstance(v, str) else v)} for v in streams
+        ]
+
+        # make sure map option is specified
+        if any("map" not in o for o in stream_opts):
+            raise ValueError("Every raw output stream must have a map option.")
+
+        # expand all streams (targetting )
+        stream_opts, stream_info = resolve_raw_output_streams(
+            stream_opts, args, input_info
+        )
+
+        if fg_info is not None:
+            # if a complex filtergraph is given, map all its outputs
+
+            stream_maps = {opt["map"] for opt in stream_opts}
+
+            for label, info in fg_info.items():
+                if label not in stream_maps:
+                    stream_opts.append({"map": f"[{label}]"})
+
 
     return stream_info
 
